@@ -43,9 +43,9 @@ Open <http://localhost:3000>.
   - ✅ **Part 2** Standings on `/tournaments/[slug]` (P / W / L / T / NR / Pts via `v_points_table`); full per-innings batting + bowling tables on completed matches with proper dismissal text and DNB detection.
   - ✅ **Part 2 (continued)** Public `/players/[playerId]` page with career totals + per-tournament breakdown via `v_player_tournament_stats`.
   - ✅ **Part 2 (OG)** Dynamic Open Graph images for matches (live score in the preview, refreshes every 60s) and tournaments. WhatsApp shares get a real preview card.
-  - ⏭ **Part 2 (rest)** OG share images.
-- ⏭ **Phase 5** — Spectator view (cached HTTP polling, NOT realtime).
-- ⏭ **Phase 6** — PWA, charts, push notifications, image uploads.
+- 🚧 **Phase 6** — Polish.
+  - ✅ PWA install (manifest + dynamic icons via `next/og`). App is installable on iOS / Android home screens.
+  - ⏭ Charts (Manhattan / worm / wagon wheel), push notifications, image upload UI for logos, offline service worker, shadcn AlertDialog for destructive actions.
 
 See HANDOFF.md §8 / §9 for the full breakdown.
 

@@ -415,16 +415,16 @@ Phases 0–3 done. Pick up at **Phase 4** (scoring engine). Each phase is roughl
   - Endpoints verified to return 200 with `image/png` content-type.
 
 ### Phase 6 — Polish & engagement (incremental)
-- PWA setup (`next-pwa`).
-- Shareable match URLs + Open Graph images.
-- Commentary feed (auto + manual).
-- Charts (Manhattan, worm, wagon wheel) — wagon wheel needs admin to tap a circle on ball entry.
-- Push notifications (wicket / 50 / 100 / match end).
-- Points table page (already a view in DB: `v_points_table`). NRR still TODO.
-- Player career stats page (uses `v_player_tournament_stats`).
-- Image upload UI for tournament/team/player logos (storage buckets exist).
-- Replace `confirm()` with shadcn `AlertDialog` for destructive actions.
-- Add edit/delete UIs for matches and innings in the same pattern.
+- [x] **PWA install** — `app/manifest.ts` + dynamic icons (`icon.tsx` 32×32, `icon1.tsx` 192×192 maskable, `icon2.tsx` 512×512 maskable, `apple-icon.tsx` 180×180). All rendered via `next/og` ImageResponse — no static asset files. `display: standalone`, dark theme. Verified manifest + each icon endpoint returns the correct content-type.
+- Open Graph images for matches + tournaments — done in Phase 5 part 2.
+- Points table — done in Phase 5 part 2.
+- Player career stats page — done in Phase 5 part 2.
+- Service worker for offline scoring — TODO; biggest engineering item, requires write-queue + drain-on-reconnect logic. Next 16 + Turbopack doesn't ship a stable next-pwa equivalent, so this is bespoke.
+- Commentary feed (auto + manual) — TODO.
+- Charts (Manhattan, worm, wagon wheel) — wagon wheel needs admin to tap a circle on ball entry — TODO.
+- Push notifications (wicket / 50 / 100 / match end) — TODO.
+- Image upload UI for tournament/team/player logos (storage buckets exist) — TODO.
+- Replace `confirm()` with shadcn `AlertDialog` for destructive actions — TODO.
 
 ---
 
