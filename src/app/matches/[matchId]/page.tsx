@@ -72,11 +72,18 @@ export default async function MatchDetailPage(props: {
             </p>
           </div>
           {canManage && (
-            <Link href={`/matches/${match.id}/edit`}>
-              <Button variant="ghost" size="sm">
-                Edit
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href={`/matches/${match.id}/score`}>
+                <Button size="sm">
+                  {match.status === "scheduled" ? "Start scoring" : "Score"}
+                </Button>
+              </Link>
+              <Link href={`/matches/${match.id}/edit`}>
+                <Button variant="ghost" size="sm">
+                  Edit
+                </Button>
+              </Link>
+            </div>
           )}
         </div>
 

@@ -31,9 +31,10 @@ Open <http://localhost:3000>.
 - 🚧 **Phase 4** — In progress.
   - ✅ **4a** Player category column (1/2/3) + UI badges.
   - ✅ **4b** Pure rules engine in `src/lib/scoring/` with the full HVC Season 6 ruleset (`HVC_RULES`). 19 Vitest tests passing. Run with `pnpm test`.
-  - ⏭ **4c** Wire `HVC_RULES` into `tournaments.rules` JSONB.
-  - ⏭ **4d** Ball-entry UI (mobile-friendly, big tap targets, undo, free-hit indicator).
-  - ⏭ **4e** Supabase Edge Function for server-side validation.
+  - ✅ **4c** `tournaments.rules` JSONB defaults to `HVC_RULES` on create. Safe parser (`getRuleSet`) with HVC fallback.
+  - ✅ **4d (part 1)** Ball-entry UI at `/matches/[matchId]/score`: start match, record balls (0–6, wide, no-ball, bye, wicket with type + player picker), single-ball undo, recent-balls strip, free-hit + special-over indicators. Server actions re-run the engine and hard-stop on rule violations.
+  - ⏭ **4d (part 2)** Multi-ball undo stack, innings break, second innings, match-end + winner determination, super over.
+  - ⏭ **4e** Supabase Edge Function for defense-in-depth server-side validation.
 - ⏭ **Phase 5** — Spectator view (cached HTTP polling, NOT realtime).
 - ⏭ **Phase 6** — PWA, charts, push notifications, image uploads.
 
@@ -58,6 +59,7 @@ See HANDOFF.md §8 / §9 for the full breakdown.
 | `/matches/[matchId]` | public | match detail (teams, schedule, toss, playing XI) |
 | `/matches/[matchId]/edit` | organizer | update / delete |
 | `/matches/[matchId]/xi/[teamId]` | organizer | pick playing XI (captain, keeper, batting order) |
+| `/matches/[matchId]/score` | organizer / scorer | live ball-entry scoreboard (gated on toss + both XIs) |
 | `/players` | public | global player registry |
 | `/players/new` | signed-in admin | create |
 | `/players/[playerId]/edit` | signed-in admin | update; delete is super-admin only |

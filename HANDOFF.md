@@ -310,9 +310,10 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
   - `rules.ts` — `HVC_RULES` (Season 6 spec) + `STANDARD_RULES` fallback
   - `engine.ts` — `startInnings`, `applyBall`, `advanceBowler`, `setStriker`, `setNonStriker`. Pure functions; balls are append-only and replayable.
   - `__tests__/engine.test.ts` — 19 Vitest tests covering basic flow, wides + no-balls, free-hit lifecycle (consumption + survives wides), free-hit dismissal validation (rejects caught, accepts run-out + hit-wicket), Cat 1 special-over rules (stay-on-strike, first-dismissal-only, non-striker lock), wicket type validation (LBW rejected, byes rejected when disabled), bowler max-overs cap, innings completion (regular + super-over 2-wicket cap).
-- [ ] **4c** — Wire `HVC_RULES` to `tournaments.rules` JSONB on create + validate shape on read.
-- [ ] **4d** — Ball-entry UI: mobile-friendly, big tap targets, undo, free-hit indicator, full over flow.
-- [ ] **4e** — Supabase Edge Function: re-run engine on the server, reject invalid balls.
+- [x] **4c** — `getRuleSet(json)` parser in `src/lib/scoring/parse.ts` with zod validation; falls back to `HVC_RULES` on missing/empty/invalid. `createTournament` action defaults `tournaments.rules` to `HVC_RULES` JSONB on insert.
+- [x] **4d (part 1)** — `/matches/[matchId]/score` route built. Server actions: `startMatch` (gated on toss + both XIs picked; creates innings 1, flips match to `live`), `recordBall` (re-runs engine on the server, hard-stops on rule violation, computes over/ball/legal_seq), `voidLastBall` (single undo). Client scoreboard shows score/wickets/overs, free-hit + special-over badges, recent-balls strip, big tap-button grid (0/1/2/3/4/6, Wide, No-Ball, Bye, Wicket-with-type-and-player picker), and pre-ball pickers for striker/non-striker/bowler. Match detail page now links to **Start scoring** / **Score**.
+- [ ] **4d (part 2)** — Multi-ball undo stack (current undo is single-ball). End-of-innings handoff (start innings 2 with target, batting order swap). Match-end flow (winner, win margin, super-over trigger). Bye edge cases. Wicket fielder picker. Innings break UX. Super over flow.
+- [ ] **4e** — Supabase Edge Function: re-run engine on the server in a separate runtime layer, reject invalid balls (defence in depth — currently the Server Action does the validation, which is server-side already but bound to Next.js).
 
 Encoded HVC ruleset reference: see `memory/project_hvc_rules.md` (per-machine), or just read `HVC_RULES` in `src/lib/scoring/rules.ts`.
 
