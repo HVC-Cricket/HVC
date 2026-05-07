@@ -13,6 +13,7 @@ import { InningsBreakPanel } from "./innings-break-panel";
 import { MatchCompletePanel } from "./match-complete-panel";
 import { Scoreboard } from "./scoreboard";
 import { StartMatchPanel } from "./start-match-panel";
+import { SuperOverPanel } from "./super-over-panel";
 import { loadScoreboardState } from "./state";
 
 export const dynamic = "force-dynamic";
@@ -95,17 +96,24 @@ export default async function ScorePage(props: {
           <StartMatchPanel state={state} />
         )}
 
-        {(state.phase === "innings_1" || state.phase === "innings_2") &&
-          state.innings && (
-            <Scoreboard state={state} />
-          )}
+        {(state.phase === "innings_1" ||
+          state.phase === "innings_2" ||
+          state.phase === "super_over_1" ||
+          state.phase === "super_over_2") &&
+          state.innings && <Scoreboard state={state} />}
 
         {state.phase === "innings_break" && (
           <InningsBreakPanel state={state} />
         )}
 
+        {(state.phase === "tied_pending_super_over" ||
+          state.phase === "super_over_break") && (
+          <SuperOverPanel state={state} />
+        )}
+
         {(state.phase === "match_complete" ||
-          state.phase === "tied_pending_super_over") && (
+          state.phase === "super_over_decided" ||
+          state.phase === "super_over_tied") && (
           <MatchCompletePanel state={state} />
         )}
       </div>

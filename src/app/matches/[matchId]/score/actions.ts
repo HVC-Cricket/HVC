@@ -223,11 +223,20 @@ export async function recordBall(
   };
 
   // Replay through the engine to derive current state, then apply the
-  // proposed ball to validate.
+  // proposed ball to validate. innings_number > 2 means super over →
+  // engine applies the 2-wicket / 1-over caps.
+  const { data: inningsRow } = await supabase
+    .from("innings")
+    .select("innings_number")
+    .eq("id", parsed.data.inningsId)
+    .single();
+  const isSuperOver = (inningsRow?.innings_number ?? 1) > 2;
+
   let state = startInnings({
-    innings_number: 1,
+    innings_number: inningsRow?.innings_number ?? 1,
     batting_team_id: innings.batting_team_id,
     bowling_team_id: innings.bowling_team_id,
+    is_super_over: isSuperOver,
     striker: toEnginePlayer(
       prevBalls?.[0]?.batter_id ?? parsed.data.striker_id,
     ),
@@ -364,6 +373,26 @@ export async function recordBall(
       .eq("id", innings.id)
       .single();
     if (i?.innings_number === 2) {
+      const { data: i1 } = await supabase
+        .from("innings")
+        .select("total_runs")
+        .eq("match_id", parsed.data.matchId)
+        .eq("innings_number", 1)
+        .maybeSingle();
+      const { data: i2 } = await supabase
+        .from("innings")
+        .select("total_runs")
+        .eq("match_id", parsed.data.matchId)
+        .eq("innings_number", 2)
+        .maybeSingle();
+      // Only finalize if NOT tied. A tie waits for the super over to be
+      // started (or for the scorer to declare it a final tie manually).
+      if (i1 && i2 && i1.total_runs !== i2.total_runs) {
+        await finalizeMatchInternal(supabase, parsed.data.matchId);
+      }
+    }
+    if (i?.innings_number === 4) {
+      // Both super-over innings complete → finalize.
       await finalizeMatchInternal(supabase, parsed.data.matchId);
     }
   }
@@ -513,6 +542,8 @@ async function finalizeMatchInternal(
     .order("innings_number", { ascending: true });
   const i1 = innings?.find((i) => i.innings_number === 1);
   const i2 = innings?.find((i) => i.innings_number === 2);
+  const so1 = innings?.find((i) => i.innings_number === 3);
+  const so2 = innings?.find((i) => i.innings_number === 4);
   if (!i1 || !i2) {
     return { ok: false, error: "Both innings must exist to finalize" };
   }
@@ -522,7 +553,30 @@ async function finalizeMatchInternal(
   let resultType: "normal" | "tie" | "super_over" | "no_result" | "abandoned" =
     "normal";
 
-  if (i2.total_runs >= (i2.target ?? i1.total_runs + 1)) {
+  // If a super over has been completed, its outcome decides the match.
+  if (so1 && so2) {
+    resultType = "super_over";
+    if (so1.total_runs > so2.total_runs) {
+      winnerId = so1.batting_team_id;
+      const margin = so1.total_runs - so2.total_runs;
+      winMargin = `won the super over by ${margin} run${margin === 1 ? "" : "s"}`;
+    } else if (so2.total_runs > so1.total_runs) {
+      winnerId = so2.batting_team_id;
+      const { data: matchRow } = await supabase
+        .from("matches")
+        .select("players_per_side")
+        .eq("id", matchId)
+        .single();
+      const xi = matchRow?.players_per_side ?? 11;
+      // Super-over wickets cap is the rules' max_wickets; default 2.
+      const wicketsLeft = xi - 1 - so2.total_wickets;
+      winMargin = `won the super over by ${wicketsLeft} wicket${wicketsLeft === 1 ? "" : "s"}`;
+    } else {
+      // Super over also tied
+      resultType = "tie";
+      winMargin = "tied (super over also tied)";
+    }
+  } else if (i2.total_runs >= (i2.target ?? i1.total_runs + 1)) {
     // Chasing side won by wickets remaining
     winnerId = i2.batting_team_id;
     const { data: matchRow } = await supabase
@@ -539,7 +593,7 @@ async function finalizeMatchInternal(
     const margin = i1.total_runs - i2.total_runs;
     winMargin = `won by ${margin} run${margin === 1 ? "" : "s"}`;
   } else {
-    // Tie
+    // Tie (no super over yet)
     resultType = "tie";
     winMargin = "tied";
   }
@@ -556,6 +610,128 @@ async function finalizeMatchInternal(
     .eq("id", matchId);
   if (error) return { ok: false, error: error.message };
   return { ok: true, data: undefined };
+}
+
+// ---------------------------------------------------------------------------
+// Super over actions
+// ---------------------------------------------------------------------------
+
+const startSuperOverInningsSchema = z.object({
+  matchId: z.string().uuid(),
+  inningsNumber: z.union([z.literal(3), z.literal(4)]),
+  striker_id: z.string().uuid(),
+  non_striker_id: z.string().uuid(),
+  bowler_id: z.string().uuid(),
+});
+
+/**
+ * Creates a super-over innings (3 = team that batted 2nd in main match,
+ * 4 = team that batted 1st). Validates that:
+ *  - regular innings 1 + 2 are both complete and tied
+ *  - the requested super-over innings doesn't already exist
+ *  - super-over team setup follows HVC: team that batted second in main
+ *    match bats first in super over (i.e. innings 3.batting_team =
+ *    innings 2.batting_team).
+ */
+export async function startSuperOverInnings(
+  input: z.infer<typeof startSuperOverInningsSchema>,
+): Promise<ActionResult<{ inningsId: string }>> {
+  const parsed = startSuperOverInningsSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { data: match } = await supabase
+    .from("matches")
+    .select("id, tournament_id, team_a_id, team_b_id")
+    .eq("id", parsed.data.matchId)
+    .single();
+  if (!match) return { ok: false, error: "Match not found" };
+  await requireTournamentAdmin(match.tournament_id);
+
+  const { data: regular } = await supabase
+    .from("innings")
+    .select("innings_number, batting_team_id, bowling_team_id, total_runs, is_complete")
+    .eq("match_id", match.id)
+    .in("innings_number", [1, 2, 3, 4]);
+  const i1 = regular?.find((i) => i.innings_number === 1);
+  const i2 = regular?.find((i) => i.innings_number === 2);
+  const so1 = regular?.find((i) => i.innings_number === 3);
+  const so2 = regular?.find((i) => i.innings_number === 4);
+
+  if (!i1?.is_complete || !i2?.is_complete) {
+    return { ok: false, error: "Regular innings must both be complete" };
+  }
+  if (i1.total_runs !== i2.total_runs) {
+    return {
+      ok: false,
+      error: "Match isn't tied — super over only happens after a tied result",
+    };
+  }
+
+  let battingTeamId: string;
+  let bowlingTeamId: string;
+  let target: number | null = null;
+
+  if (parsed.data.inningsNumber === 3) {
+    if (so1) return { ok: false, error: "Super over innings 3 already exists" };
+    // Team that batted SECOND in main match bats FIRST in super over.
+    battingTeamId = i2.batting_team_id;
+    bowlingTeamId = i2.bowling_team_id;
+  } else {
+    if (!so1?.is_complete) {
+      return { ok: false, error: "Super over innings 3 must be complete first" };
+    }
+    if (so2) return { ok: false, error: "Super over innings 4 already exists" };
+    battingTeamId = so1.bowling_team_id;
+    bowlingTeamId = so1.batting_team_id;
+    target = so1.total_runs + 1;
+  }
+
+  // Validate XI membership.
+  const { data: xiRows } = await supabase
+    .from("match_players")
+    .select("player_id, team_id")
+    .eq("match_id", match.id);
+  const inBatting = (id: string) =>
+    !!xiRows?.find((r) => r.team_id === battingTeamId && r.player_id === id);
+  const inBowling = (id: string) =>
+    !!xiRows?.find((r) => r.team_id === bowlingTeamId && r.player_id === id);
+  if (
+    !inBatting(parsed.data.striker_id) ||
+    !inBatting(parsed.data.non_striker_id) ||
+    parsed.data.striker_id === parsed.data.non_striker_id
+  ) {
+    return { ok: false, error: "Striker and non-striker must be two different batting-XI players" };
+  }
+  if (!inBowling(parsed.data.bowler_id)) {
+    return { ok: false, error: "Bowler must be in the bowling-XI" };
+  }
+
+  const { data: innings, error: insErr } = await supabase
+    .from("innings")
+    .insert({
+      match_id: match.id,
+      innings_number: parsed.data.inningsNumber,
+      batting_team_id: battingTeamId,
+      bowling_team_id: bowlingTeamId,
+      target,
+      started_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (insErr || !innings) {
+    return { ok: false, error: insErr?.message ?? "Failed to create super-over innings" };
+  }
+
+  await supabase
+    .from("matches")
+    .update({ current_innings_id: innings.id, status: "live" })
+    .eq("id", match.id);
+
+  revalidatePath(`/matches/${match.id}/score`);
+  return { ok: true, data: { inningsId: innings.id } };
 }
 
 const voidLastSchema = z.object({

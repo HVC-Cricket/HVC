@@ -324,7 +324,15 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
   - No-ball: `No-ball` / `NB +1` / `NB +2` / `NB +4` / `NB +6` (penalty + bat runs) → records `runs_off_bat = N`, `extras = 1`, `extra_type='no_ball'`.
   - Wicket button moved to its own row so the inline panel has full width.
   - Two new engine tests (NB + 4 off bat, Wide + 4 boundary). 21/21 passing.
-- [ ] **4d (part 3, deferred)** — Multi-ball undo stack, super over flow (innings 3 / 4 with 2-wicket cap).
+- [x] **4d (part 3a) — Super over flow**:
+  - Phase machine extended: `tied_pending_super_over` → `super_over_1` → `super_over_break` → `super_over_2` → `super_over_decided` / `super_over_tied`.
+  - `startSuperOverInnings` action creates innings 3 (team that batted 2nd in main match bats first) or innings 4 (chase with target). Engine's existing `is_super_over` flag enforces the 2-wicket cap and 1-over cap (already in HVC_RULES + applyBall).
+  - `recordBall` now derives `is_super_over` from `innings.innings_number > 2` so the engine applies the right caps when validating.
+  - `finalizeMatchInternal` checks for super-over innings first; sets `result_type='super_over'` with the right winner and margin (runs / wickets). Super-over tie → `result_type='tie'` with a "tied (super over also tied)" margin.
+  - `SuperOverPanel` UI handles both starts (innings 3 + innings 4) with the chase target shown for innings 4.
+  - `MatchCompletePanel` extended to surface super-over scorelines and the "super over also tied" case.
+  - Recursive super overs (5/6/...) not implemented — HVC rules don't specify a tiebreaker beyond one super over.
+- [ ] **4d (part 3b, deferred)** — Multi-ball undo stack (current undo is one-tap-per-ball; multi-step would be a stack visualization).
 - [ ] **4e** — Supabase Edge Function: re-run engine on the server in a separate runtime layer, reject invalid balls (defence in depth — currently the Server Action does the validation, which is server-side already but bound to Next.js).
 
 Encoded HVC ruleset reference: see `memory/project_hvc_rules.md` (per-machine), or just read `HVC_RULES` in `src/lib/scoring/rules.ts`.

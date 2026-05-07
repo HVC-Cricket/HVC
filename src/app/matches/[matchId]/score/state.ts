@@ -33,7 +33,12 @@ export type MatchPhase =
   | "innings_break"
   | "innings_2"
   | "match_complete"
-  | "tied_pending_super_over";
+  | "tied_pending_super_over"
+  | "super_over_1"
+  | "super_over_break"
+  | "super_over_2"
+  | "super_over_decided"
+  | "super_over_tied";
 
 export type ScoreboardState = {
   match: MatchRow;
@@ -244,11 +249,12 @@ function derivePhase(args: {
   allInnings: InningsSummary[];
 }): MatchPhase {
   const { match, allInnings } = args;
-  if (match.status === "completed") return "match_complete";
   if (match.status === "scheduled") return "pre_match";
 
   const i1 = allInnings.find((i) => i.innings_number === 1);
   const i2 = allInnings.find((i) => i.innings_number === 2);
+  const so1 = allInnings.find((i) => i.innings_number === 3);
+  const so2 = allInnings.find((i) => i.innings_number === 4);
 
   if (!i1) return "pre_match";
   if (!i1.is_complete) return "innings_1";
@@ -257,10 +263,25 @@ function derivePhase(args: {
   if (!i2) return "innings_break";
   if (!i2.is_complete) return "innings_2";
 
-  // Both innings complete. Tie? Otherwise the match is decided —
-  // we just haven't flipped status yet.
-  if (i1.total_runs === i2.total_runs) {
-    return "tied_pending_super_over";
+  // Both regular innings complete. Tied?
+  const regularTied = i1.total_runs === i2.total_runs;
+
+  if (!regularTied) {
+    // Decided after second innings.
+    if (match.status === "completed") return "match_complete";
+    return "match_complete";
   }
-  return "match_complete";
+
+  // Tied. Super over may or may not have started.
+  if (!so1) return "tied_pending_super_over";
+  if (!so1.is_complete) return "super_over_1";
+  if (!so2) return "super_over_break";
+  if (!so2.is_complete) return "super_over_2";
+
+  // Both super-over innings complete.
+  if (so1.total_runs === so2.total_runs) {
+    // Super over also tied.
+    return match.status === "completed" ? "match_complete" : "super_over_tied";
+  }
+  return match.status === "completed" ? "match_complete" : "super_over_decided";
 }
