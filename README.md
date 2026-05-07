@@ -39,7 +39,8 @@ Open <http://localhost:3000>.
   - ⏭ **4e** Supabase Edge Function for defense-in-depth server-side validation.
 - 🚧 **Phase 5** — Spectator view.
   - ✅ **Part 1** Live scorecard on `/matches/[id]`: score, RR, target/required-RR for chases, current batsmen + bowler stats, recent-balls strip, free-hit / special-over badges, match-end banner. Auto-refresh every 2.5s via cached HTTP polling (no realtime subscription, free-tier safe).
-  - ⏭ **Part 2** Full innings tables on completed matches, points table page, player career stats page, OG share images.
+  - ✅ **Part 2** Standings on `/tournaments/[slug]` (P / W / L / T / NR / Pts via `v_points_table`); full per-innings batting + bowling tables on completed matches with proper dismissal text and DNB detection.
+  - ⏭ **Part 2 (rest)** Player career stats page (`v_player_tournament_stats`), OG share images.
 - ⏭ **Phase 5** — Spectator view (cached HTTP polling, NOT realtime).
 - ⏭ **Phase 6** — PWA, charts, push notifications, image uploads.
 

@@ -12,6 +12,8 @@ import {
 import { getSessionContext, isTournamentOrganizer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
+import { PointsTableSection } from "./points-table-section";
+
 export const dynamic = "force-dynamic";
 
 export default async function TournamentDetailPage(props: {
@@ -96,6 +98,11 @@ export default async function TournamentDetailPage(props: {
             />
           </CardContent>
         </Card>
+
+        <PointsTableSection
+          tournamentId={tournament.id}
+          teams={teams ?? []}
+        />
 
         <section className="space-y-3">
           <div className="flex items-center justify-between">

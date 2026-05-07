@@ -393,7 +393,11 @@ Phases 0–3 done. Pick up at **Phase 4** (scoring engine). Each phase is roughl
   - Free-hit + special-over (cat1 / cat3) badges flow through.
   - **`AutoRefresh` client component** triggers `router.refresh()` every 2.5s while the match is live (cached HTTP polling — does NOT subscribe to Supabase realtime, staying under the 200 concurrent-connection cap).
   - Match-end banner with winner + win margin when `match.status='completed'`.
-- [ ] **Part 2 (deferred)** — full innings tables on completed matches (every batter's line + every bowler's spell), points table page, player career stats page, shareable Open Graph image for WhatsApp shares.
+- [x] **Part 2 (in progress)** — Stats surfaces:
+  - **Points table** as a `Standings` section on `/tournaments/[slug]`. Sourced from the `v_points_table` view + a typed cast (view isn't in the Database stub yet). Columns: P / W / L / T / NR / Pts. Sorted by points → points-per-match → name. NRR tie-break still TODO.
+  - **Full scorecard** on `/matches/[id]` when `status='completed'`: per-innings batting card (Batter / Out / R / B / 4s / 6s / SR with full dismissal text — `c X b Y`, `b Y`, `run out (Z)` etc.), extras row (wd / nb / b breakdown + total), bowling card (Bowler / O / R / W / Wd / Nb / Econ). Computed inline from `balls` rows; mirrors v_innings_batting + v_innings_bowling.
+  - DNB ("did not bat") detection: any XI member who never appeared as batter or non-striker.
+- [ ] **Part 2 (still deferred)** — Player career stats page (`v_player_tournament_stats` exists), shareable Open Graph image for WhatsApp shares.
 
 ### Phase 6 — Polish & engagement (incremental)
 - PWA setup (`next-pwa`).

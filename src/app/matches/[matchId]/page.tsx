@@ -12,6 +12,7 @@ import {
 import { getSessionContext, isTournamentOrganizer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
+import { FullScorecard } from "./full-scorecard";
 import { LiveScorePanel } from "./live-score-panel";
 import { TossForm } from "./toss-form";
 import { XISection } from "./xi-section";
@@ -92,6 +93,10 @@ export default async function MatchDetailPage(props: {
           match.status === "innings_break" ||
           match.status === "completed") && (
           <LiveScorePanel matchId={match.id} />
+        )}
+
+        {match.status === "completed" && (
+          <FullScorecard matchId={match.id} />
         )}
 
         <Card>
