@@ -41,7 +41,8 @@ Open <http://localhost:3000>.
 - 🚧 **Phase 5** — Spectator view.
   - ✅ **Part 1** Live scorecard on `/matches/[id]`: score, RR, target/required-RR for chases, current batsmen + bowler stats, recent-balls strip, free-hit / special-over badges, match-end banner. Auto-refresh every 2.5s via cached HTTP polling (no realtime subscription, free-tier safe).
   - ✅ **Part 2** Standings on `/tournaments/[slug]` (P / W / L / T / NR / Pts via `v_points_table`); full per-innings batting + bowling tables on completed matches with proper dismissal text and DNB detection.
-  - ⏭ **Part 2 (rest)** Player career stats page (`v_player_tournament_stats`), OG share images.
+  - ✅ **Part 2 (continued)** Public `/players/[playerId]` page with career totals + per-tournament breakdown via `v_player_tournament_stats`.
+  - ⏭ **Part 2 (rest)** OG share images.
 - ⏭ **Phase 5** — Spectator view (cached HTTP polling, NOT realtime).
 - ⏭ **Phase 6** — PWA, charts, push notifications, image uploads.
 
@@ -69,6 +70,7 @@ See HANDOFF.md §8 / §9 for the full breakdown.
 | `/matches/[matchId]/score` | organizer / scorer | live ball-entry scoreboard (gated on toss + both XIs) |
 | `/players` | public | global player registry |
 | `/players/new` | signed-in admin | create |
+| `/players/[playerId]` | public | career stats (R / W / SR / Econ + per-tournament breakdown) |
 | `/players/[playerId]/edit` | signed-in admin | update; delete is super-admin only |
 
 "Organizer" includes super-admin. The organizer/scorer permission model is wired end-to-end through `requireOrganizer` / `requireTournamentAdmin` helpers in `src/lib/auth.ts` and the matching SQL helpers in `db.sql`. Add organizers/scorers via `/tournaments/[slug]/admins`.

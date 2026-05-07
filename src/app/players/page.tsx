@@ -64,38 +64,32 @@ export default async function PlayersPage() {
             <CardContent className="p-0">
               <ul className="divide-y divide-foreground/10">
                 {players.map((p) => (
-                  <li
-                    key={p.id}
-                    className="flex items-center justify-between gap-3 p-4 text-sm"
-                  >
-                    <span className="flex items-center gap-3">
-                      {p.category ? (
-                        <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-xs font-mono">
-                          C{p.category}
-                        </span>
-                      ) : (
-                        <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-xs text-destructive">
-                          no category
-                        </span>
-                      )}
-                      <span className="font-medium">{p.display_name}</span>
-                    </span>
-                    <span className="flex items-center gap-3">
-                      <span className="text-muted-foreground">
-                        {[p.batting_style, p.bowling_style]
-                          .filter(Boolean)
-                          .map((s) => s!.replace(/_/g, " "))
-                          .join(" · ") || "—"}
+                  <li key={p.id}>
+                    <Link
+                      href={`/players/${p.id}`}
+                      className="flex items-center justify-between gap-3 p-4 text-sm hover:bg-muted/40"
+                    >
+                      <span className="flex items-center gap-3">
+                        {p.category ? (
+                          <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-xs font-mono">
+                            C{p.category}
+                          </span>
+                        ) : (
+                          <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-xs text-destructive">
+                            no category
+                          </span>
+                        )}
+                        <span className="font-medium">{p.display_name}</span>
                       </span>
-                      {ctx?.user && (
-                        <Link
-                          href={`/players/${p.id}/edit`}
-                          className="text-xs text-muted-foreground underline-offset-4 hover:underline"
-                        >
-                          Edit
-                        </Link>
-                      )}
-                    </span>
+                      <span className="flex items-center gap-3">
+                        <span className="text-muted-foreground">
+                          {[p.batting_style, p.bowling_style]
+                            .filter(Boolean)
+                            .map((s) => s!.replace(/_/g, " "))
+                            .join(" · ") || "—"}
+                        </span>
+                      </span>
+                    </Link>
                   </li>
                 ))}
               </ul>
