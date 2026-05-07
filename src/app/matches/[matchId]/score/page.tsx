@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/card";
 import { requireTournamentAdmin } from "@/lib/auth";
 
+import { InningsBreakPanel } from "./innings-break-panel";
+import { MatchCompletePanel } from "./match-complete-panel";
 import { Scoreboard } from "./scoreboard";
 import { StartMatchPanel } from "./start-match-panel";
 import { loadScoreboardState } from "./state";
@@ -89,12 +91,22 @@ export default async function ScorePage(props: {
           </Card>
         )}
 
-        {hasToss && xisReady && state.match.status === "scheduled" && (
+        {hasToss && xisReady && state.phase === "pre_match" && (
           <StartMatchPanel state={state} />
         )}
 
-        {state.innings && (
-          <Scoreboard state={state} />
+        {(state.phase === "innings_1" || state.phase === "innings_2") &&
+          state.innings && (
+            <Scoreboard state={state} />
+          )}
+
+        {state.phase === "innings_break" && (
+          <InningsBreakPanel state={state} />
+        )}
+
+        {(state.phase === "match_complete" ||
+          state.phase === "tied_pending_super_over") && (
+          <MatchCompletePanel state={state} />
         )}
       </div>
     </main>

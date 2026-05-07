@@ -335,14 +335,226 @@ export async function recordBall(
 
   // The trigger on `balls` will recompute innings totals.
   // Mark innings complete if engine says so.
-  if (validation.state.is_complete) {
+  let inningsComplete = validation.state.is_complete;
+
+  // Chase: if this is innings 2 and there's a target, the innings ends
+  // the moment total_runs >= target. We re-read totals because the trigger
+  // updates them after our insert.
+  if (!inningsComplete) {
+    const { data: latest } = await supabase
+      .from("innings")
+      .select("total_runs, target")
+      .eq("id", innings.id)
+      .single();
+    if (latest?.target != null && latest.total_runs >= latest.target) {
+      inningsComplete = true;
+    }
+  }
+
+  if (inningsComplete) {
     await supabase
       .from("innings")
       .update({ is_complete: true, ended_at: new Date().toISOString() })
       .eq("id", innings.id);
+
+    // If this was the second innings, finalize the match.
+    const { data: i } = await supabase
+      .from("innings")
+      .select("innings_number")
+      .eq("id", innings.id)
+      .single();
+    if (i?.innings_number === 2) {
+      await finalizeMatchInternal(supabase, parsed.data.matchId);
+    }
   }
 
   revalidatePath(`/matches/${parsed.data.matchId}/score`);
+  return { ok: true, data: undefined };
+}
+
+const startSecondInningsSchema = z.object({
+  matchId: z.string().uuid(),
+  striker_id: z.string().uuid(),
+  non_striker_id: z.string().uuid(),
+  bowler_id: z.string().uuid(),
+});
+
+export async function startSecondInnings(
+  input: z.infer<typeof startSecondInningsSchema>,
+): Promise<ActionResult<{ inningsId: string }>> {
+  const parsed = startSecondInningsSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { data: match } = await supabase
+    .from("matches")
+    .select("id, tournament_id, team_a_id, team_b_id, status")
+    .eq("id", parsed.data.matchId)
+    .single();
+  if (!match) return { ok: false, error: "Match not found" };
+  await requireTournamentAdmin(match.tournament_id);
+
+  // Innings 1 must be complete; innings 2 must not exist.
+  const { data: innings1 } = await supabase
+    .from("innings")
+    .select("id, batting_team_id, bowling_team_id, total_runs, is_complete")
+    .eq("match_id", match.id)
+    .eq("innings_number", 1)
+    .maybeSingle();
+  if (!innings1) return { ok: false, error: "Innings 1 not started" };
+  if (!innings1.is_complete) {
+    return { ok: false, error: "Innings 1 must be complete first" };
+  }
+
+  const { data: existingI2 } = await supabase
+    .from("innings")
+    .select("id")
+    .eq("match_id", match.id)
+    .eq("innings_number", 2)
+    .maybeSingle();
+  if (existingI2) {
+    return { ok: false, error: "Innings 2 already exists" };
+  }
+
+  // Sides flip. Target = innings1 + 1.
+  const battingTeamId = innings1.bowling_team_id;
+  const bowlingTeamId = innings1.batting_team_id;
+  const target = innings1.total_runs + 1;
+
+  // Validate XI membership.
+  const { data: xiRows } = await supabase
+    .from("match_players")
+    .select("player_id, team_id")
+    .eq("match_id", match.id);
+  const inBatting = (id: string) =>
+    !!xiRows?.find((r) => r.team_id === battingTeamId && r.player_id === id);
+  const inBowling = (id: string) =>
+    !!xiRows?.find((r) => r.team_id === bowlingTeamId && r.player_id === id);
+  if (
+    !inBatting(parsed.data.striker_id) ||
+    !inBatting(parsed.data.non_striker_id) ||
+    parsed.data.striker_id === parsed.data.non_striker_id
+  ) {
+    return { ok: false, error: "Striker and non-striker must be two different batting-XI players" };
+  }
+  if (!inBowling(parsed.data.bowler_id)) {
+    return { ok: false, error: "Bowler must be in the bowling-XI" };
+  }
+
+  const { data: innings, error: insErr } = await supabase
+    .from("innings")
+    .insert({
+      match_id: match.id,
+      innings_number: 2,
+      batting_team_id: battingTeamId,
+      bowling_team_id: bowlingTeamId,
+      target,
+      started_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (insErr || !innings) {
+    return { ok: false, error: insErr?.message ?? "Failed to create innings 2" };
+  }
+
+  await supabase
+    .from("matches")
+    .update({ current_innings_id: innings.id, status: "live" })
+    .eq("id", match.id);
+
+  revalidatePath(`/matches/${match.id}/score`);
+  return { ok: true, data: { inningsId: innings.id } };
+}
+
+const finalizeSchema = z.object({ matchId: z.string().uuid() });
+
+export async function finalizeMatch(
+  input: z.infer<typeof finalizeSchema>,
+): Promise<ActionResult> {
+  const parsed = finalizeSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { data: match } = await supabase
+    .from("matches")
+    .select("tournament_id")
+    .eq("id", parsed.data.matchId)
+    .single();
+  if (!match) return { ok: false, error: "Match not found" };
+  await requireTournamentAdmin(match.tournament_id);
+
+  const result = await finalizeMatchInternal(supabase, parsed.data.matchId);
+  if (!result.ok) return result;
+  revalidatePath(`/matches/${parsed.data.matchId}/score`);
+  revalidatePath(`/matches/${parsed.data.matchId}`);
+  return { ok: true, data: undefined };
+}
+
+/**
+ * Inspect both innings totals and decide the winner / win margin.
+ * Sets matches.status='completed', winner_id, win_margin, result_type.
+ * Tie → result_type='tie' with no winner; super-over flow handles the
+ * follow-up (deferred).
+ */
+async function finalizeMatchInternal(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  matchId: string,
+): Promise<ActionResult> {
+  const { data: innings } = await supabase
+    .from("innings")
+    .select(
+      "innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, target",
+    )
+    .eq("match_id", matchId)
+    .order("innings_number", { ascending: true });
+  const i1 = innings?.find((i) => i.innings_number === 1);
+  const i2 = innings?.find((i) => i.innings_number === 2);
+  if (!i1 || !i2) {
+    return { ok: false, error: "Both innings must exist to finalize" };
+  }
+
+  let winnerId: string | null = null;
+  let winMargin: string | null = null;
+  let resultType: "normal" | "tie" | "super_over" | "no_result" | "abandoned" =
+    "normal";
+
+  if (i2.total_runs >= (i2.target ?? i1.total_runs + 1)) {
+    // Chasing side won by wickets remaining
+    winnerId = i2.batting_team_id;
+    const { data: matchRow } = await supabase
+      .from("matches")
+      .select("players_per_side")
+      .eq("id", matchId)
+      .single();
+    const xi = matchRow?.players_per_side ?? 11;
+    const wicketsLeft = xi - 1 - i2.total_wickets;
+    winMargin = `won by ${wicketsLeft} wicket${wicketsLeft === 1 ? "" : "s"}`;
+  } else if (i2.total_runs < i1.total_runs) {
+    // Defending side won by runs
+    winnerId = i1.batting_team_id;
+    const margin = i1.total_runs - i2.total_runs;
+    winMargin = `won by ${margin} run${margin === 1 ? "" : "s"}`;
+  } else {
+    // Tie
+    resultType = "tie";
+    winMargin = "tied";
+  }
+
+  const { error } = await supabase
+    .from("matches")
+    .update({
+      status: "completed",
+      ended_at: new Date().toISOString(),
+      result_type: resultType,
+      winner_id: winnerId,
+      win_margin: winMargin,
+    })
+    .eq("id", matchId);
+  if (error) return { ok: false, error: error.message };
   return { ok: true, data: undefined };
 }
 

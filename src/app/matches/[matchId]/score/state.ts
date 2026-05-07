@@ -12,6 +12,29 @@ import type { Database } from "@/lib/supabase/database.types";
 type BallRow = Database["public"]["Tables"]["balls"]["Row"];
 type MatchRow = Database["public"]["Tables"]["matches"]["Row"];
 
+export type InningsSummary = {
+  id: string;
+  innings_number: number;
+  batting_team_id: string;
+  bowling_team_id: string;
+  total_runs: number;
+  total_wickets: number;
+  total_legal_balls: number;
+  extras_wides: number;
+  extras_no_balls: number;
+  extras_byes: number;
+  target: number | null;
+  is_complete: boolean;
+};
+
+export type MatchPhase =
+  | "pre_match"
+  | "innings_1"
+  | "innings_break"
+  | "innings_2"
+  | "match_complete"
+  | "tied_pending_super_over";
+
 export type ScoreboardState = {
   match: MatchRow;
   tournament: { id: string; slug: string; name: string };
@@ -20,19 +43,10 @@ export type ScoreboardState = {
   teamB: { id: string; name: string; short_name: string };
   /** XI for both teams keyed by team_id */
   xi: Record<string, EnginePlayer[]>;
-  innings: {
-    id: string;
-    innings_number: number;
-    batting_team_id: string;
-    bowling_team_id: string;
-    total_runs: number;
-    total_wickets: number;
-    total_legal_balls: number;
-    extras_wides: number;
-    extras_no_balls: number;
-    extras_byes: number;
-    is_complete: boolean;
-  } | null;
+  /** all innings rows for this match, in order */
+  allInnings: InningsSummary[];
+  /** the active innings (per matches.current_innings_id) */
+  innings: InningsSummary | null;
   /** all non-voided balls of the active innings, in order */
   balls: BallRow[];
   /** balls within the current (in-progress) over */
@@ -49,6 +63,7 @@ export type ScoreboardState = {
     free_hit_pending: boolean;
     is_special_over: "cat1" | "cat3" | null;
   };
+  phase: MatchPhase;
 };
 
 export async function loadScoreboardState(matchId: string): Promise<ScoreboardState> {
@@ -108,18 +123,22 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
     });
   }
 
-  // Active innings
+  // All innings for this match (so we can show innings-1 summary during break + final)
+  const { data: allInningsRows } = await supabase
+    .from("innings")
+    .select(
+      "id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls, extras_wides, extras_no_balls, extras_byes, target, is_complete",
+    )
+    .eq("match_id", match.id)
+    .order("innings_number", { ascending: true });
+  const allInnings = (allInningsRows ?? []) as InningsSummary[];
+
+  // Active innings (per matches.current_innings_id)
   let innings: ScoreboardState["innings"] = null;
   let balls: BallRow[] = [];
   if (match.current_innings_id) {
-    const { data: i } = await supabase
-      .from("innings")
-      .select(
-        "id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls, extras_wides, extras_no_balls, extras_byes, is_complete",
-      )
-      .eq("id", match.current_innings_id)
-      .single();
-    if (i) innings = i;
+    innings =
+      allInnings.find((i) => i.id === match.current_innings_id) ?? null;
 
     const { data: ballRows } = await supabase
       .from("balls")
@@ -192,6 +211,9 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
     }
   }
 
+  // Phase derivation
+  const phase: MatchPhase = derivePhase({ match, allInnings });
+
   return {
     match,
     tournament: { id: tournament.id, slug: tournament.slug, name: tournament.name },
@@ -199,6 +221,7 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
     teamA,
     teamB,
     xi,
+    allInnings,
     innings,
     balls,
     currentOverBalls,
@@ -212,5 +235,32 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
       free_hit_pending,
       is_special_over,
     },
+    phase,
   };
+}
+
+function derivePhase(args: {
+  match: MatchRow;
+  allInnings: InningsSummary[];
+}): MatchPhase {
+  const { match, allInnings } = args;
+  if (match.status === "completed") return "match_complete";
+  if (match.status === "scheduled") return "pre_match";
+
+  const i1 = allInnings.find((i) => i.innings_number === 1);
+  const i2 = allInnings.find((i) => i.innings_number === 2);
+
+  if (!i1) return "pre_match";
+  if (!i1.is_complete) return "innings_1";
+
+  // Innings 1 complete
+  if (!i2) return "innings_break";
+  if (!i2.is_complete) return "innings_2";
+
+  // Both innings complete. Tie? Otherwise the match is decided —
+  // we just haven't flipped status yet.
+  if (i1.total_runs === i2.total_runs) {
+    return "tied_pending_super_over";
+  }
+  return "match_complete";
 }
