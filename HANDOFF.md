@@ -409,7 +409,10 @@ Phases 0–3 done. Pick up at **Phase 4** (scoring engine). Each phase is roughl
   - Career-totals card (R / B / 4s / 6s / SR / Wickets / Overs / Econ) summed across every tournament the player has touched. Sourced from the `v_player_tournament_stats` view via a typed cast.
   - Per-tournament breakdown table linking back to each tournament page.
   - `/players` list rows now link to the detail page; the inline Edit affordance is on the detail page itself for signed-in admins.
-- [ ] **Part 2 (still deferred)** — Shareable Open Graph image for WhatsApp shares.
+- [x] **Part 2 (continued, OG)** — Dynamic Open Graph images via Next 16's `opengraph-image.tsx` convention:
+  - `/matches/[id]/opengraph-image` renders a 1200×630 with team short names, both innings scorelines (when present), tournament + stage line, and a status pill (LIVE / FINAL / scheduled date). `revalidate = 60` so live shares stay fresh.
+  - `/tournaments/[slug]/opengraph-image` renders tournament name, short description, dates, venue. `revalidate = 300`.
+  - Endpoints verified to return 200 with `image/png` content-type.
 
 ### Phase 6 — Polish & engagement (incremental)
 - PWA setup (`next-pwa`).
