@@ -34,8 +34,11 @@ Open <http://localhost:3000>.
   - ✅ **4c** `tournaments.rules` JSONB defaults to `HVC_RULES` on create. Safe parser (`getRuleSet`) with HVC fallback.
   - ✅ **4d (part 1)** Ball-entry UI at `/matches/[matchId]/score`: start match, record balls (0–6, wide, no-ball, bye, wicket with type + player picker), single-ball undo, recent-balls strip, free-hit + special-over indicators. Server actions re-run the engine and hard-stop on rule violations.
   - ✅ **4d (part 2)** Innings break + innings 2 + match end. `state.ts` loads all innings + derives a phase. `startSecondInnings` flips sides and sets the chase target. `recordBall` auto-completes innings 2 when target chased; `finalizeMatchInternal` sets winner + win margin (by wickets / by runs / tie). New `InningsBreakPanel` and `MatchCompletePanel` UIs.
-  - ⏭ **4d (part 3)** Multi-ball undo stack, super-over flow, wicket fielder picker, multi-run-byes keypad.
+  - ⏭ **4d (part 3)** Multi-ball undo stack, super-over flow, runs-after-wide/no-ball (overthrows / boundaries off wides).
   - ⏭ **4e** Supabase Edge Function for defense-in-depth server-side validation.
+- 🚧 **Phase 5** — Spectator view.
+  - ✅ **Part 1** Live scorecard on `/matches/[id]`: score, RR, target/required-RR for chases, current batsmen + bowler stats, recent-balls strip, free-hit / special-over badges, match-end banner. Auto-refresh every 2.5s via cached HTTP polling (no realtime subscription, free-tier safe).
+  - ⏭ **Part 2** Full innings tables on completed matches, points table page, player career stats page, OG share images.
 - ⏭ **Phase 5** — Spectator view (cached HTTP polling, NOT realtime).
 - ⏭ **Phase 6** — PWA, charts, push notifications, image uploads.
 

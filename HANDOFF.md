@@ -381,10 +381,14 @@ Phases 0–3 done. Pick up at **Phase 4** (scoring engine). Each phase is roughl
 7. **Server-side validation** via Supabase Edge Function: re-runs rules engine, rejects invalid balls. Same module shared between client and edge.
 
 ### Phase 5 — Spectator view
-1. `/matches/[matchId]` live scorecard — **cached HTTP** (Next.js route cache + revalidate every 2–3s). NOT realtime, to stay under the free-tier 200 connection ceiling.
-2. Recent overs strip, batsmen + bowler stats panels using `v_innings_batting` / `v_innings_bowling`.
-3. Required run rate / projected score on chase.
-4. Completed scorecard view (full innings tables).
+- [x] **Part 1 — Live scorecard on the public match detail page**:
+  - `LiveScorePanel` server component renders score / wickets / overs / RR for the active innings, plus required runs + balls + req-RR for chases, and the innings-1 summary once the second innings starts.
+  - Per-batsman stats (R / B / 4s / 6s / SR) and per-bowler stats (O / R / W / Wd / Econ) computed inline from `balls` rows (no separate queries; mirrors the SQL views).
+  - Recent-balls strip (current over + previous over) with W / wd / nb / b annotations.
+  - Free-hit + special-over (cat1 / cat3) badges flow through.
+  - **`AutoRefresh` client component** triggers `router.refresh()` every 2.5s while the match is live (cached HTTP polling — does NOT subscribe to Supabase realtime, staying under the 200 concurrent-connection cap).
+  - Match-end banner with winner + win margin when `match.status='completed'`.
+- [ ] **Part 2 (deferred)** — full innings tables on completed matches (every batter's line + every bowler's spell), points table page, player career stats page, shareable Open Graph image for WhatsApp shares.
 
 ### Phase 6 — Polish & engagement (incremental)
 - PWA setup (`next-pwa`).
