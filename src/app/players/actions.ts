@@ -23,6 +23,7 @@ const bowlingStyles = [
 
 const createPlayerSchema = z.object({
   display_name: z.string().min(2, "Name must be at least 2 characters"),
+  category: z.coerce.number().int().min(1).max(3),
   phone: z.string().optional().or(z.literal("")),
   batting_style: z.enum(["", ...battingStyles]).optional(),
   bowling_style: z.enum(["", ...bowlingStyles]).optional(),
@@ -44,6 +45,7 @@ export async function createPlayer(
     .from("players")
     .insert({
       display_name: parsed.data.display_name,
+      category: parsed.data.category as 1 | 2 | 3,
       phone: parsed.data.phone || null,
       batting_style: parsed.data.batting_style || null,
       bowling_style: parsed.data.bowling_style || null,
@@ -65,6 +67,7 @@ export async function createPlayer(
 const updatePlayerSchema = z.object({
   playerId: z.string().uuid(),
   display_name: z.string().min(2),
+  category: z.coerce.number().int().min(1).max(3),
   phone: z.string().optional().or(z.literal("")),
   batting_style: z.enum(["", ...battingStyles]).optional(),
   bowling_style: z.enum(["", ...bowlingStyles]).optional(),
@@ -84,6 +87,7 @@ export async function updatePlayer(
     .from("players")
     .update({
       display_name: parsed.data.display_name,
+      category: parsed.data.category as 1 | 2 | 3,
       phone: parsed.data.phone || null,
       batting_style: parsed.data.batting_style || null,
       bowling_style: parsed.data.bowling_style || null,

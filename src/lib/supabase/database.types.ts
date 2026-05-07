@@ -193,6 +193,7 @@ export type Database = {
           photo_url: string | null;
           batting_style: string | null;
           bowling_style: string | null;
+          category: 1 | 2 | 3 | null;
           linked_user_id: string | null;
           created_at: string;
         };
@@ -203,6 +204,7 @@ export type Database = {
           photo_url?: string | null;
           batting_style?: string | null;
           bowling_style?: string | null;
+          category?: 1 | 2 | 3 | null;
           linked_user_id?: string | null;
           created_at?: string;
         };
@@ -213,6 +215,7 @@ export type Database = {
           photo_url?: string | null;
           batting_style?: string | null;
           bowling_style?: string | null;
+          category?: 1 | 2 | 3 | null;
           linked_user_id?: string | null;
           created_at?: string;
         };

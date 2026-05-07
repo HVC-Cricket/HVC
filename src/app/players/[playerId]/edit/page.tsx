@@ -22,7 +22,7 @@ export default async function EditPlayerPage(props: {
   const supabase = await createClient();
   const { data: player } = await supabase
     .from("players")
-    .select("id, display_name, phone, batting_style, bowling_style")
+    .select("id, display_name, category, phone, batting_style, bowling_style")
     .eq("id", playerId)
     .single();
   if (!player) notFound();
@@ -42,6 +42,7 @@ export default async function EditPlayerPage(props: {
               player={{
                 id: player.id,
                 display_name: player.display_name,
+                category: player.category,
                 phone: player.phone,
                 batting_style: player.batting_style,
                 bowling_style: player.bowling_style,

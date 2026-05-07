@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -20,6 +21,9 @@ import { createPlayer } from "../actions";
 
 const schema = z.object({
   display_name: z.string().min(2, "Name must be at least 2 characters"),
+  category: z.enum(["1", "2", "3"], {
+    errorMap: () => ({ message: "Pick a category" }),
+  }),
   phone: z.string().optional().or(z.literal("")),
   batting_style: z.enum(["", "right_hand", "left_hand"]).optional(),
   bowling_style: z
@@ -44,6 +48,7 @@ export function NewPlayerForm({ redirectTo }: { redirectTo?: string }) {
     resolver: zodResolver(schema),
     defaultValues: {
       display_name: "",
+      category: "" as unknown as FormValues["category"],
       phone: "",
       batting_style: "",
       bowling_style: "",
@@ -51,7 +56,11 @@ export function NewPlayerForm({ redirectTo }: { redirectTo?: string }) {
   });
 
   const onSubmit = async (values: FormValues) => {
-    const result = await createPlayer({ ...values, redirectTo });
+    const result = await createPlayer({
+      ...values,
+      category: Number(values.category),
+      redirectTo,
+    });
     if (result && !result.ok) {
       toast.error(result.error);
     }
@@ -69,6 +78,31 @@ export function NewPlayerForm({ redirectTo }: { redirectTo?: string }) {
               <FormControl>
                 <Input placeholder="Virat K." {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Category</FormLabel>
+              <FormControl>
+                <select
+                  {...field}
+                  className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
+                >
+                  <option value="">Select category…</option>
+                  <option value="1">Category 1</option>
+                  <option value="2">Category 2</option>
+                  <option value="3">Category 3</option>
+                </select>
+              </FormControl>
+              <FormDescription>
+                HVC: Cat 1 bowls over 1 vs Cat 1 batter, Cat 3 bowls over 2 vs
+                Cat 3 batter, Cat 2 bowls the rest. Max 2 overs per bowler.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

@@ -28,7 +28,12 @@ Open <http://localhost:3000>.
 - ✅ **Phase 1** — Auth: `/signup`, `/login`, `/me`, Server Actions, role-aware nav. Super-admin bootstrapped.
 - ✅ **Phase 2** — Tournaments / teams / players with full CRUD (create + list + detail + edit + delete) and roster management (`team_players`).
 - ✅ **Phase 3** — Matches CRUD, playing XI per team, toss, per-tournament admin assignment (organizer/scorer). RLS-correct organizer permissions wired through every write path.
-- ⏭ **Phase 4 (next)** — Scoring engine (rules engine + ball-entry UI). ⚠️ Blocked on the box-cricket rules spec — see HANDOFF §10.
+- 🚧 **Phase 4** — In progress.
+  - ✅ **4a** Player category column (1/2/3) + UI badges.
+  - ✅ **4b** Pure rules engine in `src/lib/scoring/` with the full HVC Season 6 ruleset (`HVC_RULES`). 19 Vitest tests passing. Run with `pnpm test`.
+  - ⏭ **4c** Wire `HVC_RULES` into `tournaments.rules` JSONB.
+  - ⏭ **4d** Ball-entry UI (mobile-friendly, big tap targets, undo, free-hit indicator).
+  - ⏭ **4e** Supabase Edge Function for server-side validation.
 - ⏭ **Phase 5** — Spectator view (cached HTTP polling, NOT realtime).
 - ⏭ **Phase 6** — PWA, charts, push notifications, image uploads.
 

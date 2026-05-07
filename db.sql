@@ -114,6 +114,10 @@ create table if not exists players (
   photo_url       text,
   batting_style   text,                              -- e.g. 'right_hand', 'left_hand'
   bowling_style   text,                              -- e.g. 'right_arm_medium'
+  -- HVC player category: 1, 2, or 3. Drives bowling-order rules and special
+  -- batting rules (Cat 1 = over 1 specialist, Cat 3 = over 2 specialist).
+  -- Nullable so non-HVC tournaments don't have to set it.
+  category        smallint check (category in (1, 2, 3)),
   linked_user_id  uuid references profiles(id) on delete set null,
   created_at      timestamptz not null default now()
 );

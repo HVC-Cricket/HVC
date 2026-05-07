@@ -19,7 +19,7 @@ export default async function PlayersPage() {
 
   const { data: players, error } = await supabase
     .from("players")
-    .select("id, display_name, batting_style, bowling_style")
+    .select("id, display_name, category, batting_style, bowling_style")
     .order("display_name", { ascending: true });
 
   return (
@@ -68,7 +68,18 @@ export default async function PlayersPage() {
                     key={p.id}
                     className="flex items-center justify-between gap-3 p-4 text-sm"
                   >
-                    <span className="font-medium">{p.display_name}</span>
+                    <span className="flex items-center gap-3">
+                      {p.category ? (
+                        <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-xs font-mono">
+                          C{p.category}
+                        </span>
+                      ) : (
+                        <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-xs text-destructive">
+                          no category
+                        </span>
+                      )}
+                      <span className="font-medium">{p.display_name}</span>
+                    </span>
                     <span className="flex items-center gap-3">
                       <span className="text-muted-foreground">
                         {[p.batting_style, p.bowling_style]

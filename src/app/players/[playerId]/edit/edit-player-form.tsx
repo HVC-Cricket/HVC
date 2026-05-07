@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -21,6 +22,9 @@ import { deletePlayer, updatePlayer } from "../../actions";
 
 const schema = z.object({
   display_name: z.string().min(2, "Name must be at least 2 characters"),
+  category: z.enum(["1", "2", "3"], {
+    errorMap: () => ({ message: "Pick a category" }),
+  }),
   phone: z.string().optional().or(z.literal("")),
   batting_style: z.enum(["", "right_hand", "left_hand"]).optional(),
   bowling_style: z
@@ -44,6 +48,7 @@ type Props = {
   player: {
     id: string;
     display_name: string;
+    category: 1 | 2 | 3 | null;
     phone: string | null;
     batting_style: string | null;
     bowling_style: string | null;
@@ -58,6 +63,9 @@ export function EditPlayerForm({ player, canDelete }: Props) {
     resolver: zodResolver(schema),
     defaultValues: {
       display_name: player.display_name,
+      category: (player.category
+        ? String(player.category)
+        : "") as unknown as FormValues["category"],
       phone: player.phone ?? "",
       batting_style: (player.batting_style as FormValues["batting_style"]) ?? "",
       bowling_style: (player.bowling_style as FormValues["bowling_style"]) ?? "",
@@ -65,7 +73,11 @@ export function EditPlayerForm({ player, canDelete }: Props) {
   });
 
   const onSubmit = async (values: FormValues) => {
-    const result = await updatePlayer({ playerId: player.id, ...values });
+    const result = await updatePlayer({
+      playerId: player.id,
+      ...values,
+      category: Number(values.category),
+    });
     if (result && !result.ok) {
       toast.error(result.error);
     }
@@ -99,6 +111,30 @@ export function EditPlayerForm({ player, canDelete }: Props) {
               <FormControl>
                 <Input {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Category</FormLabel>
+              <FormControl>
+                <select
+                  {...field}
+                  className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
+                >
+                  <option value="">Select category…</option>
+                  <option value="1">Category 1</option>
+                  <option value="2">Category 2</option>
+                  <option value="3">Category 3</option>
+                </select>
+              </FormControl>
+              <FormDescription>
+                Drives bowling-order rules in HVC matches.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

@@ -8,7 +8,7 @@
 
 We are building **HVC Scoring**, a web app for live scoring and spectating a **box cricket tournament** with custom rules. Multiple admins enter ball-by-ball data; 50–60+ spectators (possibly more) follow scores live in their browsers.
 
-**Status as of 2026-05-07:** **Phase 0, 1, 2, and 3 are done.** Supabase project provisioned in Mumbai, schema applied, Next.js 16 app scaffolded with auth + tournaments + teams + players + roster + matches + playing XI + toss + per-tournament admin assignment. RLS-correct organizer/scorer permission model wired end-to-end. One super admin (`pavan.gautham17@gmail.com`) is bootstrapped. Next step is **Phase 4**: the rules engine + ball-by-ball scoring UI — blocked on the box-cricket rules spec from the user (see §10).
+**Status as of 2026-05-07:** **Phase 0, 1, 2, and 3 are done. Phase 4 is in progress: 4a (player category) + 4b (rules engine + Vitest tests) done; 4c (wire HVC_RULES into tournaments.rules), 4d (ball-entry UI), and 4e (Edge Function validation) remaining.** Supabase project provisioned in Mumbai, schema applied, Next.js 16 app scaffolded with auth + tournaments + teams + players + roster + matches + playing XI + toss + per-tournament admin assignment + the HVC scoring engine (pure functions, 19 tests passing). RLS-correct organizer/scorer permission model wired end-to-end. One super admin (`pavan.gautham17@gmail.com`) is bootstrapped.
 
 **Project directory:** `~/Desktop/projects/hvc-scoring/` (Pavan's machine; was `/home/sudharshan/projects/own/hvc-scoring/` for the prior author).
 **Files in repo today:**
@@ -269,6 +269,9 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 | 2026-05-07 | Added `lookup_user_id_by_email(text)` SECURITY DEFINER function | Lets organizers resolve emails to user_ids when adding scorers, without giving the client service-role access. Authenticated only; null result on miss. |
 | 2026-05-07 | **`requireOrganizer(tournamentId)` / `requireTournamentAdmin(tournamentId)`** helpers in `src/lib/auth.ts` | Mirror of the SQL helpers; UX gate so non-organizers don't even see the gated page (better than relying solely on RLS to reject). |
 | 2026-05-07 | **Drop, don't optionalize** — when a field isn't core to the flow, remove it from form + display + DB | Pavan's preference (saved to memory). Removed `team_players.jersey_number` and `teams.color` entirely. DB columns dropped on live + `db.sql`. |
+| 2026-05-07 | Added `players.category` smallint (1/2/3) | Required for HVC bowling-order rules: Cat 1 vs Cat 1 in over 1, Cat 3 vs Cat 3 in over 2, Cat 2 elsewhere. Nullable so non-HVC tournaments don't have to set it. |
+| 2026-05-07 | **Rules engine is pure functions** in `src/lib/scoring/` (no I/O) | Same module can run on the client (instant feedback) AND in a Supabase Edge Function (server-side validation), with `balls` rows replayable into any historical state. Vitest covers the engine in isolation. |
+| 2026-05-07 | HVC ruleset baked into `HVC_RULES` constant; `tournaments.rules` JSONB will store overrides | Per-tournament rule mutations don't need schema changes; engine reads the `RuleSet` shape directly. |
 
 ---
 
@@ -299,6 +302,19 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 - [x] **Auth Server Actions** at `src/app/(auth)/actions.ts`: `signUp`, `signIn`, `signOut`. Inputs validated with zod.
 - [x] **Auth helpers** at `src/lib/auth.ts`: `getSessionContext`, `requireUser`, `requireSuperAdmin` — read `profiles` + redirect.
 - [x] **Sonner Toaster** mounted in root layout for surfacing action errors.
+
+### Phase 4 — Scoring engine 🚧 (4a, 4b done; 4c–4e pending)
+- [x] **4a** — `players.category` smallint column added (live DB, `db.sql`, types). Required dropdown on new/edit player forms. Category badge (C1/C2/C3 or red "no category" pill) on `/players` list. Drives bowling-order rules.
+- [x] **4b** — Pure rules engine in `src/lib/scoring/`:
+  - `types.ts` — `RuleSet`, `InningsState`, `BallInput`, `EngineError`, `ApplyBallResult`
+  - `rules.ts` — `HVC_RULES` (Season 6 spec) + `STANDARD_RULES` fallback
+  - `engine.ts` — `startInnings`, `applyBall`, `advanceBowler`, `setStriker`, `setNonStriker`. Pure functions; balls are append-only and replayable.
+  - `__tests__/engine.test.ts` — 19 Vitest tests covering basic flow, wides + no-balls, free-hit lifecycle (consumption + survives wides), free-hit dismissal validation (rejects caught, accepts run-out + hit-wicket), Cat 1 special-over rules (stay-on-strike, first-dismissal-only, non-striker lock), wicket type validation (LBW rejected, byes rejected when disabled), bowler max-overs cap, innings completion (regular + super-over 2-wicket cap).
+- [ ] **4c** — Wire `HVC_RULES` to `tournaments.rules` JSONB on create + validate shape on read.
+- [ ] **4d** — Ball-entry UI: mobile-friendly, big tap targets, undo, free-hit indicator, full over flow.
+- [ ] **4e** — Supabase Edge Function: re-run engine on the server, reject invalid balls.
+
+Encoded HVC ruleset reference: see `memory/project_hvc_rules.md` (per-machine), or just read `HVC_RULES` in `src/lib/scoring/rules.ts`.
 
 ### Phase 3 — Matches, playing XI, toss, admin assignment ✅
 - [x] **`lookup_user_id_by_email(text)`** SECURITY DEFINER function added to live DB and `db.sql` so organizers can resolve emails to user_ids when adding scorers.
