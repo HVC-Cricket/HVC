@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import { AddRosterForm } from "./add-roster-form";
 import { RemoveRosterButton } from "./remove-roster-button";
+import { RosterRoleSelect } from "./roster-role-select";
 
 export const dynamic = "force-dynamic";
 
@@ -104,16 +105,30 @@ export default async function TeamDetailPage(props: {
                     <li key={r.id} className="flex items-center justify-between gap-3 p-4 text-sm">
                       <span className="flex items-center gap-3">
                         <span className="font-medium">{player?.display_name ?? "(unknown)"}</span>
-                        <span className="text-xs text-muted-foreground capitalize">
-                          {r.role.replace(/_/g, " ")}
-                        </span>
+                        {!canManage && (
+                          <span className="text-xs text-muted-foreground capitalize">
+                            {r.role.replace(/_/g, " ")}
+                          </span>
+                        )}
                       </span>
                       {canManage && (
-                        <RemoveRosterButton
-                          tournamentSlug={tournament.slug}
-                          teamId={team.id}
-                          rosterId={r.id}
-                        />
+                        <span className="flex items-center gap-2">
+                          <RosterRoleSelect
+                            tournamentSlug={tournament.slug}
+                            teamId={team.id}
+                            rosterId={r.id}
+                            initialRole={r.role as
+                              | "captain"
+                              | "vice_captain"
+                              | "wicket_keeper"
+                              | "player"}
+                          />
+                          <RemoveRosterButton
+                            tournamentSlug={tournament.slug}
+                            teamId={team.id}
+                            rosterId={r.id}
+                          />
+                        </span>
                       )}
                     </li>
                   );

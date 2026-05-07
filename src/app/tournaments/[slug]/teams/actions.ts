@@ -183,6 +183,42 @@ export async function addPlayerToTeam(
   return { ok: true, data: undefined };
 }
 
+const updateRosterRoleSchema = z.object({
+  tournamentSlug: z.string().min(1),
+  teamId: z.string().uuid(),
+  rosterId: z.string().uuid(),
+  role: z.enum(teamPlayerRoles),
+});
+
+export async function updateRosterRole(
+  input: z.infer<typeof updateRosterRoleSchema>,
+): Promise<ActionResult> {
+  const parsed = updateRosterRoleSchema.safeParse(input);
+  if (!parsed.success) {
+    await requireUser();
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const tournament = await resolveTournamentBySlug(parsed.data.tournamentSlug);
+  if (!tournament) {
+    await requireUser();
+    return { ok: false, error: "Tournament not found" };
+  }
+  await requireOrganizer(tournament.id);
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("team_players")
+    .update({ role: parsed.data.role })
+    .eq("id", parsed.data.rosterId)
+    .eq("team_id", parsed.data.teamId);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/tournaments/${parsed.data.tournamentSlug}/teams/${parsed.data.teamId}`);
+  return { ok: true, data: undefined };
+}
+
 const removeRosterSchema = z.object({
   tournamentSlug: z.string().min(1),
   teamId: z.string().uuid(),

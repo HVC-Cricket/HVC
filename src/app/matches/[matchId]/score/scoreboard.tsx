@@ -222,34 +222,28 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 </Button>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-3 gap-2">
               <ExtraButton
                 label="Wide"
-                onSubmit={(extras) =>
-                  submit({ runs_off_bat: 0, extras: 1 + (extras ?? 0), extra_type: "wide" })
+                onSubmit={() =>
+                  submit({ runs_off_bat: 0, extras: 1, extra_type: "wide" })
                 }
                 disabled={pending}
               />
               <ExtraButton
                 label="No-ball"
-                onSubmit={(extras) =>
-                  submit({ runs_off_bat: 0, extras: 1 + (extras ?? 0), extra_type: "no_ball" })
+                onSubmit={() =>
+                  submit({ runs_off_bat: 0, extras: 1, extra_type: "no_ball" })
                 }
                 disabled={pending}
               />
-              <ExtraButton
-                label="Bye"
-                onSubmit={(extras) =>
-                  submit({ runs_off_bat: 0, extras: extras ?? 1, extra_type: "bye" })
-                }
-                disabled={pending || !state.rules.extras.byes}
-              />
               <WicketButton
-                onSubmit={(wt, outId) =>
+                onSubmit={(wt, outId, fielderId) =>
                   submit({
                     is_wicket: true,
                     wicket_type: wt,
                     player_out_id: outId ?? strikerId,
+                    fielder_id: fielderId ?? null,
                   })
                 }
                 disabled={pending}
@@ -260,8 +254,30 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 nonStriker={nonStriker?.display_name}
                 strikerId={strikerId}
                 nonStrikerId={nonStrikerId}
+                bowlingXi={state.xi[innings.bowling_team_id] ?? []}
               />
             </div>
+            {state.rules.extras.byes && (
+              <div className="grid grid-cols-4 gap-2">
+                {[1, 2, 3, 4].map((n) => (
+                  <Button
+                    key={n}
+                    variant="outline"
+                    className="h-12"
+                    disabled={pending}
+                    onClick={() =>
+                      submit({
+                        runs_off_bat: 0,
+                        extras: n,
+                        extra_type: "bye",
+                      })
+                    }
+                  >
+                    Bye {n}
+                  </Button>
+                ))}
+              </div>
+            )}
             <div className="flex items-center justify-between gap-2 pt-2">
               <Button
                 variant="ghost"
@@ -365,7 +381,7 @@ function ExtraButton({
   disabled,
 }: {
   label: string;
-  onSubmit: (extras?: number) => void;
+  onSubmit: () => void;
   disabled?: boolean;
 }) {
   return (
@@ -373,7 +389,7 @@ function ExtraButton({
       variant="outline"
       className="h-12"
       disabled={disabled}
-      onClick={() => onSubmit(0)}
+      onClick={onSubmit}
     >
       {label}
     </Button>
@@ -390,8 +406,13 @@ function WicketButton({
   nonStriker,
   strikerId,
   nonStrikerId,
+  bowlingXi,
 }: {
-  onSubmit: (wicket_type: WicketType, player_out_id?: string) => void;
+  onSubmit: (
+    wicket_type: WicketType,
+    player_out_id?: string,
+    fielder_id?: string,
+  ) => void;
   disabled?: boolean;
   allowed: WicketType[];
   onFreeHit: boolean;
@@ -400,12 +421,18 @@ function WicketButton({
   nonStriker?: string;
   strikerId: string;
   nonStrikerId: string;
+  bowlingXi: { id: string; display_name: string; category: 1 | 2 | 3 | null }[];
 }) {
   const [open, setOpen] = useState(false);
   const [wicketType, setWicketType] = useState<WicketType>("bowled");
   const [whoOut, setWhoOut] = useState<"striker" | "non_striker">("striker");
+  const [fielder, setFielder] = useState("");
 
   const types = onFreeHit ? freeHitDismissals : allowed;
+  // Fielder is meaningful for caught / run_out / stumped / caught_and_bowled.
+  const showFielder = ["caught", "run_out", "stumped", "caught_and_bowled"].includes(
+    wicketType,
+  );
 
   return (
     <>
@@ -418,7 +445,7 @@ function WicketButton({
         Wicket
       </Button>
       {open && (
-        <div className="col-span-full rounded-md border border-foreground/10 bg-muted/30 p-3 text-sm space-y-3 sm:col-span-4">
+        <div className="col-span-full rounded-md border border-foreground/10 bg-muted/30 p-3 text-sm space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1">
               <span className="text-xs text-muted-foreground">Type</span>
@@ -446,6 +473,29 @@ function WicketButton({
               </select>
             </label>
           </div>
+          {showFielder && (
+            <label className="space-y-1 block">
+              <span className="text-xs text-muted-foreground">
+                Fielder{" "}
+                <span className="text-muted-foreground/70">
+                  ({wicketType === "stumped" ? "wicket-keeper" : "who took it"})
+                </span>
+              </span>
+              <select
+                value={fielder}
+                onChange={(e) => setFielder(e.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-transparent px-3"
+              >
+                <option value="">—</option>
+                {bowlingXi.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.display_name}
+                    {p.category ? ` · C${p.category}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
               Cancel
@@ -456,8 +506,10 @@ function WicketButton({
                 onSubmit(
                   wicketType,
                   whoOut === "striker" ? strikerId : nonStrikerId,
+                  showFielder && fielder ? fielder : undefined,
                 );
                 setOpen(false);
+                setFielder("");
               }}
               disabled={disabled}
             >
