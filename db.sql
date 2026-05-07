@@ -98,7 +98,6 @@ create table if not exists teams (
   name            text not null,
   short_name      text not null,
   logo_url        text,
-  color           text,
   created_at      timestamptz not null default now(),
   unique (tournament_id, name),
   unique (tournament_id, short_name)
@@ -127,7 +126,6 @@ create table if not exists team_players (
   id              uuid primary key default gen_random_uuid(),
   team_id         uuid not null references teams(id) on delete cascade,
   player_id       uuid not null references players(id) on delete restrict,
-  jersey_number   int,
   role            text not null default 'player'
                     check (role in ('captain','vice_captain','wicket_keeper','player')),
   created_at      timestamptz not null default now(),
@@ -584,6 +582,21 @@ returns uuid language sql security definer set search_path = public stable as $$
   from innings i join matches m on m.id = i.match_id
   where i.id = p_innings_id;
 $$;
+
+-- Helper: resolve email to user_id from auth.users.
+-- SECURITY DEFINER so RLS-capped callers (organizers adding scorers, etc.)
+-- can resolve users without needing service-role access. Authenticated only.
+create or replace function lookup_user_id_by_email(p_email text)
+returns uuid
+language sql
+security definer
+set search_path = public, auth
+stable
+as $$
+  select id from auth.users where lower(email) = lower(p_email) limit 1;
+$$;
+revoke all on function lookup_user_id_by_email(text) from public;
+grant execute on function lookup_user_id_by_email(text) to authenticated;
 
 
 -- =====================================================================

@@ -48,3 +48,52 @@ export async function requireSuperAdmin(): Promise<SessionContext> {
   if (!ctx.profile?.is_super_admin) redirect("/");
   return ctx;
 }
+
+/** Mirror of the SQL `is_tournament_organizer()` helper. */
+export async function isTournamentOrganizer(
+  tournamentId: string,
+  ctx: SessionContext,
+): Promise<boolean> {
+  if (ctx.profile?.is_super_admin) return true;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("tournament_admins")
+    .select("role")
+    .eq("tournament_id", tournamentId)
+    .eq("user_id", ctx.user.id)
+    .eq("role", "organizer")
+    .maybeSingle();
+  return !!data;
+}
+
+/** Mirror of the SQL `is_tournament_admin()` helper (organizer OR scorer). */
+export async function isTournamentAdmin(
+  tournamentId: string,
+  ctx: SessionContext,
+): Promise<boolean> {
+  if (ctx.profile?.is_super_admin) return true;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("tournament_admins")
+    .select("role")
+    .eq("tournament_id", tournamentId)
+    .eq("user_id", ctx.user.id)
+    .maybeSingle();
+  return !!data;
+}
+
+export async function requireOrganizer(
+  tournamentId: string,
+): Promise<SessionContext> {
+  const ctx = await requireUser();
+  if (!(await isTournamentOrganizer(tournamentId, ctx))) redirect("/");
+  return ctx;
+}
+
+export async function requireTournamentAdmin(
+  tournamentId: string,
+): Promise<SessionContext> {
+  const ctx = await requireUser();
+  if (!(await isTournamentAdmin(tournamentId, ctx))) redirect("/");
+  return ctx;
+}

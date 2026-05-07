@@ -1,0 +1,164 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  isTournamentOrganizer,
+  requireOrganizer,
+} from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+
+import { AddAdminForm } from "./add-admin-form";
+import { RemoveAdminButton } from "./remove-admin-button";
+
+export const dynamic = "force-dynamic";
+
+export default async function AdminsPage(props: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await props.params;
+  const supabase = await createClient();
+
+  const { data: tournament } = await supabase
+    .from("tournaments")
+    .select("id, name, slug")
+    .eq("slug", slug)
+    .single();
+  if (!tournament) notFound();
+
+  const ctx = await requireOrganizer(tournament.id);
+  const isSuper = ctx.profile?.is_super_admin === true;
+
+  const { data: admins } = await supabase
+    .from("tournament_admins")
+    .select("id, user_id, role, created_at")
+    .eq("tournament_id", tournament.id)
+    .order("created_at", { ascending: true });
+
+  const userIds = (admins ?? []).map((a) => a.user_id);
+  const { data: profiles } = userIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", userIds)
+    : { data: [] as { id: string; display_name: string }[] };
+  const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+  const organizers = (admins ?? []).filter((a) => a.role === "organizer");
+  const scorers = (admins ?? []).filter((a) => a.role === "scorer");
+
+  return (
+    <main className="flex-1 p-6">
+      <div className="mx-auto max-w-3xl space-y-6">
+        <div className="space-y-1">
+          <p className="text-sm text-muted-foreground">
+            <Link
+              href={`/tournaments/${tournament.slug}`}
+              className="hover:underline"
+            >
+              {tournament.name}
+            </Link>
+          </p>
+          <h1 className="text-2xl font-semibold">Admins</h1>
+          <p className="text-sm text-muted-foreground">
+            Organizers can edit teams, players, and matches. Scorers can enter
+            ball-by-ball data for matches they&apos;re assigned to.
+          </p>
+        </div>
+
+        <AdminList
+          title="Organizers"
+          description="Full tournament admin (super admin counts implicitly)."
+          admins={organizers}
+          profileById={profileById}
+          tournamentSlug={tournament.slug}
+          canRemove={isSuper}
+        />
+
+        <AdminList
+          title="Scorers"
+          description="Can enter ball-by-ball data."
+          admins={scorers}
+          profileById={profileById}
+          tournamentSlug={tournament.slug}
+          canRemove={true}
+        />
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Add admin</CardTitle>
+            <CardDescription>
+              {isSuper
+                ? "Add an organizer or a scorer by email. The user must already have signed up."
+                : "Add a scorer by email. The user must already have signed up. Only super admins can add organizers."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AddAdminForm
+              tournamentSlug={tournament.slug}
+              allowOrganizer={isSuper}
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </main>
+  );
+}
+
+function AdminList({
+  title,
+  description,
+  admins,
+  profileById,
+  tournamentSlug,
+  canRemove,
+}: {
+  title: string;
+  description: string;
+  admins: { id: string; user_id: string; role: string; created_at: string }[];
+  profileById: Map<string, { id: string; display_name: string }>;
+  tournamentSlug: string;
+  canRemove: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        {admins.length === 0 ? (
+          <p className="px-6 pb-6 text-sm text-muted-foreground">None yet.</p>
+        ) : (
+          <ul className="divide-y divide-foreground/10">
+            {admins.map((a) => {
+              const profile = profileById.get(a.user_id);
+              return (
+                <li
+                  key={a.id}
+                  className="flex items-center justify-between gap-3 px-6 py-3 text-sm"
+                >
+                  <span className="font-medium">
+                    {profile?.display_name ?? "(unknown user)"}
+                  </span>
+                  {canRemove && (
+                    <RemoveAdminButton
+                      tournamentSlug={tournamentSlug}
+                      adminId={a.id}
+                    />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

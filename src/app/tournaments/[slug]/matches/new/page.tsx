@@ -10,48 +10,49 @@ import {
 import { requireOrganizer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
-import { EditTeamForm } from "./edit-team-form";
+import { NewMatchForm } from "./new-match-form";
 
-export default async function EditTeamPage(props: {
-  params: Promise<{ slug: string; teamId: string }>;
+export default async function NewMatchPage(props: {
+  params: Promise<{ slug: string }>;
 }) {
-  const { slug, teamId } = await props.params;
+  const { slug } = await props.params;
   const supabase = await createClient();
   const { data: tournament } = await supabase
     .from("tournaments")
-    .select("id, slug, name")
+    .select(
+      "id, slug, name, default_overs_per_innings, default_players_per_side, venue",
+    )
     .eq("slug", slug)
     .single();
   if (!tournament) notFound();
 
   await requireOrganizer(tournament.id);
 
-  const { data: team } = await supabase
+  const { data: teams } = await supabase
     .from("teams")
     .select("id, name, short_name")
-    .eq("id", teamId)
     .eq("tournament_id", tournament.id)
-    .single();
-  if (!team) notFound();
+    .order("name", { ascending: true });
 
   return (
     <main className="flex-1 p-6">
       <div className="mx-auto max-w-2xl">
         <Card>
           <CardHeader>
-            <CardTitle>Edit team</CardTitle>
+            <CardTitle>New match</CardTitle>
             <CardDescription>
-              Editing <strong>{team.name}</strong> in{" "}
-              <strong>{tournament.name}</strong>.
+              Adding a match to <strong>{tournament.name}</strong>. Match
+              number is auto-generated.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <EditTeamForm
+            <NewMatchForm
               tournamentSlug={tournament.slug}
-              team={{
-                id: team.id,
-                name: team.name,
-                short_name: team.short_name,
+              teams={teams ?? []}
+              defaults={{
+                overs_per_innings: tournament.default_overs_per_innings,
+                players_per_side: tournament.default_players_per_side,
+                venue: tournament.venue ?? "",
               }}
             />
           </CardContent>

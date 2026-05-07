@@ -27,8 +27,8 @@ Open <http://localhost:3000>.
 - ✅ **Phase 0** — Supabase project set up (Mumbai), schema applied, storage buckets created, env wired.
 - ✅ **Phase 1** — Auth: `/signup`, `/login`, `/me`, Server Actions, role-aware nav. Super-admin bootstrapped.
 - ✅ **Phase 2** — Tournaments / teams / players with full CRUD (create + list + detail + edit + delete) and roster management (`team_players`).
-- ⏭ **Phase 3 (next)** — Matches, playing XI, toss, admin assignment (organizer/scorer roles).
-- ⏭ **Phase 4** — Scoring engine (rules engine + ball-entry UI). ⚠️ Blocked on the box-cricket rules spec — see HANDOFF §10.
+- ✅ **Phase 3** — Matches CRUD, playing XI per team, toss, per-tournament admin assignment (organizer/scorer). RLS-correct organizer permissions wired through every write path.
+- ⏭ **Phase 4 (next)** — Scoring engine (rules engine + ball-entry UI). ⚠️ Blocked on the box-cricket rules spec — see HANDOFF §10.
 - ⏭ **Phase 5** — Spectator view (cached HTTP polling, NOT realtime).
 - ⏭ **Phase 6** — PWA, charts, push notifications, image uploads.
 
@@ -43,16 +43,21 @@ See HANDOFF.md §8 / §9 for the full breakdown.
 | `/me` | signed-in | profile read (verifies auth + RLS) |
 | `/tournaments` | public | list |
 | `/tournaments/new` | super-admin | create |
-| `/tournaments/[slug]` | public | detail + team grid |
-| `/tournaments/[slug]/edit` | super-admin | update / delete (cascades) |
-| `/tournaments/[slug]/teams/new` | signed-in admin | create team |
+| `/tournaments/[slug]` | public | detail with matches + teams |
+| `/tournaments/[slug]/edit` | organizer | update; delete is super-admin only |
+| `/tournaments/[slug]/admins` | organizer | add/remove organizers + scorers by email |
+| `/tournaments/[slug]/matches/new` | organizer | create match |
+| `/tournaments/[slug]/teams/new` | organizer | create team |
 | `/tournaments/[slug]/teams/[teamId]` | public | team + roster |
-| `/tournaments/[slug]/teams/[teamId]/edit` | signed-in admin | update / delete |
+| `/tournaments/[slug]/teams/[teamId]/edit` | organizer | update / delete |
+| `/matches/[matchId]` | public | match detail (teams, schedule, toss, playing XI) |
+| `/matches/[matchId]/edit` | organizer | update / delete |
+| `/matches/[matchId]/xi/[teamId]` | organizer | pick playing XI (captain, keeper, batting order) |
 | `/players` | public | global player registry |
 | `/players/new` | signed-in admin | create |
 | `/players/[playerId]/edit` | signed-in admin | update; delete is super-admin only |
 
-(Until Phase 3 wires per-tournament admin assignment, the super-admin acts as universal organizer. RLS already supports the proper model — Phase 3 just adds the UI.)
+"Organizer" includes super-admin. The organizer/scorer permission model is wired end-to-end through `requireOrganizer` / `requireTournamentAdmin` helpers in `src/lib/auth.ts` and the matching SQL helpers in `db.sql`. Add organizers/scorers via `/tournaments/[slug]/admins`.
 
 ## Common dev commands
 
@@ -89,14 +94,17 @@ src/
     (auth)/                  # signup / login / signOut Server Action
     me/                      # protected profile page
     tournaments/             # list + create + detail + edit
-      [slug]/teams/          # team CRUD + roster + add/remove player
+      [slug]/admins/         # organizer + scorer assignment
+      [slug]/matches/        # match create
+      [slug]/teams/          # team CRUD + roster
+    matches/[matchId]/       # public detail + edit + toss + pick XI
     players/                 # list + create + edit
     layout.tsx               # mounts SiteNav + Toaster
   components/
     site-nav.tsx             # server component, getUser() → email + Sign out
     ui/                      # shadcn: button, card, input, label, sonner, form
   lib/
-    auth.ts                  # requireUser / requireSuperAdmin / getSessionContext
+    auth.ts                  # requireUser / requireSuperAdmin / requireOrganizer / requireTournamentAdmin / getSessionContext
     slug.ts                  # slugify()
     supabase/                # client / server / middleware / database.types stub
   proxy.ts                   # Next 16 proxy convention

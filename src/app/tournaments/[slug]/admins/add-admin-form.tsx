@@ -14,40 +14,36 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 
-import { addPlayerToTeam } from "../actions";
+import { addAdmin } from "./actions";
 
 const schema = z.object({
-  playerId: z.string().uuid("Pick a player"),
-  role: z.enum(["captain", "vice_captain", "wicket_keeper", "player"]),
+  email: z.string().email("Enter a valid email"),
+  role: z.enum(["organizer", "scorer"]),
 });
 
 type FormValues = z.infer<typeof schema>;
 
 type Props = {
   tournamentSlug: string;
-  teamId: string;
-  players: { id: string; display_name: string }[];
+  allowOrganizer: boolean;
 };
 
-export function AddRosterForm({ tournamentSlug, teamId, players }: Props) {
+export function AddAdminForm({ tournamentSlug, allowOrganizer }: Props) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { playerId: "", role: "player" },
+    defaultValues: { email: "", role: "scorer" },
   });
 
   const onSubmit = async (values: FormValues) => {
-    const result = await addPlayerToTeam({
-      tournamentSlug,
-      teamId,
-      playerId: values.playerId,
-      role: values.role,
-    });
+    const result = await addAdmin({ tournamentSlug, ...values });
     if (result && !result.ok) {
       toast.error(result.error);
       return;
     }
-    form.reset({ playerId: "", role: "player" });
+    toast.success("Admin added");
+    form.reset({ email: "", role: "scorer" });
   };
 
   return (
@@ -55,22 +51,17 @@ export function AddRosterForm({ tournamentSlug, teamId, players }: Props) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
         <FormField
           control={form.control}
-          name="playerId"
+          name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Player</FormLabel>
+              <FormLabel>Email</FormLabel>
               <FormControl>
-                <select
+                <Input
+                  type="email"
+                  autoComplete="email"
+                  placeholder="user@example.com"
                   {...field}
-                  className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
-                >
-                  <option value="">Select a player…</option>
-                  {players.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.display_name}
-                    </option>
-                  ))}
-                </select>
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -87,10 +78,10 @@ export function AddRosterForm({ tournamentSlug, teamId, players }: Props) {
                   {...field}
                   className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
                 >
-                  <option value="player">Player</option>
-                  <option value="captain">Captain</option>
-                  <option value="vice_captain">Vice captain</option>
-                  <option value="wicket_keeper">Wicket-keeper</option>
+                  <option value="scorer">Scorer</option>
+                  {allowOrganizer && (
+                    <option value="organizer">Organizer</option>
+                  )}
                 </select>
               </FormControl>
               <FormMessage />
@@ -98,7 +89,7 @@ export function AddRosterForm({ tournamentSlug, teamId, players }: Props) {
           )}
         />
         <Button type="submit" size="sm" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Adding…" : "Add to roster"}
+          {form.formState.isSubmitting ? "Adding…" : "Add admin"}
         </Button>
       </form>
     </Form>

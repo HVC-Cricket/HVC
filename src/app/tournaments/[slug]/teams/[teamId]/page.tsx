@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getSessionContext } from "@/lib/auth";
+import { getSessionContext, isTournamentOrganizer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 import { AddRosterForm } from "./add-roster-form";
@@ -23,7 +23,6 @@ export default async function TeamDetailPage(props: {
   const { slug, teamId } = await props.params;
   const supabase = await createClient();
   const ctx = await getSessionContext();
-  const canManage = !!ctx?.user;
 
   const { data: tournament } = await supabase
     .from("tournaments")
@@ -32,9 +31,13 @@ export default async function TeamDetailPage(props: {
     .single();
   if (!tournament) notFound();
 
+  const canManage = ctx
+    ? await isTournamentOrganizer(tournament.id, ctx)
+    : false;
+
   const { data: team } = await supabase
     .from("teams")
-    .select("id, name, short_name, color")
+    .select("id, name, short_name")
     .eq("id", teamId)
     .eq("tournament_id", tournament.id)
     .single();
@@ -42,9 +45,9 @@ export default async function TeamDetailPage(props: {
 
   const { data: roster } = await supabase
     .from("team_players")
-    .select("id, jersey_number, role, player_id")
+    .select("id, role, player_id, created_at")
     .eq("team_id", team.id)
-    .order("jersey_number", { ascending: true });
+    .order("created_at", { ascending: true });
 
   const playerIds = (roster ?? []).map((r) => r.player_id);
   const { data: rosterPlayers } = playerIds.length
@@ -72,10 +75,7 @@ export default async function TeamDetailPage(props: {
               </Link>
             </p>
             <h1 className="text-2xl font-semibold">{team.name}</h1>
-            <p className="text-sm text-muted-foreground">
-              {team.short_name}
-              {team.color ? ` · ${team.color}` : ""}
-            </p>
+            <p className="text-sm text-muted-foreground">{team.short_name}</p>
           </div>
           {canManage && (
             <Link
@@ -103,9 +103,6 @@ export default async function TeamDetailPage(props: {
                   return (
                     <li key={r.id} className="flex items-center justify-between gap-3 p-4 text-sm">
                       <span className="flex items-center gap-3">
-                        <span className="inline-flex w-8 justify-end font-mono text-muted-foreground">
-                          {r.jersey_number ?? "—"}
-                        </span>
                         <span className="font-medium">{player?.display_name ?? "(unknown)"}</span>
                         <span className="text-xs text-muted-foreground capitalize">
                           {r.role.replace(/_/g, " ")}

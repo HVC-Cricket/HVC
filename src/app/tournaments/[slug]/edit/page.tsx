@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { requireSuperAdmin } from "@/lib/auth";
+import { requireOrganizer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 import { EditTournamentForm } from "./edit-tournament-form";
@@ -15,9 +15,7 @@ import { EditTournamentForm } from "./edit-tournament-form";
 export default async function EditTournamentPage(props: {
   params: Promise<{ slug: string }>;
 }) {
-  await requireSuperAdmin();
   const { slug } = await props.params;
-
   const supabase = await createClient();
   const { data: tournament } = await supabase
     .from("tournaments")
@@ -25,6 +23,8 @@ export default async function EditTournamentPage(props: {
     .eq("slug", slug)
     .single();
   if (!tournament) notFound();
+
+  await requireOrganizer(tournament.id);
 
   return (
     <main className="flex-1 p-6">

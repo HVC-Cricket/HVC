@@ -23,11 +23,6 @@ import { deleteTeam, updateTeam } from "../../actions";
 const schema = z.object({
   name: z.string().min(2, "Team name must be at least 2 characters"),
   short_name: z.string().min(2).max(5, "Short name is 2–5 characters"),
-  color: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/, "Hex like #1f6feb")
-    .optional()
-    .or(z.literal("")),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -38,7 +33,6 @@ type Props = {
     id: string;
     name: string;
     short_name: string;
-    color: string | null;
   };
 };
 
@@ -50,7 +44,6 @@ export function EditTeamForm({ tournamentSlug, team }: Props) {
     defaultValues: {
       name: team.name,
       short_name: team.short_name,
-      color: team.color ?? "",
     },
   });
 
@@ -111,19 +104,6 @@ export function EditTeamForm({ tournamentSlug, team }: Props) {
                 />
               </FormControl>
               <FormDescription>2–5 letters, shown on scorecards.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="color"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Color (hex)</FormLabel>
-              <FormControl>
-                <Input placeholder="#1f6feb" {...field} />
-              </FormControl>
               <FormMessage />
             </FormItem>
           )}

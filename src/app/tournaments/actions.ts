@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { requireSuperAdmin, requireUser } from "@/lib/auth";
+import { requireOrganizer, requireSuperAdmin, requireUser } from "@/lib/auth";
 import { slugify } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
 
@@ -91,12 +91,12 @@ export async function createTournament(
 export async function updateTournament(
   input: UpdateTournamentInput,
 ): Promise<ActionResult<{ slug: string }>> {
-  await requireSuperAdmin();
-
   const parsed = updateTournamentSchema.safeParse(input);
   if (!parsed.success) {
+    await requireUser();
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
+  await requireOrganizer(parsed.data.id);
   const data = parsed.data;
 
   const supabase = await createClient();

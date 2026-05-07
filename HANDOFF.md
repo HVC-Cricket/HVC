@@ -8,7 +8,7 @@
 
 We are building **HVC Scoring**, a web app for live scoring and spectating a **box cricket tournament** with custom rules. Multiple admins enter ball-by-ball data; 50–60+ spectators (possibly more) follow scores live in their browsers.
 
-**Status as of 2026-05-07:** **Phase 0, 1, and 2 are done.** Supabase project provisioned in Mumbai, schema applied, Next.js 16 app scaffolded with auth + tournaments + teams + players + roster management (full CRUD on the three core entities). One super admin (`pavan.gautham17@gmail.com`) is bootstrapped and can drive everything. Next step is **Phase 3**: matches + admin assignment.
+**Status as of 2026-05-07:** **Phase 0, 1, 2, and 3 are done.** Supabase project provisioned in Mumbai, schema applied, Next.js 16 app scaffolded with auth + tournaments + teams + players + roster + matches + playing XI + toss + per-tournament admin assignment. RLS-correct organizer/scorer permission model wired end-to-end. One super admin (`pavan.gautham17@gmail.com`) is bootstrapped. Next step is **Phase 4**: the rules engine + ball-by-ball scoring UI — blocked on the box-cricket rules spec from the user (see §10).
 
 **Project directory:** `~/Desktop/projects/hvc-scoring/` (Pavan's machine; was `/home/sudharshan/projects/own/hvc-scoring/` for the prior author).
 **Files in repo today:**
@@ -265,7 +265,10 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 | 2026-05-07 | **Open signup**, super-admin manually promotes | Simplest MVP; matches schema's `handle_new_user()` trigger. Decision recorded in memory. |
 | 2026-05-07 | Patched `prevent_self_promote()` to allow `auth.uid() is null` | The original form blocked the Management API / dashboard SQL editor / service_role, making the very first super admin un-creatable. Trusted callers (already RLS-bypassed) now pass through. |
 | 2026-05-07 | **Native `confirm()` for destructive actions** in MVP | One click, browser dialog. Swap to a styled `AlertDialog` later. |
-| 2026-05-07 | **Defer admin assignment (organizer/scorer) to Phase 3** | Phase 2 super admin acts as universal organizer (RLS helpers already allow super admin everywhere). |
+| 2026-05-07 | **Defer admin assignment (organizer/scorer) to Phase 3** | Phase 2 super admin acts as universal organizer (RLS helpers already allow super admin everywhere). Wired in Phase 3. |
+| 2026-05-07 | Added `lookup_user_id_by_email(text)` SECURITY DEFINER function | Lets organizers resolve emails to user_ids when adding scorers, without giving the client service-role access. Authenticated only; null result on miss. |
+| 2026-05-07 | **`requireOrganizer(tournamentId)` / `requireTournamentAdmin(tournamentId)`** helpers in `src/lib/auth.ts` | Mirror of the SQL helpers; UX gate so non-organizers don't even see the gated page (better than relying solely on RLS to reject). |
+| 2026-05-07 | **Drop, don't optionalize** — when a field isn't core to the flow, remove it from form + display + DB | Pavan's preference (saved to memory). Removed `team_players.jersey_number` and `teams.color` entirely. DB columns dropped on live + `db.sql`. |
 
 ---
 
@@ -297,6 +300,25 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 - [x] **Auth helpers** at `src/lib/auth.ts`: `getSessionContext`, `requireUser`, `requireSuperAdmin` — read `profiles` + redirect.
 - [x] **Sonner Toaster** mounted in root layout for surfacing action errors.
 
+### Phase 3 — Matches, playing XI, toss, admin assignment ✅
+- [x] **`lookup_user_id_by_email(text)`** SECURITY DEFINER function added to live DB and `db.sql` so organizers can resolve emails to user_ids when adding scorers.
+- [x] **Auth helpers expanded** in `src/lib/auth.ts`: `isTournamentOrganizer`, `isTournamentAdmin`, `requireOrganizer`, `requireTournamentAdmin`. Mirror the SQL helpers; used as page-level UX gates.
+- [x] **Phase 2 actions retrofitted** to call `requireOrganizer(tournamentId)` instead of `requireSuperAdmin` / `requireUser` where RLS allows organizers. Pages now compute `canManage` via `isTournamentOrganizer(tournament.id, ctx)` so Edit/Add buttons appear for non-super-admin organizers too.
+- [x] **Tournament admins UI** at `/tournaments/[slug]/admins`
+  - Lists current organizers and scorers (display names from `profiles`).
+  - Add admin by email + role; super-admin can add organizer or scorer; organizer can add scorer only.
+  - Remove: super-admin removes anyone, organizer removes scorer only.
+  - Friendly "user must sign up first" if the email isn't registered.
+- [x] **Matches CRUD**
+  - `/tournaments/[slug]/matches/new` (organizer) — pick stage, two distinct teams from the tournament's team list, schedule, venue, overs/players (defaults from tournament). `match_number` auto-incremented per tournament.
+  - `/matches/[matchId]` public detail.
+  - `/matches/[matchId]/edit` (organizer) — full update + status; **Delete** with cascade warning.
+  - Matches section on tournament detail page (list with #, teams, stage, schedule, status).
+- [x] **Toss** — inline form on match detail (organizer). Pick toss winner (Team A or B) + decision (bat/bowl). Validates winner is one of the two teams.
+- [x] **Playing XI** — `/matches/[matchId]/xi/[teamId]` (organizer) checklist UI: tick to include, set batting order, mark captain/keeper/substitute. Validates ≤1 captain and ≤1 keeper. Save uses delete-then-insert for idempotency. Per-team summary cards on match detail.
+- [x] **Database types** expanded with `matches`, `match_players`, and the `lookup_user_id_by_email` function entry.
+- [x] **Schema simplification** — `teams.color` and `team_players.jersey_number` dropped from live DB, `db.sql`, generated types, action schemas, forms, and display surfaces. Pavan's "drop, don't optionalize" preference.
+
 ### Phase 2 — Tournaments / teams / players ✅
 - [x] **Tournaments**
   - `/tournaments` public list
@@ -321,24 +343,7 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 
 ## 9. What's next (build sequence)
 
-Phases 0–2 done. Pick up at **Phase 3**. Each phase is roughly one sitting.
-
-### Phase 3 — Matches + admin assignment
-1. **Tournament admins UI** (deferred from Phase 2):
-   - `/tournaments/[slug]/admins` (organizer + super-admin) — list current organizers/scorers, add by email (look up `auth.users`), remove. Server action does the email→user_id lookup.
-   - This unlocks the proper organizer/scorer permission model — until now, super-admin acts as universal organizer.
-2. **Matches** (per tournament):
-   - Create-match flow: stage (group/qf/sf/final), team A vs team B, scheduled_at, venue, overs/players overrides.
-   - Match list view (live / upcoming / completed) — public.
-   - Match detail page — public.
-   - Edit/delete match (organizer).
-3. **Playing XI** (`match_players`):
-   - Select XI per team per match. Includes is_captain, is_keeper, is_substitute, batting_order.
-4. **Toss UI**:
-   - Pick toss winner + decision (bat/bowl). Sets `matches.toss_winner_id` and `matches.toss_decision`.
-5. **Hardening**:
-   - Add a `requireOrganizer(tournamentId)` helper that calls the `is_tournament_organizer()` SQL helper.
-   - Use it in create-team/edit-team/create-match/etc. so non-super-admin organizers can do their job once admin assignment is wired.
+Phases 0–3 done. Pick up at **Phase 4** (scoring engine). Each phase is roughly one sitting, except Phase 4 which is several.
 
 ### Phase 4 — Scoring engine ⚠️ *most critical phase*
 1. **Box-cricket rules**: get the rule set from the user (still open — see §10). Encode as JSON shape applied via `tournaments.rules`.
@@ -471,7 +476,7 @@ pnpm exec supabase link --project-ref cxysyglwooqmzcfvtmyl
 - **`auth.uid() is null` in admin paths.** Direct DB callers (Management API, dashboard SQL editor, service_role) have null `auth.uid()`. Any future SECURITY DEFINER trigger that gates by caller identity should early-return when `auth.uid() is null`.
 - **Supabase CLI logs in to whichever account the *browser* has open** at the time of authorize — not whichever account the auto-generated token name implies. If `supabase projects list` shows the wrong projects, `supabase logout` and re-login with the correct browser session.
 
-### File-tree snapshot (Phase 2 end)
+### File-tree snapshot (Phase 3 end)
 
 ```
 src/
@@ -488,8 +493,13 @@ src/
       actions.ts                       # createTournament / updateTournament / deleteTournament / updateTournamentStatus
       page.tsx                         # public list
       new/page.tsx + new-tournament-form.tsx
-      [slug]/page.tsx                  # public detail + team grid
+      [slug]/page.tsx                  # public detail + matches list + team grid
       [slug]/edit/page.tsx + edit-tournament-form.tsx
+      [slug]/admins/                   # Phase 3 — organizer + scorer assignment
+        actions.ts page.tsx add-admin-form.tsx remove-admin-button.tsx
+      [slug]/matches/
+        actions.ts                     # createMatch / updateMatch / deleteMatch / setToss
+        new/page.tsx + new-match-form.tsx
       [slug]/teams/
         actions.ts                     # createTeam / updateTeam / deleteTeam / addPlayerToTeam / removePlayerFromTeam
         new/page.tsx + new-team-form.tsx
@@ -497,6 +507,15 @@ src/
         [teamId]/add-roster-form.tsx
         [teamId]/remove-roster-button.tsx
         [teamId]/edit/page.tsx + edit-team-form.tsx
+    matches/
+      [matchId]/
+        page.tsx                       # public detail (teams, schedule, toss, XI)
+        toss-form.tsx                  # client form for organizer to set toss
+        xi-section.tsx                 # per-team XI cards
+        edit/page.tsx + edit-match-form.tsx
+        xi/[teamId]/
+          actions.ts                   # savePlayingXI (delete-then-insert)
+          page.tsx + pick-xi-form.tsx
     players/
       actions.ts                       # createPlayer / updatePlayer / deletePlayer
       page.tsx + new/page.tsx + new-player-form.tsx
@@ -505,14 +524,14 @@ src/
     site-nav.tsx                       # server component, getUser() → email + Sign out
     ui/                                # shadcn: button, card, input, label, sonner, form
   lib/
-    auth.ts                            # getSessionContext / requireUser / requireSuperAdmin
+    auth.ts                            # getSessionContext / requireUser / requireSuperAdmin / requireOrganizer / requireTournamentAdmin / isTournamentOrganizer / isTournamentAdmin
     slug.ts                            # slugify()
     utils.ts                           # cn()
     supabase/
       client.ts server.ts middleware.ts
       database.types.ts                # hand-written stub; regenerate with pnpm gen:types
   proxy.ts                             # Next 16 proxy convention; calls updateSession()
-db.sql                                 # schema (matches live)
+db.sql                                 # schema (matches live; includes lookup_user_id_by_email + prevent_self_promote carve-out)
 .env.local.example                     # NEXT_PUBLIC_SUPABASE_URL/ANON_KEY placeholders
 .nvmrc                                 # 24
 HANDOFF.md README.md AGENTS.md CLAUDE.md

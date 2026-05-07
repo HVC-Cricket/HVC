@@ -22,11 +22,6 @@ import { createTeam } from "../actions";
 const schema = z.object({
   name: z.string().min(2, "Team name must be at least 2 characters"),
   short_name: z.string().min(2).max(5, "Short name is 2–5 characters"),
-  color: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/, "Hex like #1f6feb")
-    .optional()
-    .or(z.literal("")),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -34,7 +29,7 @@ type FormValues = z.infer<typeof schema>;
 export function NewTeamForm({ tournamentSlug }: { tournamentSlug: string }) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", short_name: "", color: "" },
+    defaultValues: { name: "", short_name: "" },
   });
 
   const onSubmit = async (values: FormValues) => {
@@ -75,19 +70,6 @@ export function NewTeamForm({ tournamentSlug }: { tournamentSlug: string }) {
                 />
               </FormControl>
               <FormDescription>2–5 letters, shown on scorecards.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="color"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Color (hex)</FormLabel>
-              <FormControl>
-                <Input placeholder="#1f6feb" {...field} />
-              </FormControl>
               <FormMessage />
             </FormItem>
           )}

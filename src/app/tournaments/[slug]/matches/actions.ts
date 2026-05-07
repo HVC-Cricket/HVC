@@ -1,0 +1,256 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+
+import { requireOrganizer, requireUser } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+
+import type { ActionResult } from "@/app/tournaments/actions";
+
+const matchStages = [
+  "group",
+  "qualifier",
+  "quarter",
+  "semi",
+  "final",
+  "exhibition",
+] as const;
+
+const matchStatuses = [
+  "scheduled",
+  "live",
+  "innings_break",
+  "completed",
+  "abandoned",
+] as const;
+
+const baseMatchFields = {
+  stage: z.enum(matchStages),
+  team_a_id: z.string().uuid("Pick team A"),
+  team_b_id: z.string().uuid("Pick team B"),
+  scheduled_at: z.string().optional().or(z.literal("")),
+  venue: z.string().optional().or(z.literal("")),
+  overs_per_innings: z.coerce.number().int().positive().max(50),
+  players_per_side: z.coerce.number().int().min(2).max(15),
+};
+
+const createMatchSchema = z
+  .object({
+    tournamentSlug: z.string().min(1),
+    ...baseMatchFields,
+  })
+  .refine((d) => d.team_a_id !== d.team_b_id, {
+    message: "Team A and Team B must be different",
+    path: ["team_b_id"],
+  });
+
+const updateMatchSchema = z
+  .object({
+    matchId: z.string().uuid(),
+    ...baseMatchFields,
+    status: z.enum(matchStatuses),
+  })
+  .refine((d) => d.team_a_id !== d.team_b_id, {
+    message: "Team A and Team B must be different",
+    path: ["team_b_id"],
+  });
+
+export type CreateMatchInput = z.infer<typeof createMatchSchema>;
+export type UpdateMatchInput = z.infer<typeof updateMatchSchema>;
+
+export async function createMatch(
+  input: CreateMatchInput,
+): Promise<ActionResult<{ matchId: string }>> {
+  const parsed = createMatchSchema.safeParse(input);
+  if (!parsed.success) {
+    await requireUser();
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { data: tournament } = await supabase
+    .from("tournaments")
+    .select("id, slug")
+    .eq("slug", parsed.data.tournamentSlug)
+    .single();
+  if (!tournament) {
+    await requireUser();
+    return { ok: false, error: "Tournament not found" };
+  }
+  await requireOrganizer(tournament.id);
+
+  // Sanity-check: both teams belong to this tournament.
+  const { data: validTeams } = await supabase
+    .from("teams")
+    .select("id")
+    .eq("tournament_id", tournament.id)
+    .in("id", [parsed.data.team_a_id, parsed.data.team_b_id]);
+  if (!validTeams || validTeams.length !== 2) {
+    return { ok: false, error: "Teams must belong to this tournament" };
+  }
+
+  // Auto-pick next match_number.
+  const { data: maxRow } = await supabase
+    .from("matches")
+    .select("match_number")
+    .eq("tournament_id", tournament.id)
+    .order("match_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextNumber = (maxRow?.match_number ?? 0) + 1;
+
+  const { data: created, error } = await supabase
+    .from("matches")
+    .insert({
+      tournament_id: tournament.id,
+      match_number: nextNumber,
+      stage: parsed.data.stage,
+      team_a_id: parsed.data.team_a_id,
+      team_b_id: parsed.data.team_b_id,
+      scheduled_at: parsed.data.scheduled_at || null,
+      venue: parsed.data.venue || null,
+      overs_per_innings: parsed.data.overs_per_innings,
+      players_per_side: parsed.data.players_per_side,
+    })
+    .select("id")
+    .single();
+
+  if (error || !created) {
+    return { ok: false, error: error?.message ?? "Insert failed" };
+  }
+
+  revalidatePath(`/tournaments/${tournament.slug}`);
+  redirect(`/matches/${created.id}`);
+}
+
+export async function updateMatch(
+  input: UpdateMatchInput,
+): Promise<ActionResult> {
+  const parsed = updateMatchSchema.safeParse(input);
+  if (!parsed.success) {
+    await requireUser();
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { data: match } = await supabase
+    .from("matches")
+    .select("id, tournament_id")
+    .eq("id", parsed.data.matchId)
+    .single();
+  if (!match) {
+    await requireUser();
+    return { ok: false, error: "Match not found" };
+  }
+  await requireOrganizer(match.tournament_id);
+
+  const { error } = await supabase
+    .from("matches")
+    .update({
+      stage: parsed.data.stage,
+      team_a_id: parsed.data.team_a_id,
+      team_b_id: parsed.data.team_b_id,
+      scheduled_at: parsed.data.scheduled_at || null,
+      venue: parsed.data.venue || null,
+      overs_per_innings: parsed.data.overs_per_innings,
+      players_per_side: parsed.data.players_per_side,
+      status: parsed.data.status,
+    })
+    .eq("id", match.id);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/matches/${match.id}`);
+  redirect(`/matches/${match.id}`);
+}
+
+const deleteMatchSchema = z.object({ matchId: z.string().uuid() });
+
+export async function deleteMatch(
+  input: z.infer<typeof deleteMatchSchema>,
+): Promise<ActionResult> {
+  const parsed = deleteMatchSchema.safeParse(input);
+  if (!parsed.success) {
+    await requireUser();
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { data: match } = await supabase
+    .from("matches")
+    .select("id, tournament_id")
+    .eq("id", parsed.data.matchId)
+    .single();
+  if (!match) {
+    await requireUser();
+    return { ok: false, error: "Match not found" };
+  }
+  await requireOrganizer(match.tournament_id);
+
+  // Need tournament slug for redirect.
+  const { data: tournament } = await supabase
+    .from("tournaments")
+    .select("slug")
+    .eq("id", match.tournament_id)
+    .single();
+
+  const { error } = await supabase
+    .from("matches")
+    .delete()
+    .eq("id", match.id);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/tournaments/${tournament?.slug}`);
+  redirect(`/tournaments/${tournament?.slug ?? ""}`);
+}
+
+const setTossSchema = z.object({
+  matchId: z.string().uuid(),
+  toss_winner_id: z.string().uuid(),
+  toss_decision: z.enum(["bat", "bowl"]),
+});
+
+export async function setToss(
+  input: z.infer<typeof setTossSchema>,
+): Promise<ActionResult> {
+  const parsed = setTossSchema.safeParse(input);
+  if (!parsed.success) {
+    await requireUser();
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { data: match } = await supabase
+    .from("matches")
+    .select("id, tournament_id, team_a_id, team_b_id")
+    .eq("id", parsed.data.matchId)
+    .single();
+  if (!match) {
+    await requireUser();
+    return { ok: false, error: "Match not found" };
+  }
+  await requireOrganizer(match.tournament_id);
+
+  if (
+    parsed.data.toss_winner_id !== match.team_a_id &&
+    parsed.data.toss_winner_id !== match.team_b_id
+  ) {
+    return { ok: false, error: "Toss winner must be one of the two teams" };
+  }
+
+  const { error } = await supabase
+    .from("matches")
+    .update({
+      toss_winner_id: parsed.data.toss_winner_id,
+      toss_decision: parsed.data.toss_decision,
+    })
+    .eq("id", match.id);
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/matches/${match.id}`);
+  return { ok: true, data: undefined };
+}
