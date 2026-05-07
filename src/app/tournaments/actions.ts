@@ -5,8 +5,11 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireOrganizer, requireSuperAdmin, requireUser } from "@/lib/auth";
+import { HVC_RULES } from "@/lib/scoring";
 import { slugify } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
+
+import type { Json } from "@/lib/supabase/database.types";
 
 const tournamentFormatValues = ["league", "knockout", "group_then_knockout"] as const;
 const tournamentStatusValues = ["draft", "active", "completed", "archived"] as const;
@@ -72,6 +75,9 @@ export async function createTournament(
       end_date: data.end_date || null,
       venue: data.venue || null,
       description: data.description || null,
+      // Default new tournaments to the HVC ruleset. Stored as JSONB so we can
+      // tweak per-tournament without migrations. Engine reads via getRuleSet().
+      rules: HVC_RULES as unknown as Json,
       created_by: user.id,
     });
 
