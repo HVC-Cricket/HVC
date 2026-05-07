@@ -319,7 +319,12 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
   - `finalizeMatch` action exposed for manual finalization (mostly defensive — the auto path runs on innings-2 completion).
   - `InningsBreakPanel` — innings-1 summary + chase target + new openers picker for innings 2.
   - `MatchCompletePanel` — final scorecard + auto-finalize button + tie messaging.
-- [ ] **4d (part 3, deferred)** — Multi-ball undo stack, super over flow (innings 3 / 4 with 2-wicket cap), wicket fielder picker, byes-with-N-runs keypad.
+- [x] **4d (part 2.5)** — Wide / No-ball runs keypads:
+  - Wide: `Wide` / `Wide +1` / `Wide +2` / `Wide +4` (overthrows or boundary off wide) → records `extras = 1 + N` with `extra_type='wide'`.
+  - No-ball: `No-ball` / `NB +1` / `NB +2` / `NB +4` / `NB +6` (penalty + bat runs) → records `runs_off_bat = N`, `extras = 1`, `extra_type='no_ball'`.
+  - Wicket button moved to its own row so the inline panel has full width.
+  - Two new engine tests (NB + 4 off bat, Wide + 4 boundary). 21/21 passing.
+- [ ] **4d (part 3, deferred)** — Multi-ball undo stack, super over flow (innings 3 / 4 with 2-wicket cap).
 - [ ] **4e** — Supabase Edge Function: re-run engine on the server in a separate runtime layer, reject invalid balls (defence in depth — currently the Server Action does the validation, which is server-side already but bound to Next.js).
 
 Encoded HVC ruleset reference: see `memory/project_hvc_rules.md` (per-machine), or just read `HVC_RULES` in `src/lib/scoring/rules.ts`.

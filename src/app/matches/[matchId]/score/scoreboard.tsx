@@ -222,41 +222,49 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 </Button>
               ))}
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              <ExtraButton
-                label="Wide"
-                onSubmit={() =>
-                  submit({ runs_off_bat: 0, extras: 1, extra_type: "wide" })
-                }
-                disabled={pending}
-              />
-              <ExtraButton
-                label="No-ball"
-                onSubmit={() =>
-                  submit({ runs_off_bat: 0, extras: 1, extra_type: "no_ball" })
-                }
-                disabled={pending}
-              />
-              <WicketButton
-                onSubmit={(wt, outId, fielderId) =>
-                  submit({
-                    is_wicket: true,
-                    wicket_type: wt,
-                    player_out_id: outId ?? strikerId,
-                    fielder_id: fielderId ?? null,
-                  })
-                }
-                disabled={pending}
-                allowed={state.rules.allowed_wicket_types as WicketType[]}
-                onFreeHit={state.active.free_hit_pending}
-                freeHitDismissals={state.rules.free_hit.out_dismissals as WicketType[]}
-                striker={striker?.display_name}
-                nonStriker={nonStriker?.display_name}
-                strikerId={strikerId}
-                nonStrikerId={nonStrikerId}
-                bowlingXi={state.xi[innings.bowling_team_id] ?? []}
-              />
+            {/* Wides: penalty 1 + N additional wide runs (overthrows / boundary off wide) */}
+            <div className="grid grid-cols-4 gap-2">
+              {[0, 1, 2, 4].map((n) => (
+                <Button
+                  key={n}
+                  variant="outline"
+                  className="h-12"
+                  disabled={pending}
+                  onClick={() =>
+                    submit({
+                      runs_off_bat: 0,
+                      extras: 1 + n,
+                      extra_type: "wide",
+                    })
+                  }
+                >
+                  {n === 0 ? "Wide" : `Wide +${n}`}
+                </Button>
+              ))}
             </div>
+
+            {/* No-balls: penalty 1 + N runs off the bat */}
+            <div className="grid grid-cols-5 gap-2">
+              {[0, 1, 2, 4, 6].map((n) => (
+                <Button
+                  key={n}
+                  variant="outline"
+                  className="h-12"
+                  disabled={pending}
+                  onClick={() =>
+                    submit({
+                      runs_off_bat: n,
+                      extras: 1,
+                      extra_type: "no_ball",
+                    })
+                  }
+                >
+                  {n === 0 ? "No-ball" : `NB +${n}`}
+                </Button>
+              ))}
+            </div>
+
+            {/* Byes: scorer chooses 1–4 */}
             {state.rules.extras.byes && (
               <div className="grid grid-cols-4 gap-2">
                 {[1, 2, 3, 4].map((n) => (
@@ -278,6 +286,29 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 ))}
               </div>
             )}
+
+            {/* Wicket — its own row so the inline panel has space */}
+            <div className="grid grid-cols-1 gap-2">
+              <WicketButton
+                onSubmit={(wt, outId, fielderId) =>
+                  submit({
+                    is_wicket: true,
+                    wicket_type: wt,
+                    player_out_id: outId ?? strikerId,
+                    fielder_id: fielderId ?? null,
+                  })
+                }
+                disabled={pending}
+                allowed={state.rules.allowed_wicket_types as WicketType[]}
+                onFreeHit={state.active.free_hit_pending}
+                freeHitDismissals={state.rules.free_hit.out_dismissals as WicketType[]}
+                striker={striker?.display_name}
+                nonStriker={nonStriker?.display_name}
+                strikerId={strikerId}
+                nonStrikerId={nonStrikerId}
+                bowlingXi={state.xi[innings.bowling_team_id] ?? []}
+              />
+            </div>
             <div className="flex items-center justify-between gap-2 pt-2">
               <Button
                 variant="ghost"

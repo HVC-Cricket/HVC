@@ -161,6 +161,33 @@ describe("applyBall — wides + no-balls", () => {
     expect(r.state.legal_balls).toBe(0);
   });
 
+  it("no-ball + 4 off the bat adds 5 to total but is not a legal ball", () => {
+    const s0 = freshInnings();
+    const r = applyBall(
+      s0,
+      { runs_off_bat: 4, extras: 1, extra_type: "no_ball", is_wicket: false },
+      HVC_RULES,
+    );
+    if (!r.ok) throw new Error();
+    expect(r.state.total_runs).toBe(5);
+    expect(r.state.extras_no_balls).toBe(1);
+    expect(r.state.legal_balls).toBe(0);
+    expect(r.state.free_hit_pending).toBe(true);
+  });
+
+  it("wide + 4 (boundary off wide) records 5 wide runs", () => {
+    const s0 = freshInnings();
+    const r = applyBall(
+      s0,
+      { runs_off_bat: 0, extras: 5, extra_type: "wide", is_wicket: false },
+      HVC_RULES,
+    );
+    if (!r.ok) throw new Error();
+    expect(r.state.total_runs).toBe(5);
+    expect(r.state.extras_wides).toBe(5);
+    expect(r.state.legal_balls).toBe(0);
+  });
+
   it("free hit consumed on next legal ball", () => {
     const s0 = freshInnings();
     const r1 = applyBall(
