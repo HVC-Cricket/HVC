@@ -157,28 +157,3 @@ export async function deleteTournament(
   redirect("/tournaments");
 }
 
-const updateStatusSchema = z.object({
-  tournamentId: z.string().uuid(),
-  status: z.enum(tournamentStatusValues),
-});
-
-export async function updateTournamentStatus(
-  input: z.infer<typeof updateStatusSchema>,
-): Promise<ActionResult> {
-  await requireUser();
-  const parsed = updateStatusSchema.safeParse(input);
-  if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("tournaments")
-    .update({ status: parsed.data.status })
-    .eq("id", parsed.data.tournamentId);
-
-  if (error) return { ok: false, error: error.message };
-
-  revalidatePath("/tournaments");
-  return { ok: true, data: undefined };
-}
