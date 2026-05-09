@@ -8,7 +8,7 @@
 
 We are building **HVC Scoring**, a web app for live scoring and spectating a **box cricket tournament** with custom rules. Multiple admins enter ball-by-ball data; 50–60+ spectators (possibly more) follow scores live in their browsers.
 
-**Status as of 2026-05-09:** Phases 0–3 done, Phase 4 done through 4d part 3a (super over flow). Phase 5 done through part 2 (live + completed scorecards, points table, player career page) plus dynamic OG. Phase 6 has PWA done. Player-registry writes hardened on 2026-05-09: only super-admins and tournament organizers can create/edit players (was: any signed-in user). Email confirmation flipped on. One super admin bootstrapped (`pavan.gautham17@gmail.com`).
+**Status as of 2026-05-09:** Phases 0–3 done, Phase 4 done through 4d part 3a (super over flow). Phase 5 done through part 2 (live + completed scorecards, points table, player career page) plus dynamic OG. Phase 6 has PWA done. Player-registry writes hardened on 2026-05-09: only super-admins and tournament organizers can create/edit players (was: any signed-in user). One super admin bootstrapped (`pavan.gautham17@gmail.com`).
 
 **Project directory:** `~/Desktop/projects/hvc-scoring/` (Pavan's machine; was `/home/sudharshan/projects/own/hvc-scoring/` for the prior author).
 **Files in repo today:**
@@ -273,14 +273,11 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 | 2026-05-07 | **Rules engine is pure functions** in `src/lib/scoring/` (no I/O) | Same module can run on the client (instant feedback) AND in a Supabase Edge Function (server-side validation), with `balls` rows replayable into any historical state. Vitest covers the engine in isolation. |
 | 2026-05-07 | HVC ruleset baked into `HVC_RULES` constant; `tournaments.rules` JSONB will store overrides | Per-tournament rule mutations don't need schema changes; engine reads the `RuleSet` shape directly. |
 | 2026-05-09 | Bootstrapped `sudarshan61kv@gmail.com` as the second super admin (later removed) | Co-maintainer needs full access. Used the same Management-API `update profiles set is_super_admin = true` pattern documented in README. |
-| 2026-05-09 | Removed `sudarshan61kv@gmail.com` and `hvc.cricket@gmail.com` from `auth.users` (cascade-cleared their `profiles` rows) | Cleanup before any real-user signups under the new email-confirmation flow. Neither had any FK references (no tournament_admins / players / audit / balls). Back to one super admin. |
+| 2026-05-09 | Removed `sudarshan61kv@gmail.com` and `hvc.cricket@gmail.com` from `auth.users` (cascade-cleared their `profiles` rows) | Cleanup before any real-user signups. Neither had any FK references (no tournament_admins / players / audit / balls). Back to one super admin. |
 | 2026-05-09 | **Tightened player-registry writes**: `players_insert_admin` / `players_update_admin` policies now require super-admin OR `tournament_admins.role = 'organizer'` (was: any tournament admin). Scorers and roleless auth users can no longer create or edit players. | The registry should be curated, not free-for-all. Original RLS was too broad — any authenticated user passing the `requireUser()` Server Action gate could mutate any player row. Server Actions and UI updated to match (see §13 file-tree changes). |
 | 2026-05-09 | Added `players.linked_user_id → profiles(id)` link with **partial unique index** `ux_players_linked_user_id` (only enforced where `linked_user_id is not null`) | A super-admin/organizer/scorer who plays box cricket needs both a profile *and* a player record. The link lets `/me` and the player detail page show "Linked to: email". Nullable + unique-when-set: multiple unlinked players are fine; one auth user has at most one player. |
 | 2026-05-09 | Added `lookup_email_by_user_id(uuid)` SECURITY DEFINER helper (authenticated only) | Symmetric to `lookup_user_id_by_email`. Used to prefill the linked-email field on the player edit form so an organizer can see the current link without service-role access. |
 | 2026-05-09 | Optional `linked_email` field on player create/update forms; resolved via the email RPC and stored as `linked_user_id` | Two coexisting flows for getting players into the system: (a) anyone signs up via `/signup` (auth account only — no auto player record), (b) organizers/super-admins create the player record and **optionally link it** to an existing user account by email. Keeps the "only org/super can add players" rule absolute while still supporting players who happen to be admins. |
-| 2026-05-09 | Added `list_users_for_linking()` SECURITY DEFINER RPC + native `<datalist>` autocomplete on the linked-email input | Free-text email entry was guesswork. Native `<datalist>` gives search + dropdown with zero deps and works with the existing `<Input>`. RPC gated to super/organizer (same scope as the player write policies). |
-| 2026-05-09 | **Turned ON `Confirm email`** in the Supabase Auth project config; added `/auth/confirm` route handler + "check your email" UI on signup | Now that the registry is curated and we're starting to invite real users, anonymous signups need to prove they own the email before they can be added as admins or linked to players. Signup no longer auto-signs-in — users get a verification email, then sign in. |
-| 2026-05-09 | Switched signup confirmation to **OTP code** (6-digit) instead of magic link | Pavan asked for a code-in-UI flow. Supabase native: `Confirm signup` email template uses `{{ .Token }}`; signup form is now 2-step with name/email/password → OTP entry. `verifySignup` server action calls `verifyOtp({ type: 'email' })` and redirects to `/me`. `resendSignupOtp` action calls `auth.resend({ type: 'signup' })`. Magic-link route handler at `/auth/confirm` is kept (unused on signup happy-path) for upcoming password-recovery + email-change flows. |
 
 ---
 
@@ -297,7 +294,7 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 ### Phase 0 — Supabase setup ✅
 - [x] Project provisioned (`hvc-scoring`, Mumbai region, ap-south-1, free tier)
 - [x] `db.sql` executed — 11 tables, 6 views, RLS enabled, `supabase_realtime` publication on `balls`, `innings`, `matches`
-- [x] Authentication → Sign In / Up: Email enabled, **email confirmation ON as of 2026-05-09** (callback handler at `/auth/confirm`), Site URL = `http://localhost:3000`
+- [x] Authentication → Sign In / Up: Email enabled, **email confirmation off** (dev), Site URL = `http://localhost:3000`
 - [x] Storage buckets created (public): `tournament-logos`, `team-logos`, `player-photos`, `match-banners`
 - [x] `.env.local` populated with `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - [x] Pavan bootstrapped as super admin via `pnpm exec supabase db query --linked "..."`
@@ -369,24 +366,14 @@ Encoded HVC ruleset reference: see `memory/project_hvc_rules.md` (per-machine), 
 - [x] **Tightened player-registry writes.** RLS policies `players_insert_admin` and `players_update_admin` now require super-admin OR `tournament_admins.role = 'organizer'`. Removes scorer + roleless-auth-user write access to the registry.
 - [x] **`players.linked_user_id` link** with partial unique index `ux_players_linked_user_id` — at most one player per auth user; multiple unlinked players still allowed.
 - [x] **`lookup_email_by_user_id(uuid)` SECURITY DEFINER helper** added (authenticated only), symmetric to `lookup_user_id_by_email`.
-- [x] **`list_users_for_linking()` SECURITY DEFINER RPC** returning `(id, email, display_name)` for every registered user — gated to super OR organizer of any tournament. Powers the searchable email dropdown on the player forms.
 - [x] **`isOrganizerOrSuperAdmin` / `requireOrganizerOrSuperAdmin`** helpers in `src/lib/auth.ts`.
 - [x] **`createPlayer` / `updatePlayer` Server Actions** swapped from `requireUser` to `requireOrganizerOrSuperAdmin`. Both accept an optional `linked_email` that is resolved via the RPC and stored as `linked_user_id`. Friendly errors for unknown emails and unique-violations (a user already linked to another player record).
 - [x] **UI gates updated**:
   - `/players` "New player" button hidden unless caller is org/super.
   - `/players/[id]` "Edit" button hidden unless caller is org/super; "Linked to: email" line surfaces the link when present (visible to any signed-in user, not anon).
   - `/players/new` and `/players/[id]/edit` page-level gates swapped to the new helper.
-  - Linked-email field is a native `<datalist>` autocomplete sourced from `list_users_for_linking()` — search-as-you-type, free-text fallback. Zero new deps.
   - `/me` shows the user's linked player record (link to player page) when one exists.
-- [x] **Email confirmation flow (OTP).** Supabase Auth project setting `Confirm email` flipped ON; signup now sends a 6-digit OTP and the form swaps to a code-entry step.
-  - **Email template change required.** `Authentication → Email Templates → Confirm signup` should use `{{ .Token }}` (renders the OTP) instead of `{{ .ConfirmationURL }}` (the old magic-link). The current Confirm-signup template only needs a body containing the token; the link template is no longer used for signup.
-  - `signUp` Server Action calls `supabase.auth.signUp` (no `emailRedirectTo` — we're not using URL-based verification) and returns `{ ok: true, needsConfirmation: true, email }`. With `Confirm email = ON`, no session is returned; the form swaps to the OTP step.
-  - New `verifySignup` Server Action calls `supabase.auth.verifyOtp({ email, token, type: 'email' })`. Cookies are set on the response by `@supabase/ssr`'s manager; on success the action `redirect()`s to `/me`.
-  - New `resendSignupOtp` Server Action calls `supabase.auth.resend({ type: 'signup', email })`.
-  - 2-step signup form (`signup-form.tsx`): step 1 = name/email/password; step 2 = OTP input (6-digit, `inputMode="numeric"`, `autoComplete="one-time-code"`) + resend + back-to-edit links.
-  - **Route handler `src/app/auth/confirm/route.ts` is kept** for password-recovery + email-change flows we'll add later; it's not on the signup happy-path anymore but still works if the email template ever includes `{{ .ConfirmationURL }}` again.
-  - `/login` page surfaces `?confirmed=1` and `?error=…` flash banners (legacy from the URL-flow; harmless).
-- [x] Type stub updated with `lookup_email_by_user_id` + `list_users_for_linking`. 21/21 engine tests still pass; `tsc --noEmit` clean.
+- [x] Type stub updated with `lookup_email_by_user_id`. 21/21 engine tests still pass; `tsc --noEmit` clean.
 
 ### Phase 2 — Tournaments / teams / players ✅
 - [x] **Tournaments**
