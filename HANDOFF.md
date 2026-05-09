@@ -8,7 +8,7 @@
 
 We are building **HVC Scoring**, a web app for live scoring and spectating a **box cricket tournament** with custom rules. Multiple admins enter ball-by-ball data; 50–60+ spectators (possibly more) follow scores live in their browsers.
 
-**Status as of 2026-05-09:** Phases 0–3 done, Phase 4 done through 4d part 3a (super over flow). Phase 5 done through part 2 (live + completed scorecards, points table, player career page) plus dynamic OG. Phase 6 has PWA done. Player-registry writes hardened on 2026-05-09: only super-admins and tournament organizers can create/edit players (was: any signed-in user). One super admin bootstrapped (`pavan.gautham17@gmail.com`).
+**Status as of 2026-05-09:** Phases 0–3 done, Phase 4 done through 4d part 3a (super over flow). Phase 5 done through part 2 (live + completed scorecards, points table, player career page) plus dynamic OG. Phase 6 has PWA done. Player-registry writes hardened on 2026-05-09: only super-admins and tournament organizers can create/edit players (was: any signed-in user). Dead `updateTournamentStatus` action removed; status changes flow through the gated `updateTournament` action. Two super admins bootstrapped (`pavan.gautham17@gmail.com`, `sudarshan61kv@gmail.com`).
 
 **Project directory:** `~/Desktop/projects/hvc-scoring/` (Pavan's machine; was `/home/sudharshan/projects/own/hvc-scoring/` for the prior author).
 **Files in repo today:**
@@ -278,6 +278,8 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 | 2026-05-09 | Added `players.linked_user_id → profiles(id)` link with **partial unique index** `ux_players_linked_user_id` (only enforced where `linked_user_id is not null`) | A super-admin/organizer/scorer who plays box cricket needs both a profile *and* a player record. The link lets `/me` and the player detail page show "Linked to: email". Nullable + unique-when-set: multiple unlinked players are fine; one auth user has at most one player. |
 | 2026-05-09 | Added `lookup_email_by_user_id(uuid)` SECURITY DEFINER helper (authenticated only) | Symmetric to `lookup_user_id_by_email`. Used to prefill the linked-email field on the player edit form so an organizer can see the current link without service-role access. |
 | 2026-05-09 | Optional `linked_email` field on player create/update forms; resolved via the email RPC and stored as `linked_user_id` | Two coexisting flows for getting players into the system: (a) anyone signs up via `/signup` (auth account only — no auto player record), (b) organizers/super-admins create the player record and **optionally link it** to an existing user account by email. Keeps the "only org/super can add players" rule absolute while still supporting players who happen to be admins. |
+| 2026-05-09 | Re-promoted `sudarshan61kv@gmail.com` to super admin after a fresh signup | Same person as the previous super-admin row that we deleted earlier in the day — they signed up again with a new `auth.users` id (`75afe1f9-…`) and need full access for co-maintenance. Pattern unchanged: `update profiles set is_super_admin = true …` via Management API. |
+| 2026-05-09 | **Deleted `updateTournamentStatus` Server Action** (commit `f1d3179`) | Dead code: nothing in `src/` called it, and `updateTournament` already covers status changes via the full edit form with a correct `requireOrganizer(tournamentId)` gate. The deleted action only had `requireUser()`, which was looser than the underlying RLS policy — a logic-gap smell. Removing it shrinks the action surface area without changing any wired behavior. |
 
 ---
 
@@ -519,7 +521,7 @@ That memory is local to one machine and won't be available in your session — t
 - **Realtime tables:** `balls`, `innings`, `matches` (already in `supabase_realtime` publication)
 - **Default players-per-side:** 6 (box cricket)
 - **Default overs:** 6 (configurable per tournament + per match)
-- **Super admin (today):** `pavan.gautham17@gmail.com`
+- **Super admins (today):** `pavan.gautham17@gmail.com`, `sudarshan61kv@gmail.com`
 
 ### Day-to-day commands
 
@@ -561,7 +563,7 @@ src/
       signup/page.tsx + signup-form.tsx
     me/page.tsx                        # protected — reads profiles row
     tournaments/
-      actions.ts                       # createTournament / updateTournament / deleteTournament / updateTournamentStatus
+      actions.ts                       # createTournament / updateTournament / deleteTournament
       page.tsx                         # public list
       new/page.tsx + new-tournament-form.tsx
       [slug]/page.tsx                  # public detail + matches list + team grid
