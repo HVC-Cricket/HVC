@@ -53,6 +53,12 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+type LinkableUser = {
+  id: string;
+  email: string;
+  display_name: string;
+};
+
 type Props = {
   player: {
     id: string;
@@ -64,9 +70,10 @@ type Props = {
     linked_email: string | null;
   };
   canDelete: boolean;
+  linkableUsers: LinkableUser[];
 };
 
-export function EditPlayerForm({ player, canDelete }: Props) {
+export function EditPlayerForm({ player, canDelete, linkableUsers }: Props) {
   const [deleting, startDelete] = useTransition();
 
   const form = useForm<FormValues>({
@@ -173,13 +180,22 @@ export function EditPlayerForm({ player, canDelete }: Props) {
                 <Input
                   type="email"
                   placeholder="player@example.com"
+                  list="linkable-users"
+                  autoComplete="off"
                   {...field}
                 />
               </FormControl>
+              <datalist id="linkable-users">
+                {linkableUsers.map((u) => (
+                  <option key={u.id} value={u.email}>
+                    {u.display_name}
+                  </option>
+                ))}
+              </datalist>
               <FormDescription>
-                Email of the auth account this player record represents. Leave
-                blank if the player isn&apos;t a signed-up user. Clearing it
-                unlinks the record.
+                Email of the auth account this player record represents. Pick
+                from the list or type to search. Leave blank if the player
+                isn&apos;t a signed-up user. Clearing it unlinks the record.
               </FormDescription>
               <FormMessage />
             </FormItem>

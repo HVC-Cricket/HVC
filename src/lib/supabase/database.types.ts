@@ -529,6 +529,10 @@ export type Database = {
         Args: { p_user_id: string };
         Returns: string | null;
       };
+      list_users_for_linking: {
+        Args: Record<string, never>;
+        Returns: { id: string; email: string; display_name: string }[];
+      };
     };
   };
 };

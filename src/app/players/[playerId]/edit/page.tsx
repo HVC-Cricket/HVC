@@ -36,6 +36,8 @@ export default async function EditPlayerPage(props: {
     linkedEmail = data ?? null;
   }
 
+  const { data: linkableUsers } = await supabase.rpc("list_users_for_linking");
+
   return (
     <main className="flex-1 p-6">
       <div className="mx-auto max-w-2xl">
@@ -58,6 +60,7 @@ export default async function EditPlayerPage(props: {
                 linked_email: linkedEmail,
               }}
               canDelete={ctx.profile?.is_super_admin === true}
+              linkableUsers={linkableUsers ?? []}
             />
           </CardContent>
         </Card>

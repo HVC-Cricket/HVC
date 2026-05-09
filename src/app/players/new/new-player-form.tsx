@@ -52,7 +52,19 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-export function NewPlayerForm({ redirectTo }: { redirectTo?: string }) {
+export type LinkableUser = {
+  id: string;
+  email: string;
+  display_name: string;
+};
+
+export function NewPlayerForm({
+  redirectTo,
+  linkableUsers,
+}: {
+  redirectTo?: string;
+  linkableUsers: LinkableUser[];
+}) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -140,13 +152,23 @@ export function NewPlayerForm({ redirectTo }: { redirectTo?: string }) {
                 <Input
                   type="email"
                   placeholder="player@example.com"
+                  list="linkable-users"
+                  autoComplete="off"
                   {...field}
                 />
               </FormControl>
+              <datalist id="linkable-users">
+                {linkableUsers.map((u) => (
+                  <option key={u.id} value={u.email}>
+                    {u.display_name}
+                  </option>
+                ))}
+              </datalist>
               <FormDescription>
                 If this player has signed up to the app (e.g. an organizer or
-                scorer who also plays), enter their email to link the records.
-                The user must already exist.
+                scorer who also plays), pick or type their email to link the
+                records. {linkableUsers.length} registered user
+                {linkableUsers.length === 1 ? "" : "s"} available.
               </FormDescription>
               <FormMessage />
             </FormItem>

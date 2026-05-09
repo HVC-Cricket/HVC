@@ -6,6 +6,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireOrganizerOrSuperAdmin } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 
 import { NewPlayerForm } from "./new-player-form";
 
@@ -20,6 +21,9 @@ export default async function NewPlayerPage(props: {
       ? `/tournaments/${sp.tournamentSlug}/teams/${sp.teamId}`
       : undefined;
 
+  const supabase = await createClient();
+  const { data: linkableUsers } = await supabase.rpc("list_users_for_linking");
+
   return (
     <main className="flex-1 p-6">
       <div className="mx-auto max-w-2xl">
@@ -31,7 +35,10 @@ export default async function NewPlayerPage(props: {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <NewPlayerForm redirectTo={redirectTo} />
+            <NewPlayerForm
+              redirectTo={redirectTo}
+              linkableUsers={linkableUsers ?? []}
+            />
           </CardContent>
         </Card>
       </div>

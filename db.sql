@@ -623,6 +623,31 @@ $$;
 revoke all on function lookup_email_by_user_id(uuid) from public;
 grant execute on function lookup_email_by_user_id(uuid) to authenticated;
 
+-- Bulk list of registered users for the player-link dropdown. Returns
+-- (id, email, display_name) for every signed-up user, but ONLY to callers
+-- who are super-admin or an organizer of any tournament — same gate as
+-- the player insert/update RLS policies. Quietly returns 0 rows for
+-- anyone else (e.g. scorers, roleless auth users, anon, Management-API).
+create or replace function list_users_for_linking()
+returns table(id uuid, email text, display_name text)
+language sql
+security definer
+set search_path = public, auth
+stable
+as $$
+  select u.id, u.email::text, p.display_name
+  from auth.users u
+  join profiles p on p.id = u.id
+  where is_super_admin(auth.uid())
+     or exists (
+       select 1 from tournament_admins
+       where user_id = auth.uid() and role = 'organizer'
+     )
+  order by p.display_name;
+$$;
+revoke all on function list_users_for_linking() from public;
+grant execute on function list_users_for_linking() to authenticated;
+
 
 -- =====================================================================
 -- ROW LEVEL SECURITY
