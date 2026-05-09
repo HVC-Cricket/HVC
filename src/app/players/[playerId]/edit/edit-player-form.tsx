@@ -40,6 +40,15 @@ const schema = z.object({
       "left_arm_chinaman",
     ])
     .optional(),
+  linked_email: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .refine(
+      (v) => !v || z.string().email().safeParse(v).success,
+      { message: "Enter a valid email" },
+    ),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -52,6 +61,7 @@ type Props = {
     phone: string | null;
     batting_style: string | null;
     bowling_style: string | null;
+    linked_email: string | null;
   };
   canDelete: boolean;
 };
@@ -69,6 +79,7 @@ export function EditPlayerForm({ player, canDelete }: Props) {
       phone: player.phone ?? "",
       batting_style: (player.batting_style as FormValues["batting_style"]) ?? "",
       bowling_style: (player.bowling_style as FormValues["bowling_style"]) ?? "",
+      linked_email: player.linked_email ?? "",
     },
   });
 
@@ -148,6 +159,28 @@ export function EditPlayerForm({ player, canDelete }: Props) {
               <FormControl>
                 <Input type="tel" {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="linked_email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Linked user account (optional)</FormLabel>
+              <FormControl>
+                <Input
+                  type="email"
+                  placeholder="player@example.com"
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription>
+                Email of the auth account this player record represents. Leave
+                blank if the player isn&apos;t a signed-up user. Clearing it
+                unlinks the record.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

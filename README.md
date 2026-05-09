@@ -46,6 +46,10 @@ Open <http://localhost:3000>.
 - 🚧 **Phase 6** — Polish.
   - ✅ PWA install (manifest + dynamic icons via `next/og`). App is installable on iOS / Android home screens.
   - ⏭ Charts (Manhattan / worm / wagon wheel), push notifications, image upload UI for logos, offline service worker, shadcn AlertDialog for destructive actions.
+- ✅ **Phase 7 (2026-05-09)** — Access-control hardening for players.
+  - Player-registry writes restricted to super-admins + tournament organizers (was: any signed-in user). Scorers can no longer create/edit players.
+  - `players.linked_user_id` (already in schema) now has a partial unique index — one auth user maps to at most one player record. Optional email field on the player create/edit forms looks up the auth user via a new SECURITY DEFINER helper and links the records, so admins/scorers who also play have one cricket-history record across both roles.
+  - `/me` shows the user's linked player record. Player detail page surfaces "Linked to: email" for signed-in users.
 
 See HANDOFF.md §8 / §9 for the full breakdown.
 

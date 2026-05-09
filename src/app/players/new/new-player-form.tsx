@@ -39,6 +39,15 @@ const schema = z.object({
       "left_arm_chinaman",
     ])
     .optional(),
+  linked_email: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .refine(
+      (v) => !v || z.string().email().safeParse(v).success,
+      { message: "Enter a valid email" },
+    ),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -52,6 +61,7 @@ export function NewPlayerForm({ redirectTo }: { redirectTo?: string }) {
       phone: "",
       batting_style: "",
       bowling_style: "",
+      linked_email: "",
     },
   });
 
@@ -116,6 +126,28 @@ export function NewPlayerForm({ redirectTo }: { redirectTo?: string }) {
               <FormControl>
                 <Input type="tel" {...field} />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="linked_email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Linked user account (optional)</FormLabel>
+              <FormControl>
+                <Input
+                  type="email"
+                  placeholder="player@example.com"
+                  {...field}
+                />
+              </FormControl>
+              <FormDescription>
+                If this player has signed up to the app (e.g. an organizer or
+                scorer who also plays), enter their email to link the records.
+                The user must already exist.
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

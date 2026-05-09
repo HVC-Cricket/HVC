@@ -294,6 +294,11 @@ create index if not exists idx_audit_match             on audit_log (match_id, c
 create index if not exists idx_audit_tournament        on audit_log (tournament_id, created_at desc);
 create index if not exists idx_tournament_admins_user  on tournament_admins (user_id);
 create index if not exists idx_teams_tournament        on teams (tournament_id);
+-- One auth user maps to at most one player record (linked_user_id is nullable;
+-- multiple unlinked players are fine).
+create unique index if not exists ux_players_linked_user_id
+  on players (linked_user_id)
+  where linked_user_id is not null;
 
 
 -- =====================================================================
@@ -602,6 +607,22 @@ $$;
 revoke all on function lookup_user_id_by_email(text) from public;
 grant execute on function lookup_user_id_by_email(text) to authenticated;
 
+-- Inverse lookup: resolve user_id back to email. Used to prefill the
+-- "linked email" field on the player edit form so an organizer can see who
+-- the record is linked to today. Authenticated only — same exposure shape
+-- as the by-email helper above.
+create or replace function lookup_email_by_user_id(p_user_id uuid)
+returns text
+language sql
+security definer
+set search_path = public, auth
+stable
+as $$
+  select email from auth.users where id = p_user_id;
+$$;
+revoke all on function lookup_email_by_user_id(uuid) from public;
+grant execute on function lookup_email_by_user_id(uuid) to authenticated;
+
 
 -- =====================================================================
 -- ROW LEVEL SECURITY
@@ -668,8 +689,10 @@ create policy "teams_write" on teams for all
   with check (is_tournament_organizer(tournament_id, auth.uid()));
 
 
--- ---- players ----  (public read; any authenticated admin can create/update;
---                    only super-admin can delete to protect cross-tournament history)
+-- ---- players ----  (public read; only super-admins or organizers of any
+--                    tournament can create/update; super-admin only for delete
+--                    to protect cross-tournament history. Scorers and roleless
+--                    auth users have no write access — the registry stays curated.)
 drop policy if exists "players_read"           on players;
 drop policy if exists "players_insert_admin"   on players;
 drop policy if exists "players_update_admin"   on players;
@@ -680,13 +703,19 @@ create policy "players_insert_admin" on players for insert
     auth.uid() is not null
     and (
       is_super_admin(auth.uid())
-      or exists (select 1 from tournament_admins where user_id = auth.uid())
+      or exists (
+        select 1 from tournament_admins
+        where user_id = auth.uid() and role = 'organizer'
+      )
     )
   );
 create policy "players_update_admin" on players for update
   using (
     is_super_admin(auth.uid())
-    or exists (select 1 from tournament_admins where user_id = auth.uid())
+    or exists (
+      select 1 from tournament_admins
+      where user_id = auth.uid() and role = 'organizer'
+    )
   );
 create policy "players_delete_super" on players for delete
   using (is_super_admin(auth.uid()));

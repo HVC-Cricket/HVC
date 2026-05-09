@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getSessionContext } from "@/lib/auth";
+import { getSessionContext, isOrganizerOrSuperAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +16,7 @@ export const dynamic = "force-dynamic";
 export default async function PlayersPage() {
   const supabase = await createClient();
   const ctx = await getSessionContext();
+  const canManagePlayers = ctx ? await isOrganizerOrSuperAdmin(ctx) : false;
 
   const { data: players, error } = await supabase
     .from("players")
@@ -33,7 +34,7 @@ export default async function PlayersPage() {
               tournaments — career stats follow them.
             </p>
           </div>
-          {ctx?.user && (
+          {canManagePlayers && (
             <Link href="/players/new">
               <Button>New player</Button>
             </Link>
@@ -51,9 +52,9 @@ export default async function PlayersPage() {
             <CardHeader>
               <CardTitle>No players yet</CardTitle>
               <CardDescription>
-                {ctx?.user
+                {canManagePlayers
                   ? "Add the first one with the button above."
-                  : "Sign in to add players."}
+                  : "Only organizers and super admins can add players."}
               </CardDescription>
             </CardHeader>
           </Card>

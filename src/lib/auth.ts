@@ -97,3 +97,28 @@ export async function requireTournamentAdmin(
   if (!(await isTournamentAdmin(tournamentId, ctx))) redirect("/");
   return ctx;
 }
+
+/**
+ * True if the user is super-admin OR organizer of at least one tournament.
+ * Used as the gate for global-registry writes (currently: players).
+ */
+export async function isOrganizerOrSuperAdmin(
+  ctx: SessionContext,
+): Promise<boolean> {
+  if (ctx.profile?.is_super_admin) return true;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("tournament_admins")
+    .select("id")
+    .eq("user_id", ctx.user.id)
+    .eq("role", "organizer")
+    .limit(1)
+    .maybeSingle();
+  return !!data;
+}
+
+export async function requireOrganizerOrSuperAdmin(): Promise<SessionContext> {
+  const ctx = await requireUser();
+  if (!(await isOrganizerOrSuperAdmin(ctx))) redirect("/");
+  return ctx;
+}

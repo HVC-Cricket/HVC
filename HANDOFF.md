@@ -8,7 +8,7 @@
 
 We are building **HVC Scoring**, a web app for live scoring and spectating a **box cricket tournament** with custom rules. Multiple admins enter ball-by-ball data; 50–60+ spectators (possibly more) follow scores live in their browsers.
 
-**Status as of 2026-05-07:** **Phase 0, 1, 2, and 3 are done. Phase 4 is in progress: 4a (player category) + 4b (rules engine + Vitest tests) done; 4c (wire HVC_RULES into tournaments.rules), 4d (ball-entry UI), and 4e (Edge Function validation) remaining.** Supabase project provisioned in Mumbai, schema applied, Next.js 16 app scaffolded with auth + tournaments + teams + players + roster + matches + playing XI + toss + per-tournament admin assignment + the HVC scoring engine (pure functions, 19 tests passing). RLS-correct organizer/scorer permission model wired end-to-end. One super admin (`pavan.gautham17@gmail.com`) is bootstrapped.
+**Status as of 2026-05-09:** Phases 0–3 done, Phase 4 done through 4d part 3a (super over flow). Phase 5 done through part 2 (live + completed scorecards, points table, player career page) plus dynamic OG. Phase 6 has PWA done. Player-registry writes hardened on 2026-05-09: only super-admins and tournament organizers can create/edit players (was: any signed-in user). Two super admins bootstrapped (`pavan.gautham17@gmail.com`, `sudarshan61kv@gmail.com`).
 
 **Project directory:** `~/Desktop/projects/hvc-scoring/` (Pavan's machine; was `/home/sudharshan/projects/own/hvc-scoring/` for the prior author).
 **Files in repo today:**
@@ -234,7 +234,7 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 | tournaments | All (public spectators) | Insert: super-admin. Update: organizer of that tournament. Delete: super-admin |
 | tournament_admins | All | Super-admin manages all; organizers can manage `scorer` rows in their tournament |
 | teams, team_players | All | Organizer of that tournament |
-| players | All | Insert/update: any authenticated admin. Delete: super-admin only |
+| players | All | **Insert/update: super-admin OR organizer of any tournament. Delete: super-admin only.** Scorers and roleless auth users have no write access — the registry stays curated. |
 | matches, match_players | All | Organizer of that tournament |
 | innings, balls | All (non-voided) | Any tournament admin (organizer or scorer) of that tournament |
 | audit_log | Super-admin + tournament organizers | Triggers / service role only |
@@ -272,6 +272,11 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 | 2026-05-07 | Added `players.category` smallint (1/2/3) | Required for HVC bowling-order rules: Cat 1 vs Cat 1 in over 1, Cat 3 vs Cat 3 in over 2, Cat 2 elsewhere. Nullable so non-HVC tournaments don't have to set it. |
 | 2026-05-07 | **Rules engine is pure functions** in `src/lib/scoring/` (no I/O) | Same module can run on the client (instant feedback) AND in a Supabase Edge Function (server-side validation), with `balls` rows replayable into any historical state. Vitest covers the engine in isolation. |
 | 2026-05-07 | HVC ruleset baked into `HVC_RULES` constant; `tournaments.rules` JSONB will store overrides | Per-tournament rule mutations don't need schema changes; engine reads the `RuleSet` shape directly. |
+| 2026-05-09 | Bootstrapped `sudarshan61kv@gmail.com` as the second super admin | Co-maintainer needs full access. Used the same Management-API `update profiles set is_super_admin = true` pattern documented in README. |
+| 2026-05-09 | **Tightened player-registry writes**: `players_insert_admin` / `players_update_admin` policies now require super-admin OR `tournament_admins.role = 'organizer'` (was: any tournament admin). Scorers and roleless auth users can no longer create or edit players. | The registry should be curated, not free-for-all. Original RLS was too broad — any authenticated user passing the `requireUser()` Server Action gate could mutate any player row. Server Actions and UI updated to match (see §13 file-tree changes). |
+| 2026-05-09 | Added `players.linked_user_id → profiles(id)` link with **partial unique index** `ux_players_linked_user_id` (only enforced where `linked_user_id is not null`) | A super-admin/organizer/scorer who plays box cricket needs both a profile *and* a player record. The link lets `/me` and the player detail page show "Linked to: email". Nullable + unique-when-set: multiple unlinked players are fine; one auth user has at most one player. |
+| 2026-05-09 | Added `lookup_email_by_user_id(uuid)` SECURITY DEFINER helper (authenticated only) | Symmetric to `lookup_user_id_by_email`. Used to prefill the linked-email field on the player edit form so an organizer can see the current link without service-role access. |
+| 2026-05-09 | Optional `linked_email` field on player create/update forms; resolved via the email RPC and stored as `linked_user_id` | Two coexisting flows for getting players into the system: (a) anyone signs up via `/signup` (auth account only — no auto player record), (b) organizers/super-admins create the player record and **optionally link it** to an existing user account by email. Keeps the "only org/super can add players" rule absolute while still supporting players who happen to be admins. |
 
 ---
 
@@ -355,6 +360,19 @@ Encoded HVC ruleset reference: see `memory/project_hvc_rules.md` (per-machine), 
 - [x] **Playing XI** — `/matches/[matchId]/xi/[teamId]` (organizer) checklist UI: tick to include, set batting order, mark captain/keeper/substitute. Validates ≤1 captain and ≤1 keeper. Save uses delete-then-insert for idempotency. Per-team summary cards on match detail.
 - [x] **Database types** expanded with `matches`, `match_players`, and the `lookup_user_id_by_email` function entry.
 - [x] **Schema simplification** — `teams.color` and `team_players.jersey_number` dropped from live DB, `db.sql`, generated types, action schemas, forms, and display surfaces. Pavan's "drop, don't optionalize" preference.
+
+### Phase 7 — Access-control hardening (2026-05-09) ✅
+- [x] **Tightened player-registry writes.** RLS policies `players_insert_admin` and `players_update_admin` now require super-admin OR `tournament_admins.role = 'organizer'`. Removes scorer + roleless-auth-user write access to the registry.
+- [x] **`players.linked_user_id` link** with partial unique index `ux_players_linked_user_id` — at most one player per auth user; multiple unlinked players still allowed.
+- [x] **`lookup_email_by_user_id(uuid)` SECURITY DEFINER helper** added (authenticated only), symmetric to `lookup_user_id_by_email`.
+- [x] **`isOrganizerOrSuperAdmin` / `requireOrganizerOrSuperAdmin`** helpers in `src/lib/auth.ts`.
+- [x] **`createPlayer` / `updatePlayer` Server Actions** swapped from `requireUser` to `requireOrganizerOrSuperAdmin`. Both accept an optional `linked_email` that is resolved via the RPC and stored as `linked_user_id`. Friendly errors for unknown emails and unique-violations (a user already linked to another player record).
+- [x] **UI gates updated**:
+  - `/players` "New player" button hidden unless caller is org/super.
+  - `/players/[id]` "Edit" button hidden unless caller is org/super; "Linked to: email" line surfaces the link when present (visible to any signed-in user, not anon).
+  - `/players/new` and `/players/[id]/edit` page-level gates swapped to the new helper.
+  - `/me` shows the user's linked player record (link to player page) when one exists.
+- [x] Type stub updated with `lookup_email_by_user_id`. 21/21 engine tests still pass; `tsc --noEmit` clean.
 
 ### Phase 2 — Tournaments / teams / players ✅
 - [x] **Tournaments**
@@ -500,7 +518,7 @@ That memory is local to one machine and won't be available in your session — t
 - **Realtime tables:** `balls`, `innings`, `matches` (already in `supabase_realtime` publication)
 - **Default players-per-side:** 6 (box cricket)
 - **Default overs:** 6 (configurable per tournament + per match)
-- **Super admin (today):** `pavan.gautham17@gmail.com`
+- **Super admins (today):** `pavan.gautham17@gmail.com`, `sudarshan61kv@gmail.com`
 
 ### Day-to-day commands
 

@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getSessionContext, requireUser } from "@/lib/auth";
+import { requireOrganizerOrSuperAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 import { EditPlayerForm } from "./edit-player-form";
@@ -15,17 +15,26 @@ import { EditPlayerForm } from "./edit-player-form";
 export default async function EditPlayerPage(props: {
   params: Promise<{ playerId: string }>;
 }) {
-  await requireUser();
-  const ctx = await getSessionContext();
+  const ctx = await requireOrganizerOrSuperAdmin();
   const { playerId } = await props.params;
 
   const supabase = await createClient();
   const { data: player } = await supabase
     .from("players")
-    .select("id, display_name, category, phone, batting_style, bowling_style")
+    .select(
+      "id, display_name, category, phone, batting_style, bowling_style, linked_user_id",
+    )
     .eq("id", playerId)
     .single();
   if (!player) notFound();
+
+  let linkedEmail: string | null = null;
+  if (player.linked_user_id) {
+    const { data } = await supabase.rpc("lookup_email_by_user_id", {
+      p_user_id: player.linked_user_id,
+    });
+    linkedEmail = data ?? null;
+  }
 
   return (
     <main className="flex-1 p-6">
@@ -46,8 +55,9 @@ export default async function EditPlayerPage(props: {
                 phone: player.phone,
                 batting_style: player.batting_style,
                 bowling_style: player.bowling_style,
+                linked_email: linkedEmail,
               }}
-              canDelete={ctx?.profile?.is_super_admin === true}
+              canDelete={ctx.profile?.is_super_admin === true}
             />
           </CardContent>
         </Card>

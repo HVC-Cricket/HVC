@@ -525,6 +525,10 @@ export type Database = {
         Args: { p_email: string };
         Returns: string | null;
       };
+      lookup_email_by_user_id: {
+        Args: { p_user_id: string };
+        Returns: string | null;
+      };
     };
   };
 };

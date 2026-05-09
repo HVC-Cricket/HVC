@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import {
@@ -25,6 +26,12 @@ export default async function MePage() {
     .eq("id", user.id)
     .single();
 
+  const { data: linkedPlayer } = await supabase
+    .from("players")
+    .select("id, display_name")
+    .eq("linked_user_id", user.id)
+    .maybeSingle();
+
   return (
     <main className="flex-1 flex items-center justify-center p-6">
       <Card className="w-full max-w-md">
@@ -51,6 +58,19 @@ export default async function MePage() {
               value={new Date(profile.created_at).toLocaleString()}
             />
           )}
+          <div className="flex justify-between gap-3">
+            <span className="text-muted-foreground">Player record</span>
+            {linkedPlayer ? (
+              <Link
+                href={`/players/${linkedPlayer.id}`}
+                className="hover:underline"
+              >
+                {linkedPlayer.display_name}
+              </Link>
+            ) : (
+              <span className="text-muted-foreground">none</span>
+            )}
+          </div>
           {error && (
             <p className="text-destructive">profiles read error: {error.message}</p>
           )}

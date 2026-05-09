@@ -5,14 +5,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { requireUser } from "@/lib/auth";
+import { requireOrganizerOrSuperAdmin } from "@/lib/auth";
 
 import { NewPlayerForm } from "./new-player-form";
 
 export default async function NewPlayerPage(props: {
   searchParams: Promise<{ teamId?: string; tournamentSlug?: string }>;
 }) {
-  await requireUser();
+  await requireOrganizerOrSuperAdmin();
   const sp = await props.searchParams;
 
   const redirectTo =

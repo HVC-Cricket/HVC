@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getSessionContext } from "@/lib/auth";
+import { getSessionContext, isOrganizerOrSuperAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -33,13 +33,24 @@ export default async function PlayerDetailPage(props: {
   const { playerId } = await props.params;
   const supabase = await createClient();
   const ctx = await getSessionContext();
+  const canManagePlayers = ctx ? await isOrganizerOrSuperAdmin(ctx) : false;
 
   const { data: player } = await supabase
     .from("players")
-    .select("id, display_name, category, batting_style, bowling_style, phone")
+    .select(
+      "id, display_name, category, batting_style, bowling_style, phone, linked_user_id",
+    )
     .eq("id", playerId)
     .single();
   if (!player) notFound();
+
+  let linkedEmail: string | null = null;
+  if (player.linked_user_id && ctx) {
+    const { data } = await supabase.rpc("lookup_email_by_user_id", {
+      p_user_id: player.linked_user_id,
+    });
+    linkedEmail = data ?? null;
+  }
 
   const { data: rows } = await supabase
     .from("v_player_tournament_stats" as never)
@@ -122,8 +133,14 @@ export default async function PlayerDetailPage(props: {
                 .map((s) => s!.replace(/_/g, " "))
                 .join(" · ") || "—"}
             </p>
+            {linkedEmail && (
+              <p className="text-xs text-muted-foreground">
+                Linked to{" "}
+                <span className="font-mono">{linkedEmail}</span>
+              </p>
+            )}
           </div>
-          {ctx?.user && (
+          {canManagePlayers && (
             <Link href={`/players/${player.id}/edit`}>
               <Button variant="ghost" size="sm">
                 Edit
