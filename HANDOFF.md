@@ -277,6 +277,8 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 | 2026-05-09 | Added `players.linked_user_id → profiles(id)` link with **partial unique index** `ux_players_linked_user_id` (only enforced where `linked_user_id is not null`) | A super-admin/organizer/scorer who plays box cricket needs both a profile *and* a player record. The link lets `/me` and the player detail page show "Linked to: email". Nullable + unique-when-set: multiple unlinked players are fine; one auth user has at most one player. |
 | 2026-05-09 | Added `lookup_email_by_user_id(uuid)` SECURITY DEFINER helper (authenticated only) | Symmetric to `lookup_user_id_by_email`. Used to prefill the linked-email field on the player edit form so an organizer can see the current link without service-role access. |
 | 2026-05-09 | Optional `linked_email` field on player create/update forms; resolved via the email RPC and stored as `linked_user_id` | Two coexisting flows for getting players into the system: (a) anyone signs up via `/signup` (auth account only — no auto player record), (b) organizers/super-admins create the player record and **optionally link it** to an existing user account by email. Keeps the "only org/super can add players" rule absolute while still supporting players who happen to be admins. |
+| 2026-05-09 | Added `list_users_for_linking()` SECURITY DEFINER RPC + native `<datalist>` autocomplete on the linked-email input | Free-text email entry was guesswork. Native `<datalist>` gives search + dropdown with zero deps and works with the existing `<Input>`. RPC gated to super/organizer (same scope as the player write policies). |
+| 2026-05-09 | **Turned ON `Confirm email`** in the Supabase Auth project config; added `/auth/confirm` route handler + "check your email" UI on signup | Now that the registry is curated and we're starting to invite real users, anonymous signups need to prove they own the email before they can be added as admins or linked to players. Signup no longer auto-signs-in — users get a verification email, click the link, then sign in. Fail mode for the route is a flash message on `/login`. |
 
 ---
 
@@ -293,7 +295,7 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 ### Phase 0 — Supabase setup ✅
 - [x] Project provisioned (`hvc-scoring`, Mumbai region, ap-south-1, free tier)
 - [x] `db.sql` executed — 11 tables, 6 views, RLS enabled, `supabase_realtime` publication on `balls`, `innings`, `matches`
-- [x] Authentication → Sign In / Up: Email enabled, **email confirmation off** (dev), Site URL = `http://localhost:3000`
+- [x] Authentication → Sign In / Up: Email enabled, **email confirmation ON as of 2026-05-09** (callback handler at `/auth/confirm`), Site URL = `http://localhost:3000`
 - [x] Storage buckets created (public): `tournament-logos`, `team-logos`, `player-photos`, `match-banners`
 - [x] `.env.local` populated with `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - [x] Pavan bootstrapped as super admin via `pnpm exec supabase db query --linked "..."`
@@ -365,14 +367,20 @@ Encoded HVC ruleset reference: see `memory/project_hvc_rules.md` (per-machine), 
 - [x] **Tightened player-registry writes.** RLS policies `players_insert_admin` and `players_update_admin` now require super-admin OR `tournament_admins.role = 'organizer'`. Removes scorer + roleless-auth-user write access to the registry.
 - [x] **`players.linked_user_id` link** with partial unique index `ux_players_linked_user_id` — at most one player per auth user; multiple unlinked players still allowed.
 - [x] **`lookup_email_by_user_id(uuid)` SECURITY DEFINER helper** added (authenticated only), symmetric to `lookup_user_id_by_email`.
+- [x] **`list_users_for_linking()` SECURITY DEFINER RPC** returning `(id, email, display_name)` for every registered user — gated to super OR organizer of any tournament. Powers the searchable email dropdown on the player forms.
 - [x] **`isOrganizerOrSuperAdmin` / `requireOrganizerOrSuperAdmin`** helpers in `src/lib/auth.ts`.
 - [x] **`createPlayer` / `updatePlayer` Server Actions** swapped from `requireUser` to `requireOrganizerOrSuperAdmin`. Both accept an optional `linked_email` that is resolved via the RPC and stored as `linked_user_id`. Friendly errors for unknown emails and unique-violations (a user already linked to another player record).
 - [x] **UI gates updated**:
   - `/players` "New player" button hidden unless caller is org/super.
   - `/players/[id]` "Edit" button hidden unless caller is org/super; "Linked to: email" line surfaces the link when present (visible to any signed-in user, not anon).
   - `/players/new` and `/players/[id]/edit` page-level gates swapped to the new helper.
+  - Linked-email field is a native `<datalist>` autocomplete sourced from `list_users_for_linking()` — search-as-you-type, free-text fallback. Zero new deps.
   - `/me` shows the user's linked player record (link to player page) when one exists.
-- [x] Type stub updated with `lookup_email_by_user_id`. 21/21 engine tests still pass; `tsc --noEmit` clean.
+- [x] **Email confirmation flow.** Supabase Auth project setting `Confirm email` flipped ON; signup now sends a verification email instead of auto-signing the user in.
+  - New route handler `src/app/auth/confirm/route.ts` accepts both PKCE (`?code`) and OTP (`?token_hash&type`) shapes. Exchanges the code for a session, then redirects to `/me?confirmed=1`. Failures redirect to `/login?error=…`.
+  - `signUp` Server Action now passes `emailRedirectTo: ${origin}/auth/confirm`, returns `{ ok: true, needsConfirmation: true, email }` when no session is created (i.e. confirmation is on), and the signup form swaps to a "check your email" panel instead of redirecting.
+  - `/login` page surfaces `?confirmed=1` (success banner) and `?error=…` (failure banner) flash messages from the callback.
+- [x] Type stub updated with `lookup_email_by_user_id` + `list_users_for_linking`. 21/21 engine tests still pass; `tsc --noEmit` clean.
 
 ### Phase 2 — Tournaments / teams / players ✅
 - [x] **Tournaments**

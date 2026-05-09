@@ -1,6 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -27,6 +29,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export function SignupForm() {
+  const [confirmEmail, setConfirmEmail] = useState<string | null>(null);
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { displayName: "", email: "", password: "" },
@@ -34,10 +37,44 @@ export function SignupForm() {
 
   const onSubmit = async (values: FormValues) => {
     const result = await signUp(values);
-    if (result && !result.ok) {
+    if (!result.ok) {
       toast.error(result.error);
+      return;
+    }
+    if (result.needsConfirmation) {
+      setConfirmEmail(result.email);
     }
   };
+
+  if (confirmEmail) {
+    return (
+      <div className="space-y-3 text-sm">
+        <p className="font-medium">Check your email</p>
+        <p className="text-muted-foreground">
+          We sent a confirmation link to{" "}
+          <span className="font-mono">{confirmEmail}</span>. Click the link to
+          activate your account, then sign in.
+        </p>
+        <p className="text-muted-foreground">
+          Didn&apos;t receive it? Check your spam folder, or{" "}
+          <button
+            type="button"
+            className="underline underline-offset-4"
+            onClick={() => setConfirmEmail(null)}
+          >
+            try again
+          </button>
+          .
+        </p>
+        <Link
+          href="/login"
+          className="inline-block text-sm underline underline-offset-4"
+        >
+          Go to login →
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <Form {...form}>
