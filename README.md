@@ -51,7 +51,7 @@ Open <http://localhost:3000>.
   - `players.linked_user_id` (already in schema) now has a partial unique index — one auth user maps to at most one player record. Optional email field on the player create/edit forms looks up the auth user via a new SECURITY DEFINER helper and links the records, so admins/scorers who also play have one cricket-history record across both roles.
   - Linked-email input is a native `<datalist>` searchable dropdown sourced from a new `list_users_for_linking()` RPC (gated to organizers/super-admins). Free-text fallback for users who signed up after the page loaded.
   - `/me` shows the user's linked player record. Player detail page surfaces "Linked to: email" for signed-in users.
-  - **Email confirmation ON.** Signup sends a verification email; clicking the link hits `/auth/confirm` which exchanges the code for a session and redirects to `/me?confirmed=1`. Signup form shows a "check your email" panel instead of auto-signing-in.
+  - **Email confirmation ON, OTP-style.** Signup form is 2-step: name/email/password → 6-digit code from email. `Authentication → Email Templates → Confirm signup` template uses `{{ .Token }}`. `verifySignup` Server Action calls `verifyOtp({ type: 'email' })` and redirects to `/me`. Resend works via `supabase.auth.resend({ type: 'signup' })`. The legacy magic-link route handler at `/auth/confirm` is kept for password-recovery / email-change flows we'll add later.
 
 See HANDOFF.md §8 / §9 for the full breakdown.
 

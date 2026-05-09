@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -18,69 +19,61 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-import { signUp } from "../actions";
+import { resendSignupOtp, signUp, verifySignup } from "../actions";
 
-const schema = z.object({
+const detailsSchema = z.object({
   displayName: z.string().min(2, "Display name must be at least 2 characters"),
   email: z.string().email("Enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
-type FormValues = z.infer<typeof schema>;
+const otpSchema = z.object({
+  token: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/u, "Enter the 6-digit code from your email"),
+});
+
+type DetailsValues = z.infer<typeof detailsSchema>;
+type OtpValues = z.infer<typeof otpSchema>;
 
 export function SignupForm() {
-  const [confirmEmail, setConfirmEmail] = useState<string | null>(null);
-  const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+
+  const detailsForm = useForm<DetailsValues>({
+    resolver: zodResolver(detailsSchema),
     defaultValues: { displayName: "", email: "", password: "" },
   });
 
-  const onSubmit = async (values: FormValues) => {
+  const onDetailsSubmit = async (values: DetailsValues) => {
     const result = await signUp(values);
     if (!result.ok) {
       toast.error(result.error);
       return;
     }
     if (result.needsConfirmation) {
-      setConfirmEmail(result.email);
+      setPendingEmail(result.email);
+      toast.success("Code sent — check your email.");
     }
   };
 
-  if (confirmEmail) {
+  if (pendingEmail) {
     return (
-      <div className="space-y-3 text-sm">
-        <p className="font-medium">Check your email</p>
-        <p className="text-muted-foreground">
-          We sent a confirmation link to{" "}
-          <span className="font-mono">{confirmEmail}</span>. Click the link to
-          activate your account, then sign in.
-        </p>
-        <p className="text-muted-foreground">
-          Didn&apos;t receive it? Check your spam folder, or{" "}
-          <button
-            type="button"
-            className="underline underline-offset-4"
-            onClick={() => setConfirmEmail(null)}
-          >
-            try again
-          </button>
-          .
-        </p>
-        <Link
-          href="/login"
-          className="inline-block text-sm underline underline-offset-4"
-        >
-          Go to login →
-        </Link>
-      </div>
+      <OtpStep
+        email={pendingEmail}
+        onBack={() => setPendingEmail(null)}
+      />
     );
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+    <Form {...detailsForm}>
+      <form
+        onSubmit={detailsForm.handleSubmit(onDetailsSubmit)}
+        className="space-y-4"
+      >
         <FormField
-          control={form.control}
+          control={detailsForm.control}
           name="displayName"
           render={({ field }) => (
             <FormItem>
@@ -93,7 +86,7 @@ export function SignupForm() {
           )}
         />
         <FormField
-          control={form.control}
+          control={detailsForm.control}
           name="email"
           render={({ field }) => (
             <FormItem>
@@ -111,7 +104,7 @@ export function SignupForm() {
           )}
         />
         <FormField
-          control={form.control}
+          control={detailsForm.control}
           name="password"
           render={({ field }) => (
             <FormItem>
@@ -130,11 +123,119 @@ export function SignupForm() {
         <Button
           type="submit"
           className="w-full"
-          disabled={form.formState.isSubmitting}
+          disabled={detailsForm.formState.isSubmitting}
         >
-          {form.formState.isSubmitting ? "Creating account…" : "Create account"}
+          {detailsForm.formState.isSubmitting ? "Sending code…" : "Create account"}
         </Button>
       </form>
     </Form>
+  );
+}
+
+function OtpStep({
+  email,
+  onBack,
+}: {
+  email: string;
+  onBack: () => void;
+}) {
+  const [resending, startResend] = useTransition();
+
+  const otpForm = useForm<OtpValues>({
+    resolver: zodResolver(otpSchema),
+    defaultValues: { token: "" },
+  });
+
+  const onOtpSubmit = async (values: OtpValues) => {
+    const result = await verifySignup({ email, token: values.token });
+    if (result && !result.ok) {
+      toast.error(result.error);
+    }
+    // success: Server Action redirects to /me
+  };
+
+  const onResend = () => {
+    startResend(async () => {
+      const result = await resendSignupOtp({ email });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("New code sent — check your email.");
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1 text-sm">
+        <p className="font-medium">Enter the code we sent</p>
+        <p className="text-muted-foreground">
+          Sent a 6-digit code to <span className="font-mono">{email}</span>.
+          Check spam if it doesn&apos;t arrive within a minute.
+        </p>
+      </div>
+      <Form {...otpForm}>
+        <form
+          onSubmit={otpForm.handleSubmit(onOtpSubmit)}
+          className="space-y-4"
+        >
+          <FormField
+            control={otpForm.control}
+            name="token"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Confirmation code</FormLabel>
+                <FormControl>
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="\d{6}"
+                    maxLength={6}
+                    autoComplete="one-time-code"
+                    placeholder="123456"
+                    className="font-mono tracking-widest text-base"
+                    {...field}
+                  />
+                </FormControl>
+                <FormDescription>
+                  Six digits, from the email subject line or body.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={otpForm.formState.isSubmitting}
+          >
+            {otpForm.formState.isSubmitting ? "Verifying…" : "Verify and sign in"}
+          </Button>
+        </form>
+      </Form>
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <button
+          type="button"
+          className="underline underline-offset-4"
+          onClick={onBack}
+        >
+          ← Use a different email
+        </button>
+        <button
+          type="button"
+          className="underline underline-offset-4 disabled:opacity-50"
+          disabled={resending}
+          onClick={onResend}
+        >
+          {resending ? "Resending…" : "Resend code"}
+        </button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Already have an account?{" "}
+        <Link href="/login" className="underline underline-offset-4">
+          Sign in
+        </Link>
+      </p>
+    </div>
   );
 }
