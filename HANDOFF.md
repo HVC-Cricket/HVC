@@ -444,7 +444,7 @@ Phases 0–3 done. Pick up at **Phase 4** (scoring engine). Each phase is roughl
 - Commentary feed (auto + manual) — TODO.
 - Charts (Manhattan, worm, wagon wheel) — wagon wheel needs admin to tap a circle on ball entry — TODO.
 - Push notifications (wicket / 50 / 100 / match end) — TODO.
-- Image upload UI for tournament/team/player logos (storage buckets exist) — TODO.
+- [x] **Image upload** — `LogoUploader` client component (`src/components/logo-uploader.tsx`) does the file → Supabase Storage upload from the browser using the anon key. Storage RLS: public read on `tournament-logos / team-logos / player-photos / match-banners`; authenticated insert / update / delete (entity-level RLS still gates URL-saving). Wired into the three edit forms (tournament / team / player). Logos render on tournament list cards + tournament detail header, team grid cards + team detail header, player rows + player detail header, and inline next to short_names in the match list. 2 MB cap; image MIME type required.
 - Replace `confirm()` with shadcn `AlertDialog` for destructive actions — TODO.
 
 ---

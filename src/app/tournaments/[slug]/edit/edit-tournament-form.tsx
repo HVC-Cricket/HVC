@@ -17,6 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { LogoUploader } from "@/components/logo-uploader";
 
 import { deleteTournament, updateTournament } from "../../actions";
 
@@ -34,6 +35,7 @@ const schema = z.object({
   end_date: z.string().optional().or(z.literal("")),
   venue: z.string().optional().or(z.literal("")),
   description: z.string().optional().or(z.literal("")),
+  logo_url: z.string().url().nullable().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -51,6 +53,7 @@ type Props = {
     end_date: string | null;
     venue: string | null;
     description: string | null;
+    logo_url: string | null;
   };
 };
 
@@ -70,6 +73,7 @@ export function EditTournamentForm({ tournament }: Props) {
       end_date: tournament.end_date ?? "",
       venue: tournament.venue ?? "",
       description: tournament.description ?? "",
+      logo_url: tournament.logo_url ?? null,
     },
   });
 
@@ -255,6 +259,24 @@ export function EditTournamentForm({ tournament }: Props) {
                   className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
                 />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="logo_url"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Logo</FormLabel>
+              <FormControl>
+                <LogoUploader
+                  bucket="tournament-logos"
+                  value={field.value ?? null}
+                  onChange={field.onChange}
+                />
+              </FormControl>
+              <FormDescription>PNG or JPG, up to 2 MB.</FormDescription>
               <FormMessage />
             </FormItem>
           )}

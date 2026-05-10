@@ -28,7 +28,7 @@ export default async function EditTeamPage(props: {
 
   const { data: team } = await supabase
     .from("teams")
-    .select("id, name, short_name")
+    .select("id, name, short_name, logo_url")
     .eq("id", teamId)
     .eq("tournament_id", tournament.id)
     .single();
@@ -52,6 +52,7 @@ export default async function EditTeamPage(props: {
                 id: team.id,
                 name: team.name,
                 short_name: team.short_name,
+                logo_url: team.logo_url,
               }}
             />
           </CardContent>

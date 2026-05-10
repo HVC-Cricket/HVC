@@ -17,6 +17,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { LogoUploader } from "@/components/logo-uploader";
 
 import { deletePlayer, updatePlayer } from "../../actions";
 
@@ -49,6 +50,7 @@ const schema = z.object({
       (v) => !v || z.string().email().safeParse(v).success,
       { message: "Enter a valid email" },
     ),
+  photo_url: z.string().url().nullable().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -68,6 +70,7 @@ type Props = {
     batting_style: string | null;
     bowling_style: string | null;
     linked_email: string | null;
+    photo_url: string | null;
   };
   canDelete: boolean;
   linkableUsers: LinkableUser[];
@@ -87,6 +90,7 @@ export function EditPlayerForm({ player, canDelete, linkableUsers }: Props) {
       batting_style: (player.batting_style as FormValues["batting_style"]) ?? "",
       bowling_style: (player.bowling_style as FormValues["bowling_style"]) ?? "",
       linked_email: player.linked_email ?? "",
+      photo_url: player.photo_url ?? null,
     },
   });
 
@@ -249,6 +253,25 @@ export function EditPlayerForm({ player, canDelete, linkableUsers }: Props) {
             )}
           />
         </div>
+        <FormField
+          control={form.control}
+          name="photo_url"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Photo</FormLabel>
+              <FormControl>
+                <LogoUploader
+                  bucket="player-photos"
+                  value={field.value ?? null}
+                  onChange={field.onChange}
+                  shape="circle"
+                />
+              </FormControl>
+              <FormDescription>PNG or JPG, up to 2 MB.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <div className="flex items-center justify-between gap-4 pt-2">
           {canDelete ? (
             <Button

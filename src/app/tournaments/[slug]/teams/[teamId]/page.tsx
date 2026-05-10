@@ -38,7 +38,7 @@ export default async function TeamDetailPage(props: {
 
   const { data: team } = await supabase
     .from("teams")
-    .select("id, name, short_name")
+    .select("id, name, short_name, logo_url")
     .eq("id", teamId)
     .eq("tournament_id", tournament.id)
     .single();
@@ -69,14 +69,24 @@ export default async function TeamDetailPage(props: {
     <main className="flex-1 p-6">
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">
-              <Link href={`/tournaments/${tournament.slug}`} className="hover:underline">
-                {tournament.name}
-              </Link>
-            </p>
-            <h1 className="text-2xl font-semibold">{team.name}</h1>
-            <p className="text-sm text-muted-foreground">{team.short_name}</p>
+          <div className="flex items-start gap-4">
+            {team.logo_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={team.logo_url}
+                alt=""
+                className="h-14 w-14 rounded-md border border-foreground/10 object-cover"
+              />
+            )}
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">
+                <Link href={`/tournaments/${tournament.slug}`} className="hover:underline">
+                  {tournament.name}
+                </Link>
+              </p>
+              <h1 className="text-2xl font-semibold">{team.name}</h1>
+              <p className="text-sm text-muted-foreground">{team.short_name}</p>
+            </div>
           </div>
           {canManage && (
             <Link

@@ -17,12 +17,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { LogoUploader } from "@/components/logo-uploader";
 
 import { deleteTeam, updateTeam } from "../../actions";
 
 const schema = z.object({
   name: z.string().min(2, "Team name must be at least 2 characters"),
   short_name: z.string().min(2).max(5, "Short name is 2–5 characters"),
+  logo_url: z.string().url().nullable().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -33,6 +35,7 @@ type Props = {
     id: string;
     name: string;
     short_name: string;
+    logo_url: string | null;
   };
 };
 
@@ -44,6 +47,7 @@ export function EditTeamForm({ tournamentSlug, team }: Props) {
     defaultValues: {
       name: team.name,
       short_name: team.short_name,
+      logo_url: team.logo_url ?? null,
     },
   });
 
@@ -104,6 +108,24 @@ export function EditTeamForm({ tournamentSlug, team }: Props) {
                 />
               </FormControl>
               <FormDescription>2–5 letters, shown on scorecards.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="logo_url"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Logo</FormLabel>
+              <FormControl>
+                <LogoUploader
+                  bucket="team-logos"
+                  value={field.value ?? null}
+                  onChange={field.onChange}
+                />
+              </FormControl>
+              <FormDescription>PNG or JPG, up to 2 MB.</FormDescription>
               <FormMessage />
             </FormItem>
           )}

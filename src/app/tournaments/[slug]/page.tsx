@@ -33,7 +33,7 @@ export default async function TournamentDetailPage(props: {
 
   const { data: teams } = await supabase
     .from("teams")
-    .select("id, name, short_name")
+    .select("id, name, short_name, logo_url")
     .eq("tournament_id", tournament.id)
     .order("created_at", { ascending: true });
 
@@ -55,14 +55,24 @@ export default async function TournamentDetailPage(props: {
     <main className="flex-1 p-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold">{tournament.name}</h1>
-            <p className="text-sm text-muted-foreground capitalize">
-              {tournament.format.replace(/_/g, " ")} · {tournament.status}
-            </p>
-            {tournament.description && (
-              <p className="pt-2 text-sm">{tournament.description}</p>
+          <div className="flex items-start gap-4">
+            {tournament.logo_url && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={tournament.logo_url}
+                alt=""
+                className="h-14 w-14 rounded-md border border-foreground/10 object-cover"
+              />
             )}
+            <div className="space-y-1">
+              <h1 className="text-2xl font-semibold">{tournament.name}</h1>
+              <p className="text-sm text-muted-foreground capitalize">
+                {tournament.format.replace(/_/g, " ")} · {tournament.status}
+              </p>
+              {tournament.description && (
+                <p className="pt-2 text-sm">{tournament.description}</p>
+              )}
+            </div>
           </div>
           {canManage && (
             <div className="flex items-center gap-2">
@@ -137,8 +147,10 @@ export default async function TournamentDetailPage(props: {
                         <span className="inline-flex w-8 justify-end font-mono text-muted-foreground">
                           #{m.match_number}
                         </span>
-                        <span className="font-medium">
-                          {a?.short_name ?? "?"} vs {b?.short_name ?? "?"}
+                        <span className="flex items-center gap-2 font-medium">
+                          <TeamMini team={a} />
+                          <span>vs</span>
+                          <TeamMini team={b} />
                         </span>
                         <span className="text-xs text-muted-foreground capitalize">
                           {m.stage.replace(/_/g, " ")}
@@ -189,8 +201,20 @@ export default async function TournamentDetailPage(props: {
                 >
                   <Card className="h-full transition hover:bg-muted/40">
                     <CardHeader>
-                      <CardTitle>{team.name}</CardTitle>
-                      <CardDescription>{team.short_name}</CardDescription>
+                      <div className="flex items-start gap-3">
+                        {team.logo_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={team.logo_url}
+                            alt=""
+                            className="h-10 w-10 rounded-md border border-foreground/10 object-cover"
+                          />
+                        ) : null}
+                        <div className="space-y-1">
+                          <CardTitle>{team.name}</CardTitle>
+                          <CardDescription>{team.short_name}</CardDescription>
+                        </div>
+                      </div>
                     </CardHeader>
                   </Card>
                 </Link>
@@ -209,5 +233,26 @@ function Row({ label, value }: { label: string; value: string }) {
       <span className="text-muted-foreground">{label}</span>
       <span className="text-right">{value}</span>
     </div>
+  );
+}
+
+function TeamMini({
+  team,
+}: {
+  team?: { short_name: string; logo_url: string | null };
+}) {
+  if (!team) return <span>?</span>;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      {team.logo_url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={team.logo_url}
+          alt=""
+          className="h-5 w-5 rounded-sm border border-foreground/10 object-cover"
+        />
+      )}
+      <span>{team.short_name}</span>
+    </span>
   );
 }

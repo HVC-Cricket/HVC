@@ -38,7 +38,7 @@ export default async function PlayerDetailPage(props: {
   const { data: player } = await supabase
     .from("players")
     .select(
-      "id, display_name, category, batting_style, bowling_style, phone, linked_user_id",
+      "id, display_name, category, batting_style, bowling_style, phone, linked_user_id, photo_url",
     )
     .eq("id", playerId)
     .single();
@@ -113,32 +113,46 @@ export default async function PlayerDetailPage(props: {
     <main className="flex-1 p-6">
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <p className="text-sm text-muted-foreground">
-              <Link href="/players" className="hover:underline">
-                ← Players
-              </Link>
-            </p>
-            <h1 className="flex items-center gap-3 text-2xl font-semibold">
-              {player.display_name}
-              {player.category && (
-                <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-xs font-mono">
-                  C{player.category}
-                </span>
-              )}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {[player.batting_style, player.bowling_style]
-                .filter(Boolean)
-                .map((s) => s!.replace(/_/g, " "))
-                .join(" · ") || "—"}
-            </p>
-            {linkedEmail && (
-              <p className="text-xs text-muted-foreground">
-                Linked to{" "}
-                <span className="font-mono">{linkedEmail}</span>
-              </p>
+          <div className="flex items-start gap-4">
+            {player.photo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={player.photo_url}
+                alt=""
+                className="h-16 w-16 rounded-full border border-foreground/10 object-cover"
+              />
+            ) : (
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                —
+              </div>
             )}
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">
+                <Link href="/players" className="hover:underline">
+                  ← Players
+                </Link>
+              </p>
+              <h1 className="flex items-center gap-3 text-2xl font-semibold">
+                {player.display_name}
+                {player.category && (
+                  <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-xs font-mono">
+                    C{player.category}
+                  </span>
+                )}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {[player.batting_style, player.bowling_style]
+                  .filter(Boolean)
+                  .map((s) => s!.replace(/_/g, " "))
+                  .join(" · ") || "—"}
+              </p>
+              {linkedEmail && (
+                <p className="text-xs text-muted-foreground">
+                  Linked to{" "}
+                  <span className="font-mono">{linkedEmail}</span>
+                </p>
+              )}
+            </div>
           </div>
           {canManagePlayers && (
             <Link href={`/players/${player.id}/edit`}>

@@ -22,7 +22,7 @@ export default async function EditPlayerPage(props: {
   const { data: player } = await supabase
     .from("players")
     .select(
-      "id, display_name, category, phone, batting_style, bowling_style, linked_user_id",
+      "id, display_name, category, phone, batting_style, bowling_style, linked_user_id, photo_url",
     )
     .eq("id", playerId)
     .single();
@@ -58,6 +58,7 @@ export default async function EditPlayerPage(props: {
                 batting_style: player.batting_style,
                 bowling_style: player.bowling_style,
                 linked_email: linkedEmail,
+                photo_url: player.photo_url,
               }}
               canDelete={ctx.profile?.is_super_admin === true}
               linkableUsers={linkableUsers ?? []}

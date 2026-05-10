@@ -51,6 +51,7 @@ export default async function EditTournamentPage(props: {
                 venue: tournament.venue,
                 description: tournament.description,
                 status: tournament.status,
+                logo_url: tournament.logo_url,
               }}
             />
           </CardContent>

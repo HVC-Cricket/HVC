@@ -68,6 +68,7 @@ const updateTeamSchema = z.object({
   teamId: z.string().uuid(),
   name: z.string().min(2, "Team name must be at least 2 characters"),
   short_name: z.string().min(2).max(5).toUpperCase(),
+  logo_url: z.string().url().nullable().optional(),
 });
 
 export async function updateTeam(
@@ -92,6 +93,7 @@ export async function updateTeam(
     .update({
       name: parsed.data.name,
       short_name: parsed.data.short_name,
+      logo_url: parsed.data.logo_url ?? null,
     })
     .eq("id", parsed.data.teamId);
 

@@ -23,6 +23,7 @@ const baseTournamentFields = {
   end_date: z.string().optional().or(z.literal("")),
   venue: z.string().optional().or(z.literal("")),
   description: z.string().optional().or(z.literal("")),
+  logo_url: z.string().url().nullable().optional(),
 };
 
 const createTournamentSchema = z.object(baseTournamentFields);
@@ -119,6 +120,7 @@ export async function updateTournament(
       venue: data.venue || null,
       description: data.description || null,
       status: data.status,
+      logo_url: data.logo_url ?? null,
     })
     .eq("id", data.id);
 

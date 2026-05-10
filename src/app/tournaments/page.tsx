@@ -19,7 +19,9 @@ export default async function TournamentsPage() {
 
   const { data: tournaments, error } = await supabase
     .from("tournaments")
-    .select("id, name, slug, format, status, venue, start_date, end_date")
+    .select(
+      "id, name, slug, format, status, venue, start_date, end_date, logo_url",
+    )
     .order("created_at", { ascending: false });
 
   return (
@@ -64,10 +66,22 @@ export default async function TournamentsPage() {
               <Link key={t.id} href={`/tournaments/${t.slug}`}>
                 <Card className="h-full transition hover:bg-muted/40">
                   <CardHeader>
-                    <CardTitle>{t.name}</CardTitle>
-                    <CardDescription className="capitalize">
-                      {t.format.replace(/_/g, " ")} · {t.status}
-                    </CardDescription>
+                    <div className="flex items-start gap-3">
+                      {t.logo_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={t.logo_url}
+                          alt=""
+                          className="h-10 w-10 rounded-md border border-foreground/10 object-cover"
+                        />
+                      ) : null}
+                      <div className="space-y-1">
+                        <CardTitle>{t.name}</CardTitle>
+                        <CardDescription className="capitalize">
+                          {t.format.replace(/_/g, " ")} · {t.status}
+                        </CardDescription>
+                      </div>
+                    </div>
                   </CardHeader>
                   <CardContent className="text-sm text-muted-foreground space-y-1">
                     {t.venue && <div>{t.venue}</div>}

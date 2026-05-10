@@ -38,6 +38,7 @@ const createPlayerSchema = z.object({
   batting_style: z.enum(["", ...battingStyles]).optional(),
   bowling_style: z.enum(["", ...bowlingStyles]).optional(),
   linked_email: emailField,
+  photo_url: z.string().url().nullable().optional(),
   redirectTo: z.string().optional(),
 });
 
@@ -85,6 +86,7 @@ export async function createPlayer(
       batting_style: parsed.data.batting_style || null,
       bowling_style: parsed.data.bowling_style || null,
       linked_user_id: linked.userId,
+      photo_url: parsed.data.photo_url ?? null,
     })
     .select("id")
     .single();
@@ -114,6 +116,7 @@ const updatePlayerSchema = z.object({
   batting_style: z.enum(["", ...battingStyles]).optional(),
   bowling_style: z.enum(["", ...bowlingStyles]).optional(),
   linked_email: emailField,
+  photo_url: z.string().url().nullable().optional(),
 });
 
 export async function updatePlayer(
@@ -139,6 +142,7 @@ export async function updatePlayer(
       batting_style: parsed.data.batting_style || null,
       bowling_style: parsed.data.bowling_style || null,
       linked_user_id: linked.userId,
+      photo_url: parsed.data.photo_url ?? null,
     })
     .eq("id", parsed.data.playerId);
 

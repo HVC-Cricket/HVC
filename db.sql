@@ -841,6 +841,33 @@ alter publication supabase_realtime add table matches;
 --   ('match-banners',    'match-banners',    true)
 -- on conflict (id) do nothing;
 
+-- ---------------------------------------------------------------------
+-- Storage RLS for the four logo / photo buckets.
+-- Buckets are public for reads; uploads/updates/deletes require auth.
+-- The actual link of a URL to a tournament / team / player row is
+-- gated by the entity's RLS, so only the right admins can attach a
+-- logo to a record.
+-- ---------------------------------------------------------------------
+drop policy if exists "Public reads logo buckets" on storage.objects;
+create policy "Public reads logo buckets"
+  on storage.objects for select to public
+  using (bucket_id in ('tournament-logos','team-logos','player-photos','match-banners'));
+
+drop policy if exists "Authenticated uploads to logo buckets" on storage.objects;
+create policy "Authenticated uploads to logo buckets"
+  on storage.objects for insert to authenticated
+  with check (bucket_id in ('tournament-logos','team-logos','player-photos','match-banners'));
+
+drop policy if exists "Authenticated updates to logo buckets" on storage.objects;
+create policy "Authenticated updates to logo buckets"
+  on storage.objects for update to authenticated
+  using (bucket_id in ('tournament-logos','team-logos','player-photos','match-banners'));
+
+drop policy if exists "Authenticated deletes from logo buckets" on storage.objects;
+create policy "Authenticated deletes from logo buckets"
+  on storage.objects for delete to authenticated
+  using (bucket_id in ('tournament-logos','team-logos','player-photos','match-banners'));
+
 
 -- =====================================================================
 -- DONE

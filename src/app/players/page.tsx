@@ -20,7 +20,7 @@ export default async function PlayersPage() {
 
   const { data: players, error } = await supabase
     .from("players")
-    .select("id, display_name, category, batting_style, bowling_style")
+    .select("id, display_name, category, batting_style, bowling_style, photo_url")
     .order("display_name", { ascending: true });
 
   return (
@@ -71,6 +71,18 @@ export default async function PlayersPage() {
                       className="flex items-center justify-between gap-3 p-4 text-sm hover:bg-muted/40"
                     >
                       <span className="flex items-center gap-3">
+                        {p.photo_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={p.photo_url}
+                            alt=""
+                            className="h-8 w-8 rounded-full border border-foreground/10 object-cover"
+                          />
+                        ) : (
+                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted text-[10px] text-muted-foreground">
+                            —
+                          </span>
+                        )}
                         {p.category ? (
                           <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-xs font-mono">
                             C{p.category}
