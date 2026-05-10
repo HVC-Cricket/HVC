@@ -215,7 +215,7 @@ audit_log                          — append-only history
 - `v_innings_bowling` — per innings, per bowler: legal balls, runs conceded, wickets, wides, no-balls.
 - `v_fall_of_wickets` — wicket fall sequence with score at fall.
 - `v_match_summary` — match list with team scores joined.
-- `v_points_table` — standings per tournament: P/W/L/T/NR + points (2 per W, 1 per T/NR). NRR not yet computed (TODO).
+- `v_points_table` — standings per tournament: P/W/L/T/NR + points (2 per W, 1 per T/NR). NRR is computed in the Next.js layer (`PointsTableSection`) by aggregating innings 1/2 totals per match — full-quota overs when a team is bowled out, super overs excluded.
 - `v_player_tournament_stats` — runs, wickets, balls faced, etc. per player per tournament.
 
 ### RLS strategy
@@ -423,7 +423,7 @@ Phases 0–3 done. Pick up at **Phase 4** (scoring engine). Each phase is roughl
   - **`AutoRefresh` client component** triggers `router.refresh()` every 2.5s while the match is live (cached HTTP polling — does NOT subscribe to Supabase realtime, staying under the 200 concurrent-connection cap).
   - Match-end banner with winner + win margin when `match.status='completed'`.
 - [x] **Part 2 (in progress)** — Stats surfaces:
-  - **Points table** as a `Standings` section on `/tournaments/[slug]`. Sourced from the `v_points_table` view + a typed cast (view isn't in the Database stub yet). Columns: P / W / L / T / NR / Pts. Sorted by points → points-per-match → name. NRR tie-break still TODO.
+  - **Points table** as a `Standings` section on `/tournaments/[slug]`. Sourced from the `v_points_table` view + a typed cast (view isn't in the Database stub yet). Columns: P / W / L / T / NR / Pts / **NRR**. Sorted by points → NRR → name. NRR is computed in the page from `innings` rows (innings 1/2 only; super-over innings excluded) using ICC-style full-quota overs when a team is bowled out.
   - **Full scorecard** on `/matches/[id]` when `status='completed'`: per-innings batting card (Batter / Out / R / B / 4s / 6s / SR with full dismissal text — `c X b Y`, `b Y`, `run out (Z)` etc.), extras row (wd / nb / b breakdown + total), bowling card (Bowler / O / R / W / Wd / Nb / Econ). Computed inline from `balls` rows; mirrors v_innings_batting + v_innings_bowling.
   - DNB ("did not bat") detection: any XI member who never appeared as batter or non-striker.
 - [x] **Part 2 (continued)** — Public `/players/[playerId]` page:
