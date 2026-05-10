@@ -447,7 +447,8 @@ Phases 0–3 done. Pick up at **Phase 4** (scoring engine). Each phase is roughl
 - Open Graph images for matches + tournaments — done in Phase 5 part 2.
 - Points table — done in Phase 5 part 2.
 - Player career stats page — done in Phase 5 part 2.
-- Service worker for offline scoring — TODO; biggest engineering item, requires write-queue + drain-on-reconnect logic. Next 16 + Turbopack doesn't ship a stable next-pwa equivalent, so this is bespoke.
+- [x] **Client-side retry queue for ball entry** — every `recordBall` / `voidLastBall` / `voidLastN` call goes through an in-memory queue inside the Scoreboard. `withRetry` retries on rejected promises (network errors, timeouts) with exponential backoff up to 30 s; server-validation rejections (`{ ok: false }`) skip the retry path. Queue drains serially so taps stay in order. A "Saving N…" pill in the Record-ball card surfaces what's in flight. Survives the realistic mobile-data drop pattern at the venue (5–30 s blips while moving around the ground) without losing taps.
+- Full service worker for true offline scoring — TODO; deferred. Would survive longer drops + phone restarts but requires IndexedDB queue + drain-on-reconnect + SW lifecycle handling. Reconsider if scorers report dropped balls in real matches.
 - Commentary feed (auto + manual) — TODO.
 - Charts (Manhattan, worm, wagon wheel) — wagon wheel needs admin to tap a circle on ball entry — TODO.
 - Push notifications (wicket / 50 / 100 / match end) — TODO.

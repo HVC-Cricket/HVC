@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,30 @@ type WicketType =
   | "retired"
   | "obstructing"
   | "timed_out";
+
+/**
+ * Retries `fn` on rejection (network errors, timeouts) with exponential
+ * backoff up to maxMs. Server validation errors come back as resolved
+ * `{ ok: false }` results — those are user-fixable and won't retry.
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxMs = 30_000,
+): Promise<T> {
+  const start = Date.now();
+  let attempt = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    try {
+      return await fn();
+    } catch (err) {
+      attempt += 1;
+      if (Date.now() - start > maxMs) throw err;
+      const delay = Math.min(500 * 2 ** (attempt - 1), 4000);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
 
 export function Scoreboard({ state }: { state: ScoreboardState }) {
   const innings = state.innings!;
@@ -58,7 +82,40 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   const [bowlerId, setBowlerId] = useState<string>(
     state.active.bowler_id ?? state.balls[0]?.bowler_id ?? "",
   );
-  const [pending, startTransition] = useTransition();
+
+  // Mobile-data realities: signal drops for 5–30s while moving around the
+  // ground are normal. We queue every write and retry on network errors
+  // (server validation errors don't retry — those are user-fixable). The
+  // scoreboard never blocks the next tap; pendingCount surfaces in the
+  // "Record ball" card so the scorer knows what's still in flight.
+  const queueRef = useRef<Array<() => Promise<void>>>([]);
+  const processingRef = useRef(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  const drain = async () => {
+    if (processingRef.current) return;
+    processingRef.current = true;
+    while (queueRef.current.length > 0) {
+      const run = queueRef.current.shift();
+      if (run) {
+        try {
+          await run();
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Network error";
+          toast.error(`Couldn't reach server: ${msg}`);
+        } finally {
+          setPendingCount((n) => Math.max(0, n - 1));
+        }
+      }
+    }
+    processingRef.current = false;
+  };
+
+  const enqueue = (run: () => Promise<void>) => {
+    setPendingCount((n) => n + 1);
+    queueRef.current.push(run);
+    void drain();
+  };
 
   const striker = playersById.get(strikerId);
   const nonStriker = playersById.get(nonStrikerId);
@@ -78,29 +135,32 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       toast.error("Pick striker, non-striker, and bowler first");
       return;
     }
-    startTransition(async () => {
-      const result = await recordBall({
-        matchId: state.match.id,
-        inningsId: innings.id,
-        striker_id: strikerId,
-        non_striker_id: nonStrikerId,
-        bowler_id: bowlerId,
-        runs_off_bat: 0,
-        extras: 0,
-        extra_type: null,
-        is_wicket: false,
-        ...overrides,
-      });
+    const input = {
+      matchId: state.match.id,
+      inningsId: innings.id,
+      striker_id: strikerId,
+      non_striker_id: nonStrikerId,
+      bowler_id: bowlerId,
+      runs_off_bat: 0,
+      extras: 0,
+      extra_type: null,
+      is_wicket: false,
+      ...overrides,
+    };
+    enqueue(async () => {
+      const result = await withRetry(() => recordBall(input));
       if (result && !result.ok) toast.error(result.error);
     });
   };
 
   const undo = () => {
-    startTransition(async () => {
-      const result = await voidLastBall({
-        matchId: state.match.id,
-        inningsId: innings.id,
-      });
+    enqueue(async () => {
+      const result = await withRetry(() =>
+        voidLastBall({
+          matchId: state.match.id,
+          inningsId: innings.id,
+        }),
+      );
       if (result && !result.ok) toast.error(result.error);
     });
   };
@@ -110,15 +170,20 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       toast.error("Nothing to undo");
       return;
     }
-    startTransition(async () => {
-      const result = await voidLastN({
-        matchId: state.match.id,
-        inningsId: innings.id,
-        count,
-      });
+    enqueue(async () => {
+      const result = await withRetry(() =>
+        voidLastN({
+          matchId: state.match.id,
+          inningsId: innings.id,
+          count,
+        }),
+      );
       if (result && !result.ok) toast.error(result.error);
     });
   };
+
+  // Local pending flag for the previous useTransition consumers below.
+  const pending = pendingCount > 0;
 
   const totalBalls = state.balls.length;
   const ballsThisOver = state.currentOverBalls.length;
@@ -221,10 +286,17 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       {!isComplete && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Record ball</CardTitle>
+            <CardTitle className="flex items-center justify-between gap-3 text-base">
+              <span>Record ball</span>
+              {pendingCount > 0 && (
+                <span className="rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-normal text-yellow-700">
+                  Saving {pendingCount} ball{pendingCount === 1 ? "" : "s"}…
+                </span>
+              )}
+            </CardTitle>
             <CardDescription>
               Tap the outcome. Engine validates against the ruleset before
-              writing.
+              writing. Network drops auto-retry for up to 30s.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
