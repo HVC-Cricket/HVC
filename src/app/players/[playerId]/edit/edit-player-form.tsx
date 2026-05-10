@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/confirm-button";
 import {
   Form,
   FormControl,
@@ -106,13 +107,6 @@ export function EditPlayerForm({ player, canDelete, linkableUsers }: Props) {
   };
 
   const onDelete = () => {
-    if (
-      !window.confirm(
-        `Delete player "${player.display_name}"? This only works if they're not on any roster or in any match.`,
-      )
-    ) {
-      return;
-    }
     startDelete(async () => {
       const result = await deletePlayer({ playerId: player.id });
       if (result && !result.ok) {
@@ -274,15 +268,21 @@ export function EditPlayerForm({ player, canDelete, linkableUsers }: Props) {
         />
         <div className="flex items-center justify-between gap-4 pt-2">
           {canDelete ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="text-destructive hover:text-destructive"
-              disabled={deleting || form.formState.isSubmitting}
-              onClick={onDelete}
+            <ConfirmButton
+              title={`Delete "${player.display_name}"?`}
+              description="This only works if they're not on any roster or in any match."
+              confirmLabel="Delete player"
+              destructive
+              onConfirm={onDelete}
+              triggerProps={{
+                type: "button",
+                variant: "ghost",
+                className: "text-destructive hover:text-destructive",
+                disabled: deleting || form.formState.isSubmitting,
+              }}
             >
               {deleting ? "Deleting…" : "Delete player"}
-            </Button>
+            </ConfirmButton>
           ) : (
             <span className="text-xs text-muted-foreground">
               Only super admins can delete players.

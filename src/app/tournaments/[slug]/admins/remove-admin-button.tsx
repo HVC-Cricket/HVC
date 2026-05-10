@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/confirm-button";
 
 import { removeAdmin } from "./actions";
 
@@ -16,23 +16,30 @@ export function RemoveAdminButton({
 }) {
   const [pending, startTransition] = useTransition();
 
+  const onRemove = () => {
+    startTransition(async () => {
+      const result = await removeAdmin({ tournamentSlug, adminId });
+      if (result && !result.ok) {
+        toast.error(result.error);
+      }
+    });
+  };
+
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      disabled={pending}
-      onClick={() => {
-        if (!window.confirm("Remove this admin?")) return;
-        startTransition(async () => {
-          const result = await removeAdmin({ tournamentSlug, adminId });
-          if (result && !result.ok) {
-            toast.error(result.error);
-          }
-        });
+    <ConfirmButton
+      title="Remove this admin?"
+      description="They will lose tournament-management permissions immediately."
+      confirmLabel="Remove"
+      destructive
+      onConfirm={onRemove}
+      triggerProps={{
+        type: "button",
+        variant: "ghost",
+        size: "sm",
+        disabled: pending,
       }}
     >
       {pending ? "…" : "Remove"}
-    </Button>
+    </ConfirmButton>
   );
 }

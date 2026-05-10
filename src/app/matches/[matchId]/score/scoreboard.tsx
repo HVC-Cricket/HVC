@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/confirm-button";
 import {
   Card,
   CardContent,
@@ -104,16 +105,9 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     });
   };
 
-  const undoMany = (count: number, label: string) => {
+  const undoMany = (count: number) => {
     if (count <= 0) {
       toast.error("Nothing to undo");
-      return;
-    }
-    if (
-      !window.confirm(
-        `Undo ${label}? ${count} ball${count === 1 ? "" : "s"} will be voided.`,
-      )
-    ) {
       return;
     }
     startTransition(async () => {
@@ -344,24 +338,34 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 >
                   Undo last ball
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() =>
-                    undoMany(Math.min(3, totalBalls), "the last 3 balls")
-                  }
-                  disabled={pending || totalBalls === 0}
+                <ConfirmButton
+                  title="Undo last 3 balls?"
+                  description={`${Math.min(3, totalBalls)} ball${Math.min(3, totalBalls) === 1 ? "" : "s"} will be voided. Innings totals recompute automatically.`}
+                  confirmLabel="Undo"
+                  destructive
+                  onConfirm={() => undoMany(Math.min(3, totalBalls))}
+                  triggerProps={{
+                    variant: "ghost",
+                    size: "sm",
+                    disabled: pending || totalBalls === 0,
+                  }}
                 >
                   Undo last 3
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => undoMany(ballsThisOver, "this over")}
-                  disabled={pending || ballsThisOver === 0}
+                </ConfirmButton>
+                <ConfirmButton
+                  title="Undo this over?"
+                  description={`${ballsThisOver} ball${ballsThisOver === 1 ? "" : "s"} from the current over will be voided.`}
+                  confirmLabel="Undo over"
+                  destructive
+                  onConfirm={() => undoMany(ballsThisOver)}
+                  triggerProps={{
+                    variant: "ghost",
+                    size: "sm",
+                    disabled: pending || ballsThisOver === 0,
+                  }}
                 >
                   Undo this over
-                </Button>
+                </ConfirmButton>
               </div>
               {overEnded && (
                 <p className="text-xs text-muted-foreground">

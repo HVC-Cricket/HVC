@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { ConfirmButton } from "@/components/confirm-button";
 import {
   Form,
   FormControl,
@@ -86,13 +87,6 @@ export function EditMatchForm({ match, teams }: Props) {
   };
 
   const onDelete = () => {
-    if (
-      !window.confirm(
-        "Delete this match? Innings, balls, and roster entries are removed via cascade. This cannot be undone.",
-      )
-    ) {
-      return;
-    }
     startDelete(async () => {
       const result = await deleteMatch({ matchId: match.id });
       if (result && !result.ok) {
@@ -252,15 +246,21 @@ export function EditMatchForm({ match, teams }: Props) {
           />
         </div>
         <div className="flex items-center justify-between gap-4 pt-2">
-          <Button
-            type="button"
-            variant="ghost"
-            className="text-destructive hover:text-destructive"
-            disabled={deleting || form.formState.isSubmitting}
-            onClick={onDelete}
+          <ConfirmButton
+            title="Delete this match?"
+            description="Innings, balls, and roster entries are removed via cascade. This cannot be undone."
+            confirmLabel="Delete match"
+            destructive
+            onConfirm={onDelete}
+            triggerProps={{
+              type: "button",
+              variant: "ghost",
+              className: "text-destructive hover:text-destructive",
+              disabled: deleting || form.formState.isSubmitting,
+            }}
           >
             {deleting ? "Deleting…" : "Delete match"}
-          </Button>
+          </ConfirmButton>
           <Button type="submit" disabled={form.formState.isSubmitting || deleting}>
             {form.formState.isSubmitting ? "Saving…" : "Save changes"}
           </Button>

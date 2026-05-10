@@ -46,7 +46,8 @@ Open <http://localhost:3000>.
 - 🚧 **Phase 6** — Polish.
   - ✅ PWA install (manifest + dynamic icons via `next/og`). App is installable on iOS / Android home screens.
   - ✅ Image upload — `LogoUploader` (browser → Supabase Storage with anon key + storage RLS). Wired into tournament / team / player edit forms; logos render on lists, grids, detail headers, and the match list.
-  - ⏭ Charts (Manhattan / worm / wagon wheel), push notifications, offline service worker, shadcn AlertDialog for destructive actions.
+  - ✅ shadcn AlertDialog for destructive actions (`ConfirmButton` wrapper + radix-based `alert-dialog.tsx`). All 6 confirm sites migrated.
+  - ⏭ Charts (Manhattan / worm / wagon wheel), push notifications, offline service worker.
 - ✅ **Phase 7 (2026-05-09)** — Access-control hardening for players.
   - Player-registry writes restricted to super-admins + tournament organizers (was: any signed-in user). Scorers can no longer create/edit players.
   - `players.linked_user_id` (already in schema) now has a partial unique index — one auth user maps to at most one player record. Optional email field on the player create/edit forms looks up the auth user via a new SECURITY DEFINER helper and links the records, so admins/scorers who also play have one cricket-history record across both roles.
