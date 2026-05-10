@@ -790,3 +790,70 @@ export async function voidLastBall(
   revalidatePath(`/matches/${parsed.data.matchId}/score`);
   return { ok: true, data: undefined };
 }
+
+const voidLastNSchema = z.object({
+  matchId: z.string().uuid(),
+  inningsId: z.string().uuid(),
+  count: z.coerce.number().int().min(1).max(20),
+});
+
+/**
+ * Void the N most recent non-voided balls in the innings. Used by the
+ * "Undo last 3" / "Undo this over" buttons. The count is server-derived
+ * for "this over" (caller passes the number of balls in the over) so we
+ * don't have to re-calculate state here.
+ */
+export async function voidLastN(
+  input: z.infer<typeof voidLastNSchema>,
+): Promise<ActionResult<{ voided: number }>> {
+  const parsed = voidLastNSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in" };
+
+  const { data: match } = await supabase
+    .from("matches")
+    .select("tournament_id")
+    .eq("id", parsed.data.matchId)
+    .single();
+  if (!match) return { ok: false, error: "Match not found" };
+  await requireTournamentAdmin(match.tournament_id);
+
+  const { data: balls } = await supabase
+    .from("balls")
+    .select("id")
+    .eq("innings_id", parsed.data.inningsId)
+    .eq("is_voided", false)
+    .order("scored_at", { ascending: false })
+    .limit(parsed.data.count);
+  if (!balls || balls.length === 0) {
+    return { ok: false, error: "No balls to undo" };
+  }
+
+  const ids = balls.map((b) => b.id);
+  const { error } = await supabase
+    .from("balls")
+    .update({
+      is_voided: true,
+      voided_by: user.id,
+      voided_at: new Date().toISOString(),
+    })
+    .in("id", ids);
+  if (error) return { ok: false, error: error.message };
+
+  // The trigger recomputes innings totals on each row update; un-mark
+  // the innings as complete in case the original last ball had ended it.
+  await supabase
+    .from("innings")
+    .update({ is_complete: false, ended_at: null })
+    .eq("id", parsed.data.inningsId);
+
+  revalidatePath(`/matches/${parsed.data.matchId}/score`);
+  return { ok: true, data: { voided: ids.length } };
+}

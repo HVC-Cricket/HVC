@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-import { recordBall, voidLastBall } from "./actions";
+import { recordBall, voidLastBall, voidLastN } from "./actions";
 import type { ScoreboardState } from "./state";
 
 type WicketType =
@@ -103,6 +103,31 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       if (result && !result.ok) toast.error(result.error);
     });
   };
+
+  const undoMany = (count: number, label: string) => {
+    if (count <= 0) {
+      toast.error("Nothing to undo");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Undo ${label}? ${count} ball${count === 1 ? "" : "s"} will be voided.`,
+      )
+    ) {
+      return;
+    }
+    startTransition(async () => {
+      const result = await voidLastN({
+        matchId: state.match.id,
+        inningsId: innings.id,
+        count,
+      });
+      if (result && !result.ok) toast.error(result.error);
+    });
+  };
+
+  const totalBalls = state.balls.length;
+  const ballsThisOver = state.currentOverBalls.length;
 
   return (
     <div className="space-y-4">
@@ -309,15 +334,35 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 bowlingXi={state.xi[innings.bowling_team_id] ?? []}
               />
             </div>
-            <div className="flex items-center justify-between gap-2 pt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={undo}
-                disabled={pending || state.balls.length === 0}
-              >
-                Undo last ball
-              </Button>
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={undo}
+                  disabled={pending || totalBalls === 0}
+                >
+                  Undo last ball
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    undoMany(Math.min(3, totalBalls), "the last 3 balls")
+                  }
+                  disabled={pending || totalBalls === 0}
+                >
+                  Undo last 3
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => undoMany(ballsThisOver, "this over")}
+                  disabled={pending || ballsThisOver === 0}
+                >
+                  Undo this over
+                </Button>
+              </div>
               {overEnded && (
                 <p className="text-xs text-muted-foreground">
                   Over complete — change bowler before next ball.
