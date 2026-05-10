@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { z } from "zod";
 
 import { requireTournamentAdmin } from "@/lib/auth";
+import { type MatchPushPayload, notifyMatch } from "@/lib/push";
 import {
   type EnginePlayer,
   applyBall,
@@ -360,6 +362,7 @@ export async function recordBall(
     }
   }
 
+  let inningsNumberJustEnded: number | null = null;
   if (inningsComplete) {
     await supabase
       .from("innings")
@@ -372,6 +375,7 @@ export async function recordBall(
       .select("innings_number")
       .eq("id", innings.id)
       .single();
+    inningsNumberJustEnded = i?.innings_number ?? null;
     if (i?.innings_number === 2) {
       const { data: i1 } = await supabase
         .from("innings")
@@ -395,6 +399,108 @@ export async function recordBall(
       // Both super-over innings complete → finalize.
       await finalizeMatchInternal(supabase, parsed.data.matchId);
     }
+  }
+
+  // ---- Push notifications -------------------------------------------
+  // Detect events of interest and dispatch via `after()` so the scorer's
+  // ball entry returns straight away — push fan-out runs after the
+  // response is sent. Failures here never break ball recording.
+  const pushEvents: MatchPushPayload[] = [];
+
+  if (parsed.data.is_wicket) {
+    const outName = parsed.data.player_out_id
+      ? (playerById.get(parsed.data.player_out_id)?.display_name ?? "Batter")
+      : "Batter";
+    const wicketLabel = parsed.data.wicket_type
+      ? parsed.data.wicket_type.replace(/_/g, " ")
+      : "out";
+    pushEvents.push({
+      title: "Wicket!",
+      body: `${outName} — ${wicketLabel}`,
+      url: `/matches/${parsed.data.matchId}`,
+      tag: `wicket-${parsed.data.matchId}-${(prevBalls?.length ?? 0) + 1}`,
+    });
+  }
+
+  // Milestones — only the striker accrues runs_off_bat.
+  const strikerRunsBefore = (prevBalls ?? [])
+    .filter((b) => b.batter_id === parsed.data.striker_id)
+    .reduce((sum, b) => sum + (b.runs_off_bat ?? 0), 0);
+  const strikerRunsAfter = strikerRunsBefore + parsed.data.runs_off_bat;
+  const strikerName =
+    playerById.get(parsed.data.striker_id)?.display_name ?? "Striker";
+  if (strikerRunsBefore < 50 && strikerRunsAfter >= 50) {
+    pushEvents.push({
+      title: "Fifty!",
+      body: `${strikerName} reaches ${strikerRunsAfter}`,
+      url: `/matches/${parsed.data.matchId}`,
+      tag: `fifty-${parsed.data.matchId}-${parsed.data.striker_id}`,
+    });
+  }
+  if (strikerRunsBefore < 100 && strikerRunsAfter >= 100) {
+    pushEvents.push({
+      title: "Century!",
+      body: `${strikerName} reaches ${strikerRunsAfter}`,
+      url: `/matches/${parsed.data.matchId}`,
+      tag: `hundred-${parsed.data.matchId}-${parsed.data.striker_id}`,
+    });
+  }
+
+  if (inningsNumberJustEnded === 1) {
+    const { data: i1 } = await supabase
+      .from("innings")
+      .select("total_runs, total_wickets")
+      .eq("id", innings.id)
+      .single();
+    if (i1) {
+      pushEvents.push({
+        title: "Innings break",
+        body: `1st innings ${i1.total_runs}/${i1.total_wickets}. Target: ${i1.total_runs + 1}.`,
+        url: `/matches/${parsed.data.matchId}`,
+        tag: `innings-break-${parsed.data.matchId}`,
+      });
+    }
+  }
+
+  if (inningsNumberJustEnded === 2 || inningsNumberJustEnded === 4) {
+    const { data: m } = await supabase
+      .from("matches")
+      .select("status, winner_id, win_margin, result_type, team_a_id, team_b_id")
+      .eq("id", parsed.data.matchId)
+      .single();
+    if (m?.status === "completed") {
+      let body = "Final result available.";
+      if (m.winner_id && m.win_margin) {
+        const { data: t } = await supabase
+          .from("teams")
+          .select("name")
+          .eq("id", m.winner_id)
+          .maybeSingle();
+        const winnerName = t?.name ?? "Winner";
+        body = `${winnerName} won ${m.win_margin}`;
+      } else if (m.result_type === "tie") {
+        body = "Match tied";
+      }
+      pushEvents.push({
+        title: "Match complete",
+        body,
+        url: `/matches/${parsed.data.matchId}`,
+        tag: `match-end-${parsed.data.matchId}`,
+      });
+    }
+  }
+
+  if (pushEvents.length > 0) {
+    const matchId = parsed.data.matchId;
+    after(async () => {
+      for (const ev of pushEvents) {
+        try {
+          await notifyMatch(matchId, ev);
+        } catch (err) {
+          console.error("[push] dispatch failed", err);
+        }
+      }
+    });
   }
 
   revalidatePath(`/matches/${parsed.data.matchId}/score`);

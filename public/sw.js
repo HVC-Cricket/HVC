@@ -1,7 +1,7 @@
 /* HVC Scoring — service worker */
 /* eslint-disable no-restricted-globals */
 
-const CACHE = "hvc-scoring-v1";
+const CACHE = "hvc-scoring-v2";
 
 self.addEventListener("install", () => {
   // Skip the waiting state so a fresh SW takes over straight away.
@@ -77,4 +77,55 @@ async function staleWhileRevalidate(request) {
 // Allow the page to nudge the SW to skip waiting (e.g. after deploy).
 self.addEventListener("message", (event) => {
   if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+});
+
+// ---------------------------------------------------------------------
+// Push notifications. The server (web-push) sends a JSON payload with
+// { title, body, url, tag? }. Tag de-duplicates: newer pushes with the
+// same tag replace the old notification (e.g. striker hits 50 then 100,
+// the second notification supersedes the first).
+// ---------------------------------------------------------------------
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+  let data;
+  try {
+    data = event.data.json();
+  } catch {
+    data = { title: "HVC Cricket", body: event.data.text() };
+  }
+  const { title = "HVC Cricket", body = "", url = "/", tag } = data;
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "/icon1",
+      badge: "/icon",
+      data: { url },
+      tag,
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url ?? "/";
+  event.waitUntil(
+    (async () => {
+      const list = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      // Re-focus an existing tab that's already on this URL.
+      for (const c of list) {
+        try {
+          const u = new URL(c.url);
+          if (u.pathname === url || c.url.endsWith(url)) {
+            if ("focus" in c) return c.focus();
+          }
+        } catch {
+          /* ignore */
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })(),
+  );
 });

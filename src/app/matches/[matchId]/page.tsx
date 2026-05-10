@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import { FullScorecard } from "./full-scorecard";
 import { LiveScorePanel } from "./live-score-panel";
+import { NotifyButton } from "./notify/notify-button";
 import { TossForm } from "./toss-form";
 import { XISection } from "./xi-section";
 
@@ -73,20 +74,25 @@ export default async function MatchDetailPage(props: {
               {match.status.replace(/_/g, " ")}
             </p>
           </div>
-          {canManage && (
-            <div className="flex items-center gap-2">
-              <Link href={`/matches/${match.id}/score`}>
-                <Button size="sm">
-                  {match.status === "scheduled" ? "Start scoring" : "Score"}
-                </Button>
-              </Link>
-              <Link href={`/matches/${match.id}/edit`}>
-                <Button variant="ghost" size="sm">
-                  Edit
-                </Button>
-              </Link>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {(match.status === "live" || match.status === "innings_break") && (
+              <NotifyButton matchId={match.id} />
+            )}
+            {canManage && (
+              <>
+                <Link href={`/matches/${match.id}/score`}>
+                  <Button size="sm">
+                    {match.status === "scheduled" ? "Start scoring" : "Score"}
+                  </Button>
+                </Link>
+                <Link href={`/matches/${match.id}/edit`}>
+                  <Button variant="ghost" size="sm">
+                    Edit
+                  </Button>
+                </Link>
+              </>
+            )}
+          </div>
         </div>
 
         {(match.status === "live" ||

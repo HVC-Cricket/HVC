@@ -971,6 +971,36 @@ create policy "Authenticated deletes from logo buckets"
 
 
 -- =====================================================================
+-- Web push subscriptions (per-match opt-in)
+-- ---------------------------------------------------------------------
+-- Spectators tap "Notify me" on a match page → browser PushManager
+-- subscription is recorded here. Server-side dispatch (recordBall) reads
+-- via service role; rows are scoped to a match and FK-cascade-cleared
+-- when the match is deleted.
+--
+-- RLS: deny all to anon/authenticated. Server actions use the service
+-- role key for both reads (dispatch) and writes (subscribe / unsubscribe
+-- with verified endpoint match).
+-- =====================================================================
+create table if not exists push_subscriptions (
+  id uuid primary key default gen_random_uuid(),
+  match_id uuid not null references matches(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
+  endpoint text not null,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default now(),
+  unique (match_id, endpoint)
+);
+
+create index if not exists idx_push_subs_by_match
+  on push_subscriptions(match_id);
+
+alter table push_subscriptions enable row level security;
+-- No policies → only the service role can read/write.
+
+
+-- =====================================================================
 -- DONE
 --
 -- Next manual step after first signup:
