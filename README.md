@@ -28,7 +28,7 @@ Open <http://localhost:3000>.
 - ✅ **Phase 1** — Auth: `/signup`, `/login`, `/me`, Server Actions, role-aware nav. Super-admin bootstrapped.
 - ✅ **Phase 2** — Tournaments / teams / players with full CRUD (create + list + detail + edit + delete) and roster management (`team_players`).
 - ✅ **Phase 3** — Matches CRUD, playing XI per team, toss, per-tournament admin assignment (organizer/scorer). RLS-correct organizer permissions wired through every write path.
-- 🚧 **Phase 4** — In progress.
+- ✅ **Phase 4** — Scoring engine.
   - ✅ **4a** Player category column (1/2/3) + UI badges.
   - ✅ **4b** Pure rules engine in `src/lib/scoring/` with the full HVC Season 6 ruleset (`HVC_RULES`). 19 Vitest tests passing. Run with `pnpm test`.
   - ✅ **4c** `tournaments.rules` JSONB defaults to `HVC_RULES` on create. Safe parser (`getRuleSet`) with HVC fallback.
@@ -37,7 +37,7 @@ Open <http://localhost:3000>.
   - ✅ **4d (part 2.5)** Wide keypad (`Wide` / `+1` / `+2` / `+4`) and No-ball keypad (`NB` / `+1` / `+2` / `+4` / `+6`) so overthrows + boundaries off wides + bat runs off no-balls record correctly. 21 engine tests passing.
   - ✅ **4d (part 3a)** Super over flow: tied match → start innings 3 (team-2 bats first) → start innings 4 (chase) → finalize with super-over winner / super-over tie. Phase machine extended with `super_over_1/break/2/decided/tied`. Engine's existing 2-wicket / 1-over caps enforce themselves.
   - ✅ **4d (part 3b)** Multi-ball undo: "Undo last ball" + "Undo last 3" + "Undo this over" buttons; `voidLastN` server action voids N balls in one round-trip with a confirm() guard.
-  - ⏭ **4e** Supabase Edge Function for defense-in-depth server-side validation.
+  - ✅ **4e** Defense-in-depth at the DB layer: 6 CHECK constraints on `balls` (run/extras/over ranges, wicket-type whitelist, wicket pair, legal_ball_seq consistency) plus triggers for free-hit dismissal and innings-complete blocking. Catches bypasses of the Server Action engine. Full Edge Function replay deferred (would require routing every recordBall through Deno + service-role).
 - 🚧 **Phase 5** — Spectator view.
   - ✅ **Part 1** Live scorecard on `/matches/[id]`: score, RR, target/required-RR for chases, current batsmen + bowler stats, recent-balls strip, free-hit / special-over badges, match-end banner. Auto-refresh every 2.5s via cached HTTP polling (no realtime subscription, free-tier safe).
   - ✅ **Part 2** Standings on `/tournaments/[slug]` (P / W / L / T / NR / Pts / **NRR** — sorted by points → NRR → name; bowled-out innings use the full overs quota per ICC); full per-innings batting + bowling tables on completed matches with proper dismissal text and DNB detection.
