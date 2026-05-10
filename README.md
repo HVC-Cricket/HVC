@@ -47,7 +47,8 @@ Open <http://localhost:3000>.
   - ✅ PWA install (manifest + dynamic icons via `next/og`). App is installable on iOS / Android home screens.
   - ✅ Image upload — `LogoUploader` (browser → Supabase Storage with anon key + storage RLS). Wired into tournament / team / player edit forms; logos render on lists, grids, detail headers, and the match list.
   - ✅ shadcn AlertDialog for destructive actions (`ConfirmButton` wrapper + radix-based `alert-dialog.tsx`). All 6 confirm sites migrated.
-  - ⏭ Charts (Manhattan / worm / wagon wheel), push notifications, offline service worker.
+  - ✅ Client-side retry queue on ball entry — every recordBall / voidLastBall / voidLastN goes through an in-memory queue with exponential backoff up to 30s on network errors. Survives mobile-data signal drops at the venue without losing taps. Pending count surfaces in the Record-ball card.
+  - ⏭ Charts (Manhattan / worm / wagon wheel), push notifications, full service worker (only worth building if mobile data drops for minutes — retry queue handles the realistic case).
 - ✅ **Phase 7 (2026-05-09)** — Access-control hardening for players.
   - Player-registry writes restricted to super-admins + tournament organizers (was: any signed-in user). Scorers can no longer create/edit players.
   - `players.linked_user_id` (already in schema) now has a partial unique index — one auth user maps to at most one player record. Optional email field on the player create/edit forms looks up the auth user via a new SECURITY DEFINER helper and links the records, so admins/scorers who also play have one cricket-history record across both roles.
