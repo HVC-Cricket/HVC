@@ -8,7 +8,7 @@
 
 We are building **HVC Scoring**, a web app for live scoring and spectating a **box cricket tournament** with custom rules. Multiple admins enter ball-by-ball data; 50–60+ spectators (possibly more) follow scores live in their browsers.
 
-**Status as of 2026-05-09:** Phases 0–3 done, Phase 4 done through 4d part 3a (super over flow). Phase 5 done through part 2 (live + completed scorecards, points table, player career page) plus dynamic OG. Phase 6 has PWA done. Player-registry writes hardened on 2026-05-09: only super-admins and tournament organizers can create/edit players (was: any signed-in user). Dead `updateTournamentStatus` action removed; status changes flow through the gated `updateTournament` action. Two super admins bootstrapped (`pavan.gautham17@gmail.com`, `sudarshan61kv@gmail.com`).
+**Status as of 2026-05-10:** Phases 0–3 done, Phase 4 done through 4d part 3a (super over flow). Phase 5 done through part 2 (live + completed scorecards, points table, player career page) plus dynamic OG. Phase 6 has PWA + service worker + IndexedDB durable write queue done. Player-registry writes hardened on 2026-05-09: only super-admins and tournament organizers can create/edit players (was: any signed-in user). Dead `updateTournamentStatus` action removed; status changes flow through the gated `updateTournament` action. Two super admins bootstrapped (`pavan.gautham17@gmail.com`, `sudarshan61kv@gmail.com`).
 
 **Project directory:** `~/Desktop/projects/hvc-scoring/` (Pavan's machine; was `/home/sudharshan/projects/own/hvc-scoring/` for the prior author).
 **Files in repo today:**
@@ -148,7 +148,7 @@ $25/month Pro tier removes pausing, lifts Realtime to 500 concurrent, daily back
 - Pitch map
 - Shareable match link + Open Graph image (WhatsApp shares look good)
 - Push notifications (wicket / 50 / 100 / match end)
-- PWA / offline scoring with sync
+- ~~PWA / offline scoring with sync~~ ✅ shipped (PWA in 2026-05-08, full SW + IndexedDB durable write queue in 2026-05-10)
 - Player career stats across tournaments
 - Tournament series mode + points table
 - **Multi-scorer with conflict prevention** — only one "primary scorer" at a time, others spectate scoring screen with takeover button (prevents two admins double-entering balls)
@@ -447,8 +447,7 @@ Phases 0–3 done. Pick up at **Phase 4** (scoring engine). Each phase is roughl
 - Open Graph images for matches + tournaments — done in Phase 5 part 2.
 - Points table — done in Phase 5 part 2.
 - Player career stats page — done in Phase 5 part 2.
-- [x] **Client-side retry queue for ball entry** — every `recordBall` / `voidLastBall` / `voidLastN` call goes through an in-memory queue inside the Scoreboard. `withRetry` retries on rejected promises (network errors, timeouts) with exponential backoff up to 30 s; server-validation rejections (`{ ok: false }`) skip the retry path. Queue drains serially so taps stay in order. A "Saving N…" pill in the Record-ball card surfaces what's in flight. Survives the realistic mobile-data drop pattern at the venue (5–30 s blips while moving around the ground) without losing taps.
-- Full service worker for true offline scoring — TODO; deferred. Would survive longer drops + phone restarts but requires IndexedDB queue + drain-on-reconnect + SW lifecycle handling. Reconsider if scorers report dropped balls in real matches.
+- [x] **Service worker + IndexedDB durable queue for offline scoring** — `public/sw.js` is a hand-rolled SW (no Workbox) registered from `src/components/register-sw.tsx` (production-only — Turbopack HMR doesn't play well with a SW intercepting requests in dev). Strategy: network-first for HTML navigations with cache fallback; stale-while-revalidate for hashed JS / CSS / image assets; cross-origin (Supabase) and Server Action / RSC payloads pass through untouched so writes always go straight to network. Cache versioned via `CACHE = "hvc-scoring-v1"` and old caches dropped on `activate`. The scoreboard now persists every `recordBall` / `voidLastBall` / `voidLastN` to IndexedDB (`src/lib/offline-queue.ts`, backed by `idb`) **before** any network attempt — so the queue survives page reloads, tab close, and offline gaps of any length. The drain loop runs serially: success or server-validation rejection drops the task; a network throw pauses the loop and resumes on the `online` event (with a 15s safety tick as backup). Two pills surface state in the Record-ball card title: red "Offline · queuing" when `navigator.onLine === false` or the last drain hit a network error, yellow "Saving N ball(s)…" while the queue is non-empty.
 - Commentary feed (auto + manual) — TODO.
 - Charts (Manhattan, worm, wagon wheel) — wagon wheel needs admin to tap a circle on ball entry — TODO.
 - Push notifications (wicket / 50 / 100 / match end) — TODO.

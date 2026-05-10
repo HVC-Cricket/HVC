@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  countTasksForMatch,
+  deleteTask,
+  enqueueTask,
+  listTasksForMatch,
+  type ScoreTask,
+  type ScoreTaskKind,
+} from "@/lib/offline-queue";
 
 import { recordBall, voidLastBall, voidLastN } from "./actions";
 import type { ScoreboardState } from "./state";
@@ -27,29 +35,7 @@ type WicketType =
   | "obstructing"
   | "timed_out";
 
-/**
- * Retries `fn` on rejection (network errors, timeouts) with exponential
- * backoff up to maxMs. Server validation errors come back as resolved
- * `{ ok: false }` results — those are user-fixable and won't retry.
- */
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxMs = 30_000,
-): Promise<T> {
-  const start = Date.now();
-  let attempt = 0;
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    try {
-      return await fn();
-    } catch (err) {
-      attempt += 1;
-      if (Date.now() - start > maxMs) throw err;
-      const delay = Math.min(500 * 2 ** (attempt - 1), 4000);
-      await new Promise((r) => setTimeout(r, delay));
-    }
-  }
-}
+type DrainOutcome = "ok" | "validation" | "network";
 
 export function Scoreboard({ state }: { state: ScoreboardState }) {
   const innings = state.innings!;
@@ -83,39 +69,134 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     state.active.bowler_id ?? state.balls[0]?.bowler_id ?? "",
   );
 
-  // Mobile-data realities: signal drops for 5–30s while moving around the
-  // ground are normal. We queue every write and retry on network errors
-  // (server validation errors don't retry — those are user-fixable). The
-  // scoreboard never blocks the next tap; pendingCount surfaces in the
-  // "Record ball" card so the scorer knows what's still in flight.
-  const queueRef = useRef<Array<() => Promise<void>>>([]);
-  const processingRef = useRef(false);
+  // Mobile-data realities + service-worker offline support: every write is
+  // persisted to IndexedDB before the network attempt, so the queue
+  // survives page reloads, tab closes, and offline gaps of any length.
+  // The drain loop runs serially: on success we drop the task; on a network
+  // throw we pause and resume on the `online` event (or the safety tick).
+  const matchId = state.match.id;
   const [pendingCount, setPendingCount] = useState(0);
+  const [isOffline, setIsOffline] = useState(false);
+  const drainingRef = useRef(false);
+
+  const runTask = async (task: ScoreTask): Promise<DrainOutcome> => {
+    try {
+      let result;
+      switch (task.kind) {
+        case "recordBall":
+          result = await recordBall(
+            task.payload as Parameters<typeof recordBall>[0],
+          );
+          break;
+        case "voidLastBall":
+          result = await voidLastBall(
+            task.payload as Parameters<typeof voidLastBall>[0],
+          );
+          break;
+        case "voidLastN":
+          result = await voidLastN(
+            task.payload as Parameters<typeof voidLastN>[0],
+          );
+          break;
+      }
+      if (result && !result.ok) {
+        toast.error(result.error);
+        return "validation";
+      }
+      return "ok";
+    } catch {
+      // Network / fetch failure — keep the task in IDB and let the drain
+      // loop pause until the browser comes back online.
+      return "network";
+    }
+  };
 
   const drain = async () => {
-    if (processingRef.current) return;
-    processingRef.current = true;
-    while (queueRef.current.length > 0) {
-      const run = queueRef.current.shift();
-      if (run) {
-        try {
-          await run();
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : "Network error";
-          toast.error(`Couldn't reach server: ${msg}`);
-        } finally {
-          setPendingCount((n) => Math.max(0, n - 1));
+    if (drainingRef.current) return;
+    drainingRef.current = true;
+    try {
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const tasks = await listTasksForMatch(matchId);
+        if (tasks.length === 0) break;
+        const next = tasks[0];
+        const outcome = await runTask(next);
+        if (outcome === "network") {
+          setIsOffline(true);
+          break;
         }
+        if (next.id != null) {
+          try {
+            await deleteTask(next.id);
+          } catch {
+            /* ignore — next drain will retry the delete */
+          }
+        }
+        setPendingCount((c) => Math.max(0, c - 1));
+        setIsOffline(false);
       }
+    } finally {
+      drainingRef.current = false;
     }
-    processingRef.current = false;
   };
 
-  const enqueue = (run: () => Promise<void>) => {
-    setPendingCount((n) => n + 1);
-    queueRef.current.push(run);
+  const enqueue = async (kind: ScoreTaskKind, payload: unknown) => {
+    setPendingCount((c) => c + 1);
+    try {
+      await enqueueTask({ matchId, kind, payload });
+    } catch (err) {
+      console.error("[hvc-scoring] failed to persist queued task", err);
+      // IDB unavailable (private mode etc.) — fall through and run inline.
+      // We've already incremented the count, so make sure runTask still
+      // takes the slot back.
+      const outcome = await runTask({ matchId, kind, payload, createdAt: Date.now() });
+      setPendingCount((c) => Math.max(0, c - 1));
+      if (outcome === "network") {
+        toast.error("Couldn't reach server. Check your connection.");
+      }
+      return;
+    }
     void drain();
   };
+
+  // On mount: load any tasks left over from a previous session and start
+  // draining. Hook the online/offline events and a 15s safety tick.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const count = await countTasksForMatch(matchId);
+        if (!cancelled) setPendingCount(count);
+      } catch (err) {
+        console.error("[hvc-scoring] could not read offline queue", err);
+      }
+      void drain();
+    })();
+
+    const onOnline = () => {
+      setIsOffline(false);
+      void drain();
+    };
+    const onOffline = () => setIsOffline(true);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      setIsOffline(true);
+    }
+
+    const tick = setInterval(() => {
+      if (!drainingRef.current) void drain();
+    }, 15_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(tick);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchId]);
 
   const striker = playersById.get(strikerId);
   const nonStriker = playersById.get(nonStrikerId);
@@ -147,21 +228,13 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       is_wicket: false,
       ...overrides,
     };
-    enqueue(async () => {
-      const result = await withRetry(() => recordBall(input));
-      if (result && !result.ok) toast.error(result.error);
-    });
+    void enqueue("recordBall", input);
   };
 
   const undo = () => {
-    enqueue(async () => {
-      const result = await withRetry(() =>
-        voidLastBall({
-          matchId: state.match.id,
-          inningsId: innings.id,
-        }),
-      );
-      if (result && !result.ok) toast.error(result.error);
+    void enqueue("voidLastBall", {
+      matchId: state.match.id,
+      inningsId: innings.id,
     });
   };
 
@@ -170,21 +243,14 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       toast.error("Nothing to undo");
       return;
     }
-    enqueue(async () => {
-      const result = await withRetry(() =>
-        voidLastN({
-          matchId: state.match.id,
-          inningsId: innings.id,
-          count,
-        }),
-      );
-      if (result && !result.ok) toast.error(result.error);
+    void enqueue("voidLastN", {
+      matchId: state.match.id,
+      inningsId: innings.id,
+      count,
     });
   };
 
-  // Local pending flag for the previous useTransition consumers below.
   const pending = pendingCount > 0;
-
   const totalBalls = state.balls.length;
   const ballsThisOver = state.currentOverBalls.length;
 
@@ -247,7 +313,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       {/* Pre-ball pickers (let scorer correct any drift; defaults from active state) */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Who's batting / bowling?</CardTitle>
+          <CardTitle className="text-base">Who&apos;s batting / bowling?</CardTitle>
           <CardDescription>
             Defaults follow the engine. Override here if you need to swap a
             batter or change bowler at end of over.
@@ -288,15 +354,22 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
           <CardHeader>
             <CardTitle className="flex items-center justify-between gap-3 text-base">
               <span>Record ball</span>
-              {pendingCount > 0 && (
-                <span className="rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-normal text-yellow-700">
-                  Saving {pendingCount} ball{pendingCount === 1 ? "" : "s"}…
-                </span>
-              )}
+              <span className="flex items-center gap-2">
+                {isOffline && (
+                  <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-normal text-destructive">
+                    Offline · queuing
+                  </span>
+                )}
+                {pendingCount > 0 && (
+                  <span className="rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-normal text-yellow-700">
+                    Saving {pendingCount} ball{pendingCount === 1 ? "" : "s"}…
+                  </span>
+                )}
+              </span>
             </CardTitle>
             <CardDescription>
-              Tap the outcome. Engine validates against the ruleset before
-              writing. Network drops auto-retry for up to 30s.
+              Tap the outcome. Each ball is saved on-device first — if you go
+              offline, taps queue and sync the moment signal comes back.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -306,7 +379,6 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                   key={n}
                   variant="outline"
                   className="h-16 text-2xl font-mono"
-                  disabled={pending}
                   onClick={() => submit({ runs_off_bat: n })}
                 >
                   {n}
@@ -320,7 +392,6 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                   key={n}
                   variant="outline"
                   className="h-12"
-                  disabled={pending}
                   onClick={() =>
                     submit({
                       runs_off_bat: 0,
@@ -341,7 +412,6 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                   key={n}
                   variant="outline"
                   className="h-12"
-                  disabled={pending}
                   onClick={() =>
                     submit({
                       runs_off_bat: n,
@@ -363,7 +433,6 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                     key={n}
                     variant="outline"
                     className="h-12"
-                    disabled={pending}
                     onClick={() =>
                       submit({
                         runs_off_bat: 0,
@@ -389,7 +458,6 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                     fielder_id: fielderId ?? null,
                   })
                 }
-                disabled={pending}
                 allowed={state.rules.allowed_wicket_types as WicketType[]}
                 onFreeHit={state.active.free_hit_pending}
                 freeHitDismissals={state.rules.free_hit.out_dismissals as WicketType[]}
@@ -406,7 +474,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                   variant="ghost"
                   size="sm"
                   onClick={undo}
-                  disabled={pending || totalBalls === 0}
+                  disabled={totalBalls === 0 && !pending}
                 >
                   Undo last ball
                 </Button>
@@ -419,7 +487,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                   triggerProps={{
                     variant: "ghost",
                     size: "sm",
-                    disabled: pending || totalBalls === 0,
+                    disabled: totalBalls === 0,
                   }}
                 >
                   Undo last 3
@@ -433,7 +501,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                   triggerProps={{
                     variant: "ghost",
                     size: "sm",
-                    disabled: pending || ballsThisOver === 0,
+                    disabled: ballsThisOver === 0,
                   }}
                 >
                   Undo this over
@@ -459,7 +527,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="ghost" onClick={undo} disabled={pending}>
+            <Button variant="ghost" onClick={undo}>
               Undo last ball
             </Button>
           </CardContent>
@@ -527,30 +595,8 @@ function PickerSelect({
   );
 }
 
-function ExtraButton({
-  label,
-  onSubmit,
-  disabled,
-}: {
-  label: string;
-  onSubmit: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <Button
-      variant="outline"
-      className="h-12"
-      disabled={disabled}
-      onClick={onSubmit}
-    >
-      {label}
-    </Button>
-  );
-}
-
 function WicketButton({
   onSubmit,
-  disabled,
   allowed,
   onFreeHit,
   freeHitDismissals,
@@ -565,7 +611,6 @@ function WicketButton({
     player_out_id?: string,
     fielder_id?: string,
   ) => void;
-  disabled?: boolean;
   allowed: WicketType[];
   onFreeHit: boolean;
   freeHitDismissals: WicketType[];
@@ -591,7 +636,6 @@ function WicketButton({
       <Button
         variant="destructive"
         className="h-12"
-        disabled={disabled}
         onClick={() => setOpen((v) => !v)}
       >
         Wicket
@@ -663,7 +707,6 @@ function WicketButton({
                 setOpen(false);
                 setFielder("");
               }}
-              disabled={disabled}
             >
               Save wicket
             </Button>
