@@ -452,7 +452,7 @@ Phases 0–3 done. Pick up at **Phase 4** (scoring engine). Each phase is roughl
 - Charts (Manhattan, worm, wagon wheel) — wagon wheel needs admin to tap a circle on ball entry — TODO.
 - Push notifications (wicket / 50 / 100 / match end) — TODO.
 - [x] **Image upload** — `LogoUploader` client component (`src/components/logo-uploader.tsx`) does the file → Supabase Storage upload from the browser using the anon key. Storage RLS: public read on `tournament-logos / team-logos / player-photos / match-banners`; authenticated insert / update / delete (entity-level RLS still gates URL-saving). Wired into the three edit forms (tournament / team / player). Logos render on tournament list cards + tournament detail header, team grid cards + team detail header, player rows + player detail header, and inline next to short_names in the match list. 2 MB cap; image MIME type required.
-- Replace `confirm()` with shadcn `AlertDialog` for destructive actions — TODO.
+- [x] **shadcn AlertDialog for destructive confirms** — `src/components/ui/alert-dialog.tsx` (radix-based, base-nova-styled) + `src/components/confirm-button.tsx` reusable wrapper that takes a title / description / confirmLabel / destructive flag and only fires `onConfirm` after the user clicks the action. All 6 native `window.confirm` call sites migrated: delete tournament / team / player / match, "Undo last 3" + "Undo this over" multi-undo, and remove tournament admin. Zero residual `window.confirm` in app code.
 
 ---
 
