@@ -340,7 +340,9 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
   - `SuperOverPanel` UI handles both starts (innings 3 + innings 4) with the chase target shown for innings 4.
   - `MatchCompletePanel` extended to surface super-over scorelines and the "super over also tied" case.
   - Recursive super overs (5/6/...) not implemented — HVC rules don't specify a tiebreaker beyond one super over.
-- [ ] **4d (part 3b, deferred)** — Multi-ball undo stack (current undo is one-tap-per-ball; multi-step would be a stack visualization).
+- [x] **4d (part 3b) — Multi-ball undo**:
+  - `voidLastN({ matchId, inningsId, count })` server action voids the N most recent non-voided balls in one round-trip. Trigger recomputes innings totals; `is_complete` is un-marked in case the original last ball had ended the innings.
+  - Scoreboard adds two extra buttons next to "Undo last ball": **Undo last 3** (caps at total ball count) and **Undo this over** (count derived from `currentOverBalls.length`). Both confirm with `confirm()` and toast on error.
 - [ ] **4e** — Supabase Edge Function: re-run engine on the server in a separate runtime layer, reject invalid balls (defence in depth — currently the Server Action does the validation, which is server-side already but bound to Next.js).
 
 Encoded HVC ruleset reference: see `memory/project_hvc_rules.md` (per-machine), or just read `HVC_RULES` in `src/lib/scoring/rules.ts`.
