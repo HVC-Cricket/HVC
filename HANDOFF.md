@@ -311,7 +311,7 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 - [x] **Auth helpers** at `src/lib/auth.ts`: `getSessionContext`, `requireUser`, `requireSuperAdmin` — read `profiles` + redirect.
 - [x] **Sonner Toaster** mounted in root layout for surfacing action errors.
 
-### Phase 4 — Scoring engine 🚧 (4a, 4b done; 4c–4e pending)
+### Phase 4 — Scoring engine ✅
 - [x] **4a** — `players.category` smallint column added (live DB, `db.sql`, types). Required dropdown on new/edit player forms. Category badge (C1/C2/C3 or red "no category" pill) on `/players` list. Drives bowling-order rules.
 - [x] **4b** — Pure rules engine in `src/lib/scoring/`:
   - `types.ts` — `RuleSet`, `InningsState`, `BallInput`, `EngineError`, `ApplyBallResult`
@@ -343,7 +343,12 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 - [x] **4d (part 3b) — Multi-ball undo**:
   - `voidLastN({ matchId, inningsId, count })` server action voids the N most recent non-voided balls in one round-trip. Trigger recomputes innings totals; `is_complete` is un-marked in case the original last ball had ended the innings.
   - Scoreboard adds two extra buttons next to "Undo last ball": **Undo last 3** (caps at total ball count) and **Undo this over** (count derived from `currentOverBalls.length`). Both confirm with `confirm()` and toast on error.
-- [ ] **4e** — Supabase Edge Function: re-run engine on the server in a separate runtime layer, reject invalid balls (defence in depth — currently the Server Action does the validation, which is server-side already but bound to Next.js).
+- [x] **4e — Defense-in-depth at the DB layer**:
+  - 6 CHECK constraints on `balls` (range on `runs_off_bat` / `extras` / `ball_in_over`, wicket_type whitelist, `is_wicket → wicket_type` pairing, `legal_ball_seq` consistency with extra_type).
+  - Trigger `trg_balls_free_hit` rejects free-hit dismissals outside `run_out / hit_wicket / obstructing` (standard-cricket baseline; HVC's stricter set stays in the engine).
+  - Trigger `trg_balls_innings_open` rejects inserts into an innings that's already marked `is_complete`. Updates (voiding) still allowed so undo can re-open the innings.
+  - Applied to live DB and synced into `db.sql`.
+  - **Trade-off vs full Edge Function:** a Deno-side Edge Function that replays the engine would catch tournament-specific rule violations too, but requires routing every `recordBall` through it (service-role key + Server Action refactor + Deno compat for the engine). The trigger layer catches the worst categories of invalid data with zero architecture change and runs on every write path including bypasses. Deferred to a future "Phase 4e+" if we ever serve the API from outside Next.js.
 
 Encoded HVC ruleset reference: see `memory/project_hvc_rules.md` (per-machine), or just read `HVC_RULES` in `src/lib/scoring/rules.ts`.
 

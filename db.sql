@@ -360,6 +360,107 @@ create trigger trg_profiles_prevent_self_promote
   for each row execute function prevent_self_promote();
 
 
+-- ---- Defense-in-depth on `balls` ----
+-- The Next.js Server Action runs the full rules engine before insert.
+-- This layer protects against any caller that bypasses the Server Action
+-- (rogue REST client, direct SQL, future tooling) by blocking the worst
+-- classes of invalid data at the database. Tournament-specific rules
+-- (no LBW for HVC, bowler max-overs cap, etc.) stay in the engine — the
+-- trigger enforces a *standard cricket* baseline compatible with any
+-- ruleset we run.
+
+alter table balls
+  drop constraint if exists balls_runs_off_bat_range;
+alter table balls
+  add constraint balls_runs_off_bat_range
+  check (runs_off_bat between 0 and 6);
+
+alter table balls
+  drop constraint if exists balls_extras_range;
+alter table balls
+  add constraint balls_extras_range
+  check (extras between 0 and 7);
+
+alter table balls
+  drop constraint if exists balls_ball_in_over_range;
+alter table balls
+  add constraint balls_ball_in_over_range
+  check (ball_in_over between 1 and 6);
+
+alter table balls
+  drop constraint if exists balls_wicket_pair;
+alter table balls
+  add constraint balls_wicket_pair
+  check ((not is_wicket) or wicket_type is not null);
+
+alter table balls
+  drop constraint if exists balls_wicket_type_valid;
+alter table balls
+  add constraint balls_wicket_type_valid
+  check (
+    wicket_type is null
+    or wicket_type in (
+      'bowled','caught','caught_and_bowled','run_out','stumped',
+      'lbw','hit_wicket','retired','obstructing','timed_out'
+    )
+  );
+
+-- legal_ball_seq IS NULL iff the delivery is a wide or no-ball.
+-- Byes / leg-byes / penalty all count as legal deliveries.
+alter table balls
+  drop constraint if exists balls_legal_seq_consistency;
+alter table balls
+  add constraint balls_legal_seq_consistency
+  check (
+    (extra_type in ('wide','no_ball') and legal_ball_seq is null)
+    or (
+      (extra_type is null or extra_type in ('bye','leg_bye','penalty'))
+      and legal_ball_seq is not null
+    )
+  );
+
+-- Trigger: free-hit dismissal restriction.
+-- Run-out / hit-wicket / obstructing are the only valid dismissals on a
+-- free hit. HVC's stricter "run_out / hit_wicket only" is enforced in
+-- the engine; this trigger applies the looser standard-cricket rule.
+create or replace function balls_validate_free_hit()
+returns trigger language plpgsql as $$
+begin
+  if new.is_free_hit = true and new.is_wicket = true and new.wicket_type is not null then
+    if new.wicket_type not in ('run_out', 'hit_wicket', 'obstructing') then
+      raise exception
+        'Free-hit dismissals are restricted to run_out / hit_wicket / obstructing; got %',
+        new.wicket_type;
+    end if;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_balls_free_hit on balls;
+create trigger trg_balls_free_hit
+  before insert or update on balls
+  for each row execute function balls_validate_free_hit();
+
+-- Trigger: innings-open guard. Block inserts into a complete innings.
+-- Updates (voiding) are still allowed so undo can re-open it.
+create or replace function balls_check_innings_open()
+returns trigger language plpgsql as $$
+declare
+  v_complete boolean;
+begin
+  select is_complete into v_complete from innings where id = new.innings_id;
+  if v_complete = true then
+    raise exception 'Innings is complete; cannot insert new balls';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists trg_balls_innings_open on balls;
+create trigger trg_balls_innings_open
+  before insert on balls
+  for each row execute function balls_check_innings_open();
+
+
 -- ---- Recompute innings aggregates from balls ----
 -- Cricket innings rarely exceed ~600 balls; full recompute is cheap and safe.
 create or replace function recompute_innings(p_innings_id uuid)
