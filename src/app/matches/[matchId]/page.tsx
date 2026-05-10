@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import { FullScorecard } from "./full-scorecard";
 import { LiveScorePanel } from "./live-score-panel";
+import { MatchCharts } from "./match-charts";
 import { NotifyButton } from "./notify/notify-button";
 import { TossForm } from "./toss-form";
 import { XISection } from "./xi-section";
@@ -99,6 +100,12 @@ export default async function MatchDetailPage(props: {
           match.status === "innings_break" ||
           match.status === "completed") && (
           <LiveScorePanel matchId={match.id} />
+        )}
+
+        {(match.status === "live" ||
+          match.status === "innings_break" ||
+          match.status === "completed") && (
+          <MatchCharts matchId={match.id} />
         )}
 
         {match.status === "completed" && (
