@@ -191,26 +191,38 @@ create table if not exists match_players (
 -- 9. Innings
 -- ---------------------------------------------------------------------
 create table if not exists innings (
-  id                  uuid primary key default gen_random_uuid(),
-  match_id            uuid not null references matches(id) on delete cascade,
-  innings_number      int  not null check (innings_number between 1 and 4),
-  batting_team_id     uuid not null references teams(id),
-  bowling_team_id     uuid not null references teams(id),
-  total_runs          int  not null default 0,
-  total_wickets       int  not null default 0,
-  total_legal_balls   int  not null default 0,
-  extras_wides        int  not null default 0,
-  extras_no_balls     int  not null default 0,
-  extras_byes         int  not null default 0,
-  extras_leg_byes     int  not null default 0,
-  extras_penalty      int  not null default 0,
-  target              int,
-  declared            boolean not null default false,
-  is_complete         boolean not null default false,
-  started_at          timestamptz,
-  ended_at            timestamptz,
+  id                       uuid primary key default gen_random_uuid(),
+  match_id                 uuid not null references matches(id) on delete cascade,
+  innings_number           int  not null check (innings_number between 1 and 4),
+  batting_team_id          uuid not null references teams(id),
+  bowling_team_id          uuid not null references teams(id),
+  total_runs               int  not null default 0,
+  total_wickets            int  not null default 0,
+  total_legal_balls        int  not null default 0,
+  extras_wides             int  not null default 0,
+  extras_no_balls          int  not null default 0,
+  extras_byes              int  not null default 0,
+  extras_leg_byes          int  not null default 0,
+  extras_penalty           int  not null default 0,
+  target                   int,
+  declared                 boolean not null default false,
+  is_complete              boolean not null default false,
+  started_at               timestamptz,
+  ended_at                 timestamptz,
+  -- Initial pickings captured at startMatch / startSecondInnings /
+  -- startSuperOverInnings so the scoreboard knows who's at the crease
+  -- before any ball has been recorded.
+  initial_striker_id       uuid references players(id) on delete set null,
+  initial_non_striker_id   uuid references players(id) on delete set null,
+  initial_bowler_id        uuid references players(id) on delete set null,
   unique (match_id, innings_number)
 );
+
+-- Back-fill the three initial-pick columns for installs that ran the
+-- table from an earlier revision.
+alter table innings add column if not exists initial_striker_id     uuid references players(id) on delete set null;
+alter table innings add column if not exists initial_non_striker_id uuid references players(id) on delete set null;
+alter table innings add column if not exists initial_bowler_id      uuid references players(id) on delete set null;
 
 -- back-fill the FK from matches.current_innings_id -> innings.id
 do $$

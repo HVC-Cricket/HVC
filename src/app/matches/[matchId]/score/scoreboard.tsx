@@ -477,18 +477,22 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
         <CardContent className="grid gap-2 text-sm sm:grid-cols-3">
           {/* Slot tiles double as the picker — tap a tile, native mobile
               picker opens, pick a player, done. No second "Who's batting"
-              card; that was confusing duplication. */}
+              card; that was confusing duplication. Stats line below
+              each name surfaces the player's current contribution so
+              the scorer always has context. */}
           <SlotPicker
             label="Striker"
             value={strikerId}
             options={state.xi[innings.batting_team_id] ?? []}
             onChange={setStrikerId}
+            statsLine={formatBatterStats(state.balls, strikerId)}
           />
           <SlotPicker
             label="Non-striker"
             value={nonStrikerId}
             options={state.xi[innings.batting_team_id] ?? []}
             onChange={setNonStrikerId}
+            statsLine={formatBatterStats(state.balls, nonStrikerId)}
           />
           <SlotPicker
             label="Bowler"
@@ -502,6 +506,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                   ? 3
                   : 2
             }
+            statsLine={formatBowlerStats(state.balls, bowlerId)}
           />
         </CardContent>
       </Card>
@@ -723,12 +728,14 @@ function SlotPicker({
   options,
   onChange,
   highlightCat,
+  statsLine,
 }: {
   label: string;
   value: string;
   options: { id: string; display_name: string; category: 1 | 2 | 3 | null }[];
   onChange: (v: string) => void;
   highlightCat?: 1 | 2 | 3;
+  statsLine?: string | null;
 }) {
   const selected = options.find((p) => p.id === value);
   return (
@@ -745,6 +752,11 @@ function SlotPicker({
         <span className="truncate">{selected?.display_name ?? "—"}</span>
         <span className="text-xs text-muted-foreground">▾</span>
       </div>
+      {statsLine && (
+        <div className="text-[11px] font-mono text-muted-foreground">
+          {statsLine}
+        </div>
+      )}
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -762,6 +774,75 @@ function SlotPicker({
       </select>
     </label>
   );
+}
+
+/**
+ * Compact batting stat line for the slot tile — `runs(balls) · SR` once
+ * the batter has faced at least one ball. Returns null when they
+ * haven't faced anything yet so the tile stays clean.
+ */
+function formatBatterStats(
+  balls: ScoreboardState["balls"],
+  playerId: string,
+): string | null {
+  if (!playerId) return null;
+  let runs = 0;
+  let bf = 0;
+  let fours = 0;
+  let sixes = 0;
+  for (const b of balls) {
+    if (b.batter_id !== playerId) continue;
+    runs += b.runs_off_bat;
+    if (b.extra_type !== "wide") bf += 1;
+    if (b.runs_off_bat === 4) fours += 1;
+    if (b.runs_off_bat === 6) sixes += 1;
+  }
+  if (bf === 0 && runs === 0) return null;
+  const sr = bf > 0 ? ((runs / bf) * 100).toFixed(0) : "—";
+  const boundaries =
+    fours > 0 || sixes > 0
+      ? ` · ${fours}×4${sixes > 0 ? ` ${sixes}×6` : ""}`
+      : "";
+  return `${runs}(${bf}) · SR ${sr}${boundaries}`;
+}
+
+/**
+ * Compact bowling stat line for the bowler tile — `W/R (O.B) · econ`.
+ * Returns null until the bowler has bowled at least one delivery.
+ */
+function formatBowlerStats(
+  balls: ScoreboardState["balls"],
+  playerId: string,
+): string | null {
+  if (!playerId) return null;
+  let legal = 0;
+  let conceded = 0;
+  let wickets = 0;
+  const wicketBowler = new Set([
+    "bowled",
+    "caught",
+    "caught_and_bowled",
+    "stumped",
+    "hit_wicket",
+  ]);
+  let touched = false;
+  for (const b of balls) {
+    if (b.bowler_id !== playerId) continue;
+    touched = true;
+    const isLegal = b.extra_type !== "wide" && b.extra_type !== "no_ball";
+    if (isLegal) legal += 1;
+    conceded += b.runs_off_bat;
+    if (b.extra_type === "wide" || b.extra_type === "no_ball") {
+      conceded += b.extras;
+    }
+    if (b.is_wicket && b.wicket_type && wicketBowler.has(b.wicket_type)) {
+      wickets += 1;
+    }
+  }
+  if (!touched) return null;
+  const overs = `${Math.floor(legal / 6)}.${legal % 6}`;
+  const econ = legal > 0 ? ((conceded / legal) * 6).toFixed(1) : "—";
+  return `${wickets}/${conceded} (${overs}) · econ ${econ}`;
 }
 
 function WicketButton({

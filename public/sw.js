@@ -1,7 +1,7 @@
 /* HVC Scoring — service worker */
 /* eslint-disable no-restricted-globals */
 
-const CACHE = "hvc-scoring-v2";
+const CACHE = "hvc-scoring-v3";
 
 self.addEventListener("install", () => {
   // Skip the waiting state so a fresh SW takes over straight away.

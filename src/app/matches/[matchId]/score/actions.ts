@@ -87,7 +87,8 @@ export async function startMatch(
     return { ok: false, error: "Bowler must be in the bowling-XI" };
   }
 
-  // Insert innings 1.
+  // Insert innings 1. Stash the picks on the innings row so the
+  // scoreboard knows who's at the crease before any ball is recorded.
   const { data: innings, error: insErr } = await supabase
     .from("innings")
     .insert({
@@ -96,6 +97,9 @@ export async function startMatch(
       batting_team_id: battingTeamId,
       bowling_team_id: bowlingTeamId,
       started_at: new Date().toISOString(),
+      initial_striker_id: parsed.data.striker_id,
+      initial_non_striker_id: parsed.data.non_striker_id,
+      initial_bowler_id: parsed.data.bowler_id,
     })
     .select("id")
     .single();
@@ -587,6 +591,9 @@ export async function startSecondInnings(
       bowling_team_id: bowlingTeamId,
       target,
       started_at: new Date().toISOString(),
+      initial_striker_id: parsed.data.striker_id,
+      initial_non_striker_id: parsed.data.non_striker_id,
+      initial_bowler_id: parsed.data.bowler_id,
     })
     .select("id")
     .single();
@@ -824,6 +831,9 @@ export async function startSuperOverInnings(
       bowling_team_id: bowlingTeamId,
       target,
       started_at: new Date().toISOString(),
+      initial_striker_id: parsed.data.striker_id,
+      initial_non_striker_id: parsed.data.non_striker_id,
+      initial_bowler_id: parsed.data.bowler_id,
     })
     .select("id")
     .single();

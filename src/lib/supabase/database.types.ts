@@ -376,6 +376,9 @@ export type Database = {
           is_complete: boolean;
           started_at: string | null;
           ended_at: string | null;
+          initial_striker_id: string | null;
+          initial_non_striker_id: string | null;
+          initial_bowler_id: string | null;
         };
         Insert: {
           id?: string;
@@ -396,6 +399,9 @@ export type Database = {
           is_complete?: boolean;
           started_at?: string | null;
           ended_at?: string | null;
+          initial_striker_id?: string | null;
+          initial_non_striker_id?: string | null;
+          initial_bowler_id?: string | null;
         };
         Update: {
           id?: string;
@@ -416,6 +422,9 @@ export type Database = {
           is_complete?: boolean;
           started_at?: string | null;
           ended_at?: string | null;
+          initial_striker_id?: string | null;
+          initial_non_striker_id?: string | null;
+          initial_bowler_id?: string | null;
         };
         Relationships: [];
       };

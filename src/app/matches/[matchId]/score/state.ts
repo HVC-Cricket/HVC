@@ -25,6 +25,12 @@ export type InningsSummary = {
   extras_byes: number;
   target: number | null;
   is_complete: boolean;
+  // The picks captured at innings-start. Used as the fallback when no
+  // ball has been recorded yet so the scoreboard knows who's at the
+  // crease without forcing the scorer to re-pick.
+  initial_striker_id: string | null;
+  initial_non_striker_id: string | null;
+  initial_bowler_id: string | null;
 };
 
 export type MatchPhase =
@@ -132,7 +138,7 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
   const { data: allInningsRows } = await supabase
     .from("innings")
     .select(
-      "id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls, extras_wides, extras_no_balls, extras_byes, target, is_complete",
+      "id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls, extras_wides, extras_no_balls, extras_byes, target, is_complete, initial_striker_id, initial_non_striker_id, initial_bowler_id",
     )
     .eq("match_id", match.id)
     .order("innings_number", { ascending: true });
@@ -193,8 +199,11 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
       free_hit_pending = pending;
     }
   } else if (innings) {
-    // No balls yet but innings exists. Striker/non-striker/bowler will be
-    // chosen by the scorer before the first ball is recorded.
+    // No balls yet but innings exists. Fall back to whatever was picked
+    // at innings-start so the scoreboard slot tiles aren't empty.
+    striker_id = innings.initial_striker_id ?? null;
+    non_striker_id = innings.initial_non_striker_id ?? null;
+    bowler_id = innings.initial_bowler_id ?? null;
   }
 
   const currentOverBalls = balls.filter((b) => b.over_number === over_number);
