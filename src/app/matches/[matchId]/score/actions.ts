@@ -8,6 +8,7 @@ import { requireTournamentAdmin } from "@/lib/auth";
 import { type MatchPushPayload, notifyMatch } from "@/lib/push";
 import {
   type EnginePlayer,
+  advanceBowler,
   applyBall,
   getRuleSet,
   startInnings,
@@ -256,6 +257,19 @@ export async function recordBall(
   });
 
   for (const b of prevBalls ?? []) {
+    // applyBall doesn't take a bowler input — sync it via advanceBowler
+    // when the recorded ball's bowler differs from engine state.
+    // Otherwise bowler_legal_balls all piles onto the initial bowler
+    // and `bowler_at_max` rejects every ball after legal #12.
+    if (b.bowler_id !== state.bowler_id) {
+      state = advanceBowler(
+        state,
+        toEnginePlayer(b.bowler_id),
+        toEnginePlayer(state.striker_id),
+        toEnginePlayer(state.non_striker_id),
+        rules,
+      );
+    }
     const r = applyBall(
       state,
       {
@@ -350,6 +364,18 @@ export async function recordBall(
         error: "Same bowler can't bowl consecutive overs",
       };
     }
+  }
+
+  // Sync engine bowler with the new ball's bowler before validation,
+  // for the same reason as the replay loop above.
+  if (parsed.data.bowler_id !== state.bowler_id) {
+    state = advanceBowler(
+      state,
+      toEnginePlayer(parsed.data.bowler_id),
+      toEnginePlayer(state.striker_id),
+      toEnginePlayer(state.non_striker_id),
+      rules,
+    );
   }
 
   // Apply the new ball through the engine for validation.

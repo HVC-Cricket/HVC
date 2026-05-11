@@ -7,6 +7,7 @@ import {
   type InningsState,
   type RuleSet,
   type WicketType,
+  advanceBowler,
   applyBall,
   getRuleSet,
   startInnings,
@@ -205,6 +206,20 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
       });
       let replayOk = true;
       for (const b of balls) {
+        // applyBall doesn't take a bowler input — when the recorded
+        // ball's bowler differs from engine state, sync it via
+        // advanceBowler first. Without this, the engine's
+        // bowler_legal_balls would all pile up on the initial bowler
+        // and spurious "bowler_at_max" rejections kick in mid-replay.
+        if (b.bowler_id !== s.bowler_id) {
+          s = advanceBowler(
+            s,
+            toEnginePlayer(b.bowler_id),
+            toEnginePlayer(s.striker_id),
+            toEnginePlayer(s.non_striker_id),
+            rules,
+          );
+        }
         const r = applyBall(
           s,
           {
