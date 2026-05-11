@@ -40,6 +40,12 @@ type DrainOutcome = "ok" | "validation" | "network";
 type OptimisticBall = {
   /** Stable local id used as the React key in the recent-balls strip. */
   key: string;
+  /** Player attribution — needed so per-player stats lines also move
+   *  on the instant the scorer taps, not only after the server confirms. */
+  striker_id: string;
+  non_striker_id: string;
+  bowler_id: string;
+  player_out_id: string | null;
   runs_off_bat: number;
   extras: number;
   extra_type: "wide" | "no_ball" | "bye" | null;
@@ -54,6 +60,10 @@ function makeOptimistic(input: Parameters<typeof recordBall>[0]): OptimisticBall
   const isLegal = extraType !== "wide" && extraType !== "no_ball";
   return {
     key: `opt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    striker_id: input.striker_id,
+    non_striker_id: input.non_striker_id,
+    bowler_id: input.bowler_id,
+    player_out_id: input.player_out_id ?? null,
     runs_off_bat: input.runs_off_bat,
     extras: input.extras ?? 0,
     extra_type: extraType,
@@ -515,14 +525,14 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             value={strikerId}
             options={state.xi[innings.batting_team_id] ?? []}
             onChange={setStrikerId}
-            statsLine={formatBatterStats(state.balls, strikerId)}
+            statsLine={formatBatterStats(state.balls, strikerId, optimistic)}
           />
           <SlotPicker
             label="Non-striker"
             value={nonStrikerId}
             options={state.xi[innings.batting_team_id] ?? []}
             onChange={setNonStrikerId}
-            statsLine={formatBatterStats(state.balls, nonStrikerId)}
+            statsLine={formatBatterStats(state.balls, nonStrikerId, optimistic)}
           />
           <SlotPicker
             label="Bowler"
@@ -536,7 +546,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                   ? 3
                   : 2
             }
-            statsLine={formatBowlerStats(state.balls, bowlerId)}
+            statsLine={formatBowlerStats(state.balls, bowlerId, optimistic)}
           />
         </CardContent>
       </Card>
@@ -809,11 +819,14 @@ function SlotPicker({
 /**
  * Compact batting stat line for the slot tile — `runs(balls) · SR` once
  * the batter has faced at least one ball. Returns null when they
- * haven't faced anything yet so the tile stays clean.
+ * haven't faced anything yet so the tile stays clean. Optimistic balls
+ * are folded in so the line updates the instant the scorer taps,
+ * matching the headline.
  */
 function formatBatterStats(
   balls: ScoreboardState["balls"],
   playerId: string,
+  optimistic?: OptimisticBall[],
 ): string | null {
   if (!playerId) return null;
   let runs = 0;
@@ -827,6 +840,13 @@ function formatBatterStats(
     if (b.runs_off_bat === 4) fours += 1;
     if (b.runs_off_bat === 6) sixes += 1;
   }
+  for (const o of optimistic ?? []) {
+    if (o.striker_id !== playerId) continue;
+    runs += o.runs_off_bat;
+    if (o.extra_type !== "wide") bf += 1;
+    if (o.runs_off_bat === 4) fours += 1;
+    if (o.runs_off_bat === 6) sixes += 1;
+  }
   if (bf === 0 && runs === 0) return null;
   const sr = bf > 0 ? ((runs / bf) * 100).toFixed(0) : "—";
   const boundaries =
@@ -839,10 +859,13 @@ function formatBatterStats(
 /**
  * Compact bowling stat line for the bowler tile — `W/R (O.B) · econ`.
  * Returns null until the bowler has bowled at least one delivery.
+ * Folds in optimistic balls for the same instant-update behaviour as
+ * the batter line above.
  */
 function formatBowlerStats(
   balls: ScoreboardState["balls"],
   playerId: string,
+  optimistic?: OptimisticBall[],
 ): string | null {
   if (!playerId) return null;
   let legal = 0;
@@ -868,6 +891,20 @@ function formatBowlerStats(
     if (b.is_wicket && b.wicket_type && wicketBowler.has(b.wicket_type)) {
       wickets += 1;
     }
+  }
+  for (const o of optimistic ?? []) {
+    if (o.bowler_id !== playerId) continue;
+    touched = true;
+    if (o.is_legal) legal += 1;
+    conceded += o.runs_off_bat;
+    if (o.extra_type === "wide" || o.extra_type === "no_ball") {
+      conceded += o.extras;
+    }
+    // Wicket attribution for optimistic: assume bowler-credited types
+    // unless the scorer flagged otherwise. The optimistic queue is a
+    // best-effort preview; the server-confirmed wicket_type is the
+    // truth post-revalidation.
+    if (o.is_wicket) wickets += 1;
   }
   if (!touched) return null;
   const overs = `${Math.floor(legal / 6)}.${legal % 6}`;
