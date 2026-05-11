@@ -442,9 +442,12 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   const displayWickets = innings.total_wickets + optimisticWickets - undoWickets;
   const displayLegalBalls =
     innings.total_legal_balls + optimisticLegalBalls - undoLegalBalls;
+  // Format "X.Y / Z ov" — standard cricket notation where X.Y is
+  // completed-overs.balls-into-next-over (NOT a decimal). The trailing
+  // "ov" disambiguates the slash, otherwise it looks like a fraction.
   const displayOvers =
     `${Math.floor(displayLegalBalls / 6)}.${displayLegalBalls % 6}` +
-    ` / ${state.rules.overs_per_innings}`;
+    ` / ${state.rules.overs_per_innings} ov`;
 
   // Hide server balls that are pending undo from the recent-balls strip
   // so the user sees them disappear the moment they tap Undo.
