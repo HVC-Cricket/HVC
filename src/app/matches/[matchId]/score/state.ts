@@ -79,6 +79,10 @@ export type ScoreboardState = {
     bowler_id: string | null;
     free_hit_pending: boolean;
     is_special_over: "cat1" | "cat3" | null;
+    /** Player IDs that have already been dismissed in this innings.
+     *  Used by the scoreboard to grey them out of the striker /
+     *  non-striker pickers. */
+    dismissed_ids: string[];
   };
   phase: MatchPhase;
 };
@@ -336,6 +340,11 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
       bowler_id,
       free_hit_pending,
       is_special_over,
+      dismissed_ids: engineState
+        ? Array.from(engineState.dismissed)
+        : (balls
+            .filter((b) => b.is_wicket && b.player_out_id)
+            .map((b) => b.player_out_id as string)),
     },
     phase,
   };

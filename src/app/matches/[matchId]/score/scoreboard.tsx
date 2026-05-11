@@ -526,6 +526,16 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             options={state.xi[innings.batting_team_id] ?? []}
             onChange={setStrikerId}
             statsLine={formatBatterStats(state.balls, strikerId, optimistic)}
+            // Already-dismissed players (can't bat again this innings)
+            // and the non-striker (can't be at both ends) are disabled.
+            disabledIds={
+              new Set(
+                [...state.active.dismissed_ids, nonStrikerId].filter(
+                  Boolean,
+                ) as string[],
+              )
+            }
+            dismissedIds={new Set(state.active.dismissed_ids)}
           />
           <SlotPicker
             label="Non-striker"
@@ -533,6 +543,14 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             options={state.xi[innings.batting_team_id] ?? []}
             onChange={setNonStrikerId}
             statsLine={formatBatterStats(state.balls, nonStrikerId, optimistic)}
+            disabledIds={
+              new Set(
+                [...state.active.dismissed_ids, strikerId].filter(
+                  Boolean,
+                ) as string[],
+              )
+            }
+            dismissedIds={new Set(state.active.dismissed_ids)}
           />
           <SlotPicker
             label="Bowler"
@@ -769,6 +787,8 @@ function SlotPicker({
   onChange,
   highlightCat,
   statsLine,
+  disabledIds,
+  dismissedIds,
 }: {
   label: string;
   value: string;
@@ -776,6 +796,12 @@ function SlotPicker({
   onChange: (v: string) => void;
   highlightCat?: 1 | 2 | 3;
   statsLine?: string | null;
+  /** Options that should be greyed out (e.g. already out, or the other
+   *  batter who's at the opposite end). */
+  disabledIds?: Set<string>;
+  /** Subset of `disabledIds` that's specifically out — gets an "(out)"
+   *  label so the scorer knows *why* the option is greyed. */
+  dismissedIds?: Set<string>;
 }) {
   const selected = options.find((p) => p.id === value);
   return (
@@ -805,10 +831,15 @@ function SlotPicker({
       >
         <option value="">—</option>
         {options.map((p) => (
-          <option key={p.id} value={p.id}>
+          <option
+            key={p.id}
+            value={p.id}
+            disabled={disabledIds?.has(p.id)}
+          >
             {p.display_name}
             {p.category ? ` · C${p.category}` : ""}
             {highlightCat && p.category === highlightCat ? " ⭑" : ""}
+            {dismissedIds?.has(p.id) ? " (out)" : ""}
           </option>
         ))}
       </select>
