@@ -839,8 +839,11 @@ function RecentBalls({
   const renderBall = (b: RenderBall) => {
     let label = String(b.runs_off_bat + b.extras);
     if (b.is_wicket) label = "W";
-    else if (b.extra_type === "wide") label = `${1 + b.extras}wd`;
-    else if (b.extra_type === "no_ball") label = `${1 + b.extras}nb`;
+    // `extras` already includes the wide penalty, so don't add another 1.
+    else if (b.extra_type === "wide") label = `${b.extras}wd`;
+    // For a no-ball, show the total runs off the delivery (batter + 1
+    // penalty), matching scorecard convention.
+    else if (b.extra_type === "no_ball") label = `${b.runs_off_bat + b.extras}nb`;
     else if (b.extra_type === "bye") label = `${b.extras}b`;
     const base =
       "inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-foreground/10 px-1.5 text-xs font-mono ";
