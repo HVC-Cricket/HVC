@@ -3,8 +3,13 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   type EnginePlayer,
+  type ExtraType,
+  type InningsState,
   type RuleSet,
+  type WicketType,
+  applyBall,
   getRuleSet,
+  startInnings,
 } from "@/lib/scoring";
 
 import type { Database } from "@/lib/supabase/database.types";
@@ -160,8 +165,71 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
     balls = ballRows ?? [];
   }
 
-  // Derive active state. We rely on the per-ball striker/non-striker/bowler
-  // already stored on the most recent ball, then advance from there.
+  // Replay the innings through the engine. We need this because the
+  // *next* striker after a 1, 3, 5 (etc.) is the OPPOSITE batter from
+  // the one who faced the last ball — the loader previously copied
+  // `last.batter_id` straight through and never applied rotation, so
+  // the slot tile lied about who was on strike. Engine state has the
+  // correct post-rotation striker / non-striker / bowler / free-hit
+  // status the moment a ball is confirmed.
+  const teamByPlayer = new Map<string, string>();
+  for (const r of xiRows ?? []) teamByPlayer.set(r.player_id, r.team_id);
+  const toEnginePlayer = (id: string): EnginePlayer => {
+    const p = playerById.get(id);
+    return {
+      id,
+      display_name: p?.display_name ?? "?",
+      category: (p?.category as 1 | 2 | 3 | null) ?? null,
+      team_id: teamByPlayer.get(id) ?? "",
+    };
+  };
+
+  let engineState: InningsState | null = null;
+  if (innings) {
+    const seedStrikerId =
+      innings.initial_striker_id ?? balls[0]?.batter_id ?? null;
+    const seedNonStrikerId =
+      innings.initial_non_striker_id ?? balls[0]?.non_striker_id ?? null;
+    const seedBowlerId =
+      innings.initial_bowler_id ?? balls[0]?.bowler_id ?? null;
+    if (seedStrikerId && seedNonStrikerId && seedBowlerId) {
+      let s = startInnings({
+        innings_number: innings.innings_number,
+        batting_team_id: innings.batting_team_id,
+        bowling_team_id: innings.bowling_team_id,
+        is_super_over: innings.innings_number > 2,
+        striker: toEnginePlayer(seedStrikerId),
+        non_striker: toEnginePlayer(seedNonStrikerId),
+        bowler: toEnginePlayer(seedBowlerId),
+        rules,
+      });
+      let replayOk = true;
+      for (const b of balls) {
+        const r = applyBall(
+          s,
+          {
+            runs_off_bat: b.runs_off_bat,
+            extras: b.extras,
+            extra_type: b.extra_type as ExtraType | null,
+            is_wicket: b.is_wicket,
+            wicket_type: b.wicket_type as WicketType | null,
+            player_out_id: b.player_out_id,
+            fielder_id: b.fielder_id,
+          },
+          rules,
+        );
+        if (!r.ok) {
+          replayOk = false;
+          break;
+        }
+        s = r.state;
+      }
+      if (replayOk) engineState = s;
+    }
+  }
+
+  // over / ball counting comes from the last recorded ball — engine
+  // state agrees but this is the simpler / known-stable path.
   const ballsPerOver = 6;
   const last = balls[balls.length - 1];
   let over_number = 1;
@@ -173,31 +241,17 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
 
   if (last) {
     over_number = last.over_number;
-    legal_balls_in_over = last.legal_ball_seq != null ? last.ball_in_over : last.ball_in_over;
-    // If the last ball completed the over, the next ball starts a new over.
+    legal_balls_in_over = last.ball_in_over;
     if (last.legal_ball_seq != null && last.ball_in_over === ballsPerOver) {
       over_number += 1;
       legal_balls_in_over = 0;
     }
-    striker_id = last.batter_id;
-    non_striker_id = last.non_striker_id;
-    bowler_id = last.bowler_id;
-
-    // Free-hit pending: the last NO-BALL hasn't been followed by a legal ball.
-    if (rules.no_ball.causes_free_hit) {
-      // Find the last no-ball; was there a legal ball after it?
-      let pending = false;
-      for (let i = balls.length - 1; i >= 0; i--) {
-        const b = balls[i];
-        if (b.extra_type === "no_ball") {
-          pending = true;
-          break;
-        }
-        const isLegal = !b.extra_type || b.extra_type === "bye";
-        if (isLegal) break;
-      }
-      free_hit_pending = pending;
-    }
+    // Engine-derived rotation — `last.batter_id` is who FACED the ball,
+    // not who's on strike next.
+    striker_id = engineState?.striker_id ?? last.batter_id;
+    non_striker_id = engineState?.non_striker_id ?? last.non_striker_id;
+    bowler_id = engineState?.bowler_id ?? last.bowler_id;
+    free_hit_pending = engineState?.free_hit_pending ?? false;
   } else if (innings) {
     // No balls yet but innings exists. Fall back to whatever was picked
     // at innings-start so the scoreboard slot tiles aren't empty.

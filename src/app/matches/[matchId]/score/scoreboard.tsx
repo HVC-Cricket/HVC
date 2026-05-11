@@ -239,6 +239,23 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     serverBallsRef.current = cur;
   }, [state.balls.length]);
 
+  // Sync the slot picks with the engine's post-rotation state. After
+  // every confirmed ball the server replays the innings through the
+  // engine and `state.active.striker_id` reflects who's actually on
+  // strike next — copy that into local state so the slot tile shows
+  // the right player without the scorer manually rotating after a
+  // single, end-of-over change, etc. We only sync when the server
+  // says SOMETHING (not null) so we don't wipe a fresh manual pick.
+  useEffect(() => {
+    if (state.active.striker_id) setStrikerId(state.active.striker_id);
+  }, [state.active.striker_id]);
+  useEffect(() => {
+    if (state.active.non_striker_id) setNonStrikerId(state.active.non_striker_id);
+  }, [state.active.non_striker_id]);
+  useEffect(() => {
+    if (state.active.bowler_id) setBowlerId(state.active.bowler_id);
+  }, [state.active.bowler_id]);
+
   const enqueue = async (kind: ScoreTaskKind, payload: unknown) => {
     setPendingCount((c) => c + 1);
     try {
