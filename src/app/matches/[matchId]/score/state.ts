@@ -242,15 +242,22 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
   if (last) {
     over_number = last.over_number;
     legal_balls_in_over = last.ball_in_over;
+    let atOverBoundary = false;
     if (last.legal_ball_seq != null && last.ball_in_over === ballsPerOver) {
       over_number += 1;
       legal_balls_in_over = 0;
+      atOverBoundary = true;
     }
     // Engine-derived rotation — `last.batter_id` is who FACED the ball,
     // not who's on strike next.
     striker_id = engineState?.striker_id ?? last.batter_id;
     non_striker_id = engineState?.non_striker_id ?? last.non_striker_id;
-    bowler_id = engineState?.bowler_id ?? last.bowler_id;
+    // When an over just ended the bowler MUST change (no consecutive
+    // overs from one player), so we return `null` and let the scorer
+    // pick the next bowler before the next ball is recorded.
+    bowler_id = atOverBoundary
+      ? null
+      : (engineState?.bowler_id ?? last.bowler_id);
     free_hit_pending = engineState?.free_hit_pending ?? false;
   } else if (innings) {
     // No balls yet but innings exists. Fall back to whatever was picked

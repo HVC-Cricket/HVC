@@ -283,6 +283,61 @@ export async function recordBall(
     state = r.state;
   }
 
+  // Bowling restrictions for the regular innings (super overs have their
+  // own caps; skip these for innings 3/4):
+  //   - Same bowler can't bowl two overs in a row.
+  //   - HVC rule: at most ONE bowler in the innings may bowl 2 overs;
+  //     everyone else is capped at 1.
+  if ((inningsRow?.innings_number ?? 1) <= 2) {
+    const legalBallsByBowler = new Map<string, number>();
+    for (const b of prevBalls ?? []) {
+      if (b.extra_type === "wide" || b.extra_type === "no_ball") continue;
+      legalBallsByBowler.set(
+        b.bowler_id,
+        (legalBallsByBowler.get(b.bowler_id) ?? 0) + 1,
+      );
+    }
+    const thisBowlerLegalBefore =
+      legalBallsByBowler.get(parsed.data.bowler_id) ?? 0;
+
+    if (thisBowlerLegalBefore >= rules.max_overs_per_bowler * 6) {
+      return {
+        ok: false,
+        error: `Bowler has already bowled their ${rules.max_overs_per_bowler} overs`,
+      };
+    }
+
+    if (thisBowlerLegalBefore >= 6) {
+      // About to bowl ball 7+ → this is their 2nd over. Check nobody
+      // else is already in (or past) their 2nd.
+      const otherDoubleUp = Array.from(legalBallsByBowler.entries()).some(
+        ([id, n]) => id !== parsed.data.bowler_id && n > 6,
+      );
+      if (otherDoubleUp) {
+        return {
+          ok: false,
+          error:
+            "Only one bowler per innings can bowl 2 overs and another bowler is already using that slot.",
+        };
+      }
+    }
+
+    // Consecutive overs check — only at the very first ball of a new
+    // over (the previous ball completed an over).
+    const lastBall = (prevBalls ?? [])[(prevBalls?.length ?? 0) - 1];
+    if (
+      lastBall &&
+      lastBall.legal_ball_seq != null &&
+      lastBall.ball_in_over === 6 &&
+      lastBall.bowler_id === parsed.data.bowler_id
+    ) {
+      return {
+        ok: false,
+        error: "Same bowler can't bowl consecutive overs",
+      };
+    }
+  }
+
   // Apply the new ball through the engine for validation.
   const validation = applyBall(
     state,

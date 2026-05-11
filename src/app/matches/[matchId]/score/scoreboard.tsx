@@ -239,22 +239,22 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     serverBallsRef.current = cur;
   }, [state.balls.length]);
 
-  // Sync the slot picks with the engine's post-rotation state. After
-  // every confirmed ball the server replays the innings through the
-  // engine and `state.active.striker_id` reflects who's actually on
-  // strike next — copy that into local state so the slot tile shows
-  // the right player without the scorer manually rotating after a
-  // single, end-of-over change, etc. We only sync when the server
-  // says SOMETHING (not null) so we don't wipe a fresh manual pick.
+  // Sync the slot picks with the engine's post-rotation view ONLY when
+  // a new ball lands (or one is undone). state.balls.length changing is
+  // the unambiguous signal — between balls, the scorer's manual picks
+  // are preserved. Bowler at over boundary is `null` server-side; we
+  // clear locally so the slot tile shows "—" and the scorer has to
+  // pick the next bowler before tapping a run (and recordBall rejects
+  // it server-side if they don't).
+  const ballsLengthSyncRef = useRef(state.balls.length);
   useEffect(() => {
-    if (state.active.striker_id) setStrikerId(state.active.striker_id);
-  }, [state.active.striker_id]);
-  useEffect(() => {
-    if (state.active.non_striker_id) setNonStrikerId(state.active.non_striker_id);
-  }, [state.active.non_striker_id]);
-  useEffect(() => {
-    if (state.active.bowler_id) setBowlerId(state.active.bowler_id);
-  }, [state.active.bowler_id]);
+    if (state.balls.length === ballsLengthSyncRef.current) return;
+    ballsLengthSyncRef.current = state.balls.length;
+    setStrikerId(state.active.striker_id ?? "");
+    setNonStrikerId(state.active.non_striker_id ?? "");
+    setBowlerId(state.active.bowler_id ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.balls.length]);
 
   const enqueue = async (kind: ScoreTaskKind, payload: unknown) => {
     setPendingCount((c) => c + 1);
