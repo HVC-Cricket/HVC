@@ -980,85 +980,134 @@ function WicketButton({
   // POTM scoring credits the catch to the bowler.
   const showFielder = ["caught", "run_out", "stumped"].includes(wicketType);
 
+  const close = () => {
+    setOpen(false);
+    setFielder("");
+  };
+
+  // Lock body scroll + escape-to-close while the modal is open.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   return (
     <>
       <Button
         variant="destructive"
         className="h-12"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(true)}
       >
         Wicket
       </Button>
       {open && (
-        <div className="col-span-full rounded-md border border-foreground/10 bg-muted/30 p-3 text-sm space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="space-y-1">
-              <span className="text-xs text-muted-foreground">Type</span>
-              <select
-                value={wicketType}
-                onChange={(e) => setWicketType(e.target.value as WicketType)}
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3"
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Record wicket"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+          onClick={close}
+        >
+          <div
+            className="w-full max-w-md space-y-3 rounded-t-xl bg-background p-4 shadow-xl sm:rounded-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-semibold">Record wicket</h2>
+              <button
+                type="button"
+                aria-label="Close"
+                onClick={close}
+                className="rounded p-1 text-xl leading-none text-muted-foreground hover:bg-muted"
               >
-                {types.map((t) => (
-                  <option key={t} value={t}>
-                    {t.replace(/_/g, " ")}
+                ×
+              </button>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="space-y-1">
+                <span className="text-xs text-muted-foreground">Type</span>
+                <select
+                  value={wicketType}
+                  onChange={(e) => setWicketType(e.target.value as WicketType)}
+                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                >
+                  {types.map((t) => (
+                    <option key={t} value={t}>
+                      {t.replace(/_/g, " ")}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="space-y-1">
+                <span className="text-xs text-muted-foreground">Player out</span>
+                <select
+                  value={whoOut}
+                  onChange={(e) =>
+                    setWhoOut(e.target.value as "striker" | "non_striker")
+                  }
+                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                >
+                  <option value="striker">Striker — {striker ?? "?"}</option>
+                  <option value="non_striker">
+                    Non-striker — {nonStriker ?? "?"}
                   </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1">
-              <span className="text-xs text-muted-foreground">Player out</span>
-              <select
-                value={whoOut}
-                onChange={(e) => setWhoOut(e.target.value as "striker" | "non_striker")}
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3"
-              >
-                <option value="striker">Striker — {striker ?? "?"}</option>
-                <option value="non_striker">Non-striker — {nonStriker ?? "?"}</option>
-              </select>
-            </label>
-          </div>
-          {showFielder && (
-            <label className="space-y-1 block">
-              <span className="text-xs text-muted-foreground">
-                Fielder{" "}
-                <span className="text-muted-foreground/70">
-                  ({wicketType === "stumped" ? "wicket-keeper" : "who took it"})
+                </select>
+              </label>
+            </div>
+
+            {showFielder && (
+              <label className="block space-y-1">
+                <span className="text-xs text-muted-foreground">
+                  Fielder{" "}
+                  <span className="text-muted-foreground/70">
+                    ({wicketType === "stumped" ? "wicket-keeper" : "who took it"})
+                  </span>
                 </span>
-              </span>
-              <select
-                value={fielder}
-                onChange={(e) => setFielder(e.target.value)}
-                className="h-9 w-full rounded-md border border-input bg-transparent px-3"
+                <select
+                  value={fielder}
+                  onChange={(e) => setFielder(e.target.value)}
+                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                >
+                  <option value="">—</option>
+                  {bowlingXi.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.display_name}
+                      {p.category ? ` · C${p.category}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
+            <div className="flex justify-end gap-2 pt-1">
+              <Button variant="ghost" size="sm" onClick={close}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  onSubmit(
+                    wicketType,
+                    whoOut === "striker" ? strikerId : nonStrikerId,
+                    showFielder && fielder ? fielder : undefined,
+                  );
+                  close();
+                }}
               >
-                <option value="">—</option>
-                {bowlingXi.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.display_name}
-                    {p.category ? ` · C${p.category}` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => {
-                onSubmit(
-                  wicketType,
-                  whoOut === "striker" ? strikerId : nonStrikerId,
-                  showFielder && fielder ? fielder : undefined,
-                );
-                setOpen(false);
-                setFielder("");
-              }}
-            >
-              Save wicket
-            </Button>
+                Save wicket
+              </Button>
+            </div>
           </div>
         </div>
       )}
