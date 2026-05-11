@@ -943,10 +943,11 @@ function WicketButton({
   const [fielder, setFielder] = useState("");
 
   const types = onFreeHit ? freeHitDismissals : allowed;
-  // Fielder is meaningful for caught / run_out / stumped / caught_and_bowled.
-  const showFielder = ["caught", "run_out", "stumped", "caught_and_bowled"].includes(
-    wicketType,
-  );
+  // Fielder picker is only meaningful for `caught`, `run_out`, and
+  // `stumped`. `caught_and_bowled` is, by definition, the bowler
+  // catching off their own delivery — the fielder is implicit and
+  // POTM scoring credits the catch to the bowler.
+  const showFielder = ["caught", "run_out", "stumped"].includes(wicketType);
 
   return (
     <>
