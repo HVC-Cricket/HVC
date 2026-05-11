@@ -328,8 +328,18 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       toast.error("Innings complete");
       return;
     }
-    if (!strikerId || !nonStrikerId || !bowlerId) {
-      toast.error("Pick striker, non-striker, and bowler first");
+    const missing: string[] = [];
+    if (!strikerId) missing.push("striker");
+    if (!nonStrikerId) missing.push("non-striker");
+    if (!bowlerId) missing.push("bowler");
+    if (missing.length > 0) {
+      const list =
+        missing.length === 1
+          ? missing[0]
+          : missing.length === 2
+            ? `${missing[0]} and ${missing[1]}`
+            : `${missing.slice(0, -1).join(", ")}, and ${missing[missing.length - 1]}`;
+      toast.error(`Pick the ${list} first`);
       return;
     }
     const input = {

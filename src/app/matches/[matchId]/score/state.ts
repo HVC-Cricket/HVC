@@ -259,6 +259,16 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
       ? null
       : (engineState?.bowler_id ?? last.bowler_id);
     free_hit_pending = engineState?.free_hit_pending ?? false;
+
+    // If the last ball was a wicket, the dismissed batter's slot is
+    // empty until the scorer picks the next batter in. After the
+    // engine has applied any pre-wicket crossing rotation, the
+    // dismissed player still sits in whichever slot they ended up in
+    // (engine just adds them to .dismissed; it doesn't blank the slot).
+    if (last.is_wicket && last.player_out_id) {
+      if (striker_id === last.player_out_id) striker_id = null;
+      if (non_striker_id === last.player_out_id) non_striker_id = null;
+    }
   } else if (innings) {
     // No balls yet but innings exists. Fall back to whatever was picked
     // at innings-start so the scoreboard slot tiles aren't empty.
