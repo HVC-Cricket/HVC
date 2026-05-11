@@ -126,6 +126,15 @@ function InningsCard({
   const nsIdStats = nonStrikerId ? batsmanStats(nonStrikerId) : null;
   const bIdStats = bowlerId ? bowlerStats(bowlerId) : null;
 
+  // Current partnership: runs/balls accrued since the most recent wicket
+  // (or from the start of the innings if there hasn't been one).
+  const partnership = computeCurrentPartnership(balls);
+
+  // Recent run rate over the last 5 overs (or all overs if innings is
+  // shorter). Useful chase context — a chase looking ahead at 7 RPO
+  // means a different thing when the last 5 overs went at 12 vs at 3.
+  const recentRR = computeRecentRR(balls, 5);
+
   return (
     <Card>
       <CardHeader>
@@ -177,6 +186,37 @@ function InningsCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Partnership + recent RR strip */}
+        {(partnership.runs > 0 || partnership.balls > 0 || recentRR) && (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+            {(partnership.runs > 0 || partnership.balls > 0) && (
+              <span className="text-muted-foreground">
+                <span className="font-medium uppercase">Partnership:</span>{" "}
+                <span className="font-mono text-foreground">
+                  {partnership.runs}
+                </span>
+                {" ("}
+                <span className="font-mono text-foreground">
+                  {partnership.balls}
+                </span>
+                {")"}
+              </span>
+            )}
+            {recentRR && (
+              <span className="text-muted-foreground">
+                <span className="font-medium uppercase">
+                  Last {recentRR.overs} ov:
+                </span>{" "}
+                <span className="font-mono text-foreground">
+                  {recentRR.runs}
+                </span>
+                {" runs · RR "}
+                <span className="font-mono text-foreground">{recentRR.rr}</span>
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Batsmen */}
         <div className="grid gap-2 sm:grid-cols-2">
           <BatsmanRow
@@ -288,11 +328,12 @@ function BowlerRow({
         )}
       </div>
       {stats && (
-        <div className="mt-1 grid grid-cols-5 gap-2 text-[11px] text-muted-foreground">
+        <div className="mt-1 grid grid-cols-6 gap-2 text-[11px] text-muted-foreground">
           <Stat k="O" v={overs} />
+          <Stat k="M" v={stats.maidens} />
           <Stat k="R" v={stats.runs_conceded} />
           <Stat k="W" v={stats.wickets} />
-          <Stat k="Wd" v={stats.wides} />
+          <Stat k="Dots" v={stats.dots} />
           <Stat k="Econ" v={econ} />
         </div>
       )}
@@ -319,15 +360,24 @@ function RecentBalls({
   const renderBall = (b: Ball) => {
     let label = String(b.runs_off_bat + b.extras);
     if (b.is_wicket) label = "W";
-    else if (b.extra_type === "wide") label = `${1 + b.extras}wd`;
-    else if (b.extra_type === "no_ball") label = `${1 + b.extras}nb`;
+    // `extras` already includes the wide / no-ball penalty.
+    else if (b.extra_type === "wide") label = `${b.extras}wd`;
+    else if (b.extra_type === "no_ball") label = `${b.runs_off_bat + b.extras}nb`;
     else if (b.extra_type === "bye") label = `${b.extras}b`;
+    const colour = b.is_wicket
+      ? "bg-destructive/15 text-destructive"
+      : "bg-muted/40";
+    // is_free_hit is stored on the ball — show a yellow ring so the
+    // ball pill is obvious in the strip without needing the badge.
+    const ring = b.is_free_hit ? "ring-2 ring-yellow-400" : "";
     return (
       <span
         key={b.id}
         className={
           "inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-foreground/10 px-1.5 text-xs font-mono " +
-          (b.is_wicket ? "bg-destructive/15 text-destructive" : "bg-muted/40")
+          colour +
+          " " +
+          ring
         }
       >
         {label}
@@ -379,6 +429,7 @@ function computeBowlingStats(balls: Ball[], playerId: string) {
   let wickets = 0;
   let wides = 0;
   let no_balls = 0;
+  let dots = 0;
   const wicketBowler = new Set([
     "bowled",
     "caught",
@@ -387,11 +438,11 @@ function computeBowlingStats(balls: Ball[], playerId: string) {
     "stumped",
     "hit_wicket",
   ]);
+  const overBalls = new Map<number, Ball[]>();
   for (const b of balls) {
     if (b.bowler_id !== playerId) continue;
-    if (b.extra_type !== "wide" && b.extra_type !== "no_ball") {
-      legal_balls += 1;
-    }
+    const isLegal = b.extra_type !== "wide" && b.extra_type !== "no_ball";
+    if (isLegal) legal_balls += 1;
     runs_conceded += b.runs_off_bat;
     if (b.extra_type === "wide" || b.extra_type === "no_ball") {
       runs_conceded += b.extras;
@@ -401,6 +452,74 @@ function computeBowlingStats(balls: Ball[], playerId: string) {
     if (b.is_wicket && b.wicket_type && wicketBowler.has(b.wicket_type)) {
       wickets += 1;
     }
+    if (isLegal && b.runs_off_bat + b.extras === 0) dots += 1;
+    if (!overBalls.has(b.over_number)) overBalls.set(b.over_number, []);
+    overBalls.get(b.over_number)!.push(b);
   }
-  return { legal_balls, runs_conceded, wickets, wides, no_balls };
+  let maidens = 0;
+  for (const [, group] of overBalls) {
+    const legalInOver = group.filter(
+      (b) => b.extra_type !== "wide" && b.extra_type !== "no_ball",
+    ).length;
+    if (legalInOver !== 6) continue;
+    const runsInOver = group.reduce(
+      (s, b) => s + b.runs_off_bat + b.extras,
+      0,
+    );
+    if (runsInOver === 0) maidens += 1;
+  }
+  return { legal_balls, runs_conceded, wickets, wides, no_balls, dots, maidens };
+}
+
+/**
+ * Runs and legal balls accrued since the most recent wicket (or from
+ * the start of the innings if no wickets have fallen). Mirrors the
+ * "Partnership" line on a live cricket scorecard.
+ */
+function computeCurrentPartnership(balls: Ball[]) {
+  let runs = 0;
+  let bf = 0;
+  // Find the last wicket — partnership counts from the ball AFTER it.
+  let startIdx = 0;
+  for (let i = balls.length - 1; i >= 0; i--) {
+    if (balls[i].is_wicket) {
+      startIdx = i + 1;
+      break;
+    }
+  }
+  for (let i = startIdx; i < balls.length; i++) {
+    const b = balls[i];
+    runs += b.runs_off_bat + b.extras;
+    if (b.extra_type !== "wide" && b.extra_type !== "no_ball") bf += 1;
+  }
+  return { runs, balls: bf };
+}
+
+/**
+ * Runs scored in the most-recent N overs (capped to however many overs
+ * actually exist) plus the rolling RR. Returns null when fewer than 1
+ * over has been bowled — too little signal to display.
+ */
+function computeRecentRR(
+  balls: Ball[],
+  windowOvers: number,
+): { runs: number; overs: number; rr: string } | null {
+  if (balls.length === 0) return null;
+  const latestOver = balls[balls.length - 1].over_number;
+  if (latestOver < 2) return null;
+  const fromOver = Math.max(1, latestOver - windowOvers + 1);
+  let runs = 0;
+  let legalBalls = 0;
+  for (const b of balls) {
+    if (b.over_number < fromOver) continue;
+    runs += b.runs_off_bat + b.extras;
+    if (b.extra_type !== "wide" && b.extra_type !== "no_ball") legalBalls += 1;
+  }
+  const oversCount = legalBalls / 6;
+  if (oversCount <= 0) return null;
+  return {
+    runs,
+    overs: latestOver - fromOver + 1,
+    rr: (runs / oversCount).toFixed(2),
+  };
 }

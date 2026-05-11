@@ -10,13 +10,16 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/supabase/database.types";
 
 type BallRow = Database["public"]["Tables"]["balls"]["Row"];
+type PlayerLite = {
+  id: string;
+  display_name: string;
+  category: number | null;
+};
 
 /**
- * Full per-innings scorecard for completed matches. Renders two tables per
- * innings — batting and bowling — derived directly from `balls` rows and
- * the playing XI. Mirrors what the SQL views (v_innings_batting,
- * v_innings_bowling) compute, but inline so the page stays a single
- * server-component round-trip.
+ * Full per-innings scorecard for completed matches. Renders four blocks
+ * per innings — batting, fall of wickets, bowling, partnerships —
+ * derived directly from `balls` rows and the playing XI.
  */
 export async function FullScorecard({ matchId }: { matchId: string }) {
   const supabase = await createClient();
@@ -41,11 +44,8 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
     .from("teams")
     .select("id, name, short_name")
     .in("id", [match.team_a_id, match.team_b_id]);
-  const teamById = new Map(
-    (teams ?? []).map((t) => [t.id, t]),
-  );
+  const teamById = new Map((teams ?? []).map((t) => [t.id, t]));
 
-  // Pull all players from match_players + players for both teams in one shot
   const { data: xi } = await supabase
     .from("match_players")
     .select("player_id, team_id, batting_order, is_captain, is_keeper, is_substitute")
@@ -56,10 +56,11 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
         .from("players")
         .select("id, display_name, category")
         .in("id", playerIds)
-    : { data: [] as { id: string; display_name: string; category: number | null }[] };
-  const playerById = new Map((playerRows ?? []).map((p) => [p.id, p]));
+    : { data: [] as PlayerLite[] };
+  const playerById = new Map<string, PlayerLite>(
+    (playerRows ?? []).map((p) => [p.id, p]),
+  );
 
-  // Pull all balls for both innings
   const inningsIds = innings.map((i) => i.id);
   const { data: ballsRows } = await supabase
     .from("balls")
@@ -77,7 +78,6 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
         const inningsBalls = allBalls.filter((b) => b.innings_id === i.id);
         const battingXi = (xi ?? []).filter((r) => r.team_id === i.batting_team_id);
         const bowlingXi = (xi ?? []).filter((r) => r.team_id === i.bowling_team_id);
-
         const overs = `${Math.floor(i.total_legal_balls / 6)}.${i.total_legal_balls % 6}`;
 
         return (
@@ -96,6 +96,7 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
                 xi={battingXi}
                 playerById={playerById}
               />
+              <FallOfWickets balls={inningsBalls} playerById={playerById} />
               <ExtrasRow innings={i} />
               <BowlingTable
                 balls={inningsBalls}
@@ -103,6 +104,7 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
                 playerById={playerById}
                 bowlingTeamName={bowlingTeam?.name}
               />
+              <Partnerships balls={inningsBalls} playerById={playerById} />
             </CardContent>
           </Card>
         );
@@ -118,7 +120,7 @@ function BattingTable({
 }: {
   balls: BallRow[];
   xi: { player_id: string; batting_order: number | null }[];
-  playerById: Map<string, { id: string; display_name: string; category: number | null }>;
+  playerById: Map<string, PlayerLite>;
 }) {
   // Determine batting order: prefer match_players.batting_order;
   // fall back to first-appearance order in balls.
@@ -128,6 +130,8 @@ function BattingTable({
     if (!firstAppearance.has(b.non_striker_id))
       firstAppearance.set(b.non_striker_id, idx);
   });
+
+  const didBat = (playerId: string) => firstAppearance.has(playerId);
 
   const sorted = [...xi].sort((a, b) => {
     const aOrder = a.batting_order ?? null;
@@ -140,62 +144,149 @@ function BattingTable({
     return aFa - bFa;
   });
 
+  const batters = sorted.filter((row) => didBat(row.player_id));
+  const dnb = sorted.filter((row) => !didBat(row.player_id));
+
   return (
-    <table className="w-full text-sm">
-      <thead className="text-xs uppercase text-muted-foreground">
-        <tr className="border-y border-foreground/10">
-          <th className="px-4 py-2 text-left font-medium">Batter</th>
-          <th className="px-2 py-2 text-left font-medium">Out</th>
-          <th className="px-2 py-2 text-right font-medium">R</th>
-          <th className="px-2 py-2 text-right font-medium">B</th>
-          <th className="px-2 py-2 text-right font-medium">4s</th>
-          <th className="px-2 py-2 text-right font-medium">6s</th>
-          <th className="px-4 py-2 text-right font-medium">SR</th>
-        </tr>
-      </thead>
-      <tbody>
-        {sorted.map((row) => {
-          const p = playerById.get(row.player_id);
-          const stats = computeBatterStats(balls, row.player_id);
-          const dismissal = computeDismissal(balls, row.player_id, playerById);
-          const battedAtAll =
-            firstAppearance.get(row.player_id) !== undefined ||
-            stats.runs > 0 ||
-            stats.balls_faced > 0;
-          return (
+    <>
+      <table className="w-full text-sm">
+        <thead className="text-xs uppercase text-muted-foreground">
+          <tr className="border-y border-foreground/10">
+            <th className="px-4 py-2 text-left font-medium">Batter</th>
+            <th className="px-2 py-2 text-left font-medium">Out</th>
+            <th className="px-2 py-2 text-right font-medium">R</th>
+            <th className="px-2 py-2 text-right font-medium">B</th>
+            <th className="px-2 py-2 text-right font-medium">4s</th>
+            <th className="px-2 py-2 text-right font-medium">6s</th>
+            <th className="px-4 py-2 text-right font-medium">SR</th>
+          </tr>
+        </thead>
+        <tbody>
+          {batters.map((row) => {
+            const p = playerById.get(row.player_id);
+            const stats = computeBatterStats(balls, row.player_id);
+            const dismissal = computeDismissal(balls, row.player_id, playerById);
+            return (
+              <tr
+                key={row.player_id}
+                className="border-b border-foreground/5 last:border-b-0"
+              >
+                <td className="px-4 py-2">
+                  <span className="font-medium">{p?.display_name ?? "(unknown)"}</span>
+                  {p?.category && (
+                    <span className="ml-2 text-[10px] font-mono text-muted-foreground">
+                      C{p.category}
+                    </span>
+                  )}
+                </td>
+                <td className="px-2 py-2 text-xs text-muted-foreground">
+                  {dismissal ?? "not out"}
+                </td>
+                <td className="px-2 py-2 text-right font-mono">{stats.runs}</td>
+                <td className="px-2 py-2 text-right font-mono">
+                  {stats.balls_faced}
+                </td>
+                <td className="px-2 py-2 text-right font-mono">{stats.fours}</td>
+                <td className="px-2 py-2 text-right font-mono">{stats.sixes}</td>
+                <td className="px-4 py-2 text-right font-mono">
+                  {stats.balls_faced > 0
+                    ? ((stats.runs / stats.balls_faced) * 100).toFixed(1)
+                    : "—"}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {dnb.length > 0 && (
+        <div className="border-b border-foreground/10 px-4 py-2 text-xs text-muted-foreground">
+          <span className="font-medium uppercase">Did not bat:</span>{" "}
+          {dnb
+            .map((row) => playerById.get(row.player_id)?.display_name ?? "?")
+            .join(", ")}
+        </div>
+      )}
+    </>
+  );
+}
+
+function FallOfWickets({
+  balls,
+  playerById,
+}: {
+  balls: BallRow[];
+  playerById: Map<string, PlayerLite>;
+}) {
+  const fows = computeFallOfWickets(balls, playerById);
+  if (fows.length === 0) return null;
+  return (
+    <div className="border-b border-foreground/10 px-4 py-2 text-xs">
+      <span className="font-medium uppercase text-muted-foreground">
+        Fall of wickets:
+      </span>{" "}
+      <span className="text-foreground">
+        {fows.map((w, i) => (
+          <span key={w.wicketNum}>
+            {i > 0 && ", "}
+            <span className="font-mono">
+              {w.wicketNum}-{w.runs}
+            </span>
+            {" ("}
+            {w.player}
+            {", "}
+            <span className="font-mono">{w.over}</span>
+            {")"}
+          </span>
+        ))}
+      </span>
+    </div>
+  );
+}
+
+function Partnerships({
+  balls,
+  playerById,
+}: {
+  balls: BallRow[];
+  playerById: Map<string, PlayerLite>;
+}) {
+  const ps = computePartnerships(balls);
+  if (ps.length === 0) return null;
+  return (
+    <>
+      <div className="px-4 py-2 text-xs uppercase text-muted-foreground">
+        Partnerships
+      </div>
+      <table className="w-full text-sm">
+        <thead className="text-xs uppercase text-muted-foreground">
+          <tr className="border-y border-foreground/10">
+            <th className="px-4 py-2 text-left font-medium">Wkt</th>
+            <th className="px-2 py-2 text-left font-medium">Batters</th>
+            <th className="px-2 py-2 text-right font-medium">Runs</th>
+            <th className="px-4 py-2 text-right font-medium">Balls</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ps.map((p) => (
             <tr
-              key={row.player_id}
+              key={p.index}
               className="border-b border-foreground/5 last:border-b-0"
             >
-              <td className="px-4 py-2">
-                <span className="font-medium">{p?.display_name ?? "(unknown)"}</span>
-                {p?.category && (
-                  <span className="ml-2 text-[10px] font-mono text-muted-foreground">
-                    C{p.category}
-                  </span>
-                )}
+              <td className="px-4 py-2 font-mono text-muted-foreground">
+                {p.index}
               </td>
-              <td className="px-2 py-2 text-xs text-muted-foreground">
-                {!battedAtAll
-                  ? "did not bat"
-                  : dismissal ?? "not out"}
+              <td className="px-2 py-2">
+                {playerById.get(p.bat1)?.display_name ?? "?"}
+                <span className="text-muted-foreground"> & </span>
+                {playerById.get(p.bat2)?.display_name ?? "?"}
               </td>
-              <td className="px-2 py-2 text-right font-mono">{stats.runs}</td>
-              <td className="px-2 py-2 text-right font-mono">
-                {stats.balls_faced}
-              </td>
-              <td className="px-2 py-2 text-right font-mono">{stats.fours}</td>
-              <td className="px-2 py-2 text-right font-mono">{stats.sixes}</td>
-              <td className="px-4 py-2 text-right font-mono">
-                {stats.balls_faced > 0
-                  ? ((stats.runs / stats.balls_faced) * 100).toFixed(1)
-                  : "—"}
-              </td>
+              <td className="px-2 py-2 text-right font-mono">{p.runs}</td>
+              <td className="px-4 py-2 text-right font-mono">{p.balls}</td>
             </tr>
-          );
-        })}
-      </tbody>
-    </table>
+          ))}
+        </tbody>
+      </table>
+    </>
   );
 }
 
@@ -243,13 +334,11 @@ function BowlingTable({
 }: {
   balls: BallRow[];
   xi: { player_id: string }[];
-  playerById: Map<string, { id: string; display_name: string; category: number | null }>;
+  playerById: Map<string, PlayerLite>;
   bowlingTeamName?: string;
 }) {
-  // Show only bowlers who actually bowled
   const bowlerIds = new Set(balls.map((b) => b.bowler_id));
   const bowlers = xi.filter((r) => bowlerIds.has(r.player_id));
-
   if (bowlers.length === 0) return null;
 
   return (
@@ -262,10 +351,12 @@ function BowlingTable({
           <tr className="border-y border-foreground/10">
             <th className="px-4 py-2 text-left font-medium">Bowler</th>
             <th className="px-2 py-2 text-right font-medium">O</th>
+            <th className="px-2 py-2 text-right font-medium">M</th>
             <th className="px-2 py-2 text-right font-medium">R</th>
             <th className="px-2 py-2 text-right font-medium">W</th>
             <th className="px-2 py-2 text-right font-medium">Wd</th>
             <th className="px-2 py-2 text-right font-medium">Nb</th>
+            <th className="px-2 py-2 text-right font-medium">Dots</th>
             <th className="px-4 py-2 text-right font-medium">Econ</th>
           </tr>
         </thead>
@@ -292,10 +383,12 @@ function BowlingTable({
                   )}
                 </td>
                 <td className="px-2 py-2 text-right font-mono">{overs}</td>
+                <td className="px-2 py-2 text-right font-mono">{stats.maidens}</td>
                 <td className="px-2 py-2 text-right font-mono">{stats.runs_conceded}</td>
                 <td className="px-2 py-2 text-right font-mono">{stats.wickets}</td>
                 <td className="px-2 py-2 text-right font-mono">{stats.wides}</td>
                 <td className="px-2 py-2 text-right font-mono">{stats.no_balls}</td>
+                <td className="px-2 py-2 text-right font-mono">{stats.dots}</td>
                 <td className="px-4 py-2 text-right font-mono">{econ}</td>
               </tr>
             );
@@ -331,6 +424,7 @@ function computeBowlerStats(balls: BallRow[], playerId: string) {
   let wickets = 0;
   let wides = 0;
   let no_balls = 0;
+  let dots = 0;
   const wicketBowler = new Set([
     "bowled",
     "caught",
@@ -339,11 +433,11 @@ function computeBowlerStats(balls: BallRow[], playerId: string) {
     "stumped",
     "hit_wicket",
   ]);
+  const overBalls = new Map<number, BallRow[]>();
   for (const b of balls) {
     if (b.bowler_id !== playerId) continue;
-    if (b.extra_type !== "wide" && b.extra_type !== "no_ball") {
-      legal_balls += 1;
-    }
+    const isLegal = b.extra_type !== "wide" && b.extra_type !== "no_ball";
+    if (isLegal) legal_balls += 1;
     runs_conceded += b.runs_off_bat;
     if (b.extra_type === "wide" || b.extra_type === "no_ball") {
       runs_conceded += b.extras;
@@ -353,14 +447,41 @@ function computeBowlerStats(balls: BallRow[], playerId: string) {
     if (b.is_wicket && b.wicket_type && wicketBowler.has(b.wicket_type)) {
       wickets += 1;
     }
+    // Dot ball: a legal delivery with zero runs to the batter and zero
+    // extras off the bowler (byes count as runs in the over → not a dot).
+    if (isLegal && b.runs_off_bat + b.extras === 0) dots += 1;
+    if (!overBalls.has(b.over_number)) overBalls.set(b.over_number, []);
+    overBalls.get(b.over_number)!.push(b);
   }
-  return { legal_balls, runs_conceded, wickets, wides, no_balls };
+  // Maiden: an over where the bowler bowled all 6 legal balls AND zero
+  // runs were scored (off bat, as wides, no-balls, or byes).
+  let maidens = 0;
+  for (const [, group] of overBalls) {
+    const legalInOver = group.filter(
+      (b) => b.extra_type !== "wide" && b.extra_type !== "no_ball",
+    ).length;
+    if (legalInOver !== 6) continue;
+    const runsInOver = group.reduce(
+      (s, b) => s + b.runs_off_bat + b.extras,
+      0,
+    );
+    if (runsInOver === 0) maidens += 1;
+  }
+  return {
+    legal_balls,
+    runs_conceded,
+    wickets,
+    wides,
+    no_balls,
+    dots,
+    maidens,
+  };
 }
 
 function computeDismissal(
   balls: BallRow[],
   playerId: string,
-  playerById: Map<string, { id: string; display_name: string; category: number | null }>,
+  playerById: Map<string, PlayerLite>,
 ): string | null {
   const dismissal = balls.find(
     (b) => b.is_wicket && b.player_out_id === playerId,
@@ -394,4 +515,68 @@ function computeDismissal(
     default:
       return dismissal.wicket_type.replace(/_/g, " ");
   }
+}
+
+function computeFallOfWickets(
+  balls: BallRow[],
+  playerById: Map<string, PlayerLite>,
+) {
+  const fows: {
+    wicketNum: number;
+    runs: number;
+    player: string;
+    over: string;
+  }[] = [];
+  let cum = 0;
+  let wicketNum = 0;
+  for (const b of balls) {
+    cum += b.runs_off_bat + b.extras;
+    if (b.is_wicket && b.player_out_id) {
+      wicketNum += 1;
+      fows.push({
+        wicketNum,
+        runs: cum,
+        player: playerById.get(b.player_out_id)?.display_name ?? "?",
+        // Cricket convention: "X.Y" = X completed overs + Y balls into the next.
+        over: `${b.over_number - 1}.${b.ball_in_over}`,
+      });
+    }
+  }
+  return fows;
+}
+
+function computePartnerships(balls: BallRow[]) {
+  if (balls.length === 0) return [];
+  const ps: {
+    index: number;
+    bat1: string;
+    bat2: string;
+    runs: number;
+    balls: number;
+  }[] = [];
+  let bat1 = balls[0].batter_id;
+  let bat2 = balls[0].non_striker_id;
+  let runs = 0;
+  let bf = 0;
+
+  const samePair = (
+    a1: string,
+    a2: string,
+    b1: string,
+    b2: string,
+  ) => (a1 === b1 && a2 === b2) || (a1 === b2 && a2 === b1);
+
+  for (const b of balls) {
+    if (!samePair(bat1, bat2, b.batter_id, b.non_striker_id)) {
+      ps.push({ index: ps.length + 1, bat1, bat2, runs, balls: bf });
+      bat1 = b.batter_id;
+      bat2 = b.non_striker_id;
+      runs = 0;
+      bf = 0;
+    }
+    runs += b.runs_off_bat + b.extras;
+    if (b.extra_type !== "wide" && b.extra_type !== "no_ball") bf += 1;
+  }
+  ps.push({ index: ps.length + 1, bat1, bat2, runs, balls: bf });
+  return ps;
 }

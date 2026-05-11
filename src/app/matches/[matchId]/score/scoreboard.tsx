@@ -918,6 +918,7 @@ type RenderBall = {
   extras: number;
   extra_type: string | null;
   is_wicket: boolean;
+  is_free_hit?: boolean;
   is_optimistic?: boolean;
 };
 
@@ -946,8 +947,12 @@ function RecentBalls({
     // confirms — gives the scorer a visual cue that the tap is in flight
     // without slowing the headline number down.
     const pending = b.is_optimistic ? "opacity-60 italic" : "";
+    const ring = b.is_free_hit ? "ring-2 ring-yellow-400" : "";
     return (
-      <span key={b.id} className={base + colour + " " + pending}>
+      <span
+        key={b.id}
+        className={base + colour + " " + pending + " " + ring}
+      >
         {label}
       </span>
     );

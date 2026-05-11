@@ -16,6 +16,7 @@ import { FullScorecard } from "./full-scorecard";
 import { LiveScorePanel } from "./live-score-panel";
 import { MatchCharts } from "./match-charts";
 import { NotifyButton } from "./notify/notify-button";
+import { MatchAwards } from "./player-of-match/match-awards";
 import { TossForm } from "./toss-form";
 import { XISection } from "./xi-section";
 
@@ -100,6 +101,10 @@ export default async function MatchDetailPage(props: {
           match.status === "innings_break" ||
           match.status === "completed") && (
           <LiveScorePanel matchId={match.id} />
+        )}
+
+        {match.status === "completed" && (
+          <MatchAwards matchId={match.id} canManage={canManage} />
         )}
 
         {(match.status === "live" ||
