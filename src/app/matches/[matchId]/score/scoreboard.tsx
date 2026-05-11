@@ -475,20 +475,33 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-2 text-sm sm:grid-cols-3">
-          <Slot
+          {/* Slot tiles double as the picker — tap a tile, native mobile
+              picker opens, pick a player, done. No second "Who's batting"
+              card; that was confusing duplication. */}
+          <SlotPicker
             label="Striker"
-            value={striker?.display_name}
-            cat={striker?.category}
+            value={strikerId}
+            options={state.xi[innings.batting_team_id] ?? []}
+            onChange={setStrikerId}
           />
-          <Slot
+          <SlotPicker
             label="Non-striker"
-            value={nonStriker?.display_name}
-            cat={nonStriker?.category}
+            value={nonStrikerId}
+            options={state.xi[innings.batting_team_id] ?? []}
+            onChange={setNonStrikerId}
           />
-          <Slot
+          <SlotPicker
             label="Bowler"
-            value={bowler?.display_name}
-            cat={bowler?.category}
+            value={bowlerId}
+            options={state.xi[innings.bowling_team_id] ?? []}
+            onChange={setBowlerId}
+            highlightCat={
+              state.active.is_special_over === "cat1"
+                ? 1
+                : state.active.is_special_over === "cat3"
+                  ? 3
+                  : 2
+            }
           />
         </CardContent>
       </Card>
@@ -504,44 +517,6 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
           previous={visibleServerPrevious}
         />
       )}
-
-      {/* Pre-ball pickers (let scorer correct any drift; defaults from active state) */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Who&apos;s batting / bowling?</CardTitle>
-          <CardDescription>
-            Defaults follow the engine. Override here if you need to swap a
-            batter or change bowler at end of over.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-3">
-          <PickerSelect
-            label="Striker"
-            value={strikerId}
-            options={state.xi[innings.batting_team_id] ?? []}
-            onChange={setStrikerId}
-          />
-          <PickerSelect
-            label="Non-striker"
-            value={nonStrikerId}
-            options={state.xi[innings.batting_team_id] ?? []}
-            onChange={setNonStrikerId}
-          />
-          <PickerSelect
-            label="Bowler"
-            value={bowlerId}
-            options={state.xi[innings.bowling_team_id] ?? []}
-            onChange={setBowlerId}
-            highlightCat={
-              state.active.is_special_over === "cat1"
-                ? 1
-                : state.active.is_special_over === "cat3"
-                  ? 3
-                  : 2
-            }
-          />
-        </CardContent>
-      </Card>
 
       {/* Ball entry */}
       {!isComplete && (
@@ -562,18 +537,20 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 )}
               </span>
             </CardTitle>
-            <CardDescription>
-              Tap the outcome. Each ball is saved on-device first — if you go
-              offline, taps queue and sync the moment signal comes back.
+            <CardDescription className="text-xs">
+              Saved on-device first; syncs the moment signal returns.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
+            {/* Primary action: runs off the bat. Bigger taps; one row on
+                desktop, two rows on phone. Active state gives haptic-y
+                press feedback for fast scoring. */}
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
               {[0, 1, 2, 3, 4, 6].map((n) => (
                 <Button
                   key={n}
                   variant="outline"
-                  className="h-16 text-2xl font-mono"
+                  className="h-20 text-3xl font-mono active:scale-[0.97] active:bg-muted/60"
                   onClick={() => submit({ runs_off_bat: n })}
                 >
                   {n}
@@ -586,7 +563,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 <Button
                   key={n}
                   variant="outline"
-                  className="h-12"
+                  className="h-11 active:scale-[0.97] active:bg-muted/60"
                   onClick={() =>
                     submit({
                       runs_off_bat: 0,
@@ -606,7 +583,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 <Button
                   key={n}
                   variant="outline"
-                  className="h-12"
+                  className="h-11 active:scale-[0.97] active:bg-muted/60"
                   onClick={() =>
                     submit({
                       runs_off_bat: n,
@@ -627,7 +604,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                   <Button
                     key={n}
                     variant="outline"
-                    className="h-12"
+                    className="h-11 active:scale-[0.97] active:bg-muted/60"
                     onClick={() =>
                       submit({
                         runs_off_bat: 0,
@@ -732,31 +709,15 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   );
 }
 
-function Slot({
-  label,
-  value,
-  cat,
-}: {
-  label: string;
-  value?: string;
-  cat?: 1 | 2 | 3 | null;
-}) {
-  return (
-    <div className="rounded-md border border-foreground/10 bg-muted/30 px-3 py-2">
-      <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="flex items-center gap-2">
-        <span className="font-medium">{value ?? "—"}</span>
-        {cat && (
-          <span className="rounded bg-foreground/10 px-1 text-[10px] font-mono">
-            C{cat}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function PickerSelect({
+/**
+ * Combined display + picker for the three active slots (striker, non-
+ * striker, bowler). Tile shows the current player + category badge, but
+ * the whole tile is a native `<select>` — on mobile this triggers the OS
+ * wheel picker, which is the fastest possible swap in box-cricket pace.
+ * The previous "Who's batting / bowling?" card was just a duplicate of
+ * this in editable form, so it's gone.
+ */
+function SlotPicker({
   label,
   value,
   options,
@@ -769,13 +730,26 @@ function PickerSelect({
   onChange: (v: string) => void;
   highlightCat?: 1 | 2 | 3;
 }) {
+  const selected = options.find((p) => p.id === value);
   return (
-    <label className="block space-y-1">
-      <span className="text-xs text-muted-foreground">{label}</span>
+    <label className="relative block rounded-md border border-foreground/10 bg-muted/30 px-3 py-2 cursor-pointer hover:bg-muted/50 transition">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground">{label}</span>
+        {selected?.category && (
+          <span className="rounded bg-foreground/10 px-1 text-[10px] font-mono">
+            C{selected.category}
+          </span>
+        )}
+      </div>
+      <div className="mt-0.5 flex items-center gap-1 font-medium">
+        <span className="truncate">{selected?.display_name ?? "—"}</span>
+        <span className="text-xs text-muted-foreground">▾</span>
+      </div>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
+        className="absolute inset-0 cursor-pointer opacity-0"
+        aria-label={label}
       >
         <option value="">—</option>
         {options.map((p) => (
