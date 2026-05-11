@@ -37,6 +37,31 @@ type WicketType =
 
 type DrainOutcome = "ok" | "validation" | "network";
 
+type OptimisticBall = {
+  /** Stable local id used as the React key in the recent-balls strip. */
+  key: string;
+  runs_off_bat: number;
+  extras: number;
+  extra_type: "wide" | "no_ball" | "bye" | null;
+  is_wicket: boolean;
+  is_legal: boolean;
+};
+
+function makeOptimistic(input: Parameters<typeof recordBall>[0]): OptimisticBall {
+  const extraType = (input.extra_type ?? null) as OptimisticBall["extra_type"];
+  // Wides and no-balls don't advance the legal-ball count; everything else
+  // (including byes) does — matches the engine's classification.
+  const isLegal = extraType !== "wide" && extraType !== "no_ball";
+  return {
+    key: `opt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    runs_off_bat: input.runs_off_bat,
+    extras: input.extras ?? 0,
+    extra_type: extraType,
+    is_wicket: input.is_wicket ?? false,
+    is_legal: isLegal,
+  };
+}
+
 export function Scoreboard({ state }: { state: ScoreboardState }) {
   const innings = state.innings!;
   const isComplete = innings.is_complete;
@@ -78,6 +103,16 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   const [pendingCount, setPendingCount] = useState(0);
   const [isOffline, setIsOffline] = useState(false);
   const drainingRef = useRef(false);
+
+  // Optimistic recordBall entries — pushed instantly on tap so the score
+  // updates without waiting for the server. We reconcile in two ways:
+  //   (1) when state.balls.length advances (server confirmed), shift the
+  //       front of the queue by however many balls landed.
+  //   (2) when a task is dropped due to validation rejection, also shift
+  //       the front. Network errors leave optimistic entries in place so
+  //       the score stays consistent until reconnect.
+  const [optimistic, setOptimistic] = useState<OptimisticBall[]>([]);
+  const serverBallsRef = useRef(state.balls.length);
 
   const runTask = async (task: ScoreTask): Promise<DrainOutcome> => {
     try {
@@ -134,11 +169,35 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
         }
         setPendingCount((c) => Math.max(0, c - 1));
         setIsOffline(false);
+
+        // On validation rejection, drop the matching optimistic entry —
+        // server didn't accept the ball so it shouldn't stay on-screen.
+        // On success, state.balls will advance and the reconciliation
+        // effect below clears it for us instead.
+        if (outcome === "validation" && next.kind === "recordBall") {
+          setOptimistic((q) => q.slice(1));
+        }
       }
     } finally {
       drainingRef.current = false;
     }
   };
+
+  // Reconcile optimistic queue with server state. When state.balls grows
+  // (a recordBall task confirmed), shift that many off the front so the
+  // optimistic + server combined never double-counts. When it shrinks
+  // (an undo arrived), clear everything — the server is the truth.
+  useEffect(() => {
+    const prev = serverBallsRef.current;
+    const cur = state.balls.length;
+    if (cur > prev) {
+      const advance = cur - prev;
+      setOptimistic((q) => q.slice(advance));
+    } else if (cur < prev) {
+      setOptimistic([]);
+    }
+    serverBallsRef.current = cur;
+  }, [state.balls.length]);
 
   const enqueue = async (kind: ScoreTaskKind, payload: unknown) => {
     setPendingCount((c) => c + 1);
@@ -228,10 +287,18 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       is_wicket: false,
       ...overrides,
     };
+    // Push the optimistic ball BEFORE awaiting anything — this is the
+    // whole point of the fix: the score updates the instant the tap
+    // lands, not after the server roundtrip.
+    setOptimistic((q) => [...q, makeOptimistic(input)]);
     void enqueue("recordBall", input);
   };
 
   const undo = () => {
+    // If there's an optimistic ball waiting, drop it immediately so the
+    // UI follows the user's intent without lag. The queued recordBall +
+    // upcoming voidLast still execute on the server and net to nothing.
+    setOptimistic((q) => (q.length > 0 ? q.slice(0, -1) : q));
     void enqueue("voidLastBall", {
       matchId: state.match.id,
       inningsId: innings.id,
@@ -243,6 +310,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       toast.error("Nothing to undo");
       return;
     }
+    setOptimistic((q) => (q.length > 0 ? q.slice(0, Math.max(0, q.length - count)) : q));
     void enqueue("voidLastN", {
       matchId: state.match.id,
       inningsId: innings.id,
@@ -250,7 +318,40 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     });
   };
 
-  const pending = pendingCount > 0;
+  // Combine the server-confirmed innings totals with the optimistic
+  // queue so the headline numbers update the moment the scorer taps a
+  // run / wicket / extra.
+  const optimisticRuns = optimistic.reduce(
+    (sum, b) => sum + b.runs_off_bat + b.extras,
+    0,
+  );
+  const optimisticWickets = optimistic.reduce(
+    (sum, b) => sum + (b.is_wicket ? 1 : 0),
+    0,
+  );
+  const optimisticLegalBalls = optimistic.reduce(
+    (sum, b) => sum + (b.is_legal ? 1 : 0),
+    0,
+  );
+  const displayRuns = innings.total_runs + optimisticRuns;
+  const displayWickets = innings.total_wickets + optimisticWickets;
+  const displayLegalBalls = innings.total_legal_balls + optimisticLegalBalls;
+  const displayOvers =
+    `${Math.floor(displayLegalBalls / 6)}.${displayLegalBalls % 6}` +
+    ` / ${state.rules.overs_per_innings}`;
+
+  // Render the optimistic balls onto the end of the current-over strip.
+  // Over-boundary recompute is left to the server — the strip flicks to
+  // the correct over the moment revalidation lands.
+  const optimisticRenderBalls = optimistic.map((b) => ({
+    id: b.key,
+    runs_off_bat: b.runs_off_bat,
+    extras: b.extras,
+    extra_type: b.extra_type,
+    is_wicket: b.is_wicket,
+    is_optimistic: true,
+  }));
+
   const totalBalls = state.balls.length;
   const ballsThisOver = state.currentOverBalls.length;
 
@@ -261,10 +362,10 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
         <CardHeader>
           <CardTitle className="flex items-baseline gap-3">
             <span className="font-mono text-3xl">
-              {innings.total_runs}/{innings.total_wickets}
+              {displayRuns}/{displayWickets}
             </span>
             <span className="text-base font-normal text-muted-foreground">
-              {overs}
+              {displayOvers}
             </span>
             {state.active.free_hit_pending && (
               <span className="text-xs font-medium uppercase text-yellow-600">
@@ -301,11 +402,13 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
         </CardContent>
       </Card>
 
-      {/* Recent balls strip */}
+      {/* Recent balls strip — optimistic balls render at the end of the
+          current over so the dot/4/6 pill appears the moment you tap. */}
       {(state.currentOverBalls.length > 0 ||
-        state.previousOverBalls.length > 0) && (
+        state.previousOverBalls.length > 0 ||
+        optimisticRenderBalls.length > 0) && (
         <RecentBalls
-          current={state.currentOverBalls}
+          current={[...state.currentOverBalls, ...optimisticRenderBalls]}
           previous={state.previousOverBalls}
         />
       )}
@@ -474,7 +577,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                   variant="ghost"
                   size="sm"
                   onClick={undo}
-                  disabled={totalBalls === 0 && !pending}
+                  disabled={totalBalls === 0 && optimistic.length === 0}
                 >
                   Undo last ball
                 </Button>
@@ -522,7 +625,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
           <CardHeader>
             <CardTitle>Innings complete</CardTitle>
             <CardDescription>
-              Final: {innings.total_runs}/{innings.total_wickets} in {overs}.
+              Final: {displayRuns}/{displayWickets} in {displayOvers}.
               Use Undo if this finished prematurely.
             </CardDescription>
           </CardHeader>
@@ -717,27 +820,39 @@ function WicketButton({
   );
 }
 
+type RenderBall = {
+  id: string;
+  runs_off_bat: number;
+  extras: number;
+  extra_type: string | null;
+  is_wicket: boolean;
+  is_optimistic?: boolean;
+};
+
 function RecentBalls({
   current,
   previous,
 }: {
-  current: ScoreboardState["currentOverBalls"];
+  current: RenderBall[];
   previous: ScoreboardState["previousOverBalls"];
 }) {
-  const renderBall = (b: ScoreboardState["balls"][number]) => {
+  const renderBall = (b: RenderBall) => {
     let label = String(b.runs_off_bat + b.extras);
     if (b.is_wicket) label = "W";
     else if (b.extra_type === "wide") label = `${1 + b.extras}wd`;
     else if (b.extra_type === "no_ball") label = `${1 + b.extras}nb`;
     else if (b.extra_type === "bye") label = `${b.extras}b`;
+    const base =
+      "inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-foreground/10 px-1.5 text-xs font-mono ";
+    const colour = b.is_wicket
+      ? "bg-destructive/15 text-destructive"
+      : "bg-muted/40";
+    // Optimistic balls render at reduced opacity until the server
+    // confirms — gives the scorer a visual cue that the tap is in flight
+    // without slowing the headline number down.
+    const pending = b.is_optimistic ? "opacity-60 italic" : "";
     return (
-      <span
-        key={b.id}
-        className={
-          "inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-foreground/10 px-1.5 text-xs font-mono " +
-          (b.is_wicket ? "bg-destructive/15 text-destructive" : "bg-muted/40")
-        }
-      >
+      <span key={b.id} className={base + colour + " " + pending}>
         {label}
       </span>
     );
