@@ -62,6 +62,31 @@ function makeOptimistic(input: Parameters<typeof recordBall>[0]): OptimisticBall
   };
 }
 
+type PendingUndo = {
+  /** Server-side ball id; used to filter the recent-balls strip + as a React key. */
+  ballId: string;
+  runs_off_bat: number;
+  extras: number;
+  is_wicket: boolean;
+  is_legal: boolean;
+};
+
+function makePendingUndo(b: {
+  id: string;
+  runs_off_bat: number;
+  extras: number;
+  extra_type: string | null;
+  is_wicket: boolean;
+}): PendingUndo {
+  return {
+    ballId: b.id,
+    runs_off_bat: b.runs_off_bat,
+    extras: b.extras,
+    is_wicket: b.is_wicket,
+    is_legal: b.extra_type !== "wide" && b.extra_type !== "no_ball",
+  };
+}
+
 export function Scoreboard({ state }: { state: ScoreboardState }) {
   const innings = state.innings!;
   const isComplete = innings.is_complete;
@@ -112,6 +137,13 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   //       the front. Network errors leave optimistic entries in place so
   //       the score stays consistent until reconnect.
   const [optimistic, setOptimistic] = useState<OptimisticBall[]>([]);
+
+  // Pending undo entries — the inverse of optimistic. When the user taps
+  // "Undo" and there's nothing in the optimistic queue, we capture the
+  // most recent SERVER ball and subtract it from the displayed totals
+  // immediately. The server processes voidLast in the background; when
+  // state.balls regresses, the matching entry pops off the front.
+  const [pendingUndos, setPendingUndos] = useState<PendingUndo[]>([]);
   const serverBallsRef = useRef(state.balls.length);
 
   const runTask = async (task: ScoreTask): Promise<DrainOutcome> => {
@@ -172,10 +204,17 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
 
         // On validation rejection, drop the matching optimistic entry —
         // server didn't accept the ball so it shouldn't stay on-screen.
-        // On success, state.balls will advance and the reconciliation
-        // effect below clears it for us instead.
-        if (outcome === "validation" && next.kind === "recordBall") {
-          setOptimistic((q) => q.slice(1));
+        // On success, state.balls will advance/regress and the
+        // reconciliation effect below clears it for us instead.
+        if (outcome === "validation") {
+          if (next.kind === "recordBall") {
+            setOptimistic((q) => q.slice(1));
+          } else if (next.kind === "voidLastBall") {
+            setPendingUndos((q) => q.slice(1));
+          } else if (next.kind === "voidLastN") {
+            const c = (next.payload as { count?: number }).count ?? 1;
+            setPendingUndos((q) => q.slice(c));
+          }
         }
       }
     } finally {
@@ -183,10 +222,10 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     }
   };
 
-  // Reconcile optimistic queue with server state. When state.balls grows
-  // (a recordBall task confirmed), shift that many off the front so the
-  // optimistic + server combined never double-counts. When it shrinks
-  // (an undo arrived), clear everything — the server is the truth.
+  // Reconcile optimistic + pendingUndo queues with server state. When
+  // state.balls grows (recordBall confirmed), shift optimistic from the
+  // front. When it shrinks (voidLast confirmed), shift pendingUndos
+  // from the front. Either way we never double-count.
   useEffect(() => {
     const prev = serverBallsRef.current;
     const cur = state.balls.length;
@@ -194,7 +233,8 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       const advance = cur - prev;
       setOptimistic((q) => q.slice(advance));
     } else if (cur < prev) {
-      setOptimistic([]);
+      const regress = prev - cur;
+      setPendingUndos((q) => q.slice(regress));
     }
     serverBallsRef.current = cur;
   }, [state.balls.length]);
@@ -298,7 +338,18 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     // If there's an optimistic ball waiting, drop it immediately so the
     // UI follows the user's intent without lag. The queued recordBall +
     // upcoming voidLast still execute on the server and net to nothing.
-    setOptimistic((q) => (q.length > 0 ? q.slice(0, -1) : q));
+    if (optimistic.length > 0) {
+      setOptimistic((q) => q.slice(0, -1));
+    } else {
+      // Pure server-side undo — capture the most recent confirmed ball
+      // (skipping anything already in the pending-undo queue) so the
+      // displayed score drops instantly.
+      const idx = state.balls.length - 1 - pendingUndos.length;
+      const ball = idx >= 0 ? state.balls[idx] : undefined;
+      if (ball) {
+        setPendingUndos((q) => [...q, makePendingUndo(ball)]);
+      }
+    }
     void enqueue("voidLastBall", {
       matchId: state.match.id,
       inningsId: innings.id,
@@ -310,7 +361,22 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       toast.error("Nothing to undo");
       return;
     }
-    setOptimistic((q) => (q.length > 0 ? q.slice(0, Math.max(0, q.length - count)) : q));
+    const fromOpt = Math.min(optimistic.length, count);
+    const fromServer = count - fromOpt;
+    if (fromOpt > 0) {
+      setOptimistic((q) => q.slice(0, q.length - fromOpt));
+    }
+    if (fromServer > 0) {
+      const startIdx = state.balls.length - pendingUndos.length - fromServer;
+      const additions: PendingUndo[] = [];
+      for (let i = 0; i < fromServer; i++) {
+        const b = state.balls[startIdx + i];
+        if (b) additions.push(makePendingUndo(b));
+      }
+      if (additions.length > 0) {
+        setPendingUndos((q) => [...q, ...additions]);
+      }
+    }
     void enqueue("voidLastN", {
       matchId: state.match.id,
       inningsId: innings.id,
@@ -318,9 +384,9 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     });
   };
 
-  // Combine the server-confirmed innings totals with the optimistic
-  // queue so the headline numbers update the moment the scorer taps a
-  // run / wicket / extra.
+  // Combine the server-confirmed innings totals with the optimistic +
+  // pending-undo queues so the headline numbers move the instant the
+  // scorer taps a run / wicket / extra / undo.
   const optimisticRuns = optimistic.reduce(
     (sum, b) => sum + b.runs_off_bat + b.extras,
     0,
@@ -333,12 +399,35 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     (sum, b) => sum + (b.is_legal ? 1 : 0),
     0,
   );
-  const displayRuns = innings.total_runs + optimisticRuns;
-  const displayWickets = innings.total_wickets + optimisticWickets;
-  const displayLegalBalls = innings.total_legal_balls + optimisticLegalBalls;
+  const undoRuns = pendingUndos.reduce(
+    (sum, b) => sum + b.runs_off_bat + b.extras,
+    0,
+  );
+  const undoWickets = pendingUndos.reduce(
+    (sum, b) => sum + (b.is_wicket ? 1 : 0),
+    0,
+  );
+  const undoLegalBalls = pendingUndos.reduce(
+    (sum, b) => sum + (b.is_legal ? 1 : 0),
+    0,
+  );
+  const displayRuns = innings.total_runs + optimisticRuns - undoRuns;
+  const displayWickets = innings.total_wickets + optimisticWickets - undoWickets;
+  const displayLegalBalls =
+    innings.total_legal_balls + optimisticLegalBalls - undoLegalBalls;
   const displayOvers =
     `${Math.floor(displayLegalBalls / 6)}.${displayLegalBalls % 6}` +
     ` / ${state.rules.overs_per_innings}`;
+
+  // Hide server balls that are pending undo from the recent-balls strip
+  // so the user sees them disappear the moment they tap Undo.
+  const hiddenBallIds = new Set(pendingUndos.map((p) => p.ballId));
+  const visibleServerCurrent = state.currentOverBalls.filter(
+    (b) => !hiddenBallIds.has(b.id),
+  );
+  const visibleServerPrevious = state.previousOverBalls.filter(
+    (b) => !hiddenBallIds.has(b.id),
+  );
 
   // Render the optimistic balls onto the end of the current-over strip.
   // Over-boundary recompute is left to the server — the strip flicks to
@@ -352,8 +441,10 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     is_optimistic: true,
   }));
 
-  const totalBalls = state.balls.length;
-  const ballsThisOver = state.currentOverBalls.length;
+  const visibleBalls =
+    state.balls.length + optimistic.length - pendingUndos.length;
+  const visibleThisOver =
+    visibleServerCurrent.length + optimisticRenderBalls.length;
 
   return (
     <div className="space-y-4">
@@ -403,13 +494,14 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       </Card>
 
       {/* Recent balls strip — optimistic balls render at the end of the
-          current over so the dot/4/6 pill appears the moment you tap. */}
-      {(state.currentOverBalls.length > 0 ||
-        state.previousOverBalls.length > 0 ||
+          current over so the dot/4/6 pill appears the moment you tap;
+          pending-undo balls drop from the strip the moment Undo lands. */}
+      {(visibleServerCurrent.length > 0 ||
+        visibleServerPrevious.length > 0 ||
         optimisticRenderBalls.length > 0) && (
         <RecentBalls
-          current={[...state.currentOverBalls, ...optimisticRenderBalls]}
-          previous={state.previousOverBalls}
+          current={[...visibleServerCurrent, ...optimisticRenderBalls]}
+          previous={visibleServerPrevious}
         />
       )}
 
@@ -577,34 +669,34 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                   variant="ghost"
                   size="sm"
                   onClick={undo}
-                  disabled={totalBalls === 0 && optimistic.length === 0}
+                  disabled={visibleBalls === 0}
                 >
                   Undo last ball
                 </Button>
                 <ConfirmButton
                   title="Undo last 3 balls?"
-                  description={`${Math.min(3, totalBalls)} ball${Math.min(3, totalBalls) === 1 ? "" : "s"} will be voided. Innings totals recompute automatically.`}
+                  description={`${Math.min(3, visibleBalls)} ball${Math.min(3, visibleBalls) === 1 ? "" : "s"} will be voided. Innings totals recompute automatically.`}
                   confirmLabel="Undo"
                   destructive
-                  onConfirm={() => undoMany(Math.min(3, totalBalls))}
+                  onConfirm={() => undoMany(Math.min(3, visibleBalls))}
                   triggerProps={{
                     variant: "ghost",
                     size: "sm",
-                    disabled: totalBalls === 0,
+                    disabled: visibleBalls === 0,
                   }}
                 >
                   Undo last 3
                 </ConfirmButton>
                 <ConfirmButton
                   title="Undo this over?"
-                  description={`${ballsThisOver} ball${ballsThisOver === 1 ? "" : "s"} from the current over will be voided.`}
+                  description={`${visibleThisOver} ball${visibleThisOver === 1 ? "" : "s"} from the current over will be voided.`}
                   confirmLabel="Undo over"
                   destructive
-                  onConfirm={() => undoMany(ballsThisOver)}
+                  onConfirm={() => undoMany(visibleThisOver)}
                   triggerProps={{
                     variant: "ghost",
                     size: "sm",
-                    disabled: ballsThisOver === 0,
+                    disabled: visibleThisOver === 0,
                   }}
                 >
                   Undo this over
