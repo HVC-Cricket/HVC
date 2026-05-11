@@ -252,12 +252,14 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
     // not who's on strike next.
     striker_id = engineState?.striker_id ?? last.batter_id;
     non_striker_id = engineState?.non_striker_id ?? last.non_striker_id;
-    // When an over just ended the bowler MUST change (no consecutive
-    // overs from one player), so we return `null` and let the scorer
-    // pick the next bowler before the next ball is recorded.
-    bowler_id = atOverBoundary
-      ? null
-      : (engineState?.bowler_id ?? last.bowler_id);
+    // BOWLER: must come from `last.bowler_id`, NOT engine state. The
+    // engine's `applyBall` doesn't accept a bowler input, so during the
+    // replay its `bowler_id` stays glued to whoever was the initial
+    // bowler regardless of what's actually recorded on subsequent balls.
+    // Trusting it caused the slot tile to silently flip back to the
+    // initial bowler after every confirmed ball — and the scorer's
+    // next tap then got attributed to the wrong player.
+    bowler_id = atOverBoundary ? null : last.bowler_id;
     free_hit_pending = engineState?.free_hit_pending ?? false;
 
     // If the last ball was a wicket, the dismissed batter's slot is

@@ -322,15 +322,29 @@ export async function recordBall(
       }
     }
 
-    // Consecutive overs check — only at the very first ball of a new
-    // over (the previous ball completed an over).
     const lastBall = (prevBalls ?? [])[(prevBalls?.length ?? 0) - 1];
+    const overJustEnded =
+      !!lastBall &&
+      lastBall.legal_ball_seq != null &&
+      lastBall.ball_in_over === 6;
+
+    // Bowler must stay the same within an over — no mid-over swaps.
+    // Real cricket allows them only on injury; we don't model that.
     if (
       lastBall &&
-      lastBall.legal_ball_seq != null &&
-      lastBall.ball_in_over === 6 &&
-      lastBall.bowler_id === parsed.data.bowler_id
+      !overJustEnded &&
+      lastBall.bowler_id !== parsed.data.bowler_id
     ) {
+      return {
+        ok: false,
+        error:
+          "Bowler can't change mid-over. Finish the current over with the same bowler.",
+      };
+    }
+
+    // Consecutive overs check — at the very first ball of a new over
+    // (the previous ball completed one).
+    if (overJustEnded && lastBall.bowler_id === parsed.data.bowler_id) {
       return {
         ok: false,
         error: "Same bowler can't bowl consecutive overs",
