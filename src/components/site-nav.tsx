@@ -15,7 +15,7 @@ export async function SiteNav() {
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-6">
           <Link href="/" className="font-semibold">
-            HVC Scoring
+            HVC Tournament Scoring
           </Link>
           <nav className="hidden items-center gap-4 text-sm text-muted-foreground sm:flex">
             <Link href="/tournaments" className="hover:text-foreground">

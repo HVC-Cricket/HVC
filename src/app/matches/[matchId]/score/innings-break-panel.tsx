@@ -48,6 +48,16 @@ export function InningsBreakPanel({ state }: { state: ScoreboardState }) {
       toast.error("Striker and non-striker must be different");
       return;
     }
+    if (ruleEnabled) {
+      const strikerPlayer = battingXi.find((p) => p.id === striker);
+      const bowlerPlayer = bowlingXi.find((p) => p.id === bowler);
+      if (strikerPlayer?.category === 1 && bowlerPlayer?.category !== 1) {
+        toast.error(
+          "First over: a Category 1 striker must face a Category 1 bowler",
+        );
+        return;
+      }
+    }
     startTransition(async () => {
       const result = await startSecondInnings({
         matchId: state.match.id,

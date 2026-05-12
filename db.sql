@@ -397,7 +397,9 @@ alter table balls
   drop constraint if exists balls_ball_in_over_range;
 alter table balls
   add constraint balls_ball_in_over_range
-  check (ball_in_over between 1 and 6);
+  -- 0 is valid: a wide / no-ball bowled before any legal delivery in the
+  -- over keeps ball_in_over at 0 (engine semantics — see engine.ts).
+  check (ball_in_over between 0 and 6);
 
 alter table balls
   drop constraint if exists balls_wicket_pair;

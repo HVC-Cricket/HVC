@@ -11,11 +11,47 @@ import {
   advanceBowler,
   applyBall,
   getRuleSet,
+  setNonStriker,
+  setStriker,
   startInnings,
 } from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
 
 import type { ActionResult } from "@/app/tournaments/actions";
+
+/**
+ * HVC first-over rule: if the opening striker is Category 1, the opening
+ * bowler must also be Category 1. Enforced at innings-1 and innings-2
+ * start; super overs (innings 3/4) are exempt.
+ */
+async function enforceCat1FirstOverRule(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tournamentId: string,
+  picks: { striker_id: string; bowler_id: string },
+): Promise<ActionResult> {
+  const { data: tournament } = await supabase
+    .from("tournaments")
+    .select("rules")
+    .eq("id", tournamentId)
+    .single();
+  const rules = getRuleSet(tournament?.rules);
+  if (!rules.categories.enabled) return { ok: true, data: undefined };
+
+  const { data: catRows } = await supabase
+    .from("players")
+    .select("id, category")
+    .in("id", [picks.striker_id, picks.bowler_id]);
+  const catById = new Map((catRows ?? []).map((r) => [r.id, r.category]));
+  const strikerCat = catById.get(picks.striker_id);
+  const bowlerCat = catById.get(picks.bowler_id);
+  if (strikerCat === 1 && bowlerCat !== 1) {
+    return {
+      ok: false,
+      error: "First over: a Category 1 striker must face a Category 1 bowler",
+    };
+  }
+  return { ok: true, data: undefined };
+}
 
 const startMatchSchema = z.object({
   matchId: z.string().uuid(),
@@ -87,6 +123,12 @@ export async function startMatch(
   if (!inBowling(parsed.data.bowler_id)) {
     return { ok: false, error: "Bowler must be in the bowling-XI" };
   }
+
+  const catCheck = await enforceCat1FirstOverRule(supabase, match.tournament_id, {
+    striker_id: parsed.data.striker_id,
+    bowler_id: parsed.data.bowler_id,
+  });
+  if (!catCheck.ok) return catCheck;
 
   // Insert innings 1. Stash the picks on the innings row so the
   // scoreboard knows who's at the crease before any ball is recorded.
@@ -257,10 +299,16 @@ export async function recordBall(
   });
 
   for (const b of prevBalls ?? []) {
-    // applyBall doesn't take a bowler input — sync it via advanceBowler
-    // when the recorded ball's bowler differs from engine state.
-    // Otherwise bowler_legal_balls all piles onto the initial bowler
-    // and `bowler_at_max` rejects every ball after legal #12.
+    // applyBall doesn't read striker / non-striker / bowler from the
+    // BallInput — it only rotates them via cricket rules. Sync them
+    // from each recorded ball so the engine tracks scorer-driven
+    // mid-innings substitutions (replacement after a wicket, etc.).
+    if (b.batter_id !== state.striker_id) {
+      state = setStriker(state, b.batter_id);
+    }
+    if (b.non_striker_id !== state.non_striker_id) {
+      state = setNonStriker(state, b.non_striker_id);
+    }
     if (b.bowler_id !== state.bowler_id) {
       state = advanceBowler(
         state,
@@ -366,8 +414,15 @@ export async function recordBall(
     }
   }
 
-  // Sync engine bowler with the new ball's bowler before validation,
-  // for the same reason as the replay loop above.
+  // Sync engine slots with the new ball's chosen striker / non-striker /
+  // bowler before validation. Same reason as the replay loop above:
+  // applyBall only rotates, it doesn't accept new player IDs as input.
+  if (parsed.data.striker_id !== state.striker_id) {
+    state = setStriker(state, parsed.data.striker_id);
+  }
+  if (parsed.data.non_striker_id !== state.non_striker_id) {
+    state = setNonStriker(state, parsed.data.non_striker_id);
+  }
   if (parsed.data.bowler_id !== state.bowler_id) {
     state = advanceBowler(
       state,
@@ -676,6 +731,12 @@ export async function startSecondInnings(
   if (!inBowling(parsed.data.bowler_id)) {
     return { ok: false, error: "Bowler must be in the bowling-XI" };
   }
+
+  const catCheck = await enforceCat1FirstOverRule(supabase, match.tournament_id, {
+    striker_id: parsed.data.striker_id,
+    bowler_id: parsed.data.bowler_id,
+  });
+  if (!catCheck.ok) return catCheck;
 
   const { data: innings, error: insErr } = await supabase
     .from("innings")

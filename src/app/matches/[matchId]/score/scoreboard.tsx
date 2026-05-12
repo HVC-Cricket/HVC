@@ -97,6 +97,12 @@ function makePendingUndo(b: {
   };
 }
 
+function defaultOverCategory(overNumber: number): 1 | 2 | 3 {
+  if (overNumber === 1) return 1;
+  if (overNumber === 2) return 2;
+  return 3;
+}
+
 export function Scoreboard({ state }: { state: ScoreboardState }) {
   const innings = state.innings!;
   const isComplete = innings.is_complete;
@@ -266,6 +272,38 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.balls.length]);
 
+  // Per-over category restriction. Default: over 1 → Cat 1, over 2 →
+  // Cat 2, over 3+ → Cat 3. Scorer can override within an over; we
+  // re-default on the next over boundary. Cat 2 = open (no filter).
+  const [overCategory, setOverCategory] = useState<1 | 2 | 3>(
+    defaultOverCategory(state.active.over_number),
+  );
+  const lastOverRef = useRef(state.active.over_number);
+  useEffect(() => {
+    if (state.active.over_number === lastOverRef.current) return;
+    lastOverRef.current = state.active.over_number;
+    setOverCategory(defaultOverCategory(state.active.over_number));
+  }, [state.active.over_number]);
+
+  const battingXi = state.xi[innings.batting_team_id] ?? [];
+  const bowlingXi = state.xi[innings.bowling_team_id] ?? [];
+  const catBlockedStrikerIds =
+    overCategory === 2
+      ? new Set<string>()
+      : new Set(
+          battingXi
+            .filter((p) => p.category !== overCategory)
+            .map((p) => p.id),
+        );
+  const catBlockedBowlerIds =
+    overCategory === 2
+      ? new Set<string>()
+      : new Set(
+          bowlingXi
+            .filter((p) => p.category !== overCategory)
+            .map((p) => p.id),
+        );
+
   const enqueue = async (kind: ScoreTaskKind, payload: unknown) => {
     setPendingCount((c) => c + 1);
     try {
@@ -351,6 +389,16 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             : `${missing.slice(0, -1).join(", ")}, and ${missing[missing.length - 1]}`;
       toast.error(`Pick the ${list} first`);
       return;
+    }
+    if (overCategory !== 2) {
+      const strikerCat = playersById.get(strikerId)?.category ?? null;
+      const bowlerCat = playersById.get(bowlerId)?.category ?? null;
+      if (strikerCat !== overCategory || bowlerCat !== overCategory) {
+        toast.error(
+          `Cat ${overCategory} over: striker and bowler must both be Category ${overCategory}`,
+        );
+        return;
+      }
     }
     const input = {
       matchId: state.match.id,
@@ -514,58 +562,81 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             {innings.innings_number}
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-2 text-sm sm:grid-cols-3">
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-xs uppercase text-muted-foreground">
+              Category
+            </span>
+            <select
+              value={overCategory}
+              onChange={(e) =>
+                setOverCategory(Number(e.target.value) as 1 | 2 | 3)
+              }
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-sm shadow-sm"
+              aria-label="Over category"
+            >
+              <option value={1}>Cat 1</option>
+              <option value={2}>Cat 2</option>
+              <option value={3}>Cat 3</option>
+            </select>
+            <span className="text-xs text-muted-foreground">
+              {overCategory === 2
+                ? "Any striker / any bowler"
+                : `Striker + bowler must both be Cat ${overCategory}`}
+            </span>
+          </div>
           {/* Slot tiles double as the picker — tap a tile, native mobile
               picker opens, pick a player, done. No second "Who's batting"
               card; that was confusing duplication. Stats line below
               each name surfaces the player's current contribution so
               the scorer always has context. */}
-          <SlotPicker
-            label="Striker"
-            value={strikerId}
-            options={state.xi[innings.batting_team_id] ?? []}
-            onChange={setStrikerId}
-            statsLine={formatBatterStats(state.balls, strikerId, optimistic)}
-            // Already-dismissed players (can't bat again this innings)
-            // and the non-striker (can't be at both ends) are disabled.
-            disabledIds={
-              new Set(
-                [...state.active.dismissed_ids, nonStrikerId].filter(
-                  Boolean,
-                ) as string[],
-              )
-            }
-            dismissedIds={new Set(state.active.dismissed_ids)}
-          />
-          <SlotPicker
-            label="Non-striker"
-            value={nonStrikerId}
-            options={state.xi[innings.batting_team_id] ?? []}
-            onChange={setNonStrikerId}
-            statsLine={formatBatterStats(state.balls, nonStrikerId, optimistic)}
-            disabledIds={
-              new Set(
-                [...state.active.dismissed_ids, strikerId].filter(
-                  Boolean,
-                ) as string[],
-              )
-            }
-            dismissedIds={new Set(state.active.dismissed_ids)}
-          />
-          <SlotPicker
-            label="Bowler"
-            value={bowlerId}
-            options={state.xi[innings.bowling_team_id] ?? []}
-            onChange={setBowlerId}
-            highlightCat={
-              state.active.is_special_over === "cat1"
-                ? 1
-                : state.active.is_special_over === "cat3"
-                  ? 3
-                  : 2
-            }
-            statsLine={formatBowlerStats(state.balls, bowlerId, optimistic)}
-          />
+          <div className="grid gap-2 sm:grid-cols-3">
+            <SlotPicker
+              label="Striker"
+              value={strikerId}
+              options={battingXi}
+              onChange={setStrikerId}
+              highlightCat={overCategory === 2 ? undefined : overCategory}
+              statsLine={formatBatterStats(state.balls, strikerId, optimistic)}
+              // Already-dismissed players (can't bat again this innings),
+              // the non-striker (can't be at both ends), and players
+              // outside the over's category restriction are disabled.
+              disabledIds={
+                new Set(
+                  [
+                    ...state.active.dismissed_ids,
+                    nonStrikerId,
+                    ...catBlockedStrikerIds,
+                  ].filter(Boolean) as string[],
+                )
+              }
+              dismissedIds={new Set(state.active.dismissed_ids)}
+            />
+            <SlotPicker
+              label="Non-striker"
+              value={nonStrikerId}
+              options={battingXi}
+              onChange={setNonStrikerId}
+              statsLine={formatBatterStats(state.balls, nonStrikerId, optimistic)}
+              disabledIds={
+                new Set(
+                  [...state.active.dismissed_ids, strikerId].filter(
+                    Boolean,
+                  ) as string[],
+                )
+              }
+              dismissedIds={new Set(state.active.dismissed_ids)}
+            />
+            <SlotPicker
+              label="Bowler"
+              value={bowlerId}
+              options={bowlingXi}
+              onChange={setBowlerId}
+              highlightCat={overCategory === 2 ? undefined : overCategory}
+              disabledIds={catBlockedBowlerIds}
+              statsLine={formatBowlerStats(state.balls, bowlerId, optimistic)}
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -685,14 +756,27 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             {/* Wicket — its own row so the inline panel has space */}
             <div className="grid grid-cols-1 gap-2">
               <WicketButton
-                onSubmit={(wt, outId, fielderId) =>
+                onSubmit={(wt, outId, fielderId, delivery) => {
+                  const extra_type =
+                    delivery === "no_ball"
+                      ? "no_ball"
+                      : delivery === "wide"
+                        ? "wide"
+                        : delivery === "bye"
+                          ? "bye"
+                          : null;
+                  // Wide / no-ball carry a 1-run penalty; bye is just the
+                  // bye runs (default 1 here). Legal ball: no extras.
+                  const extras = extra_type ? 1 : 0;
                   submit({
                     is_wicket: true,
                     wicket_type: wt,
                     player_out_id: outId ?? strikerId,
                     fielder_id: fielderId ?? null,
-                  })
-                }
+                    extra_type,
+                    extras,
+                  });
+                }}
                 allowed={state.rules.allowed_wicket_types as WicketType[]}
                 onFreeHit={state.active.free_hit_pending}
                 freeHitDismissals={state.rules.free_hit.out_dismissals as WicketType[]}
@@ -943,6 +1027,8 @@ function formatBowlerStats(
   return `${wickets}/${conceded} (${overs}) · econ ${econ}`;
 }
 
+type WicketDelivery = "legal" | "no_ball" | "wide" | "bye";
+
 function WicketButton({
   onSubmit,
   allowed,
@@ -956,8 +1042,9 @@ function WicketButton({
 }: {
   onSubmit: (
     wicket_type: WicketType,
-    player_out_id?: string,
-    fielder_id?: string,
+    player_out_id: string | undefined,
+    fielder_id: string | undefined,
+    delivery: WicketDelivery,
   ) => void;
   allowed: WicketType[];
   onFreeHit: boolean;
@@ -972,6 +1059,7 @@ function WicketButton({
   const [wicketType, setWicketType] = useState<WicketType>("bowled");
   const [whoOut, setWhoOut] = useState<"striker" | "non_striker">("striker");
   const [fielder, setFielder] = useState("");
+  const [delivery, setDelivery] = useState<WicketDelivery>("legal");
 
   const types = onFreeHit ? freeHitDismissals : allowed;
   // Fielder picker is only meaningful for `caught`, `run_out`, and
@@ -983,6 +1071,7 @@ function WicketButton({
   const close = () => {
     setOpen(false);
     setFielder("");
+    setDelivery("legal");
   };
 
   // Lock body scroll + escape-to-close while the modal is open.
@@ -1064,6 +1153,21 @@ function WicketButton({
                   </option>
                 </select>
               </label>
+              <label className="space-y-1 sm:col-span-2">
+                <span className="text-xs text-muted-foreground">Delivery</span>
+                <select
+                  value={delivery}
+                  onChange={(e) =>
+                    setDelivery(e.target.value as WicketDelivery)
+                  }
+                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                >
+                  <option value="legal">Legal ball</option>
+                  <option value="no_ball">No-ball (+1 penalty)</option>
+                  <option value="wide">Wide (+1 penalty)</option>
+                  <option value="bye">Bye (+1)</option>
+                </select>
+              </label>
             </div>
 
             {showFielder && (
@@ -1101,6 +1205,7 @@ function WicketButton({
                     wicketType,
                     whoOut === "striker" ? strikerId : nonStrikerId,
                     showFielder && fielder ? fielder : undefined,
+                    delivery,
                   );
                   close();
                 }}

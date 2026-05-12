@@ -10,6 +10,8 @@ import {
   advanceBowler,
   applyBall,
   getRuleSet,
+  setNonStriker,
+  setStriker,
   startInnings,
 } from "@/lib/scoring";
 
@@ -210,11 +212,19 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
       });
       let replayOk = true;
       for (const b of balls) {
-        // applyBall doesn't take a bowler input — when the recorded
-        // ball's bowler differs from engine state, sync it via
-        // advanceBowler first. Without this, the engine's
-        // bowler_legal_balls would all pile up on the initial bowler
-        // and spurious "bowler_at_max" rejections kick in mid-replay.
+        // applyBall doesn't read striker / non-striker / bowler from
+        // the BallInput — it only rotates them via cricket rules. So if
+        // the scorer manually picks a new batter after a wicket (or a
+        // mid-over substitution we'll one day support), the engine's
+        // internal slots stay stale. Sync them from each recorded ball
+        // before applying so engine.striker_id / non_striker_id /
+        // bowler_id always match the row.
+        if (b.batter_id !== s.striker_id) {
+          s = setStriker(s, b.batter_id);
+        }
+        if (b.non_striker_id !== s.non_striker_id) {
+          s = setNonStriker(s, b.non_striker_id);
+        }
         if (b.bowler_id !== s.bowler_id) {
           s = advanceBowler(
             s,
@@ -281,14 +291,29 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
     bowler_id = atOverBoundary ? null : last.bowler_id;
     free_hit_pending = engineState?.free_hit_pending ?? false;
 
-    // If the last ball was a wicket, the dismissed batter's slot is
-    // empty until the scorer picks the next batter in. After the
-    // engine has applied any pre-wicket crossing rotation, the
-    // dismissed player still sits in whichever slot they ended up in
-    // (engine just adds them to .dismissed; it doesn't blank the slot).
-    if (last.is_wicket && last.player_out_id) {
-      if (striker_id === last.player_out_id) striker_id = null;
-      if (non_striker_id === last.player_out_id) non_striker_id = null;
+    // A dismissed batter shouldn't be on the field. We blank any slot
+    // that currently holds someone in engine.dismissed so the scorer
+    // has to pick a fresh batter.
+    //
+    // Exception: in a Cat 1 / Cat 3 special over with
+    // cat_special_strike = "stay", the dismissed special batter keeps
+    // facing the remaining balls of the over. Detected via the engine
+    // flag `special_batter_dismissed` — it stays true until the next
+    // `advanceBowler` resets the special-over context, i.e. until the
+    // over rolls over.
+    const stillSpecialStay = (id: string | null) =>
+      !!id &&
+      rules.categories.cat_special_strike === "stay" &&
+      engineState?.special_over?.special_batter_id === id &&
+      engineState?.special_over?.special_batter_dismissed === true;
+    const isDismissed = (id: string | null) =>
+      !!id && (engineState?.dismissed?.has(id) ?? false);
+
+    if (isDismissed(striker_id) && !stillSpecialStay(striker_id)) {
+      striker_id = null;
+    }
+    if (isDismissed(non_striker_id) && !stillSpecialStay(non_striker_id)) {
+      non_striker_id = null;
     }
   } else if (innings) {
     // No balls yet but innings exists. Fall back to whatever was picked
@@ -301,18 +326,17 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
   const currentOverBalls = balls.filter((b) => b.over_number === over_number);
   const previousOverBalls = balls.filter((b) => b.over_number === over_number - 1);
 
-  // Special-over detection: depends on rules + striker's category.
+  // Special-over detection: any over with a Cat 1 or Cat 3 striker is a
+  // special over for that category. Mirrors the engine's
+  // computeSpecialOverContext derivation so the badge tracks behaviour.
   let is_special_over: "cat1" | "cat3" | null = null;
   if (rules.categories.enabled && striker_id) {
     const striker = (xi[innings?.batting_team_id ?? ""] ?? []).find(
       (p) => p.id === striker_id,
     );
-    if (striker?.category === 1 && over_number === rules.categories.cat1_over) {
+    if (striker?.category === 1) {
       is_special_over = "cat1";
-    } else if (
-      striker?.category === 3 &&
-      over_number === rules.categories.cat3_over
-    ) {
+    } else if (striker?.category === 3) {
       is_special_over = "cat3";
     }
   }

@@ -75,39 +75,40 @@ export function startInnings(args: {
 }
 
 /**
- * If the over starting at `over_number` is a category-special over, return
- * the context (which Cat, which special batter). Otherwise null.
+ * Decide whether the current over is a category-special over (Cat 1 or
+ * Cat 3) and, if so, who the special batter is.
  *
- * Rule: in HVC, over 1 is Cat 1 vs Cat 1 and over 2 is Cat 3 vs Cat 3. We
- * treat the special batter as whichever current striker matches the category.
- * If neither does, it's not a special over for engine purposes.
+ * The Category dropdown on the scoreboard gates the striker pick so that
+ * a Cat 1 striker only ever appears when the scorer has declared a Cat 1
+ * over (likewise Cat 3). We therefore derive the context from the
+ * striker's category alone: any over with a Cat 1 striker is a Cat 1
+ * special over, any over with a Cat 3 striker is a Cat 3 special over.
+ * `over_number` is no longer used and the legacy `cat1_over`/`cat3_over`
+ * rule fields are now informational only.
  */
 function computeSpecialOverContext(
-  over_number: number,
+  _over_number: number,
   striker: EnginePlayer,
-  non_striker: EnginePlayer,
+  _non_striker: EnginePlayer,
   rules: RuleSet,
 ): InningsState["special_over"] {
   if (!rules.categories.enabled) return null;
 
-  const isCat1Over = over_number === rules.categories.cat1_over;
-  const isCat3Over = over_number === rules.categories.cat3_over;
-  if (!isCat1Over && !isCat3Over) return null;
-
-  const targetCat = isCat1Over ? 1 : 3;
-  const matchingBatter =
-    striker.category === targetCat
-      ? striker
-      : non_striker.category === targetCat
-        ? non_striker
-        : null;
-  if (!matchingBatter) return null;
-
-  return {
-    type: isCat1Over ? "cat1" : "cat3",
-    special_batter_id: matchingBatter.id,
-    special_batter_dismissed: false,
-  };
+  if (striker.category === 1) {
+    return {
+      type: "cat1",
+      special_batter_id: striker.id,
+      special_batter_dismissed: false,
+    };
+  }
+  if (striker.category === 3) {
+    return {
+      type: "cat3",
+      special_batter_id: striker.id,
+      special_batter_dismissed: false,
+    };
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -268,7 +269,12 @@ export function applyBall(
   }
 
   // End of over: swap ends and reset ball_in_over. Caller advances the bowler
-  // separately via `advanceBowler`.
+  // separately via `advanceBowler`, which also recomputes `special_over`
+  // for the new over. We clear it here so the in-between state (after
+  // ball 6, before advanceBowler) doesn't claim the previous over's
+  // special context still holds — otherwise the loader can't tell that
+  // a dismissed special batter who swapped into the non-striker slot
+  // should now leave the field.
   if (next.ball_in_over === ballsPerOver) {
     [next.striker_id, next.non_striker_id] = [
       next.non_striker_id,
@@ -276,6 +282,7 @@ export function applyBall(
     ];
     next.ball_in_over = 0;
     next.current_over_number += 1;
+    next.special_over = null;
   }
 
   // Innings end conditions
