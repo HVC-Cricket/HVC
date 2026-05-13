@@ -88,6 +88,11 @@ export default async function MatchDetailPage(props: {
                     {match.status === "scheduled" ? "Start scoring" : "Score"}
                   </Button>
                 </Link>
+                <Link href={`/matches/${match.id}/activity`}>
+                  <Button variant="ghost" size="sm">
+                    Activity
+                  </Button>
+                </Link>
                 <Link href={`/matches/${match.id}/edit`}>
                   <Button variant="ghost" size="sm">
                     Edit
