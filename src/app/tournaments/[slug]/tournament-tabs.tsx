@@ -3,12 +3,13 @@
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useCallback, useMemo, type ReactNode } from "react";
 
-type TabId = "matches" | "table" | "stats" | "teams";
+type TabId = "matches" | "table" | "stats" | "mvp" | "teams";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "matches", label: "Matches" },
   { id: "table", label: "Table" },
   { id: "stats", label: "Stats" },
+  { id: "mvp", label: "MVP" },
   { id: "teams", label: "Teams" },
 ];
 
@@ -23,11 +24,13 @@ export function TournamentTabs({
   matches,
   table,
   stats,
+  mvp,
   teams,
 }: {
   matches: ReactNode;
   table: ReactNode;
   stats: ReactNode;
+  mvp: ReactNode;
   teams: ReactNode;
 }) {
   const router = useRouter();
@@ -36,7 +39,8 @@ export function TournamentTabs({
 
   const active: TabId = useMemo(() => {
     const t = searchParams.get("tab");
-    if (t === "table" || t === "stats" || t === "teams") return t;
+    if (t === "table" || t === "stats" || t === "mvp" || t === "teams")
+      return t;
     return "matches";
   }, [searchParams]);
 
@@ -55,6 +59,7 @@ export function TournamentTabs({
     matches,
     table,
     stats,
+    mvp,
     teams,
   };
 

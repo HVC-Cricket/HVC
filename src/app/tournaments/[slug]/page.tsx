@@ -15,6 +15,7 @@ import { getSessionContext, isTournamentOrganizer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 import { PointsTableSection } from "./points-table-section";
+import { TournamentMvp } from "./tournament-mvp";
 import { TournamentStats } from "./tournament-stats";
 import { TournamentTabs } from "./tournament-tabs";
 
@@ -341,6 +342,25 @@ export default async function TournamentDetailPage(props: {
               }
             >
               <TournamentStats tournamentId={tournament.id} />
+            </Suspense>
+          }
+          mvp={
+            <Suspense
+              fallback={
+                <Card>
+                  <CardContent className="space-y-2 py-6">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-3 animate-pulse rounded bg-muted"
+                        style={{ width: `${100 - i * 10}%` }}
+                      />
+                    ))}
+                  </CardContent>
+                </Card>
+              }
+            >
+              <TournamentMvp tournamentId={tournament.id} />
             </Suspense>
           }
           teams={

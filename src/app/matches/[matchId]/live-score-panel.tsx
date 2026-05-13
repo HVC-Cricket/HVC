@@ -1,5 +1,6 @@
 import { Trophy } from "lucide-react";
 
+import { LiveRefresh } from "@/components/live-refresh";
 import {
   Card,
   CardContent,
@@ -9,7 +10,6 @@ import {
 } from "@/components/ui/card";
 import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
 
-import { AutoRefresh } from "./auto-refresh";
 import type { ScoreboardState } from "./score/state";
 import { loadScoreboardState } from "./score/state";
 
@@ -37,8 +37,11 @@ export async function LiveScorePanel({ matchId }: { matchId: string }) {
 
   return (
     <>
-      {/* Auto-refresh while the match is in flight; once completed, no need */}
-      {live && <AutoRefresh intervalMs={2500} />}
+      {/* Live updates via Supabase Realtime while the match is in flight;
+          once completed, no subscriber is needed. */}
+      {(live || state.match.status === "innings_break") && (
+        <LiveRefresh matchId={state.match.id} />
+      )}
 
       {completed && (
         <Card className="overflow-hidden border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">

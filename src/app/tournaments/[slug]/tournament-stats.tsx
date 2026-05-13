@@ -1,13 +1,13 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
+import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
+
+import {
+  TournamentStatsView,
+  type LeaderRow,
+  type LeaderboardTable,
+  type Leaderboards,
+} from "./tournament-stats-view";
 
 /**
  * Tournament-wide leaderboards: top batters, top bowlers, most
@@ -122,275 +122,479 @@ export async function TournamentStats({
     (teams ?? []).map((t) => [t.id, t.short_name]),
   );
 
-  // 5. Roll up batting + bowling stats per player using the shared
-  //    helpers (same code paths as the per-match scorecard).
-  type BatRow = {
-    player_id: string;
-    name: string;
-    team: string;
-    cat: number | null;
+  // 5. Per-innings rollup. Cricbuzz-style tournament stats need
+  //    matches/innings played + averages + best single-innings figures,
+  //    so we aggregate by (player_id, innings_id) first, then summarize
+  //    across innings per player. Map keys are `${player}|${innings}`.
+  type PerInnBat = {
     runs: number;
-    balls_faced: number;
+    balls: number;
     fours: number;
     sixes: number;
-    strikeRate: number;
+    got_out: boolean;
+    match_id: string;
   };
-  type BowlRow = {
+  type PerInnBowl = {
+    wickets: number;
+    runs_conceded: number;
+    legal_balls: number;
+    dots: number;
+    maidens: number;
+    match_id: string;
+  };
+  const batByInn = new Map<string, PerInnBat>();
+  const bowlByInn = new Map<string, PerInnBowl>();
+
+  for (const b of allBalls) {
+    const inn = inningsById.get(b.innings_id);
+    if (!inn) continue;
+
+    // Batter
+    const batKey = `${b.batter_id}|${b.innings_id}`;
+    let bat = batByInn.get(batKey);
+    if (!bat) {
+      bat = {
+        runs: 0,
+        balls: 0,
+        fours: 0,
+        sixes: 0,
+        got_out: false,
+        match_id: inn.match_id,
+      };
+      batByInn.set(batKey, bat);
+    }
+    // Mirror of computeBatterStats single-ball loop.
+    if (b.extra_type !== "wide") {
+      bat.runs += b.runs_off_bat;
+      if (b.extra_type !== "no_ball") bat.balls += 1;
+      if (b.extra_type !== "no_ball" && b.extra_type !== "bye") {
+        if (b.runs_off_bat === 4) bat.fours += 1;
+        if (b.runs_off_bat === 6) bat.sixes += 1;
+      }
+    }
+    if (b.is_wicket && b.player_out_id === b.batter_id) bat.got_out = true;
+
+    // Bowler
+    const bowlKey = `${b.bowler_id}|${b.innings_id}`;
+    let bowl = bowlByInn.get(bowlKey);
+    if (!bowl) {
+      bowl = {
+        wickets: 0,
+        runs_conceded: 0,
+        legal_balls: 0,
+        dots: 0,
+        maidens: 0,
+        match_id: inn.match_id,
+      };
+      bowlByInn.set(bowlKey, bowl);
+    }
+    if (b.extra_type !== "wide" && b.extra_type !== "no_ball") {
+      bowl.legal_balls += 1;
+    }
+    // Runs conceded: bat runs (always) + wides + no-balls. Byes don't
+    // count against the bowler.
+    bowl.runs_conceded += b.runs_off_bat;
+    if (b.extra_type === "wide" || b.extra_type === "no_ball") {
+      bowl.runs_conceded += b.extras;
+    }
+    if (b.is_wicket && b.wicket_type !== "run_out") bowl.wickets += 1;
+    if (
+      b.extra_type !== "wide" &&
+      b.extra_type !== "no_ball" &&
+      b.runs_off_bat === 0 &&
+      b.extras === 0
+    ) {
+      bowl.dots += 1;
+    }
+  }
+
+  // 6. Player-level aggregates.
+  type BatAgg = {
     player_id: string;
     name: string;
     team: string;
     cat: number | null;
+    matches: number;
+    innings: number;
+    runs: number;
+    balls: number;
+    fours: number;
+    sixes: number;
+    dismissals: number;
+    highest: number;
+    /** innings_id of the best single-innings score — used to look up
+     *  the opposition team for the "Highest scores" leaderboard. */
+    highestInningsId: string | null;
+    strikeRate: number;
+    average: number | null;
+  };
+  type BowlAgg = {
+    player_id: string;
+    name: string;
+    team: string;
+    cat: number | null;
+    matches: number;
+    innings: number;
     wickets: number;
     runs_conceded: number;
     legal_balls: number;
     economy: number;
-    dots: number;
+    bestBowling: string; // e.g. "3/15"
+    bestSortKey: number;
   };
 
-  const batRows: BatRow[] = [];
-  const bowlRows: BowlRow[] = [];
+  const batPerPlayer = new Map<string, BatAgg>();
+  const bowlPerPlayer = new Map<string, BowlAgg>();
 
-  for (const pid of playerIds) {
+  for (const [key, b] of batByInn) {
+    const [pid, inningsId] = key.split("|");
     const p = playerById.get(pid);
     if (!p) continue;
-    const teamId = playerToTeam.get(pid)!;
-    const team = teamShortById.get(teamId) ?? "?";
-
-    const bat = computeBatterStats(allBalls, pid);
-    if (bat.balls_faced > 0 || bat.runs > 0) {
-      batRows.push({
+    if (b.balls === 0 && b.runs === 0) continue;
+    let agg = batPerPlayer.get(pid);
+    if (!agg) {
+      const teamId = playerToTeam.get(pid)!;
+      agg = {
         player_id: pid,
         name: p.display_name,
-        team,
+        team: teamShortById.get(teamId) ?? "?",
         cat: p.category,
-        runs: bat.runs,
-        balls_faced: bat.balls_faced,
-        fours: bat.fours,
-        sixes: bat.sixes,
-        strikeRate:
-          bat.balls_faced > 0 ? (bat.runs / bat.balls_faced) * 100 : 0,
-      });
+        matches: 0,
+        innings: 0,
+        runs: 0,
+        balls: 0,
+        fours: 0,
+        sixes: 0,
+        dismissals: 0,
+        highest: 0,
+        highestInningsId: null,
+        strikeRate: 0,
+        average: null,
+      };
+      batPerPlayer.set(pid, agg);
     }
-
-    const bowl = computeBowlerStats(allBalls, pid);
-    if (bowl.legal_balls > 0) {
-      bowlRows.push({
-        player_id: pid,
-        name: p.display_name,
-        team,
-        cat: p.category,
-        wickets: bowl.wickets,
-        runs_conceded: bowl.runs_conceded,
-        legal_balls: bowl.legal_balls,
-        economy: (bowl.runs_conceded / bowl.legal_balls) * 6,
-        dots: bowl.dots,
-      });
+    agg.innings += 1;
+    agg.runs += b.runs;
+    agg.balls += b.balls;
+    agg.fours += b.fours;
+    agg.sixes += b.sixes;
+    if (b.got_out) agg.dismissals += 1;
+    if (b.runs > agg.highest) {
+      agg.highest = b.runs;
+      agg.highestInningsId = inningsId;
     }
   }
 
-  // 6. Rank: top 5 in each category. SR + Econ require a minimum
-  //    sample so a 1-ball 6 doesn't top the strike-rate chart.
-  const topRuns = [...batRows].sort((a, b) => b.runs - a.runs).slice(0, 5);
-  const topBoundaries = [...batRows]
-    .map((r) => ({ ...r, boundaries: r.fours + r.sixes }))
-    .filter((r) => r.boundaries > 0)
-    .sort((a, b) =>
-      b.boundaries === a.boundaries
-        ? b.sixes - a.sixes // tiebreak: more sixes wins
-        : b.boundaries - a.boundaries,
-    )
-    .slice(0, 5);
-  const topSR = [...batRows]
-    .filter((r) => r.balls_faced >= 12) // 2 overs faced minimum
-    .sort((a, b) => b.strikeRate - a.strikeRate)
-    .slice(0, 5);
+  for (const [key, b] of bowlByInn) {
+    const [pid] = key.split("|");
+    const p = playerById.get(pid);
+    if (!p) continue;
+    if (b.legal_balls === 0) continue;
+    let agg = bowlPerPlayer.get(pid);
+    if (!agg) {
+      const teamId = playerToTeam.get(pid)!;
+      agg = {
+        player_id: pid,
+        name: p.display_name,
+        team: teamShortById.get(teamId) ?? "?",
+        cat: p.category,
+        matches: 0,
+        innings: 0,
+        wickets: 0,
+        runs_conceded: 0,
+        legal_balls: 0,
+        economy: 0,
+        bestBowling: "—",
+        bestSortKey: -1,
+      };
+      bowlPerPlayer.set(pid, agg);
+    }
+    agg.innings += 1;
+    agg.wickets += b.wickets;
+    agg.runs_conceded += b.runs_conceded;
+    agg.legal_balls += b.legal_balls;
+    // Best bowling = max wickets; tiebreak fewer runs conceded.
+    // Sort key: wickets * 1000 - runs_conceded.
+    const sortKey = b.wickets * 1000 - b.runs_conceded;
+    if (sortKey > agg.bestSortKey) {
+      agg.bestSortKey = sortKey;
+      agg.bestBowling = `${b.wickets}/${b.runs_conceded}`;
+    }
+  }
 
-  const topWickets = [...bowlRows]
-    .sort((a, b) =>
-      b.wickets === a.wickets ? a.economy - b.economy : b.wickets - a.wickets,
-    )
-    .slice(0, 5);
-  const topEcon = [...bowlRows]
-    .filter((r) => r.legal_balls >= 12) // 2 overs bowled minimum
-    .sort((a, b) => a.economy - b.economy)
-    .slice(0, 5);
+  // Distinct-matches counts.
+  const batterMatches = new Map<string, Set<string>>();
+  for (const [key, b] of batByInn) {
+    const [pid] = key.split("|");
+    let s = batterMatches.get(pid);
+    if (!s) {
+      s = new Set();
+      batterMatches.set(pid, s);
+    }
+    s.add(b.match_id);
+  }
+  for (const [pid, set] of batterMatches) {
+    const agg = batPerPlayer.get(pid);
+    if (agg) agg.matches = set.size;
+  }
+
+  const bowlerMatches = new Map<string, Set<string>>();
+  for (const [key, b] of bowlByInn) {
+    const [pid] = key.split("|");
+    let s = bowlerMatches.get(pid);
+    if (!s) {
+      s = new Set();
+      bowlerMatches.set(pid, s);
+    }
+    s.add(b.match_id);
+  }
+  for (const [pid, set] of bowlerMatches) {
+    const agg = bowlPerPlayer.get(pid);
+    if (agg) agg.matches = set.size;
+  }
+
+  // Derived metrics.
+  const batRows: BatAgg[] = [...batPerPlayer.values()].map((a) => ({
+    ...a,
+    strikeRate: a.balls > 0 ? (a.runs / a.balls) * 100 : 0,
+    average: a.dismissals > 0 ? a.runs / a.dismissals : null,
+  }));
+  const bowlRows: BowlAgg[] = [...bowlPerPlayer.values()].map((a) => ({
+    ...a,
+    economy: a.legal_balls > 0 ? (a.runs_conceded / a.legal_balls) * 6 : 0,
+  }));
+
+  // Bowling-team short per innings → used by the Highest scores card
+  // to show who the batter scored against ("vs").
+  const bowlingTeamShortByInnings = new Map<string, string>();
+  for (const inn of innings) {
+    bowlingTeamShortByInnings.set(
+      inn.id,
+      teamShortById.get(inn.bowling_team_id) ?? "?",
+    );
+  }
+
+  // 7. Ranked leaderboards — computed once for the full pool and once
+  //    per HVC category so the client can flip between them instantly.
+  const lookups = { batByInn, bowlingTeamShortByInnings };
+  const all = buildLeaderboards(batRows, bowlRows, lookups);
+  const cat1 = buildLeaderboards(
+    batRows.filter((r) => r.cat === 1),
+    bowlRows.filter((r) => r.cat === 1),
+    lookups,
+  );
+  const cat2 = buildLeaderboards(
+    batRows.filter((r) => r.cat === 2),
+    bowlRows.filter((r) => r.cat === 2),
+    lookups,
+  );
+  const cat3 = buildLeaderboards(
+    batRows.filter((r) => r.cat === 3),
+    bowlRows.filter((r) => r.cat === 3),
+    lookups,
+  );
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      <BatLeaderCard
-        title="Most runs"
-        rows={topRuns.map((r) => ({
-          name: r.name,
-          team: r.team,
-          cat: r.cat,
-          primary: `${r.runs}`,
-          secondary: `(${r.balls_faced})`,
-        }))}
-      />
-      <BowlLeaderCard
-        title="Most wickets"
-        rows={topWickets.map((r) => {
-          const overs = `${Math.floor(r.legal_balls / 6)}.${r.legal_balls % 6}`;
-          return {
-            name: r.name,
-            team: r.team,
-            cat: r.cat,
-            primary: `${r.wickets}`,
-            secondary: `(${overs}, econ ${r.economy.toFixed(2)})`,
-          };
-        })}
-      />
-      <BatLeaderCard
-        title="Most boundaries"
-        rows={topBoundaries.map((r) => ({
-          name: r.name,
-          team: r.team,
-          cat: r.cat,
-          primary: `${r.boundaries}`,
-          secondary: `(${r.fours}×4, ${r.sixes}×6)`,
-        }))}
-      />
-      <BatLeaderCard
-        title="Best strike rate"
-        rows={topSR.map((r) => ({
-          name: r.name,
-          team: r.team,
-          cat: r.cat,
-          primary: r.strikeRate.toFixed(1),
-          secondary: `(${r.runs} off ${r.balls_faced})`,
-        }))}
-        emptyHint="At least 12 balls faced."
-      />
-      <BowlLeaderCard
-        title="Best economy"
-        rows={topEcon.map((r) => {
-          const overs = `${Math.floor(r.legal_balls / 6)}.${r.legal_balls % 6}`;
-          return {
-            name: r.name,
-            team: r.team,
-            cat: r.cat,
-            primary: r.economy.toFixed(2),
-            secondary: `(${r.runs_conceded}/${overs}, ${r.wickets}w)`,
-          };
-        })}
-        emptyHint="At least 2 overs bowled."
-      />
-    </div>
+    <TournamentStatsView all={all} cat1={cat1} cat2={cat2} cat3={cat3} />
   );
 }
 
-type Row = {
+type BatLite = {
+  player_id: string;
   name: string;
   team: string;
   cat: number | null;
-  primary: string;
-  secondary: string;
+  matches: number;
+  innings: number;
+  runs: number;
+  balls: number;
+  fours: number;
+  sixes: number;
+  highest: number;
+  highestInningsId: string | null;
+  strikeRate: number;
+  average: number | null;
+};
+type BowlLite = {
+  player_id: string;
+  name: string;
+  team: string;
+  cat: number | null;
+  matches: number;
+  innings: number;
+  wickets: number;
+  runs_conceded: number;
+  legal_balls: number;
+  economy: number;
+  bestBowling: string;
 };
 
-function BatLeaderCard({
-  title,
-  rows,
-  emptyHint,
-}: {
-  title: string;
-  rows: Row[];
-  emptyHint?: string;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-        {emptyHint && rows.length === 0 && (
-          <CardDescription>{emptyHint}</CardDescription>
-        )}
-      </CardHeader>
-      <CardContent className="p-0">
-        {rows.length === 0 ? (
-          <div className="px-6 pb-6 text-sm text-muted-foreground">
-            No data yet.
-          </div>
-        ) : (
-          <ul className="divide-y divide-foreground/10">
-            {rows.map((r, idx) => (
-              <LeaderRow key={r.name + idx} idx={idx} row={r} />
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+type BuildLookups = {
+  batByInn: Map<
+    string,
+    {
+      runs: number;
+      balls: number;
+      fours: number;
+      sixes: number;
+      got_out: boolean;
+      match_id: string;
+    }
+  >;
+  bowlingTeamShortByInnings: Map<string, string>;
+};
 
-function BowlLeaderCard({
-  title,
-  rows,
-  emptyHint,
-}: {
-  title: string;
-  rows: Row[];
-  emptyHint?: string;
-}) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-        {emptyHint && rows.length === 0 && (
-          <CardDescription>{emptyHint}</CardDescription>
-        )}
-      </CardHeader>
-      <CardContent className="p-0">
-        {rows.length === 0 ? (
-          <div className="px-6 pb-6 text-sm text-muted-foreground">
-            No data yet.
-          </div>
-        ) : (
-          <ul className="divide-y divide-foreground/10">
-            {rows.map((r, idx) => (
-              <LeaderRow key={r.name + idx} idx={idx} row={r} />
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+function buildLeaderboards(
+  batRows: BatLite[],
+  bowlRows: BowlLite[],
+  lookups: BuildLookups,
+): Leaderboards {
+  const oversStr = (legalBalls: number) =>
+    `${Math.floor(legalBalls / 6)}.${legalBalls % 6}`;
+  const mkBatRow = (r: BatLite, values: string[]): LeaderRow => ({
+    name: r.name,
+    team: r.team,
+    cat: r.cat,
+    values,
+  });
+  const mkBowlRow = (r: BowlLite, values: string[]): LeaderRow => ({
+    name: r.name,
+    team: r.team,
+    cat: r.cat,
+    values,
+  });
 
-function LeaderRow({ idx, row }: { idx: number; row: Row }) {
-  return (
-    <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-      <div className="flex min-w-0 items-center gap-3">
-        <span
-          className={
-            "inline-flex size-6 shrink-0 items-center justify-center rounded-full font-mono text-[11px] font-semibold tabular-nums " +
-            (idx === 0
-              ? "bg-primary/15 text-primary"
-              : "bg-muted text-muted-foreground")
-          }
-        >
-          {idx + 1}
-        </span>
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="truncate font-medium capitalize">{row.name}</span>
-            {row.cat && (
-              <span className="font-mono text-[9px] text-muted-foreground">
-                C{row.cat}
-              </span>
-            )}
-          </div>
-          <div className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
-            {row.team}
-          </div>
-        </div>
-      </div>
-      <div className="shrink-0 text-right">
-        <div className="font-mono text-base font-semibold leading-none tabular-nums">
-          {row.primary}
-        </div>
-        <div className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-          {row.secondary}
-        </div>
-      </div>
-    </li>
-  );
+  const topRuns: LeaderboardTable = {
+    cols: ["R", "M", "Avg", "SR", "HS"],
+    rows: [...batRows]
+      .sort((a, b) => b.runs - a.runs)
+      .slice(0, 5)
+      .map((r) =>
+        mkBatRow(r, [
+          String(r.runs),
+          String(r.matches),
+          r.average != null ? r.average.toFixed(1) : "—",
+          r.strikeRate.toFixed(0),
+          String(r.highest),
+        ]),
+      ),
+  };
+
+  const topWickets: LeaderboardTable = {
+    cols: ["W", "M", "Ov", "Econ", "BBI"],
+    rows: [...bowlRows]
+      .sort((a, b) =>
+        b.wickets === a.wickets
+          ? a.economy - b.economy
+          : b.wickets - a.wickets,
+      )
+      .slice(0, 5)
+      .map((r) =>
+        mkBowlRow(r, [
+          String(r.wickets),
+          String(r.matches),
+          oversStr(r.legal_balls),
+          r.economy.toFixed(2),
+          r.bestBowling,
+        ]),
+      ),
+  };
+
+  // Highest single-innings scores: rank players by their best knock.
+  // Look up the best innings' details (balls / SR / opposition) so the
+  // row's `vs` makes sense — that's the bit the per-innings rollup
+  // would otherwise drop on the way to the player-level aggregate.
+  const topHighestScores: LeaderboardTable = {
+    cols: ["R", "B", "SR", "4s", "6s", "vs"],
+    rows: [...batRows]
+      .filter((r) => r.highestInningsId != null)
+      .sort((a, b) =>
+        b.highest === a.highest ? a.balls - b.balls : b.highest - a.highest,
+      )
+      .slice(0, 5)
+      .map((r) => {
+        const best = lookups.batByInn.get(
+          `${r.player_id}|${r.highestInningsId}`,
+        );
+        const innSR =
+          best && best.balls > 0
+            ? ((best.runs / best.balls) * 100).toFixed(0)
+            : "—";
+        const vs = lookups.bowlingTeamShortByInnings.get(
+          r.highestInningsId!,
+        );
+        return mkBatRow(r, [
+          String(r.highest),
+          String(best?.balls ?? 0),
+          innSR,
+          String(best?.fours ?? 0),
+          String(best?.sixes ?? 0),
+          vs ?? "?",
+        ]);
+      }),
+  };
+
+  const topBoundaries: LeaderboardTable = {
+    cols: ["Tot", "4s", "6s", "R"],
+    rows: [...batRows]
+      .map((r) => ({ r, total: r.fours + r.sixes }))
+      .filter((x) => x.total > 0)
+      .sort((a, b) =>
+        b.total === a.total ? b.r.sixes - a.r.sixes : b.total - a.total,
+      )
+      .slice(0, 5)
+      .map(({ r, total }) =>
+        mkBatRow(r, [
+          String(total),
+          String(r.fours),
+          String(r.sixes),
+          String(r.runs),
+        ]),
+      ),
+  };
+
+  // Min sample sizes set with HVC's special-over rule in mind — Cat 1/3
+  // specialists only get one over per match, so 12 balls across the
+  // tournament is a reasonable bar for both SR and economy.
+  const topSR: LeaderboardTable = {
+    cols: ["SR", "R", "B", "4s", "6s"],
+    rows: [...batRows]
+      .filter((r) => r.balls >= 12)
+      .sort((a, b) => b.strikeRate - a.strikeRate)
+      .slice(0, 5)
+      .map((r) =>
+        mkBatRow(r, [
+          r.strikeRate.toFixed(0),
+          String(r.runs),
+          String(r.balls),
+          String(r.fours),
+          String(r.sixes),
+        ]),
+      ),
+  };
+
+  const topEcon: LeaderboardTable = {
+    cols: ["Econ", "W", "Ov", "R"],
+    rows: [...bowlRows]
+      .filter((r) => r.legal_balls >= 12)
+      .sort((a, b) => a.economy - b.economy)
+      .slice(0, 5)
+      .map((r) =>
+        mkBowlRow(r, [
+          r.economy.toFixed(2),
+          String(r.wickets),
+          oversStr(r.legal_balls),
+          String(r.runs_conceded),
+        ]),
+      ),
+  };
+
+  return {
+    topRuns,
+    topWickets,
+    topHighestScores,
+    topBoundaries,
+    topSR,
+    topEcon,
+  };
 }

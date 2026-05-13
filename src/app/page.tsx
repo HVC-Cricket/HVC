@@ -1,7 +1,7 @@
 import { CalendarDays, Trophy } from "lucide-react";
 import Link from "next/link";
 
-import { AutoRefresh } from "@/app/matches/[matchId]/auto-refresh";
+import { LiveRefresh } from "@/components/live-refresh";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -208,7 +208,7 @@ export default async function Home() {
   return (
     <main className="flex-1 p-4 sm:p-6">
       <div className="mx-auto max-w-3xl space-y-8">
-        {liveMatches.length > 0 && <AutoRefresh intervalMs={5000} />}
+        {liveMatches.length > 0 && <LiveRefresh />}
 
         {/* Hero */}
         <header className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 sm:p-7">
