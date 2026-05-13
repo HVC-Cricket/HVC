@@ -447,6 +447,7 @@ export type Database = {
           fielder_id: string | null;
           is_free_hit: boolean;
           is_powerplay: boolean;
+          counts_for_innings_total: boolean;
           shot_type: string | null;
           shot_zone: string | null;
           pitch_x: number | null;
@@ -479,6 +480,7 @@ export type Database = {
           fielder_id?: string | null;
           is_free_hit?: boolean;
           is_powerplay?: boolean;
+          counts_for_innings_total?: boolean;
           shot_type?: string | null;
           shot_zone?: string | null;
           pitch_x?: number | null;
@@ -511,6 +513,7 @@ export type Database = {
           fielder_id?: string | null;
           is_free_hit?: boolean;
           is_powerplay?: boolean;
+          counts_for_innings_total?: boolean;
           shot_type?: string | null;
           shot_zone?: string | null;
           pitch_x?: number | null;

@@ -246,11 +246,25 @@ export function applyBall(
 
   // Strike rotation
   // 1) Special batter "stay" overrides standard rotation while they're at the crease
-  // 2) Otherwise: rotate on odd-run completions
+  // 2) Otherwise: rotate when the batsmen actually ran an odd number of times
   // 3) End-of-over swap (always, unless innings ends)
-  const totalThisBall = ball.runs_off_bat + (isBye ? ball.extras : 0);
-  const isOddRun = totalThisBall % 2 === 1;
-  let shouldRotateOnRuns = isOddRun && isLegalBall;
+  //
+  // What counts as a "run" for rotation:
+  //   - Bat runs on a legal ball (1, 3, 5 → swap)
+  //   - Bat runs on a no-ball (the penalty isn't a run, but odd bat
+  //     runs still rotate — NB+1 / NB+3 swap, NB+0 / NB+2 don't)
+  //   - Byes (legal-ball byes, or extras-above-penalty on a no-ball /
+  //     wide which are byes / overthrows the batsmen ran for)
+  // The 1-run penalty on wides + no-balls itself doesn't trigger
+  // rotation; only the additional running does.
+  let rotationRuns = ball.runs_off_bat;
+  if (isBye) {
+    rotationRuns += ball.extras;
+  } else if (isWide || isNoBall) {
+    rotationRuns += Math.max(0, ball.extras - 1);
+  }
+  const isOddRun = rotationRuns % 2 === 1;
+  let shouldRotateOnRuns = isOddRun;
 
   if (
     state.special_over &&

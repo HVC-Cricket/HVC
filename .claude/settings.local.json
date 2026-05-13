@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(npx supabase db query --linked \"select u.id, u.email, p.is_super_admin from auth.users u left join profiles p on p.id = u.id where u.email = 'paneendragautham@gmail.com';\")",
+      "Bash(npx supabase *)",
+      "Bash(npx tsc *)",
+      "Bash(npx vitest *)"
+    ]
+  }
+}

@@ -359,7 +359,25 @@ function RecentBalls({
 }) {
   const renderBall = (b: Ball) => {
     let label = String(b.runs_off_bat + b.extras);
-    if (b.is_wicket) label = "W";
+    if (b.is_wicket) {
+      // Wicket on a non-legal delivery keeps both markers visible.
+      // Include the total when there are also runs on the delivery
+      // (e.g. no-ball + 2 off bat + run-out → "W 3nb").
+      const total = b.runs_off_bat + b.extras;
+      const suffix =
+        b.extra_type === "no_ball"
+          ? "nb"
+          : b.extra_type === "wide"
+            ? "wd"
+            : b.extra_type === "bye"
+              ? "b"
+              : "";
+      if (suffix) {
+        label = total > 1 ? `W ${total}${suffix}` : `W ${suffix}`;
+      } else {
+        label = b.runs_off_bat > 0 ? `W ${b.runs_off_bat}` : "W";
+      }
+    }
     // `extras` already includes the wide / no-ball penalty.
     else if (b.extra_type === "wide") label = `${b.extras}wd`;
     else if (b.extra_type === "no_ball") label = `${b.runs_off_bat + b.extras}nb`;

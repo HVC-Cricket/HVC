@@ -478,6 +478,22 @@ export async function recordBall(
 
   const isFreeHit = state.free_hit_pending && isLegal;
 
+  // HVC Cat 1 / Cat 3 special-over rule: the special batter stays at
+  // the crease after being dismissed and may be dismissed again later
+  // in the over. The bowler is credited each time (their stat line
+  // counts balls directly), but the team's innings total only goes up
+  // on the FIRST dismissal. Pre-applyBall engine state is the right
+  // signal: if `special_batter_dismissed` is already true and this
+  // ball dismisses the same player, mark the row so the recompute
+  // function excludes it from `innings.total_wickets`.
+  const dismissedId = parsed.data.player_out_id ?? parsed.data.striker_id;
+  const isRepeatSpecialDismissal =
+    parsed.data.is_wicket &&
+    state.special_over !== null &&
+    state.special_over.special_batter_id === dismissedId &&
+    state.special_over.special_batter_dismissed === true;
+  const countsForInningsTotal = !isRepeatSpecialDismissal;
+
   const { error: insErr } = await supabase.from("balls").insert({
     innings_id: parsed.data.inningsId,
     over_number,
@@ -494,6 +510,7 @@ export async function recordBall(
     player_out_id: parsed.data.player_out_id ?? null,
     fielder_id: parsed.data.fielder_id ?? null,
     is_free_hit: isFreeHit,
+    counts_for_innings_total: countsForInningsTotal,
     scored_by: user.id,
   });
   if (insErr) return { ok: false, error: insErr.message };

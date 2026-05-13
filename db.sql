@@ -258,6 +258,12 @@ create table if not exists balls (
   fielder_id        uuid references players(id),
   is_free_hit       boolean not null default false,
   is_powerplay      boolean not null default false,
+  -- HVC Cat 1/3 special-over rule: repeat dismissals of the special
+  -- batter inside their special over still credit the bowler but do NOT
+  -- add to the team's innings wicket total. Set to false on those
+  -- repeat-dismissal rows by `recordBall`; the `recompute_innings`
+  -- function filters on it.
+  counts_for_innings_total boolean not null default true,
   shot_type         text,
   shot_zone         text,
   pitch_x           numeric,
@@ -488,6 +494,7 @@ begin
     total_wickets = coalesce((
       select count(*) from balls
       where innings_id = p_innings_id and is_voided = false and is_wicket = true
+        and counts_for_innings_total = true
     ), 0),
     total_legal_balls = coalesce((
       select count(*) from balls

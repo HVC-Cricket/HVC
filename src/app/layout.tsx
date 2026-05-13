@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { RegisterSW } from "@/components/register-sw";
 import { SiteNav } from "@/components/site-nav";
+import { SiteNavShell } from "@/components/site-nav-shell";
 import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
@@ -32,7 +33,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <SiteNav />
+        <SiteNavShell>
+          <SiteNav />
+        </SiteNavShell>
         {children}
         <Toaster />
         <RegisterSW />

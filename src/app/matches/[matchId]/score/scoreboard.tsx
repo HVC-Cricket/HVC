@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -99,8 +99,8 @@ function makePendingUndo(b: {
 
 function defaultOverCategory(overNumber: number): 1 | 2 | 3 {
   if (overNumber === 1) return 1;
-  if (overNumber === 2) return 2;
-  return 3;
+  if (overNumber === 2) return 3;
+  return 2;
 }
 
 export function Scoreboard({ state }: { state: ScoreboardState }) {
@@ -134,6 +134,26 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   const [bowlerId, setBowlerId] = useState<string>(
     state.active.bowler_id ?? state.balls[0]?.bowler_id ?? "",
   );
+
+  // Inline picker state for Wide / No-ball / Bye. Tapping the top-level
+  // button opens a 0–6 sub-picker; tapping a number submits the ball
+  // and closes the picker. `noBallByesPick` is scoped to the No-ball
+  // picker: when on, the chosen runs go to extras (byes) instead of
+  // `runs_off_bat`, so the striker isn't credited.
+  const [extraPicker, setExtraPicker] = useState<
+    "wide" | "no_ball" | "bye" | "overthrow" | null
+  >(null);
+  const [noBallByesPick, setNoBallByesPick] = useState(false);
+  const openExtraPicker = (
+    kind: "wide" | "no_ball" | "bye" | "overthrow",
+  ) => {
+    setNoBallByesPick(false);
+    setExtraPicker(kind);
+  };
+  const closeExtraPicker = () => {
+    setExtraPicker(null);
+    setNoBallByesPick(false);
+  };
 
   // Mobile-data realities + service-worker offline support: every write is
   // persisted to IndexedDB before the network attempt, so the queue
@@ -589,8 +609,10 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
               picker opens, pick a player, done. No second "Who's batting"
               card; that was confusing duplication. Stats line below
               each name surfaces the player's current contribution so
-              the scorer always has context. */}
-          <div className="grid gap-2 sm:grid-cols-3">
+              the scorer always has context.
+              Mobile: 2 columns — Striker + Non-striker share a row,
+              Bowler spans both. Desktop: all 3 in one row. */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <SlotPicker
               label="Striker"
               value={strikerId}
@@ -627,30 +649,35 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
               }
               dismissedIds={new Set(state.active.dismissed_ids)}
             />
-            <SlotPicker
-              label="Bowler"
-              value={bowlerId}
-              options={bowlingXi}
-              onChange={setBowlerId}
-              highlightCat={overCategory === 2 ? undefined : overCategory}
-              disabledIds={catBlockedBowlerIds}
-              statsLine={formatBowlerStats(state.balls, bowlerId, optimistic)}
-            />
+            <div className="col-span-2 sm:col-span-1">
+              <SlotPicker
+                label="Bowler"
+                value={bowlerId}
+                options={bowlingXi}
+                onChange={setBowlerId}
+                highlightCat={overCategory === 2 ? undefined : overCategory}
+                disabledIds={catBlockedBowlerIds}
+                statsLine={formatBowlerStats(state.balls, bowlerId, optimistic)}
+                footer={
+                  visibleServerCurrent.length > 0 ||
+                  optimisticRenderBalls.length > 0 ? (
+                    <BallStrip
+                      balls={[
+                        ...visibleServerCurrent,
+                        ...optimisticRenderBalls,
+                      ]}
+                    />
+                  ) : null
+                }
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Recent balls strip — optimistic balls render at the end of the
-          current over so the dot/4/6 pill appears the moment you tap;
-          pending-undo balls drop from the strip the moment Undo lands. */}
-      {(visibleServerCurrent.length > 0 ||
-        visibleServerPrevious.length > 0 ||
-        optimisticRenderBalls.length > 0) && (
-        <RecentBalls
-          current={[...visibleServerCurrent, ...optimisticRenderBalls]}
-          previous={visibleServerPrevious}
-        />
-      )}
+      {/* This-over strip now lives inside the Bowler slot tile via
+          its `footer` prop; the previous-over strip moved to the
+          bottom of this card stack (see below). */}
 
       {/* Ball entry */}
       {!isComplete && (
@@ -691,72 +718,175 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 </Button>
               ))}
             </div>
-            {/* Wides: penalty 1 + N additional wide runs (overthrows / boundary off wide) */}
-            <div className="grid grid-cols-4 gap-2">
-              {[0, 1, 2, 4].map((n) => (
+            {/* Extras: one button each for Wide / No-ball / Bye /
+                Overthrow. Tap opens an inline sub-picker. No-ball
+                picker also surfaces a "runs are byes" toggle. */}
+            <div
+              className={
+                "grid gap-2 " +
+                (state.rules.extras.byes ? "grid-cols-4" : "grid-cols-3")
+              }
+            >
+              <Button
+                variant={extraPicker === "wide" ? "default" : "outline"}
+                className="h-11 active:scale-[0.97] active:bg-muted/60"
+                onClick={() =>
+                  extraPicker === "wide"
+                    ? closeExtraPicker()
+                    : openExtraPicker("wide")
+                }
+              >
+                Wide
+              </Button>
+              <Button
+                variant={extraPicker === "no_ball" ? "default" : "outline"}
+                className="h-11 active:scale-[0.97] active:bg-muted/60"
+                onClick={() =>
+                  extraPicker === "no_ball"
+                    ? closeExtraPicker()
+                    : openExtraPicker("no_ball")
+                }
+              >
+                No-ball
+              </Button>
+              {state.rules.extras.byes && (
                 <Button
-                  key={n}
-                  variant="outline"
+                  variant={extraPicker === "bye" ? "default" : "outline"}
                   className="h-11 active:scale-[0.97] active:bg-muted/60"
                   onClick={() =>
-                    submit({
-                      runs_off_bat: 0,
-                      extras: 1 + n,
-                      extra_type: "wide",
-                    })
+                    extraPicker === "bye"
+                      ? closeExtraPicker()
+                      : openExtraPicker("bye")
                   }
                 >
-                  {n === 0 ? "Wide" : `Wide +${n}`}
+                  Bye
                 </Button>
-              ))}
+              )}
+              <Button
+                variant={extraPicker === "overthrow" ? "default" : "outline"}
+                className="h-11 active:scale-[0.97] active:bg-muted/60"
+                onClick={() =>
+                  extraPicker === "overthrow"
+                    ? closeExtraPicker()
+                    : openExtraPicker("overthrow")
+                }
+              >
+                Overthrow
+              </Button>
             </div>
 
-            {/* No-balls: penalty 1 + N runs off the bat */}
-            <div className="grid grid-cols-5 gap-2">
-              {[0, 1, 2, 4, 6].map((n) => (
-                <Button
-                  key={n}
-                  variant="outline"
-                  className="h-11 active:scale-[0.97] active:bg-muted/60"
-                  onClick={() =>
-                    submit({
-                      runs_off_bat: n,
-                      extras: 1,
-                      extra_type: "no_ball",
-                    })
-                  }
-                >
-                  {n === 0 ? "No-ball" : `NB +${n}`}
-                </Button>
-              ))}
-            </div>
+            {extraPicker === "wide" && (
+              <div className="space-y-2 rounded-md border border-foreground/10 bg-muted/20 p-2">
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                  {[0, 1, 2, 3, 4, 5, 6].map((n) => (
+                    <Button
+                      key={n}
+                      variant="outline"
+                      className="h-11 active:scale-[0.97] active:bg-muted/60"
+                      onClick={() => {
+                        submit({
+                          runs_off_bat: 0,
+                          extras: 1 + n,
+                          extra_type: "wide",
+                        });
+                        closeExtraPicker();
+                      }}
+                    >
+                      WD +{n}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-            {/* Byes: scorer chooses 1–4 */}
-            {state.rules.extras.byes && (
-              <div className="grid grid-cols-4 gap-2">
-                {[1, 2, 3, 4].map((n) => (
-                  <Button
-                    key={n}
-                    variant="outline"
-                    className="h-11 active:scale-[0.97] active:bg-muted/60"
-                    onClick={() =>
-                      submit({
-                        runs_off_bat: 0,
-                        extras: n,
-                        extra_type: "bye",
-                      })
-                    }
-                  >
-                    Bye {n}
-                  </Button>
-                ))}
+            {extraPicker === "no_ball" && (
+              <div className="space-y-2 rounded-md border border-foreground/10 bg-muted/20 p-2">
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                  {[0, 1, 2, 3, 4, 5, 6].map((n) => (
+                    <Button
+                      key={n}
+                      variant="outline"
+                      className="h-11 active:scale-[0.97] active:bg-muted/60"
+                      onClick={() => {
+                        // With "byes" on, the chosen N goes to extras
+                        // (alongside the 1-run penalty) so the striker
+                        // isn't credited. Otherwise it's off the bat.
+                        submit({
+                          runs_off_bat: noBallByesPick ? 0 : n,
+                          extras: noBallByesPick ? 1 + n : 1,
+                          extra_type: "no_ball",
+                        });
+                        closeExtraPicker();
+                      }}
+                    >
+                      NB +{n}
+                    </Button>
+                  ))}
+                </div>
+                <label className="flex items-center gap-2 pt-1 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={noBallByesPick}
+                    onChange={(e) => setNoBallByesPick(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <span>Runs are byes (not off the bat)</span>
+                </label>
+              </div>
+            )}
+
+            {extraPicker === "bye" && state.rules.extras.byes && (
+              <div className="space-y-2 rounded-md border border-foreground/10 bg-muted/20 p-2">
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                  {[0, 1, 2, 3, 4, 5, 6].map((n) => (
+                    <Button
+                      key={n}
+                      variant="outline"
+                      className="h-11 active:scale-[0.97] active:bg-muted/60"
+                      onClick={() => {
+                        submit({
+                          runs_off_bat: 0,
+                          extras: n,
+                          extra_type: "bye",
+                        });
+                        closeExtraPicker();
+                      }}
+                    >
+                      B {n}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Overthrow: a hit + the fielder's return goes for extras.
+                The runs all credit the batter (off-the-bat), so this is
+                effectively a "runs off bat" picker for the unusual
+                totals that the main 0–6 row doesn't cover (5, 7). */}
+            {extraPicker === "overthrow" && (
+              <div className="space-y-2 rounded-md border border-foreground/10 bg-muted/20 p-2">
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                  {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                    <Button
+                      key={n}
+                      variant="outline"
+                      className="h-11 active:scale-[0.97] active:bg-muted/60"
+                      onClick={() => {
+                        submit({ runs_off_bat: n });
+                        closeExtraPicker();
+                      }}
+                    >
+                      {n}
+                    </Button>
+                  ))}
+                </div>
               </div>
             )}
 
             {/* Wicket — its own row so the inline panel has space */}
             <div className="grid grid-cols-1 gap-2">
               <WicketButton
-                onSubmit={(wt, outId, fielderId, delivery) => {
+                onSubmit={(wt, outId, fielderId, delivery, runs, noBallByes) => {
                   const extra_type =
                     delivery === "no_ball"
                       ? "no_ball"
@@ -765,9 +895,30 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                         : delivery === "bye"
                           ? "bye"
                           : null;
-                  // Wide / no-ball carry a 1-run penalty; bye is just the
-                  // bye runs (default 1 here). Legal ball: no extras.
-                  const extras = extra_type ? 1 : 0;
+                  // Split the chosen runs into runs_off_bat vs extras
+                  // per delivery convention:
+                  //   - Legal: runs go to runs_off_bat (e.g. run-out for 1)
+                  //   - No-ball: 1-run penalty + N off the bat (or +N byes
+                  //     when the "Runs are byes" toggle is on — striker
+                  //     isn't credited)
+                  //   - Wide:    1-run penalty + N additional wide runs
+                  //   - Bye:     N byes (no penalty)
+                  let runs_off_bat = 0;
+                  let extras = 0;
+                  if (delivery === "legal") {
+                    runs_off_bat = runs;
+                  } else if (delivery === "no_ball") {
+                    if (noBallByes) {
+                      extras = 1 + runs;
+                    } else {
+                      runs_off_bat = runs;
+                      extras = 1;
+                    }
+                  } else if (delivery === "wide") {
+                    extras = 1 + runs;
+                  } else if (delivery === "bye") {
+                    extras = runs;
+                  }
                   submit({
                     is_wicket: true,
                     wicket_type: wt,
@@ -775,6 +926,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                     fielder_id: fielderId ?? null,
                     extra_type,
                     extras,
+                    runs_off_bat,
                   });
                 }}
                 allowed={state.rules.allowed_wicket_types as WicketType[]}
@@ -852,6 +1004,17 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
           </CardContent>
         </Card>
       )}
+
+      {visibleServerPrevious.length > 0 && (
+        <Card>
+          <CardContent className="space-y-1 p-3 text-sm">
+            <div className="text-xs uppercase tracking-wide text-muted-foreground">
+              Previous over
+            </div>
+            <BallStrip balls={visibleServerPrevious} />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
@@ -873,6 +1036,7 @@ function SlotPicker({
   statsLine,
   disabledIds,
   dismissedIds,
+  footer,
 }: {
   label: string;
   value: string;
@@ -886,6 +1050,12 @@ function SlotPicker({
   /** Subset of `disabledIds` that's specifically out — gets an "(out)"
    *  label so the scorer knows *why* the option is greyed. */
   dismissedIds?: Set<string>;
+  /** Optional content rendered inside the tile below the stats line.
+   *  Currently used by the bowler tile to surface the this-over
+   *  pill strip. Pointer events bubble to the underlying select, so
+   *  tapping the footer also opens the picker (acceptable trade-off
+   *  for visual integration). */
+  footer?: ReactNode;
 }) {
   const selected = options.find((p) => p.id === value);
   return (
@@ -905,6 +1075,11 @@ function SlotPicker({
       {statsLine && (
         <div className="text-[11px] font-mono text-muted-foreground">
           {statsLine}
+        </div>
+      )}
+      {footer && (
+        <div className="mt-2 border-t border-foreground/10 pt-2">
+          {footer}
         </div>
       )}
       <select
@@ -1045,6 +1220,8 @@ function WicketButton({
     player_out_id: string | undefined,
     fielder_id: string | undefined,
     delivery: WicketDelivery,
+    runs: number,
+    no_ball_byes: boolean,
   ) => void;
   allowed: WicketType[];
   onFreeHit: boolean;
@@ -1060,6 +1237,11 @@ function WicketButton({
   const [whoOut, setWhoOut] = useState<"striker" | "non_striker">("striker");
   const [fielder, setFielder] = useState("");
   const [delivery, setDelivery] = useState<WicketDelivery>("legal");
+  const [runs, setRuns] = useState<number>(0);
+  // Only meaningful when delivery = no_ball. If checked, the chosen
+  // runs are byes (not credited to the striker), in addition to the
+  // standard 1-run no-ball penalty.
+  const [noBallByes, setNoBallByes] = useState<boolean>(false);
 
   const types = onFreeHit ? freeHitDismissals : allowed;
   // Fielder picker is only meaningful for `caught`, `run_out`, and
@@ -1072,7 +1254,22 @@ function WicketButton({
     setOpen(false);
     setFielder("");
     setDelivery("legal");
+    setRuns(0);
+    setNoBallByes(false);
   };
+
+  // Tiny label that clarifies what the Runs number means for each
+  // delivery type — different conventions for each.
+  const runsHint =
+    delivery === "legal"
+      ? "off the bat"
+      : delivery === "no_ball"
+        ? noBallByes
+          ? "byes (not off the bat)"
+          : "off the bat (penalty added)"
+        : delivery === "wide"
+          ? "additional wides (penalty added)"
+          : "byes";
 
   // Lock body scroll + escape-to-close while the modal is open.
   useEffect(() => {
@@ -1165,9 +1362,42 @@ function WicketButton({
                   <option value="legal">Legal ball</option>
                   <option value="no_ball">No-ball (+1 penalty)</option>
                   <option value="wide">Wide (+1 penalty)</option>
-                  <option value="bye">Bye (+1)</option>
+                  <option value="bye">Bye</option>
                 </select>
               </label>
+              <div className="space-y-1 sm:col-span-2">
+                <span className="text-xs text-muted-foreground">
+                  Runs{" "}
+                  <span className="text-muted-foreground/70">({runsHint})</span>
+                </span>
+                <div className="grid grid-cols-5 gap-1">
+                  {[0, 1, 2, 3, 4].map((n) => (
+                    <Button
+                      key={n}
+                      type="button"
+                      size="sm"
+                      variant={runs === n ? "default" : "outline"}
+                      className="h-10"
+                      onClick={() => setRuns(n)}
+                    >
+                      {n}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              {delivery === "no_ball" && (
+                <label className="flex items-center gap-2 sm:col-span-2">
+                  <input
+                    type="checkbox"
+                    checked={noBallByes}
+                    onChange={(e) => setNoBallByes(e.target.checked)}
+                    className="h-4 w-4"
+                  />
+                  <span className="text-sm">
+                    Runs are byes (not off the bat)
+                  </span>
+                </label>
+              )}
             </div>
 
             {showFielder && (
@@ -1206,6 +1436,8 @@ function WicketButton({
                     whoOut === "striker" ? strikerId : nonStrikerId,
                     showFielder && fielder ? fielder : undefined,
                     delivery,
+                    runs,
+                    noBallByes,
                   );
                   close();
                 }}
@@ -1230,57 +1462,58 @@ type RenderBall = {
   is_optimistic?: boolean;
 };
 
-function RecentBalls({
-  current,
-  previous,
-}: {
-  current: RenderBall[];
-  previous: ScoreboardState["previousOverBalls"];
-}) {
-  const renderBall = (b: RenderBall) => {
-    let label = String(b.runs_off_bat + b.extras);
-    if (b.is_wicket) label = "W";
-    // `extras` already includes the wide penalty, so don't add another 1.
-    else if (b.extra_type === "wide") label = `${b.extras}wd`;
-    // For a no-ball, show the total runs off the delivery (batter + 1
-    // penalty), matching scorecard convention.
-    else if (b.extra_type === "no_ball") label = `${b.runs_off_bat + b.extras}nb`;
-    else if (b.extra_type === "bye") label = `${b.extras}b`;
-    const base =
-      "inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-foreground/10 px-1.5 text-xs font-mono ";
-    const colour = b.is_wicket
-      ? "bg-destructive/15 text-destructive"
-      : "bg-muted/40";
-    // Optimistic balls render at reduced opacity until the server
-    // confirms — gives the scorer a visual cue that the tap is in flight
-    // without slowing the headline number down.
-    const pending = b.is_optimistic ? "opacity-60 italic" : "";
-    const ring = b.is_free_hit ? "ring-2 ring-yellow-400" : "";
-    return (
-      <span
-        key={b.id}
-        className={base + colour + " " + pending + " " + ring}
-      >
-        {label}
-      </span>
-    );
-  };
+function renderBallPill(b: RenderBall) {
+  let label = String(b.runs_off_bat + b.extras);
+  if (b.is_wicket) {
+    // Wicket on a non-legal delivery (no-ball / wide / bye) keeps
+    // both markers visible. When there are also runs on the
+    // delivery, include the total so e.g. a no-ball + 2 off bat +
+    // run-out shows as "W 3nb" instead of just "W nb".
+    const total = b.runs_off_bat + b.extras;
+    const suffix =
+      b.extra_type === "no_ball"
+        ? "nb"
+        : b.extra_type === "wide"
+          ? "wd"
+          : b.extra_type === "bye"
+            ? "b"
+            : "";
+    if (suffix) {
+      label = total > 1 ? `W ${total}${suffix}` : `W ${suffix}`;
+    } else {
+      label = b.runs_off_bat > 0 ? `W ${b.runs_off_bat}` : "W";
+    }
+  }
+  // `extras` already includes the wide penalty, so don't add another 1.
+  else if (b.extra_type === "wide") label = `${b.extras}wd`;
+  // For a no-ball, show the total runs off the delivery (batter + 1
+  // penalty), matching scorecard convention.
+  else if (b.extra_type === "no_ball") label = `${b.runs_off_bat + b.extras}nb`;
+  else if (b.extra_type === "bye") label = `${b.extras}b`;
+  const base =
+    "inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-foreground/10 px-1.5 text-xs font-mono ";
+  const colour = b.is_wicket
+    ? "bg-destructive/15 text-destructive"
+    : "bg-muted/40";
+  // Optimistic balls render at reduced opacity until the server
+  // confirms — gives the scorer a visual cue that the tap is in flight
+  // without slowing the headline number down.
+  const pending = b.is_optimistic ? "opacity-60 italic" : "";
+  const ring = b.is_free_hit ? "ring-2 ring-yellow-400" : "";
   return (
-    <Card>
-      <CardContent className="space-y-2 p-3 text-sm">
-        {previous.length > 0 && (
-          <div className="flex items-center gap-2">
-            <span className="w-16 text-xs text-muted-foreground">Prev over</span>
-            <span className="flex flex-wrap gap-1">
-              {previous.map(renderBall)}
-            </span>
-          </div>
-        )}
-        <div className="flex items-center gap-2">
-          <span className="w-16 text-xs text-muted-foreground">This over</span>
-          <span className="flex flex-wrap gap-1">{current.map(renderBall)}</span>
-        </div>
-      </CardContent>
-    </Card>
+    <span
+      key={b.id}
+      className={base + colour + " " + pending + " " + ring}
+    >
+      {label}
+    </span>
   );
 }
+
+function BallStrip({ balls }: { balls: RenderBall[] }) {
+  if (balls.length === 0) return null;
+  return (
+    <span className="flex flex-wrap gap-1">{balls.map(renderBallPill)}</span>
+  );
+}
+
