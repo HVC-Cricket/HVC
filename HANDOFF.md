@@ -153,6 +153,7 @@ $25/month Pro tier removes pausing, lifts Realtime to 500 concurrent, daily back
 - Player career stats across tournaments
 - Tournament series mode + points table
 - ~~**Multi-scorer with conflict prevention**~~ ✅ shipped 2026-05-13 — permission-based takeover (only the current holder can transfer, with a 2-min idle expiry safety net)
+- **Tournament-end awards screen** — top run scorer, top wicket taker, best bowling figures, best batting innings, best partnership, most boundaries, most economical bowler (min 4 overs), most catches, Player of the Tournament (rolled-up POTM points). Visible on `/tournaments/[slug]` when the tournament is `completed`. All pure-derived from existing `balls` + `match_players` data — no schema change. ~3-4 hrs.
 - Audit log of who scored what (already in schema)
 
 ---
