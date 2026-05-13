@@ -12,6 +12,7 @@ import {
 import { getSessionContext, isTournamentOrganizer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
+import { CommentaryFeed } from "./commentary-feed";
 import { FullScorecard } from "./full-scorecard";
 import { LiveScorePanel } from "./live-score-panel";
 import { MatchCharts } from "./match-charts";
@@ -111,6 +112,12 @@ export default async function MatchDetailPage(props: {
           match.status === "innings_break" ||
           match.status === "completed") && (
           <MatchCharts matchId={match.id} />
+        )}
+
+        {(match.status === "live" ||
+          match.status === "innings_break" ||
+          match.status === "completed") && (
+          <CommentaryFeed matchId={match.id} />
         )}
 
         {match.status === "completed" && (
