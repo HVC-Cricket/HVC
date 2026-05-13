@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -12,21 +12,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  countTasksForMatch,
-  deleteTask,
-  enqueueTask,
-  listTasksForMatch,
-  type ScoreTask,
-  type ScoreTaskKind,
-} from "@/lib/offline-queue";
+import { type ScoreTask } from "@/lib/offline-queue";
 import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
 
 import { recordBall, voidLastBall, voidLastN } from "./actions";
 import type { ScoreboardState } from "./state";
+import { type DrainOutcome, useOfflineQueue } from "./use-offline-queue";
 import { type WicketType, WicketButton } from "./wicket-button";
-
-type DrainOutcome = "ok" | "validation" | "network";
 
 type OptimisticBall = {
   /** Stable local id used as the React key in the recent-balls strip. */
@@ -126,108 +118,81 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     state.active.bowler_id ?? state.balls[0]?.bowler_id ?? "",
   );
 
-  // Mobile-data realities + service-worker offline support: every write is
-  // persisted to IndexedDB before the network attempt, so the queue
-  // survives page reloads, tab closes, and offline gaps of any length.
-  // The drain loop runs serially: on success we drop the task; on a network
-  // throw we pause and resume on the `online` event (or the safety tick).
+  // Mobile-data realities + service-worker offline support: every write
+  // is persisted to IndexedDB before the network attempt, so the queue
+  // survives page reloads, tab close, and offline gaps of any length.
+  // `useOfflineQueue` owns the drain loop + online/offline events;
+  // scorecard-specific concerns (optimistic balls, pending undos) live
+  // below and are reconciled through `onTaskComplete`.
   const matchId = state.match.id;
-  const [pendingCount, setPendingCount] = useState(0);
-  const [isOffline, setIsOffline] = useState(false);
-  const drainingRef = useRef(false);
 
   // Optimistic recordBall entries — pushed instantly on tap so the score
-  // updates without waiting for the server. We reconcile in two ways:
-  //   (1) when state.balls.length advances (server confirmed), shift the
-  //       front of the queue by however many balls landed.
-  //   (2) when a task is dropped due to validation rejection, also shift
-  //       the front. Network errors leave optimistic entries in place so
-  //       the score stays consistent until reconnect.
+  // updates without waiting for the server.
   const [optimistic, setOptimistic] = useState<OptimisticBall[]>([]);
 
-  // Pending undo entries — the inverse of optimistic. When the user taps
-  // "Undo" and there's nothing in the optimistic queue, we capture the
-  // most recent SERVER ball and subtract it from the displayed totals
-  // immediately. The server processes voidLast in the background; when
-  // state.balls regresses, the matching entry pops off the front.
+  // Pending undo entries — the inverse of optimistic.
   const [pendingUndos, setPendingUndos] = useState<PendingUndo[]>([]);
   const serverBallsRef = useRef(state.balls.length);
 
-  const runTask = async (task: ScoreTask): Promise<DrainOutcome> => {
-    try {
-      let result;
-      switch (task.kind) {
-        case "recordBall":
-          result = await recordBall(
-            task.payload as Parameters<typeof recordBall>[0],
-          );
-          break;
-        case "voidLastBall":
-          result = await voidLastBall(
-            task.payload as Parameters<typeof voidLastBall>[0],
-          );
-          break;
-        case "voidLastN":
-          result = await voidLastN(
-            task.payload as Parameters<typeof voidLastN>[0],
-          );
-          break;
+  const runTask = useCallback(
+    async (task: ScoreTask): Promise<DrainOutcome> => {
+      try {
+        let result;
+        switch (task.kind) {
+          case "recordBall":
+            result = await recordBall(
+              task.payload as Parameters<typeof recordBall>[0],
+            );
+            break;
+          case "voidLastBall":
+            result = await voidLastBall(
+              task.payload as Parameters<typeof voidLastBall>[0],
+            );
+            break;
+          case "voidLastN":
+            result = await voidLastN(
+              task.payload as Parameters<typeof voidLastN>[0],
+            );
+            break;
+        }
+        if (result && !result.ok) {
+          toast.error(result.error);
+          return "validation";
+        }
+        return "ok";
+      } catch {
+        // Network / fetch failure — keep the task in IDB and let the
+        // drain loop pause until the browser comes back online.
+        return "network";
       }
-      if (result && !result.ok) {
-        toast.error(result.error);
-        return "validation";
-      }
-      return "ok";
-    } catch {
-      // Network / fetch failure — keep the task in IDB and let the drain
-      // loop pause until the browser comes back online.
-      return "network";
-    }
-  };
+    },
+    [],
+  );
 
-  const drain = async () => {
-    if (drainingRef.current) return;
-    drainingRef.current = true;
-    try {
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const tasks = await listTasksForMatch(matchId);
-        if (tasks.length === 0) break;
-        const next = tasks[0];
-        const outcome = await runTask(next);
-        if (outcome === "network") {
-          setIsOffline(true);
-          break;
-        }
-        if (next.id != null) {
-          try {
-            await deleteTask(next.id);
-          } catch {
-            /* ignore — next drain will retry the delete */
-          }
-        }
-        setPendingCount((c) => Math.max(0, c - 1));
-        setIsOffline(false);
-
-        // On validation rejection, drop the matching optimistic entry —
-        // server didn't accept the ball so it shouldn't stay on-screen.
-        // On success, state.balls will advance/regress and the
-        // reconciliation effect below clears it for us instead.
-        if (outcome === "validation") {
-          if (next.kind === "recordBall") {
-            setOptimistic((q) => q.slice(1));
-          } else if (next.kind === "voidLastBall") {
-            setPendingUndos((q) => q.slice(1));
-          } else if (next.kind === "voidLastN") {
-            const c = (next.payload as { count?: number }).count ?? 1;
-            setPendingUndos((q) => q.slice(c));
-          }
-        }
+  // On validation rejection, drop the matching optimistic entry — the
+  // server didn't accept the ball so it shouldn't stay on-screen. On
+  // success, state.balls will advance/regress and the reconciliation
+  // effect below clears it for us instead.
+  const onTaskComplete = useCallback(
+    (task: ScoreTask, outcome: DrainOutcome) => {
+      if (outcome !== "validation") return;
+      if (task.kind === "recordBall") {
+        setOptimistic((q) => q.slice(1));
+      } else if (task.kind === "voidLastBall") {
+        setPendingUndos((q) => q.slice(1));
+      } else if (task.kind === "voidLastN") {
+        const c = (task.payload as { count?: number }).count ?? 1;
+        setPendingUndos((q) => q.slice(c));
       }
-    } finally {
-      drainingRef.current = false;
-    }
-  };
+    },
+    [],
+  );
+
+  const { enqueue, pendingCount, isOffline } = useOfflineQueue({
+    matchId,
+    runTask,
+    onTaskComplete,
+  });
 
   // Reconcile optimistic + pendingUndo queues with server state. When
   // state.balls grows (recordBall confirmed), shift optimistic from the
@@ -295,63 +260,6 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             .map((p) => p.id),
         );
 
-  const enqueue = async (kind: ScoreTaskKind, payload: unknown) => {
-    setPendingCount((c) => c + 1);
-    try {
-      await enqueueTask({ matchId, kind, payload });
-    } catch (err) {
-      console.error("[hvc-scoring] failed to persist queued task", err);
-      // IDB unavailable (private mode etc.) — fall through and run inline.
-      // We've already incremented the count, so make sure runTask still
-      // takes the slot back.
-      const outcome = await runTask({ matchId, kind, payload, createdAt: Date.now() });
-      setPendingCount((c) => Math.max(0, c - 1));
-      if (outcome === "network") {
-        toast.error("Couldn't reach server. Check your connection.");
-      }
-      return;
-    }
-    void drain();
-  };
-
-  // On mount: load any tasks left over from a previous session and start
-  // draining. Hook the online/offline events and a 15s safety tick.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const count = await countTasksForMatch(matchId);
-        if (!cancelled) setPendingCount(count);
-      } catch (err) {
-        console.error("[hvc-scoring] could not read offline queue", err);
-      }
-      void drain();
-    })();
-
-    const onOnline = () => {
-      setIsOffline(false);
-      void drain();
-    };
-    const onOffline = () => setIsOffline(true);
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOffline);
-
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      setIsOffline(true);
-    }
-
-    const tick = setInterval(() => {
-      if (!drainingRef.current) void drain();
-    }, 15_000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(tick);
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matchId]);
 
   const striker = playersById.get(strikerId);
   const nonStriker = playersById.get(nonStrikerId);
