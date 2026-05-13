@@ -150,11 +150,16 @@ export default async function MatchDetailPage(props: {
             )}
             {canManage && (
               <>
-                <Link href={`/matches/${match.id}/score`} prefetch>
-                  <Button size="sm">
-                    {ms === "scheduled" ? "Start scoring" : "Score"}
-                  </Button>
-                </Link>
+                {/* Score button only makes sense for matches still in progress
+                    or scheduled — a completed match shouldn't be scored
+                    further. Admin can still re-open via Edit if needed. */}
+                {ms !== "completed" && ms !== "abandoned" && (
+                  <Link href={`/matches/${match.id}/score`} prefetch>
+                    <Button size="sm">
+                      {ms === "scheduled" ? "Start scoring" : "Score"}
+                    </Button>
+                  </Link>
+                )}
                 <Link href={`/matches/${match.id}/activity`}>
                   <Button variant="ghost" size="sm">
                     Activity

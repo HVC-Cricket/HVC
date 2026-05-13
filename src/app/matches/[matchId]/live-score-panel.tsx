@@ -1,3 +1,5 @@
+import { Trophy } from "lucide-react";
+
 import {
   Card,
   CardContent,
@@ -30,6 +32,8 @@ export async function LiveScorePanel({ matchId }: { matchId: string }) {
 
   const teamShort = (id: string) =>
     id === state.teamA.id ? state.teamA.short_name : state.teamB.short_name;
+  const teamName = (id: string) =>
+    id === state.teamA.id ? state.teamA.name : state.teamB.name;
 
   return (
     <>
@@ -37,21 +41,30 @@ export async function LiveScorePanel({ matchId }: { matchId: string }) {
       {live && <AutoRefresh intervalMs={2500} />}
 
       {completed && (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {state.match.winner_id
-                ? `${teamShort(state.match.winner_id)} ${state.match.win_margin ?? ""}`
-                : state.match.result_type === "tie"
-                  ? "Match tied"
-                  : "Match complete"}
-            </CardTitle>
-            {state.match.win_margin && state.match.winner_id && (
-              <CardDescription className="capitalize">
-                {state.match.win_margin}
-              </CardDescription>
-            )}
-          </CardHeader>
+        <Card className="overflow-hidden border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
+          <CardContent className="flex items-center gap-3 p-4 sm:p-5">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+              <Trophy className="size-5" />
+            </div>
+            <div className="min-w-0">
+              {state.match.winner_id ? (
+                <>
+                  <div className="truncate text-lg font-semibold capitalize sm:text-xl">
+                    {teamName(state.match.winner_id)}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {state.match.win_margin ?? "won the match"}
+                  </div>
+                </>
+              ) : (
+                <div className="text-lg font-semibold">
+                  {state.match.result_type === "tie"
+                    ? "Match tied"
+                    : "Match complete"}
+                </div>
+              )}
+            </div>
+          </CardContent>
         </Card>
       )}
 
@@ -60,6 +73,7 @@ export async function LiveScorePanel({ matchId }: { matchId: string }) {
           state={state}
           balls={state.balls}
           playerById={playerById}
+          completed={completed}
         />
       )}
 
@@ -68,12 +82,17 @@ export async function LiveScorePanel({ matchId }: { matchId: string }) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              {teamShort(i1.batting_team_id)} (1st innings)
+              <span className="capitalize">
+                {teamName(i1.batting_team_id)}
+              </span>
+              <span className="ml-2 text-xs font-normal uppercase tracking-wide text-muted-foreground">
+                1st innings
+              </span>
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="font-mono">
               {i1.total_runs}/{i1.total_wickets} in{" "}
               {Math.floor(i1.total_legal_balls / 6)}.
-              {i1.total_legal_balls % 6}
+              {i1.total_legal_balls % 6} ov
             </CardDescription>
           </CardHeader>
         </Card>
@@ -86,10 +105,12 @@ function InningsCard({
   state,
   balls,
   playerById,
+  completed,
 }: {
   state: ScoreboardState;
   balls: Ball[];
   playerById: Map<string, EnginePlayer>;
+  completed: boolean;
 }) {
   const innings = state.innings!;
 
@@ -151,110 +172,120 @@ function InningsCard({
           </span>
         </CardTitle>
         <CardDescription>
-          {teamShort(innings.batting_team_id)} batting
-          {target != null && (
+          <span className="capitalize">
+            {teamShort(innings.batting_team_id)}
+          </span>{" "}
+          {completed ? "innings" : "batting"}
+          {completed && target != null && (
             <>
               {" · "}
-              <span className="text-foreground">
-                target {target}
-              </span>
-              {runsNeeded != null && runsNeeded > 0 && (
-                <>
-                  {" · need "}
-                  <strong>{runsNeeded}</strong>
-                  {ballsRemaining > 0 && (
-                    <>
-                      {" off "}
-                      <strong>{ballsRemaining}</strong>
-                      {" balls "}
-                      <span className="text-xs">(req RR {reqRR})</span>
-                    </>
-                  )}
-                </>
-              )}
+              <span className="text-foreground">chased {target}</span>
             </>
           )}
-          {state.active.free_hit_pending && (
+          {!completed && state.active.free_hit_pending && (
             <span className="ml-2 rounded bg-yellow-500/15 px-1.5 py-0.5 text-xs text-yellow-700">
               Free hit
             </span>
           )}
-          {state.active.is_special_over && (
+          {!completed && state.active.is_special_over && (
             <span className="ml-2 rounded bg-blue-500/15 px-1.5 py-0.5 text-xs text-blue-700">
               {state.active.is_special_over.toUpperCase()} over
             </span>
           )}
         </CardDescription>
+        {/* Prominent chase strip — only when innings 2 is in progress
+            with runs left to chase. Sits inside the card header so it's
+            unmissable. */}
+        {!completed &&
+          target != null &&
+          runsNeeded != null &&
+          runsNeeded > 0 &&
+          ballsRemaining > 0 && (
+            <div className="mt-3 grid grid-cols-3 gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-900 dark:text-amber-200">
+              <ChaseStat label="Need" value={runsNeeded} />
+              <ChaseStat label="Balls left" value={ballsRemaining} />
+              <ChaseStat label="Req RR" value={reqRR ?? "—"} />
+            </div>
+          )}
       </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Partnership + recent RR strip */}
-        {(partnership.runs > 0 || partnership.balls > 0 || recentRR) && (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-            {(partnership.runs > 0 || partnership.balls > 0) && (
-              <span className="text-muted-foreground">
-                <span className="font-medium uppercase">Partnership:</span>{" "}
-                <span className="font-mono text-foreground">
-                  {partnership.runs}
+      {/* Live-only sections — striker/bowler/balls are meaningless once
+          the match is over. Completed matches use the scorecard tab
+          below for full per-player breakdown. */}
+      {!completed && (
+        <CardContent className="space-y-4">
+          {/* Partnership + recent RR strip */}
+          {(partnership.runs > 0 || partnership.balls > 0 || recentRR) && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+              {(partnership.runs > 0 || partnership.balls > 0) && (
+                <span className="text-muted-foreground">
+                  <span className="font-medium uppercase">Partnership:</span>{" "}
+                  <span className="font-mono text-foreground">
+                    {partnership.runs}
+                  </span>
+                  {" ("}
+                  <span className="font-mono text-foreground">
+                    {partnership.balls}
+                  </span>
+                  {")"}
                 </span>
-                {" ("}
-                <span className="font-mono text-foreground">
-                  {partnership.balls}
+              )}
+              {recentRR && (
+                <span className="text-muted-foreground">
+                  <span className="font-medium uppercase">
+                    Last {recentRR.overs} ov:
+                  </span>{" "}
+                  <span className="font-mono text-foreground">
+                    {recentRR.runs}
+                  </span>
+                  {" runs · RR "}
+                  <span className="font-mono text-foreground">
+                    {recentRR.rr}
+                  </span>
                 </span>
-                {")"}
-              </span>
-            )}
-            {recentRR && (
-              <span className="text-muted-foreground">
-                <span className="font-medium uppercase">
-                  Last {recentRR.overs} ov:
-                </span>{" "}
-                <span className="font-mono text-foreground">
-                  {recentRR.runs}
-                </span>
-                {" runs · RR "}
-                <span className="font-mono text-foreground">{recentRR.rr}</span>
-              </span>
-            )}
+              )}
+            </div>
+          )}
+
+          {/* Batsmen */}
+          <div className="grid gap-2 sm:grid-cols-2">
+            <BatsmanRow
+              label="Striker"
+              name={strikerId ? playerById.get(strikerId)?.display_name : null}
+              cat={
+                strikerId ? playerById.get(strikerId)?.category ?? null : null
+              }
+              stats={sIdStats}
+            />
+            <BatsmanRow
+              label="Non-striker"
+              name={
+                nonStrikerId
+                  ? playerById.get(nonStrikerId)?.display_name
+                  : null
+              }
+              cat={
+                nonStrikerId
+                  ? playerById.get(nonStrikerId)?.category ?? null
+                  : null
+              }
+              stats={nsIdStats}
+            />
           </div>
-        )}
 
-        {/* Batsmen */}
-        <div className="grid gap-2 sm:grid-cols-2">
-          <BatsmanRow
-            label="Striker"
-            name={strikerId ? playerById.get(strikerId)?.display_name : null}
-            cat={
-              strikerId ? playerById.get(strikerId)?.category ?? null : null
-            }
-            stats={sIdStats}
+          {/* Bowler */}
+          <BowlerRow
+            name={bowlerId ? playerById.get(bowlerId)?.display_name : null}
+            cat={bowlerId ? playerById.get(bowlerId)?.category ?? null : null}
+            stats={bIdStats}
           />
-          <BatsmanRow
-            label="Non-striker"
-            name={
-              nonStrikerId ? playerById.get(nonStrikerId)?.display_name : null
-            }
-            cat={
-              nonStrikerId
-                ? playerById.get(nonStrikerId)?.category ?? null
-                : null
-            }
-            stats={nsIdStats}
+
+          {/* Recent balls */}
+          <RecentBalls
+            current={state.currentOverBalls}
+            previous={state.previousOverBalls}
           />
-        </div>
-
-        {/* Bowler */}
-        <BowlerRow
-          name={bowlerId ? playerById.get(bowlerId)?.display_name : null}
-          cat={bowlerId ? playerById.get(bowlerId)?.category ?? null : null}
-          stats={bIdStats}
-        />
-
-        {/* Recent balls */}
-        <RecentBalls
-          current={state.currentOverBalls}
-          previous={state.previousOverBalls}
-        />
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   );
 }
@@ -274,7 +305,7 @@ function BatsmanRow({
     <div className="rounded-md border border-foreground/10 bg-muted/30 px-3 py-2">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="flex items-center gap-2">
-        <span className="font-medium">{name ?? "—"}</span>
+        <span className="font-medium capitalize">{name ?? "—"}</span>
         {cat && (
           <span className="rounded bg-foreground/10 px-1 text-[10px] font-mono">
             C{cat}
@@ -321,7 +352,7 @@ function BowlerRow({
     <div className="rounded-md border border-foreground/10 bg-muted/30 px-3 py-2">
       <div className="text-xs text-muted-foreground">Bowler</div>
       <div className="flex items-center gap-2">
-        <span className="font-medium">{name ?? "—"}</span>
+        <span className="font-medium capitalize">{name ?? "—"}</span>
         {cat && (
           <span className="rounded bg-foreground/10 px-1 text-[10px] font-mono">
             C{cat}
@@ -348,6 +379,19 @@ function Stat({ k, v }: { k: string; v: string | number }) {
       <span className="text-[9px] uppercase">{k}</span>
       <span className="text-[12px] font-mono text-foreground">{v}</span>
     </span>
+  );
+}
+
+function ChaseStat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="text-center">
+      <div className="text-[10px] uppercase tracking-wide opacity-80">
+        {label}
+      </div>
+      <div className="font-mono text-lg font-semibold tabular-nums">
+        {value}
+      </div>
+    </div>
   );
 }
 
