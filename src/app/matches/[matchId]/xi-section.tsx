@@ -75,41 +75,35 @@ async function TeamXICard({
 
   const playing = (xi ?? []).filter((m) => !m.is_substitute);
 
+  const isEmpty = (xi?.length ?? 0) === 0;
+  const isComplete = playing.length === playersPerSide;
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">{team.name}</CardTitle>
+        <div className="flex items-baseline justify-between gap-2">
+          <CardTitle className="text-base capitalize">{team.name}</CardTitle>
+          <span
+            className={
+              "font-mono text-xs tabular-nums " +
+              (isComplete
+                ? "text-emerald-700 dark:text-emerald-300"
+                : "text-muted-foreground")
+            }
+          >
+            {playing.length} / {playersPerSide}
+          </span>
+        </div>
         <CardDescription>
-          {playing.length} of {playersPerSide} picked
-          {canManage && " · "}
-          {canManage && (
-            <Link
-              href={`/matches/${matchId}/xi/${team.id}`}
-              className="underline underline-offset-4"
-            >
-              Pick XI
-            </Link>
-          )}
+          {isEmpty
+            ? "No XI selected yet."
+            : isComplete
+              ? "Playing XI is set."
+              : `${playersPerSide - playing.length} more to pick.`}
         </CardDescription>
       </CardHeader>
       <CardContent className="p-0">
-        {(xi?.length ?? 0) === 0 ? (
-          <p className="px-6 pb-6 text-sm text-muted-foreground">
-            No XI selected yet.
-            {canManage && (
-              <>
-                {" "}
-                <Link
-                  href={`/matches/${matchId}/xi/${team.id}`}
-                  className="underline underline-offset-4"
-                >
-                  Pick now
-                </Link>
-                .
-              </>
-            )}
-          </p>
-        ) : (
+        {!isEmpty && (
           <ul className="divide-y divide-foreground/10">
             {(xi ?? []).map((m) => {
               const p = byId.get(m.player_id);
@@ -119,10 +113,10 @@ async function TeamXICard({
                   className="flex items-center justify-between gap-3 px-6 py-2 text-sm"
                 >
                   <span className="flex items-center gap-3">
-                    <span className="inline-flex w-6 justify-end font-mono text-muted-foreground">
+                    <span className="inline-flex w-6 justify-end font-mono text-muted-foreground tabular-nums">
                       {m.batting_order ?? "—"}
                     </span>
-                    <span className="font-medium">
+                    <span className="font-medium capitalize">
                       {p?.display_name ?? "(unknown)"}
                     </span>
                     {m.is_captain && (
@@ -136,7 +130,9 @@ async function TeamXICard({
                       </span>
                     )}
                     {m.is_substitute && (
-                      <span className="text-xs text-muted-foreground">sub</span>
+                      <span className="text-xs text-muted-foreground">
+                        sub
+                      </span>
                     )}
                   </span>
                 </li>
@@ -144,11 +140,16 @@ async function TeamXICard({
             })}
           </ul>
         )}
-        {canManage && (xi?.length ?? 0) > 0 && (
-          <div className="border-t border-foreground/10 px-6 py-3 text-right">
+        {canManage && (
+          <div
+            className={
+              (isEmpty ? "" : "border-t border-foreground/10 ") +
+              "px-6 py-3 text-right"
+            }
+          >
             <Link href={`/matches/${matchId}/xi/${team.id}`}>
-              <Button variant="ghost" size="sm">
-                Edit XI
+              <Button variant={isEmpty ? "default" : "ghost"} size="sm">
+                {isEmpty ? "Pick XI" : "Edit XI"}
               </Button>
             </Link>
           </div>

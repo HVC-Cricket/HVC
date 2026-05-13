@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { signOut } from "@/app/(auth)/actions";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 
@@ -15,19 +16,19 @@ export async function SiteNav() {
 
   return (
     <header className="border-b border-foreground/10">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
-        <div className="flex min-w-0 items-center gap-3 sm:gap-6">
+      <div className="mx-auto max-w-5xl px-4 py-2.5 sm:py-3">
+        {/* Row 1: brand on left, user controls on right.
+            On phones the nav links wrap to a second row below. */}
+        <div className="flex items-center justify-between gap-3">
           <Link
             href="/"
-            className="whitespace-nowrap font-semibold"
+            className="whitespace-nowrap text-base font-semibold sm:text-lg"
             title="HVC Tournament Scoring"
           >
-            {/* Long-form brand on tablet+, abbreviated on phones so the
-                nav links and user controls fit on one row at 375px. */}
             <span className="sm:hidden">HVC Scoring</span>
             <span className="hidden sm:inline">HVC Tournament Scoring</span>
           </Link>
-          <nav className="flex items-center gap-3 text-sm text-muted-foreground sm:gap-4">
+          <nav className="hidden flex-1 items-center gap-4 px-6 text-sm text-muted-foreground sm:flex">
             <Link href="/tournaments" className="hover:text-foreground">
               Tournaments
             </Link>
@@ -35,35 +36,46 @@ export async function SiteNav() {
               Players
             </Link>
           </nav>
-        </div>
-        <nav className="flex items-center gap-2 text-sm sm:gap-3">
-          {user ? (
-            <>
-              <Link
-                href="/me"
-                className="text-muted-foreground hover:text-foreground"
-                title={displayName}
-                aria-label={displayName}
-              >
-                {/* Avatar circle on phones (saves ~100px), full name on
-                    tablet+. Both link to /me. */}
-                <span className="flex size-7 items-center justify-center rounded-full bg-foreground/10 text-xs font-medium text-foreground sm:hidden">
-                  {initial}
-                </span>
-                <span className="hidden sm:inline">{displayName}</span>
+          <nav className="flex items-center gap-1 text-sm sm:gap-2">
+            <ThemeToggle />
+            {user ? (
+              <>
+                <Link
+                  href="/me"
+                  className="text-muted-foreground hover:text-foreground"
+                  title={displayName}
+                  aria-label={displayName}
+                >
+                  <span className="flex size-7 items-center justify-center rounded-full bg-primary/15 text-xs font-medium text-primary sm:hidden">
+                    {initial}
+                  </span>
+                  <span className="hidden sm:inline">{displayName}</span>
+                </Link>
+                <form action={signOut}>
+                  <Button type="submit" variant="ghost" size="sm">
+                    Sign out
+                  </Button>
+                </form>
+              </>
+            ) : (
+              <Link href="/login">
+                <Button size="sm">Sign in</Button>
               </Link>
-              <form action={signOut}>
-                <Button type="submit" variant="ghost" size="sm">
-                  Sign out
-                </Button>
-              </form>
-            </>
-          ) : (
-            <Link href="/login">
-              <Button size="sm">Sign in</Button>
+            )}
+          </nav>
+        </div>
+        {/* Row 2: nav links on phones only. Hidden when signed out so
+            the bar collapses to a single tidy row on the login screen. */}
+        {user && (
+          <nav className="mt-2 flex items-center gap-5 text-sm text-muted-foreground sm:hidden">
+            <Link href="/tournaments" className="hover:text-foreground">
+              Tournaments
             </Link>
-          )}
-        </nav>
+            <Link href="/players" className="hover:text-foreground">
+              Players
+            </Link>
+          </nav>
+        )}
       </div>
     </header>
   );

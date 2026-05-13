@@ -88,7 +88,7 @@ export default async function MatchDetailPage(props: {
       .single(),
     supabase
       .from("teams")
-      .select("id, name, short_name")
+      .select("id, name, short_name, logo_url")
       .in("id", [match.team_a_id, match.team_b_id]),
   ]);
   const tournament = tournamentRes.data;
@@ -207,13 +207,13 @@ export default async function MatchDetailPage(props: {
                   <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
                     <Row
                       label="Scheduled"
-                      value={
-                        match.scheduled_at
-                          ? new Date(match.scheduled_at).toLocaleString()
-                          : "TBD"
-                      }
+                      value={formatScheduledAt(match.scheduled_at)}
                     />
-                    <Row label="Venue" value={match.venue ?? "—"} />
+                    <Row
+                      label="Venue"
+                      value={match.venue ?? "—"}
+                      valueClassName="capitalize"
+                    />
                     <Row
                       label="Overs / innings"
                       value={String(match.overs_per_innings)}
@@ -228,10 +228,21 @@ export default async function MatchDetailPage(props: {
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base">Toss</CardTitle>
-                    <CardDescription className="capitalize">
-                      {match.toss_winner_id && match.toss_decision
-                        ? `${tossWinnerName(match.toss_winner_id, teamA, teamB)} won the toss and chose to ${match.toss_decision}.`
-                        : "Not yet decided."}
+                    <CardDescription>
+                      {match.toss_winner_id && match.toss_decision ? (
+                        <>
+                          <span className="capitalize">
+                            {tossWinnerName(
+                              match.toss_winner_id,
+                              teamA,
+                              teamB,
+                            )}
+                          </span>{" "}
+                          won the toss and chose to {match.toss_decision}.
+                        </>
+                      ) : (
+                        "Not yet decided."
+                      )}
                     </CardDescription>
                   </CardHeader>
                   {canManage && teamA && teamB && (
@@ -270,9 +281,18 @@ export default async function MatchDetailPage(props: {
           />
         )}
 
-        {/* For scheduled / abandoned matches, no tabs — just show info inline. */}
+        {/* For scheduled / abandoned matches, no tabs — show preview + info inline. */}
         {ms !== "live" && ms !== "innings_break" && ms !== "completed" && (
           <div className="space-y-4">
+            {teamA && teamB && (
+              <FixturePreview
+                teamA={teamA}
+                teamB={teamB}
+                scheduledAt={match.scheduled_at}
+                venue={match.venue}
+              />
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Details</CardTitle>
@@ -280,13 +300,13 @@ export default async function MatchDetailPage(props: {
               <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
                 <Row
                   label="Scheduled"
-                  value={
-                    match.scheduled_at
-                      ? new Date(match.scheduled_at).toLocaleString()
-                      : "TBD"
-                  }
+                  value={formatScheduledAt(match.scheduled_at)}
                 />
-                <Row label="Venue" value={match.venue ?? "—"} />
+                <Row
+                  label="Venue"
+                  value={match.venue ?? "—"}
+                  valueClassName="capitalize"
+                />
                 <Row
                   label="Overs / innings"
                   value={String(match.overs_per_innings)}
@@ -301,10 +321,17 @@ export default async function MatchDetailPage(props: {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">Toss</CardTitle>
-                <CardDescription className="capitalize">
-                  {match.toss_winner_id && match.toss_decision
-                    ? `${tossWinnerName(match.toss_winner_id, teamA, teamB)} won the toss and chose to ${match.toss_decision}.`
-                    : "Not yet decided."}
+                <CardDescription>
+                  {match.toss_winner_id && match.toss_decision ? (
+                    <>
+                      <span className="capitalize">
+                        {tossWinnerName(match.toss_winner_id, teamA, teamB)}
+                      </span>{" "}
+                      won the toss and chose to {match.toss_decision}.
+                    </>
+                  ) : (
+                    "Not yet decided."
+                  )}
                 </CardDescription>
               </CardHeader>
               {canManage && teamA && teamB && (
@@ -345,11 +372,19 @@ export default async function MatchDetailPage(props: {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({
+  label,
+  value,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+}) {
   return (
     <div className="flex justify-between gap-3">
       <span className="text-muted-foreground">{label}</span>
-      <span className="text-right">{value}</span>
+      <span className={"text-right " + (valueClassName ?? "")}>{value}</span>
     </div>
   );
 }
@@ -362,4 +397,100 @@ function tossWinnerName(
   if (a && winnerId === a.id) return a.name;
   if (b && winnerId === b.id) return b.name;
   return "(unknown)";
+}
+
+function formatScheduledAt(iso: string | null): string {
+  if (!iso) return "TBD";
+  const d = new Date(iso);
+  const date = d.toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  const time = d.toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  return `${date} · ${time}`;
+}
+
+function FixturePreview({
+  teamA,
+  teamB,
+  scheduledAt,
+  venue,
+}: {
+  teamA: { name: string; short_name: string; logo_url: string | null };
+  teamB: { name: string; short_name: string; logo_url: string | null };
+  scheduledAt: string | null;
+  venue: string | null;
+}) {
+  return (
+    <Card className="overflow-hidden">
+      <CardContent className="p-5">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <TeamPreview team={teamA} align="end" />
+          <span className="font-mono text-sm font-medium uppercase tracking-wide text-muted-foreground">
+            vs
+          </span>
+          <TeamPreview team={teamB} align="start" />
+        </div>
+        {(scheduledAt || venue) && (
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t border-foreground/5 pt-3 text-xs text-muted-foreground">
+            {scheduledAt && <span>{formatScheduledAt(scheduledAt)}</span>}
+            {scheduledAt && venue && (
+              <span className="text-foreground/20">·</span>
+            )}
+            {venue && <span className="capitalize">{venue}</span>}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TeamPreview({
+  team,
+  align,
+}: {
+  team: { name: string; short_name: string; logo_url: string | null };
+  align: "start" | "end";
+}) {
+  return (
+    <div
+      className={
+        "flex flex-col items-center gap-2 " +
+        (align === "end" ? "sm:items-end" : "sm:items-start")
+      }
+    >
+      {team.logo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={team.logo_url}
+          alt=""
+          className="size-14 rounded-full border border-foreground/10 object-cover sm:size-16"
+        />
+      ) : (
+        <div className="flex size-14 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground sm:size-16">
+          {team.short_name.slice(0, 2).toUpperCase()}
+        </div>
+      )}
+      <div
+        className={
+          "min-w-0 " +
+          (align === "end"
+            ? "text-center sm:text-right"
+            : "text-center sm:text-left")
+        }
+      >
+        <div className="truncate text-sm font-semibold capitalize">
+          {team.name}
+        </div>
+        <div className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+          {team.short_name}
+        </div>
+      </div>
+    </div>
+  );
 }

@@ -1,3 +1,4 @@
+import { CalendarDays, Trophy } from "lucide-react";
 import Link from "next/link";
 
 import { AutoRefresh } from "@/app/matches/[matchId]/auto-refresh";
@@ -42,89 +43,167 @@ type LiveMatchView = {
   innings2: InningsScore | null;
 };
 
+type UpcomingMatchView = {
+  id: string;
+  tournament: { slug: string; name: string };
+  matchNumber: number;
+  scheduledAt: string;
+  teamA: TeamView;
+  teamB: TeamView;
+};
+
+type RecentMatchView = {
+  id: string;
+  tournament: { slug: string; name: string };
+  matchNumber: number;
+  teamA: TeamView;
+  teamB: TeamView;
+  innings1: InningsScore | null;
+  innings2: InningsScore | null;
+};
+
 export default async function Home() {
   const supabase = await createClient();
 
-  const { data: liveRows } = await supabase
-    .from("matches")
-    .select(
-      "id, tournament_id, team_a_id, team_b_id, status, current_innings_id, started_at, match_number, overs_per_innings",
-    )
-    .in("status", ["live", "innings_break"])
-    .order("started_at", { ascending: false });
-  const matches = liveRows ?? [];
+  const now = new Date();
+  const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-  let liveMatches: LiveMatchView[] = [];
-  if (matches.length > 0) {
-    const tournamentIds = [...new Set(matches.map((m) => m.tournament_id))];
-    const teamIds = [
-      ...new Set(matches.flatMap((m) => [m.team_a_id, m.team_b_id])),
-    ];
-    const matchIds = matches.map((m) => m.id);
-
-    const [tournaments, teams, innings] = await Promise.all([
-      supabase
-        .from("tournaments")
-        .select("id, slug, name")
-        .in("id", tournamentIds),
-      supabase
-        .from("teams")
-        .select("id, name, short_name, logo_url")
-        .in("id", teamIds),
-      supabase
-        .from("innings")
-        .select(
-          "id, match_id, innings_number, batting_team_id, total_runs, total_wickets, total_legal_balls, target",
-        )
-        .in("match_id", matchIds),
-    ]);
-
-    const tournamentById = new Map(
-      (tournaments.data ?? []).map((t) => [t.id, t]),
-    );
-    const teamById = new Map(
-      (teams.data ?? []).map((t) => [t.id, t as TeamView]),
-    );
-    const inningsByMatch = new Map<string, InningsScore[]>();
-    for (const inn of innings.data ?? []) {
-      const list = inningsByMatch.get(inn.match_id) ?? [];
-      list.push({
-        innings_number: inn.innings_number,
-        batting_team_id: inn.batting_team_id,
-        runs: inn.total_runs,
-        wickets: inn.total_wickets,
-        overs: `${Math.floor(inn.total_legal_balls / 6)}.${inn.total_legal_balls % 6}`,
-        target: inn.target,
-        legal_balls: inn.total_legal_balls,
-      });
-      inningsByMatch.set(inn.match_id, list);
-    }
-
-    liveMatches = matches
-      .filter(
-        (m) =>
-          tournamentById.has(m.tournament_id) &&
-          teamById.has(m.team_a_id) &&
-          teamById.has(m.team_b_id),
+  // Three independent match queries in parallel.
+  const [liveRes, upcomingRes, recentRes] = await Promise.all([
+    supabase
+      .from("matches")
+      .select(
+        "id, tournament_id, team_a_id, team_b_id, status, current_innings_id, started_at, match_number, overs_per_innings",
       )
-      .map((m) => {
-        const t = tournamentById.get(m.tournament_id)!;
-        const a = teamById.get(m.team_a_id)!;
-        const b = teamById.get(m.team_b_id)!;
-        const mInns = inningsByMatch.get(m.id) ?? [];
-        return {
-          id: m.id,
-          status: m.status as "live" | "innings_break",
-          tournament: { slug: t.slug, name: t.name },
-          matchNumber: m.match_number,
-          oversPerInnings: m.overs_per_innings,
-          teamA: a,
-          teamB: b,
-          innings1: mInns.find((i) => i.innings_number === 1) ?? null,
-          innings2: mInns.find((i) => i.innings_number === 2) ?? null,
-        };
-      });
+      .in("status", ["live", "innings_break"])
+      .order("started_at", { ascending: false }),
+    supabase
+      .from("matches")
+      .select(
+        "id, tournament_id, team_a_id, team_b_id, scheduled_at, match_number",
+      )
+      .eq("status", "scheduled")
+      .gte("scheduled_at", now.toISOString())
+      .lte("scheduled_at", next24h.toISOString())
+      .order("scheduled_at", { ascending: true })
+      .limit(5),
+    supabase
+      .from("matches")
+      .select(
+        "id, tournament_id, team_a_id, team_b_id, status, started_at, match_number",
+      )
+      .eq("status", "completed")
+      .order("started_at", { ascending: false })
+      .limit(5),
+  ]);
+
+  const liveRows = liveRes.data ?? [];
+  const upcomingRows = upcomingRes.data ?? [];
+  const recentRows = recentRes.data ?? [];
+
+  const allRows = [...liveRows, ...upcomingRows, ...recentRows];
+  const tournamentIds = [...new Set(allRows.map((m) => m.tournament_id))];
+  const teamIds = [
+    ...new Set(allRows.flatMap((m) => [m.team_a_id, m.team_b_id])),
+  ];
+  const inningsMatchIds = [
+    ...new Set([...liveRows, ...recentRows].map((m) => m.id)),
+  ];
+
+  // Fetch shared deps in parallel — tournaments + teams + innings.
+  const [tournamentsRes, teamsRes, inningsRes] =
+    allRows.length > 0
+      ? await Promise.all([
+          supabase
+            .from("tournaments")
+            .select("id, slug, name")
+            .in("id", tournamentIds),
+          supabase
+            .from("teams")
+            .select("id, name, short_name, logo_url")
+            .in("id", teamIds),
+          inningsMatchIds.length > 0
+            ? supabase
+                .from("innings")
+                .select(
+                  "id, match_id, innings_number, batting_team_id, total_runs, total_wickets, total_legal_balls, target",
+                )
+                .in("match_id", inningsMatchIds)
+            : Promise.resolve({ data: [] }),
+        ])
+      : [{ data: [] }, { data: [] }, { data: [] }];
+
+  const tournamentById = new Map(
+    (tournamentsRes.data ?? []).map((t) => [t.id, t]),
+  );
+  const teamById = new Map(
+    (teamsRes.data ?? []).map((t) => [t.id, t as TeamView]),
+  );
+  const inningsByMatch = new Map<string, InningsScore[]>();
+  for (const inn of inningsRes.data ?? []) {
+    const list = inningsByMatch.get(inn.match_id) ?? [];
+    list.push({
+      innings_number: inn.innings_number,
+      batting_team_id: inn.batting_team_id,
+      runs: inn.total_runs,
+      wickets: inn.total_wickets,
+      overs: `${Math.floor(inn.total_legal_balls / 6)}.${inn.total_legal_balls % 6}`,
+      target: inn.target,
+      legal_balls: inn.total_legal_balls,
+    });
+    inningsByMatch.set(inn.match_id, list);
   }
+
+  const hasDeps = (m: { tournament_id: string; team_a_id: string; team_b_id: string }) =>
+    tournamentById.has(m.tournament_id) &&
+    teamById.has(m.team_a_id) &&
+    teamById.has(m.team_b_id);
+
+  const liveMatches: LiveMatchView[] = liveRows.filter(hasDeps).map((m) => {
+    const t = tournamentById.get(m.tournament_id)!;
+    const mInns = inningsByMatch.get(m.id) ?? [];
+    return {
+      id: m.id,
+      status: m.status as "live" | "innings_break",
+      tournament: { slug: t.slug, name: t.name },
+      matchNumber: m.match_number,
+      oversPerInnings: m.overs_per_innings,
+      teamA: teamById.get(m.team_a_id)!,
+      teamB: teamById.get(m.team_b_id)!,
+      innings1: mInns.find((i) => i.innings_number === 1) ?? null,
+      innings2: mInns.find((i) => i.innings_number === 2) ?? null,
+    };
+  });
+
+  const upcomingMatches: UpcomingMatchView[] = upcomingRows
+    .filter(hasDeps)
+    .map((m) => {
+      const t = tournamentById.get(m.tournament_id)!;
+      return {
+        id: m.id,
+        tournament: { slug: t.slug, name: t.name },
+        matchNumber: m.match_number,
+        scheduledAt: m.scheduled_at!,
+        teamA: teamById.get(m.team_a_id)!,
+        teamB: teamById.get(m.team_b_id)!,
+      };
+    });
+
+  const recentMatches: RecentMatchView[] = recentRows
+    .filter(hasDeps)
+    .map((m) => {
+      const t = tournamentById.get(m.tournament_id)!;
+      const mInns = inningsByMatch.get(m.id) ?? [];
+      return {
+        id: m.id,
+        tournament: { slug: t.slug, name: t.name },
+        matchNumber: m.match_number,
+        teamA: teamById.get(m.team_a_id)!,
+        teamB: teamById.get(m.team_b_id)!,
+        innings1: mInns.find((i) => i.innings_number === 1) ?? null,
+        innings2: mInns.find((i) => i.innings_number === 2) ?? null,
+      };
+    });
 
   return (
     <main className="flex-1 p-4 sm:p-6">
@@ -132,11 +211,11 @@ export default async function Home() {
         {liveMatches.length > 0 && <AutoRefresh intervalMs={5000} />}
 
         {/* Hero */}
-        <header className="space-y-2 pt-2">
+        <header className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 sm:p-7">
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             HVC Tournament Scoring
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             Box-cricket — live ball-by-ball scoring &amp; spectator view.
           </p>
         </header>
@@ -184,6 +263,45 @@ export default async function Home() {
             </CardContent>
           </Card>
         )}
+
+        {upcomingMatches.length > 0 && (
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="size-4 text-primary" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">
+                Up next
+              </h2>
+              <span className="text-xs text-muted-foreground">
+                · within 24 hours
+              </span>
+            </div>
+            <div className="space-y-2">
+              {upcomingMatches.map((m) => (
+                <UpcomingMatchRow key={m.id} match={m} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {recentMatches.length > 0 && (
+          <section className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Trophy className="size-4 text-primary" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-foreground">
+                Recent results
+              </h2>
+            </div>
+            <div className="space-y-2">
+              {recentMatches.map((m) => (
+                <RecentMatchRow key={m.id} match={m} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        <footer className="border-t border-foreground/10 pt-6 text-center text-xs text-muted-foreground">
+          <p>HVC Tournament Scoring · Box-cricket scoring app</p>
+        </footer>
       </div>
     </main>
   );
@@ -268,8 +386,8 @@ function LiveMatchCard({ match }: { match: LiveMatchView }) {
         </div>
       )}
 
-      {/* CTA */}
-      <div className="border-t border-foreground/5 bg-muted/40 px-3 py-2 text-center text-xs font-medium text-foreground/80 transition group-hover:bg-destructive/10 group-hover:text-destructive">
+      {/* CTA — bold red so it pulls the eye */}
+      <div className="bg-destructive px-3 py-2.5 text-center text-sm font-semibold text-white transition group-hover:bg-destructive/90">
         Watch live →
       </div>
     </Link>
@@ -303,8 +421,8 @@ function TeamLine({
             className="size-8 shrink-0 rounded-full object-cover"
           />
         ) : (
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
-            {team.short_name.slice(0, 2)}
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
+            {team.short_name.slice(0, 2).toUpperCase()}
           </div>
         )}
         <div className="min-w-0">
@@ -336,4 +454,139 @@ function TeamLine({
       </div>
     </div>
   );
+}
+
+function UpcomingMatchRow({ match }: { match: UpcomingMatchView }) {
+  return (
+    <Link
+      href={`/matches/${match.id}`}
+      className="group flex items-center gap-3 rounded-lg border border-foreground/10 bg-background px-3 py-2.5 transition hover:border-primary/30 hover:bg-primary/5"
+    >
+      <TeamBadge team={match.teamA} />
+      <span className="text-xs font-medium text-muted-foreground">vs</span>
+      <TeamBadge team={match.teamB} />
+      <div className="ml-auto text-right text-[11px] text-muted-foreground">
+        <div className="font-medium text-foreground">
+          {formatUpcomingTime(match.scheduledAt)}
+        </div>
+        <div className="capitalize">{match.tournament.name}</div>
+      </div>
+    </Link>
+  );
+}
+
+function RecentMatchRow({ match }: { match: RecentMatchView }) {
+  const aScore = match.innings1?.batting_team_id === match.teamA.id
+    ? match.innings1
+    : match.innings2?.batting_team_id === match.teamA.id
+      ? match.innings2
+      : null;
+  const bScore = match.innings1?.batting_team_id === match.teamB.id
+    ? match.innings1
+    : match.innings2?.batting_team_id === match.teamB.id
+      ? match.innings2
+      : null;
+  const aRuns = aScore?.runs ?? 0;
+  const bRuns = bScore?.runs ?? 0;
+  const winnerId =
+    aRuns > bRuns ? match.teamA.id : bRuns > aRuns ? match.teamB.id : null;
+
+  return (
+    <Link
+      href={`/matches/${match.id}`}
+      className="group flex items-center gap-3 rounded-lg border border-foreground/10 bg-background px-3 py-2.5 transition hover:border-primary/30 hover:bg-primary/5"
+    >
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <ResultLine team={match.teamA} score={aScore} won={winnerId === match.teamA.id} />
+        <ResultLine team={match.teamB} score={bScore} won={winnerId === match.teamB.id} />
+      </div>
+      <div className="shrink-0 text-right text-[10px] uppercase tracking-wide text-muted-foreground">
+        <span className="capitalize">{match.tournament.name}</span>
+        <span> · #{match.matchNumber}</span>
+      </div>
+    </Link>
+  );
+}
+
+function ResultLine({
+  team,
+  score,
+  won,
+}: {
+  team: TeamView;
+  score: InningsScore | null;
+  won: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      {team.logo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={team.logo_url}
+          alt=""
+          className="size-5 shrink-0 rounded-full object-cover"
+        />
+      ) : (
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[8px] font-semibold text-primary">
+          {team.short_name.slice(0, 2).toUpperCase()}
+        </span>
+      )}
+      <span
+        className={
+          "font-mono text-xs font-semibold uppercase " +
+          (won ? "text-foreground" : "text-muted-foreground")
+        }
+      >
+        {team.short_name}
+      </span>
+      {won && (
+        <Trophy className="size-3 text-amber-500" aria-label="Winner" />
+      )}
+      <span className="ml-auto font-mono tabular-nums">
+        {score ? `${score.runs}/${score.wickets}` : "—"}
+        {score && (
+          <span className="ml-1 text-[10px] text-muted-foreground">
+            ({score.overs})
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
+function TeamBadge({ team }: { team: TeamView }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      {team.logo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={team.logo_url}
+          alt=""
+          className="size-6 shrink-0 rounded-full object-cover"
+        />
+      ) : (
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[9px] font-semibold text-primary">
+          {team.short_name.slice(0, 2).toUpperCase()}
+        </span>
+      )}
+      <span className="font-mono text-xs font-semibold uppercase">
+        {team.short_name}
+      </span>
+    </span>
+  );
+}
+
+function formatUpcomingTime(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMs = d.getTime() - now.getTime();
+  const diffMin = Math.round(diffMs / 60000);
+  if (diffMin < 60) return `in ${diffMin} min`;
+  const diffHr = Math.round(diffMin / 60);
+  if (diffHr < 24) return `in ${diffHr}h`;
+  return d.toLocaleString(undefined, {
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }

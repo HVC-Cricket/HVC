@@ -74,7 +74,10 @@ const SelectContent = React.forwardRef<
       ref={ref}
       position={position}
       className={cn(
-        "relative z-50 max-h-[--radix-select-content-available-height] min-w-[8rem] overflow-hidden rounded-md border border-foreground/10 bg-popover text-popover-foreground shadow-md",
+        // Tailwind v4 parenthesis syntax auto-wraps the CSS var in var(...).
+        // Also cap to 60vh as a safety net for very small viewports where
+        // Radix's --radix-select-content-available-height can still be large.
+        "relative z-50 max-h-[min(60vh,var(--radix-select-content-available-height))] min-w-[8rem] overflow-hidden rounded-md border border-foreground/10 bg-popover text-popover-foreground shadow-md",
         "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
         position === "popper" &&
           "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
@@ -85,9 +88,12 @@ const SelectContent = React.forwardRef<
       <SelectScrollUpButton />
       <SelectPrimitive.Viewport
         className={cn(
-          "p-1",
+          // overflow-y-auto enables native touch scrolling on mobile, so the
+          // user can swipe through long option lists instead of relying on
+          // the tiny scroll-arrow buttons.
+          "max-h-[inherit] overflow-y-auto p-1",
           position === "popper" &&
-            "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]",
+            "w-full min-w-[var(--radix-select-trigger-width)]",
         )}
       >
         {children}

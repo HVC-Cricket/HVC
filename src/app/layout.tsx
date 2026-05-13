@@ -5,6 +5,7 @@ import "./globals.css";
 import { RegisterSW } from "@/components/register-sw";
 import { SiteNav } from "@/components/site-nav";
 import { SiteNavShell } from "@/components/site-nav-shell";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
@@ -30,15 +31,23 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <SiteNavShell>
-          <SiteNav />
-        </SiteNavShell>
-        {children}
-        <Toaster />
-        <RegisterSW />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SiteNavShell>
+            <SiteNav />
+          </SiteNavShell>
+          {children}
+          <Toaster />
+          <RegisterSW />
+        </ThemeProvider>
       </body>
     </html>
   );
