@@ -918,14 +918,22 @@ function RecentBalls({
   previous: ScoreboardState["previousOverBalls"];
 }) {
   const renderBall = (b: RenderBall) => {
-    let label = String(b.runs_off_bat + b.extras);
-    if (b.is_wicket) label = "W";
-    // `extras` already includes the wide penalty, so don't add another 1.
-    else if (b.extra_type === "wide") label = `${b.extras}wd`;
-    // For a no-ball, show the total runs off the delivery (batter + 1
-    // penalty), matching scorecard convention.
-    else if (b.extra_type === "no_ball") label = `${b.runs_off_bat + b.extras}nb`;
-    else if (b.extra_type === "bye") label = `${b.extras}b`;
+    // Compute the extras-style suffix first so we can combine it with
+    // a "W" when the wicket fell on a wide / no-ball / bye delivery.
+    // `extras` already includes the wide / no-ball penalty.
+    const extraSuffix =
+      b.extra_type === "wide"
+        ? `${b.extras}wd`
+        : b.extra_type === "no_ball"
+          ? `${b.runs_off_bat + b.extras}nb`
+          : b.extra_type === "bye"
+            ? `${b.extras}b`
+            : null;
+    let label: string;
+    if (b.is_wicket && extraSuffix) label = `${extraSuffix}+W`;
+    else if (b.is_wicket) label = "W";
+    else if (extraSuffix) label = extraSuffix;
+    else label = String(b.runs_off_bat + b.extras);
     const base =
       "inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-foreground/10 px-1.5 text-xs font-mono ";
     const colour = b.is_wicket

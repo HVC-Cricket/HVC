@@ -359,12 +359,22 @@ function RecentBalls({
   previous: Ball[];
 }) {
   const renderBall = (b: Ball) => {
-    let label = String(b.runs_off_bat + b.extras);
-    if (b.is_wicket) label = "W";
+    // Compute the extras-style suffix first so we can combine it with
+    // a "W" when the wicket fell on a wide / no-ball / bye delivery.
     // `extras` already includes the wide / no-ball penalty.
-    else if (b.extra_type === "wide") label = `${b.extras}wd`;
-    else if (b.extra_type === "no_ball") label = `${b.runs_off_bat + b.extras}nb`;
-    else if (b.extra_type === "bye") label = `${b.extras}b`;
+    const extraSuffix =
+      b.extra_type === "wide"
+        ? `${b.extras}wd`
+        : b.extra_type === "no_ball"
+          ? `${b.runs_off_bat + b.extras}nb`
+          : b.extra_type === "bye"
+            ? `${b.extras}b`
+            : null;
+    let label: string;
+    if (b.is_wicket && extraSuffix) label = `${extraSuffix}+W`;
+    else if (b.is_wicket) label = "W";
+    else if (extraSuffix) label = extraSuffix;
+    else label = String(b.runs_off_bat + b.extras);
     const colour = b.is_wicket
       ? "bg-destructive/15 text-destructive"
       : "bg-muted/40";
