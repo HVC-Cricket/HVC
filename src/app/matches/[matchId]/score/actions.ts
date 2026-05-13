@@ -19,6 +19,11 @@ import { createClient } from "@/lib/supabase/server";
 
 import type { ActionResult } from "@/app/tournaments/actions";
 
+import {
+  computeBallPosition,
+  validateBowlerRules,
+} from "./record-ball-helpers";
+
 /**
  * HVC first-over rule: if the opening striker is Category 1, the opening
  * bowler must also be Category 1. Enforced at innings-1 and innings-2
@@ -302,74 +307,13 @@ export async function recordBall(
   }
   let state = replay.state;
 
-  // Bowling restrictions for the regular innings (super overs have their
-  // own caps; skip these for innings 3/4):
-  //   - Same bowler can't bowl two overs in a row.
-  //   - HVC rule: at most ONE bowler in the innings may bowl 2 overs;
-  //     everyone else is capped at 1.
-  if ((inningsRow?.innings_number ?? 1) <= 2) {
-    const legalBallsByBowler = new Map<string, number>();
-    for (const b of prevBalls ?? []) {
-      if (b.extra_type === "wide" || b.extra_type === "no_ball") continue;
-      legalBallsByBowler.set(
-        b.bowler_id,
-        (legalBallsByBowler.get(b.bowler_id) ?? 0) + 1,
-      );
-    }
-    const thisBowlerLegalBefore =
-      legalBallsByBowler.get(parsed.data.bowler_id) ?? 0;
-
-    if (thisBowlerLegalBefore >= rules.max_overs_per_bowler * 6) {
-      return {
-        ok: false,
-        error: `Bowler has already bowled their ${rules.max_overs_per_bowler} overs`,
-      };
-    }
-
-    if (thisBowlerLegalBefore >= 6) {
-      // About to bowl ball 7+ → this is their 2nd over. Check nobody
-      // else is already in (or past) their 2nd.
-      const otherDoubleUp = Array.from(legalBallsByBowler.entries()).some(
-        ([id, n]) => id !== parsed.data.bowler_id && n > 6,
-      );
-      if (otherDoubleUp) {
-        return {
-          ok: false,
-          error:
-            "Only one bowler per innings can bowl 2 overs and another bowler is already using that slot.",
-        };
-      }
-    }
-
-    const lastBall = (prevBalls ?? [])[(prevBalls?.length ?? 0) - 1];
-    const overJustEnded =
-      !!lastBall &&
-      lastBall.legal_ball_seq != null &&
-      lastBall.ball_in_over === 6;
-
-    // Bowler must stay the same within an over — no mid-over swaps.
-    // Real cricket allows them only on injury; we don't model that.
-    if (
-      lastBall &&
-      !overJustEnded &&
-      lastBall.bowler_id !== parsed.data.bowler_id
-    ) {
-      return {
-        ok: false,
-        error:
-          "Bowler can't change mid-over. Finish the current over with the same bowler.",
-      };
-    }
-
-    // Consecutive overs check — at the very first ball of a new over
-    // (the previous ball completed one).
-    if (overJustEnded && lastBall.bowler_id === parsed.data.bowler_id) {
-      return {
-        ok: false,
-        error: "Same bowler can't bowl consecutive overs",
-      };
-    }
-  }
+  const bowlerCheck = validateBowlerRules({
+    prevBalls: prevBalls ?? [],
+    newBowlerId: parsed.data.bowler_id,
+    rules,
+    inningsNumber: inningsRow?.innings_number ?? 1,
+  });
+  if (!bowlerCheck.ok) return bowlerCheck;
 
   // Sync engine slots with the new ball's chosen striker / non-striker /
   // bowler before validation. Same reason as the replay loop above:
@@ -407,31 +351,11 @@ export async function recordBall(
     return { ok: false, error: validation.error.message };
   }
 
-  // Compute the over/ball/legal-seq for the new row.
-  const ballsPerOver = 6;
-  const last = (prevBalls ?? [])[prevBalls?.length ? prevBalls.length - 1 : -1];
-  let over_number = 1;
-  let ball_in_over = 0;
-  let legal_ball_seq: number | null = null;
-  if (last) {
-    over_number = last.over_number;
-    ball_in_over = last.ball_in_over;
-    if (last.legal_ball_seq != null && last.ball_in_over === ballsPerOver) {
-      over_number += 1;
-      ball_in_over = 0;
-    }
-  }
-  const isLegal =
-    !parsed.data.extra_type || parsed.data.extra_type === "bye";
-  if (isLegal) {
-    ball_in_over += 1;
-    const totalLegalBefore =
-      (prevBalls ?? []).filter(
-        (b) =>
-          b.extra_type !== "wide" && b.extra_type !== "no_ball",
-      ).length;
-    legal_ball_seq = totalLegalBefore + 1;
-  }
+  const { over_number, ball_in_over, legal_ball_seq, isLegal } =
+    computeBallPosition({
+      prevBalls: prevBalls ?? [],
+      newExtraType: parsed.data.extra_type ?? null,
+    });
 
   const isFreeHit = state.free_hit_pending && isLegal;
 
