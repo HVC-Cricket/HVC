@@ -5,14 +5,22 @@ import { z } from "zod";
 import { requireTournamentAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
-import { LOCK_EXPIRY_SECONDS, type LockStatus } from "./lock-types";
+import {
+  LOCK_EXPIRY_SECONDS,
+  type LockStatus,
+  type PendingTakeoverRequest,
+} from "./lock-types";
 
 /**
- * Multi-scorer concurrency: at most one tournament admin holds the
- * "primary scorer" lock on a match at a time. The lock auto-expires
- * after `LOCK_EXPIRY_SECONDS` of no heartbeat, so a closed-tab
- * scenario doesn't strand the match. A second admin can also force-
- * take-over with an explicit click.
+ * Multi-scorer concurrency with a permission-based takeover model.
+ *
+ *  - Only one tournament admin holds the lock at a time.
+ *  - Heartbeat keeps the lock fresh; expires after LOCK_EXPIRY_SECONDS.
+ *  - To take over an active lock, a second admin files a *request*.
+ *    The current holder gets a banner and decides Allow / Deny.
+ *  - If the holder's heartbeat expires, the requester (or anyone)
+ *    can claim via `acquireScoringLock` directly — no permission
+ *    needed because the holder is presumed gone.
  *
  * Shared type + constant live in `lock-types.ts` because "use server"
  * files can only export async functions.
@@ -20,13 +28,25 @@ import { LOCK_EXPIRY_SECONDS, type LockStatus } from "./lock-types";
 
 const matchIdSchema = z.object({ matchId: z.string().uuid() });
 
-async function loadLockState(supabase: Awaited<ReturnType<typeof createClient>>, matchId: string) {
-  const { data: match } = await supabase
+type LockRow = {
+  primary_scorer_id: string | null;
+  primary_scorer_heartbeat_at: string | null;
+  pending_scorer_request_id: string | null;
+  pending_scorer_request_at: string | null;
+};
+
+async function loadLockState(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  matchId: string,
+): Promise<LockRow | null> {
+  const { data } = await supabase
     .from("matches")
-    .select("primary_scorer_id, primary_scorer_heartbeat_at")
+    .select(
+      "primary_scorer_id, primary_scorer_heartbeat_at, pending_scorer_request_id, pending_scorer_request_at",
+    )
     .eq("id", matchId)
     .single();
-  return match;
+  return data;
 }
 
 function secondsAgo(iso: string | null): number {
@@ -34,57 +54,93 @@ function secondsAgo(iso: string | null): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
 }
 
-/** Read-only: who currently holds the lock on this match? */
+async function resolveDisplayName(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", userId)
+    .maybeSingle();
+  return data?.display_name ?? null;
+}
+
+async function buildPendingRequest(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  row: LockRow,
+): Promise<PendingTakeoverRequest | null> {
+  if (!row.pending_scorer_request_id) return null;
+  const name = await resolveDisplayName(supabase, row.pending_scorer_request_id);
+  return {
+    requesterId: row.pending_scorer_request_id,
+    requesterName: name,
+    secondsAgo: secondsAgo(row.pending_scorer_request_at),
+  };
+}
+
+/** Read-only: full lock status for the current user. */
 export async function getScoringLockStatus(matchId: string): Promise<LockStatus> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const match = await loadLockState(supabase, matchId);
+  const row = await loadLockState(supabase, matchId);
 
-  if (!match || !match.primary_scorer_id) return { status: "free" };
+  if (!row || !row.primary_scorer_id) return { status: "free" };
 
-  const ago = secondsAgo(match.primary_scorer_heartbeat_at);
+  const ago = secondsAgo(row.primary_scorer_heartbeat_at);
   const expired = ago > LOCK_EXPIRY_SECONDS;
 
-  if (user && match.primary_scorer_id === user.id) {
-    return { status: "mine", secondsAgo: ago };
+  if (user && row.primary_scorer_id === user.id) {
+    // I hold the lock. Surface any pending request *against me*.
+    const pending = await buildPendingRequest(supabase, row);
+    return { status: "mine", secondsAgo: ago, pendingRequest: pending };
   }
 
-  // Look up the holder's display name if we can. Skip silently if the
-  // profile row is unreadable — the UI falls back to "another scorer".
-  let holderName: string | null = null;
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name")
-    .eq("id", match.primary_scorer_id)
-    .maybeSingle();
-  if (profile?.display_name) holderName = profile.display_name;
+  const holderName = await resolveDisplayName(supabase, row.primary_scorer_id);
+
+  // Someone else holds. Split the pending request into "mine" vs
+  // "someone else's" so the gate disables Request when another
+  // admin is already in the queue.
+  let myRequestPending = false;
+  let otherRequestPending: PendingTakeoverRequest | null = null;
+  if (row.pending_scorer_request_id) {
+    if (user && row.pending_scorer_request_id === user.id) {
+      myRequestPending = true;
+    } else {
+      otherRequestPending = await buildPendingRequest(supabase, row);
+    }
+  }
 
   return {
     status: "held",
-    holderId: match.primary_scorer_id,
+    holderId: row.primary_scorer_id,
     holderName,
     secondsAgo: ago,
     expired,
+    myRequestPending,
+    otherRequestPending,
   };
 }
 
 /**
- * Try to claim the lock. Succeeds if it's free, already yours, or
- * expired. If it's held and not expired, returns `held`.
+ * Claim the lock if it's free, already yours, or expired. Does NOT
+ * forcibly take an active lock — for that, use the request flow.
+ * Always clears the pending-request slot since the new holder takes
+ * over the role the request was after.
  */
 export async function acquireScoringLock(
   input: z.infer<typeof matchIdSchema>,
 ): Promise<LockStatus> {
   const parsed = matchIdSchema.safeParse(input);
-  if (!parsed.success) return { status: "free" }; // permissive fallback
+  if (!parsed.success) return { status: "free" };
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return await getScoringLockStatus(parsed.data.matchId);
+  if (!user) return getScoringLockStatus(parsed.data.matchId);
 
   const { data: match } = await supabase
     .from("matches")
@@ -99,25 +155,25 @@ export async function acquireScoringLock(
     current?.primary_scorer_id != null &&
     current.primary_scorer_id !== user.id;
   const stillFresh =
-    heldByOther && secondsAgo(current?.primary_scorer_heartbeat_at) <= LOCK_EXPIRY_SECONDS;
+    heldByOther && secondsAgo(current?.primary_scorer_heartbeat_at ?? null) <= LOCK_EXPIRY_SECONDS;
 
   if (heldByOther && stillFresh) {
+    // Permission needed — caller should use requestScoringTakeover.
     return getScoringLockStatus(parsed.data.matchId);
   }
 
-  // Claim. Conditional WHERE makes this atomic enough — a race that
-  // changes the holder between our read and our update is rare and
-  // the loser will see the right state on the next status poll.
   const { error } = await supabase
     .from("matches")
     .update({
       primary_scorer_id: user.id,
       primary_scorer_heartbeat_at: new Date().toISOString(),
+      pending_scorer_request_id: null,
+      pending_scorer_request_at: null,
     })
     .eq("id", parsed.data.matchId);
   if (error) return getScoringLockStatus(parsed.data.matchId);
 
-  return { status: "mine", secondsAgo: 0 };
+  return getScoringLockStatus(parsed.data.matchId);
 }
 
 /** Bump the heartbeat. Only succeeds if you hold the lock. */
@@ -141,8 +197,12 @@ export async function heartbeatScoringLock(
   return { ok: !error };
 }
 
-/** Force-claim the lock regardless of who holds it. */
-export async function forceTakeoverScoringLock(
+/**
+ * Permission-based takeover, step 1 of 2 (requester side). File a
+ * request against the current holder. The slot is single-occupant —
+ * if another admin already has a pending request the call refuses.
+ */
+export async function requestScoringTakeover(
   input: z.infer<typeof matchIdSchema>,
 ): Promise<LockStatus> {
   const parsed = matchIdSchema.safeParse(input);
@@ -162,15 +222,126 @@ export async function forceTakeoverScoringLock(
   if (!match) return { status: "free" };
   await requireTournamentAdmin(match.tournament_id);
 
+  const current = await loadLockState(supabase, parsed.data.matchId);
+  if (!current) return { status: "free" };
+
+  // No holder or holder is me → no request needed; just claim.
+  if (!current.primary_scorer_id || current.primary_scorer_id === user.id) {
+    return acquireScoringLock(parsed.data);
+  }
+
+  // Holder is expired → claim directly without permission.
+  const heartbeatAge = secondsAgo(current.primary_scorer_heartbeat_at);
+  if (heartbeatAge > LOCK_EXPIRY_SECONDS) {
+    return acquireScoringLock(parsed.data);
+  }
+
+  // Already a pending request — if it's mine, no-op; if it's someone
+  // else's, refuse (UI shows otherRequestPending).
+  if (
+    current.pending_scorer_request_id &&
+    current.pending_scorer_request_id !== user.id
+  ) {
+    return getScoringLockStatus(parsed.data.matchId);
+  }
+
   await supabase
     .from("matches")
     .update({
-      primary_scorer_id: user.id,
-      primary_scorer_heartbeat_at: new Date().toISOString(),
+      pending_scorer_request_id: user.id,
+      pending_scorer_request_at: new Date().toISOString(),
     })
     .eq("id", parsed.data.matchId);
 
-  return { status: "mine", secondsAgo: 0 };
+  return getScoringLockStatus(parsed.data.matchId);
+}
+
+/**
+ * Step 2 of 2: current holder approves. Transfers the lock to the
+ * pending requester and clears the request. Only succeeds if the
+ * caller actually holds the lock.
+ */
+export async function approveScoringTakeover(
+  input: z.infer<typeof matchIdSchema>,
+): Promise<LockStatus> {
+  const parsed = matchIdSchema.safeParse(input);
+  if (!parsed.success) return { status: "free" };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return getScoringLockStatus(parsed.data.matchId);
+
+  const current = await loadLockState(supabase, parsed.data.matchId);
+  if (!current || current.primary_scorer_id !== user.id) {
+    return getScoringLockStatus(parsed.data.matchId);
+  }
+  if (!current.pending_scorer_request_id) {
+    return getScoringLockStatus(parsed.data.matchId);
+  }
+
+  await supabase
+    .from("matches")
+    .update({
+      primary_scorer_id: current.pending_scorer_request_id,
+      primary_scorer_heartbeat_at: new Date().toISOString(),
+      pending_scorer_request_id: null,
+      pending_scorer_request_at: null,
+    })
+    .eq("id", parsed.data.matchId);
+
+  return getScoringLockStatus(parsed.data.matchId);
+}
+
+/** Current holder denies the pending request. Clears the request slot. */
+export async function denyScoringTakeover(
+  input: z.infer<typeof matchIdSchema>,
+): Promise<LockStatus> {
+  const parsed = matchIdSchema.safeParse(input);
+  if (!parsed.success) return { status: "free" };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return getScoringLockStatus(parsed.data.matchId);
+
+  await supabase
+    .from("matches")
+    .update({
+      pending_scorer_request_id: null,
+      pending_scorer_request_at: null,
+    })
+    .eq("id", parsed.data.matchId)
+    .eq("primary_scorer_id", user.id);
+
+  return getScoringLockStatus(parsed.data.matchId);
+}
+
+/** Requester cancels their own pending request. */
+export async function cancelScoringTakeoverRequest(
+  input: z.infer<typeof matchIdSchema>,
+): Promise<LockStatus> {
+  const parsed = matchIdSchema.safeParse(input);
+  if (!parsed.success) return { status: "free" };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return getScoringLockStatus(parsed.data.matchId);
+
+  await supabase
+    .from("matches")
+    .update({
+      pending_scorer_request_id: null,
+      pending_scorer_request_at: null,
+    })
+    .eq("id", parsed.data.matchId)
+    .eq("pending_scorer_request_id", user.id);
+
+  return getScoringLockStatus(parsed.data.matchId);
 }
 
 /**
@@ -197,6 +368,10 @@ export async function enforceScoringLock(args: {
       .update({
         primary_scorer_id: args.userId,
         primary_scorer_heartbeat_at: new Date().toISOString(),
+        // If I'm claiming, my own pending request (if any) is moot.
+        ...(current.pending_scorer_request_id === args.userId
+          ? { pending_scorer_request_id: null, pending_scorer_request_at: null }
+          : {}),
       })
       .eq("id", args.matchId);
     if (error) return { ok: false, error: error.message };
@@ -206,11 +381,12 @@ export async function enforceScoringLock(args: {
   return {
     ok: false,
     error:
-      "Another scorer is recording this match. Take over from the banner to record balls.",
+      "Another scorer is recording this match. Request a takeover from the banner.",
   };
 }
 
-/** Release if you hold. No-op if you don't. */
+/** Release if you hold. No-op if you don't. Also clears any pending
+ *  request — the next admin who picks up the match starts clean. */
 export async function releaseScoringLock(
   input: z.infer<typeof matchIdSchema>,
 ): Promise<{ ok: true }> {
@@ -228,6 +404,8 @@ export async function releaseScoringLock(
     .update({
       primary_scorer_id: null,
       primary_scorer_heartbeat_at: null,
+      pending_scorer_request_id: null,
+      pending_scorer_request_at: null,
     })
     .eq("id", parsed.data.matchId)
     .eq("primary_scorer_id", user.id);

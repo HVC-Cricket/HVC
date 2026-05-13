@@ -170,17 +170,24 @@ create table if not exists matches (
   -- voidLast* server actions, not by triggers here).
   primary_scorer_id              uuid references auth.users(id) on delete set null,
   primary_scorer_heartbeat_at    timestamptz,
+  -- Permission-based takeover queue. A second admin files a request
+  -- here; the current holder sees an Allow / Deny banner.
+  pending_scorer_request_id      uuid references auth.users(id) on delete set null,
+  pending_scorer_request_at      timestamptz,
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now(),
   check (team_a_id <> team_b_id),
   unique (tournament_id, match_number)
 );
 
--- Back-fill the two scoring-lock columns for installs that ran the
--- matches table from an earlier revision.
+-- Back-fill the lock + takeover-request columns for installs that ran
+-- the matches table from an earlier revision.
 alter table matches add column if not exists primary_scorer_id           uuid references auth.users(id) on delete set null;
 alter table matches add column if not exists primary_scorer_heartbeat_at timestamptz;
-create index if not exists idx_matches_primary_scorer on matches(primary_scorer_id) where primary_scorer_id is not null;
+alter table matches add column if not exists pending_scorer_request_id   uuid references auth.users(id) on delete set null;
+alter table matches add column if not exists pending_scorer_request_at   timestamptz;
+create index if not exists idx_matches_primary_scorer        on matches(primary_scorer_id)        where primary_scorer_id is not null;
+create index if not exists idx_matches_pending_scorer_request on matches(pending_scorer_request_id) where pending_scorer_request_id is not null;
 
 
 -- ---------------------------------------------------------------------
