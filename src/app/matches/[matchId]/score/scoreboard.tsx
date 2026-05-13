@@ -588,10 +588,9 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       {/* Ball entry */}
       {!isComplete && (
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between gap-3 text-base">
-              <span>Record ball</span>
-              <span className="flex items-center gap-2">
+          {(isOffline || pendingCount > 0) && (
+            <CardHeader>
+              <div className="flex items-center justify-end gap-2">
                 {isOffline && (
                   <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-normal text-destructive">
                     Offline · queuing
@@ -602,12 +601,9 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                     Saving {pendingCount} ball{pendingCount === 1 ? "" : "s"}…
                   </span>
                 )}
-              </span>
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Saved on-device first; syncs the moment signal returns.
-            </CardDescription>
-          </CardHeader>
+              </div>
+            </CardHeader>
+          )}
           <CardContent className="space-y-2">
             {/* Primary action: runs off the bat. Bigger taps; one row on
                 desktop, two rows on phone. Active state gives haptic-y
