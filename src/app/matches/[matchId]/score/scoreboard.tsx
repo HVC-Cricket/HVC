@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { ArrowLeftRight } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -545,6 +546,31 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 ? "Any striker / any bowler"
                 : `Striker + bowler must both be Cat ${overCategory}`}
             </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="ml-auto h-8 gap-1.5"
+              onClick={() => {
+                if (!strikerId && !nonStrikerId) return;
+                setStrikerId(nonStrikerId);
+                setNonStrikerId(strikerId);
+              }}
+              disabled={
+                (!strikerId && !nonStrikerId) ||
+                strikerId === nonStrikerId ||
+                state.active.last_man_mode
+              }
+              title={
+                state.active.last_man_mode
+                  ? "Disabled — last man standing"
+                  : "Swap striker and non-striker"
+              }
+              aria-label="Swap striker and non-striker"
+            >
+              <ArrowLeftRight className="size-4" />
+              <span className="hidden sm:inline">Swap</span>
+            </Button>
           </div>
           {/* Slot tiles double as the picker — tap a tile, native mobile
               picker opens, pick a player, done. No second "Who's batting"
