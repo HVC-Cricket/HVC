@@ -295,6 +295,21 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             .map((p) => p.id),
         );
 
+  // At an over boundary, the bowler who just finished can't bowl the
+  // next over. State loader nulls `state.active.bowler_id` at the
+  // boundary, so we can detect that case from local state and disable
+  // the previous over's bowler in the picker (server-side rule lives
+  // in `validateBowlerRules`). Super overs (innings 3/4) are exempt
+  // from the consecutive-over rule, matching the server.
+  const previousOverBowlerId =
+    innings.innings_number <= 2 &&
+    state.active.bowler_id === null &&
+    state.balls.length > 0
+      ? state.balls[state.balls.length - 1].bowler_id
+      : null;
+  const disabledBowlerIds = new Set(catBlockedBowlerIds);
+  if (previousOverBowlerId) disabledBowlerIds.add(previousOverBowlerId);
+
 
   const striker = playersById.get(strikerId);
   const nonStriker = playersById.get(nonStrikerId);
@@ -490,6 +505,14 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 {state.active.is_special_over.toUpperCase()} over
               </span>
             )}
+            {state.active.last_man_mode && (
+              <span
+                className="rounded-full bg-orange-500/15 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-orange-700"
+                title="Only one live batter remains; strike doesn't rotate, non-striker slot is locked"
+              >
+                Last man standing
+              </span>
+            )}
           </CardTitle>
           <CardDescription>
             {battingTeam.name} batting · {bowlingTeam.name} bowling · innings{" "}
@@ -559,11 +582,20 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
               onChange={setNonStrikerId}
               statsLine={formatBatterStats(state.balls, nonStrikerId, optimistic)}
               disabledIds={
-                new Set(
-                  [...state.active.dismissed_ids, strikerId].filter(
-                    Boolean,
-                  ) as string[],
-                )
+                state.active.last_man_mode
+                  ? // Last-man mode: lock the non-striker slot. Disable
+                    // every option except the current value so the
+                    // picker can't be changed.
+                    new Set(
+                      battingXi
+                        .filter((p) => p.id !== nonStrikerId)
+                        .map((p) => p.id),
+                    )
+                  : new Set(
+                      [...state.active.dismissed_ids, strikerId].filter(
+                        Boolean,
+                      ) as string[],
+                    )
               }
               dismissedIds={new Set(state.active.dismissed_ids)}
             />
@@ -574,7 +606,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 options={bowlingXi}
                 onChange={setBowlerId}
                 highlightCat={overCategory === 2 ? undefined : overCategory}
-                disabledIds={catBlockedBowlerIds}
+                disabledIds={disabledBowlerIds}
                 statsLine={formatBowlerStats(state.balls, bowlerId, optimistic)}
                 footer={
                   visibleServerCurrent.length > 0 ||

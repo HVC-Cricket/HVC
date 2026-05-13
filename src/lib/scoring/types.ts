@@ -26,6 +26,17 @@ export type RuleSet = {
   overs_per_innings: number;
   players_per_side: number;
   max_overs_per_bowler: number;
+  /**
+   * Last-man standing: when true, the innings continues until the
+   * LAST batsman is dismissed (wickets cap = `players_per_side`,
+   * not `players_per_side - 1`). While only the last batsman remains
+   * at the crease, strike rotation is disabled and the non-striker
+   * slot stays frozen (the previously-dismissed batter stays in it
+   * as a "dummy" non-striker — slot is locked in the UI).
+   * Box-cricket convention; HVC: true. Standard cricket: false.
+   * Does not apply inside super overs.
+   */
+  last_man_standing: boolean;
 
   /**
    * Default cricket-style strike rotation: odd runs swap ends, end of over

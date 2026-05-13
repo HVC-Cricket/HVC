@@ -76,6 +76,9 @@ export type ScoreboardState = {
      *  Used by the scoreboard to grey them out of the striker /
      *  non-striker pickers. */
     dismissed_ids: string[];
+    /** Last-man-standing mode: only one live batter remains. UI uses
+     *  this to lock the non-striker slot. */
+    last_man_mode: boolean;
   };
   phase: MatchPhase;
 };
@@ -251,10 +254,22 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
     const isDismissed = (id: string | null) =>
       !!id && (engineState?.dismissed?.has(id) ?? false);
 
+    // Last-man standing: when only one batter is live, the non-striker
+    // slot is allowed to keep a dismissed player as a "dummy" — the
+    // lone live batter faces every delivery. Don't blank them.
+    const lastManMode =
+      rules.last_man_standing &&
+      engineState?.is_super_over === false &&
+      (engineState?.dismissed?.size ?? 0) >= rules.players_per_side - 1;
+
     if (isDismissed(striker_id) && !stillSpecialStay(striker_id)) {
       striker_id = null;
     }
-    if (isDismissed(non_striker_id) && !stillSpecialStay(non_striker_id)) {
+    if (
+      isDismissed(non_striker_id) &&
+      !stillSpecialStay(non_striker_id) &&
+      !lastManMode
+    ) {
       non_striker_id = null;
     }
   } else if (innings) {
@@ -311,6 +326,10 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
         : (balls
             .filter((b) => b.is_wicket && b.player_out_id)
             .map((b) => b.player_out_id as string)),
+      last_man_mode:
+        rules.last_man_standing &&
+        engineState?.is_super_over === false &&
+        (engineState?.dismissed?.size ?? 0) >= rules.players_per_side - 1,
     },
     phase,
   };

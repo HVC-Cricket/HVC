@@ -275,6 +275,18 @@ export function applyBall(
     shouldRotateOnRuns = false; // special batter stays on strike
   }
 
+  // Last-man standing: once only one batter remains live, the striker
+  // stays on strike regardless of runs and end-of-over doesn't swap
+  // ends. `dismissed.size` is the unique-batters-out count (not
+  // `total_wickets`, which can lag in special overs).
+  const lastManMode =
+    rules.last_man_standing &&
+    !next.is_super_over &&
+    next.dismissed.size >= rules.players_per_side - 1;
+  if (lastManMode) {
+    shouldRotateOnRuns = false;
+  }
+
   if (shouldRotateOnRuns) {
     [next.striker_id, next.non_striker_id] = [
       next.non_striker_id,
@@ -288,12 +300,15 @@ export function applyBall(
   // ball 6, before advanceBowler) doesn't claim the previous over's
   // special context still holds — otherwise the loader can't tell that
   // a dismissed special batter who swapped into the non-striker slot
-  // should now leave the field.
+  // should now leave the field. In last-man mode the lone batter stays
+  // at the striker end across overs too — skip the swap.
   if (next.ball_in_over === ballsPerOver) {
-    [next.striker_id, next.non_striker_id] = [
-      next.non_striker_id,
-      next.striker_id,
-    ];
+    if (!lastManMode) {
+      [next.striker_id, next.non_striker_id] = [
+        next.non_striker_id,
+        next.striker_id,
+      ];
+    }
     next.ball_in_over = 0;
     next.current_over_number += 1;
     next.special_over = null;
@@ -302,7 +317,12 @@ export function applyBall(
   // Innings end conditions
   const oversComplete =
     next.current_over_number > rules.overs_per_innings && next.ball_in_over === 0;
-  const wicketsCap = rules.players_per_side - 1;
+  // Last-man-standing: innings ends when ALL N batters are dismissed.
+  // Standard cricket: innings ends at N-1 (one batter unavailable).
+  const wicketsCap =
+    rules.last_man_standing && !next.is_super_over
+      ? rules.players_per_side
+      : rules.players_per_side - 1;
   const allOut = next.total_wickets >= wicketsCap;
   const superOverWicketsCap = rules.super_over.max_wickets;
   const superOverDone =

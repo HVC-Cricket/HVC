@@ -19,6 +19,10 @@ const ruleSetSchema = z.object({
   overs_per_innings: z.number().int().positive(),
   players_per_side: z.number().int().min(2),
   max_overs_per_bowler: z.number().int().positive(),
+  // Optional + default false so older `tournaments.rules` JSONB rows
+  // that pre-date the flag still parse cleanly. HVC_RULES sets it
+  // explicitly to true.
+  last_man_standing: z.boolean().default(false),
   strike_rotation: z.literal("standard"),
   extras: z.object({
     byes: z.boolean(),
@@ -43,7 +47,7 @@ const ruleSetSchema = z.object({
     nominate_batters: z.number().int().positive(),
     second_team_bats_first: z.boolean(),
   }),
-}) satisfies z.ZodType<RuleSet>;
+}) satisfies z.ZodType<RuleSet, z.ZodTypeDef, unknown>;
 
 /**
  * Parse a JSONB value from `tournaments.rules` into a typed RuleSet.

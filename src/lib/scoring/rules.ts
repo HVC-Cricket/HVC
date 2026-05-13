@@ -21,6 +21,7 @@ export const HVC_RULES: RuleSet = {
   overs_per_innings: 7,
   players_per_side: 7,
   max_overs_per_bowler: 2,
+  last_man_standing: true,
 
   strike_rotation: "standard",
 
@@ -68,6 +69,7 @@ export const STANDARD_RULES: RuleSet = {
   overs_per_innings: 20,
   players_per_side: 11,
   max_overs_per_bowler: 4,
+  last_man_standing: false,
 
   strike_rotation: "standard",
 
