@@ -5,19 +5,26 @@ import { after } from "next/server";
 import { z } from "zod";
 
 import { requireTournamentAdmin } from "@/lib/auth";
+import { logMatchAuditEvent } from "@/lib/match-audit";
 import { type MatchPushPayload, notifyMatch } from "@/lib/push";
 import {
-  type EnginePlayer,
   advanceBowler,
   applyBall,
+  createEnginePlayerFactory,
   getRuleSet,
+  replayInnings,
   setNonStriker,
   setStriker,
-  startInnings,
 } from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
 
 import type { ActionResult } from "@/app/tournaments/actions";
+
+import { enforceScoringLock } from "./lock-actions";
+import {
+  computeBallPosition,
+  validateBowlerRules,
+} from "./record-ball-helpers";
 
 /**
  * HVC first-over rule: if the opening striker is Category 1, the opening
@@ -163,6 +170,22 @@ export async function startMatch(
     return { ok: false, error: updErr.message };
   }
 
+  const {
+    data: { user: actor },
+  } = await supabase.auth.getUser();
+  await logMatchAuditEvent({
+    matchId: match.id,
+    eventType: "match_started",
+    actorId: actor?.id ?? null,
+    payload: {
+      batting_team_id: battingTeamId,
+      bowling_team_id: bowlingTeamId,
+      striker_id: parsed.data.striker_id,
+      non_striker_id: parsed.data.non_striker_id,
+      bowler_id: parsed.data.bowler_id,
+    },
+  });
+
   revalidatePath(`/matches/${match.id}`);
   revalidatePath(`/matches/${match.id}/score`);
   return { ok: true, data: { inningsId: innings.id } };
@@ -228,6 +251,14 @@ export async function recordBall(
   if (!match) return { ok: false, error: "Match not found" };
   await requireTournamentAdmin(match.tournament_id);
 
+  // Block writes from a non-primary scorer + bump heartbeat for the
+  // primary scorer in the same atomic step.
+  const lock = await enforceScoringLock({
+    matchId: parsed.data.matchId,
+    userId: user.id,
+  });
+  if (!lock.ok) return lock;
+
   // Load rules for engine validation.
   const { data: tournament } = await supabase
     .from("tournaments")
@@ -261,15 +292,7 @@ export async function recordBall(
   const playerById = new Map(
     (playerRows ?? []).map((p) => [p.id, p]),
   );
-  const toEnginePlayer = (id: string): EnginePlayer => {
-    const p = playerById.get(id);
-    return {
-      id,
-      display_name: p?.display_name ?? "?",
-      category: (p?.category as 1 | 2 | 3 | null) ?? null,
-      team_id: teamByPlayer.get(id) ?? "",
-    };
-  };
+  const toEnginePlayer = createEnginePlayerFactory(playerById, teamByPlayer);
 
   // Replay through the engine to derive current state, then apply the
   // proposed ball to validate. innings_number > 2 means super over →
@@ -281,138 +304,42 @@ export async function recordBall(
     .single();
   const isSuperOver = (inningsRow?.innings_number ?? 1) > 2;
 
-  let state = startInnings({
+  const replay = replayInnings({
     innings_number: inningsRow?.innings_number ?? 1,
     batting_team_id: innings.batting_team_id,
     bowling_team_id: innings.bowling_team_id,
     is_super_over: isSuperOver,
-    striker: toEnginePlayer(
+    seedStriker: toEnginePlayer(
       prevBalls?.[0]?.batter_id ?? parsed.data.striker_id,
     ),
-    non_striker: toEnginePlayer(
+    seedNonStriker: toEnginePlayer(
       prevBalls?.[0]?.non_striker_id ?? parsed.data.non_striker_id,
     ),
-    bowler: toEnginePlayer(
+    seedBowler: toEnginePlayer(
       prevBalls?.[0]?.bowler_id ?? parsed.data.bowler_id,
     ),
+    balls: prevBalls ?? [],
     rules,
+    toEnginePlayer,
   });
-
-  for (const b of prevBalls ?? []) {
-    // applyBall doesn't read striker / non-striker / bowler from the
-    // BallInput — it only rotates them via cricket rules. Sync them
-    // from each recorded ball so the engine tracks scorer-driven
-    // mid-innings substitutions (replacement after a wicket, etc.).
-    if (b.batter_id !== state.striker_id) {
-      state = setStriker(state, b.batter_id);
-    }
-    if (b.non_striker_id !== state.non_striker_id) {
-      state = setNonStriker(state, b.non_striker_id);
-    }
-    if (b.bowler_id !== state.bowler_id) {
-      state = advanceBowler(
-        state,
-        toEnginePlayer(b.bowler_id),
-        toEnginePlayer(state.striker_id),
-        toEnginePlayer(state.non_striker_id),
-        rules,
-      );
-    }
-    const r = applyBall(
-      state,
-      {
-        runs_off_bat: b.runs_off_bat,
-        extras: b.extras,
-        extra_type: b.extra_type as
-          | "wide"
-          | "no_ball"
-          | "bye"
-          | null,
-        is_wicket: b.is_wicket,
-        wicket_type: b.wicket_type as Parameters<
-          typeof applyBall
-        >[1]["wicket_type"],
-        player_out_id: b.player_out_id,
-      },
-      rules,
-    );
-    if (!r.ok) {
-      return {
-        ok: false,
-        error: `Replay failed at over ${b.over_number}.${b.ball_in_over}: ${r.error.message}`,
-      };
-    }
-    state = r.state;
+  if (!replay.ok) {
+    const failedBall = (prevBalls ?? [])[replay.failedAtIndex];
+    return {
+      ok: false,
+      error: failedBall
+        ? `Replay failed at over ${failedBall.over_number}.${failedBall.ball_in_over}: ${replay.error}`
+        : `Replay failed: ${replay.error}`,
+    };
   }
+  let state = replay.state;
 
-  // Bowling restrictions for the regular innings (super overs have their
-  // own caps; skip these for innings 3/4):
-  //   - Same bowler can't bowl two overs in a row.
-  //   - HVC rule: at most ONE bowler in the innings may bowl 2 overs;
-  //     everyone else is capped at 1.
-  if ((inningsRow?.innings_number ?? 1) <= 2) {
-    const legalBallsByBowler = new Map<string, number>();
-    for (const b of prevBalls ?? []) {
-      if (b.extra_type === "wide" || b.extra_type === "no_ball") continue;
-      legalBallsByBowler.set(
-        b.bowler_id,
-        (legalBallsByBowler.get(b.bowler_id) ?? 0) + 1,
-      );
-    }
-    const thisBowlerLegalBefore =
-      legalBallsByBowler.get(parsed.data.bowler_id) ?? 0;
-
-    if (thisBowlerLegalBefore >= rules.max_overs_per_bowler * 6) {
-      return {
-        ok: false,
-        error: `Bowler has already bowled their ${rules.max_overs_per_bowler} overs`,
-      };
-    }
-
-    if (thisBowlerLegalBefore >= 6) {
-      // About to bowl ball 7+ → this is their 2nd over. Check nobody
-      // else is already in (or past) their 2nd.
-      const otherDoubleUp = Array.from(legalBallsByBowler.entries()).some(
-        ([id, n]) => id !== parsed.data.bowler_id && n > 6,
-      );
-      if (otherDoubleUp) {
-        return {
-          ok: false,
-          error:
-            "Only one bowler per innings can bowl 2 overs and another bowler is already using that slot.",
-        };
-      }
-    }
-
-    const lastBall = (prevBalls ?? [])[(prevBalls?.length ?? 0) - 1];
-    const overJustEnded =
-      !!lastBall &&
-      lastBall.legal_ball_seq != null &&
-      lastBall.ball_in_over === 6;
-
-    // Bowler must stay the same within an over — no mid-over swaps.
-    // Real cricket allows them only on injury; we don't model that.
-    if (
-      lastBall &&
-      !overJustEnded &&
-      lastBall.bowler_id !== parsed.data.bowler_id
-    ) {
-      return {
-        ok: false,
-        error:
-          "Bowler can't change mid-over. Finish the current over with the same bowler.",
-      };
-    }
-
-    // Consecutive overs check — at the very first ball of a new over
-    // (the previous ball completed one).
-    if (overJustEnded && lastBall.bowler_id === parsed.data.bowler_id) {
-      return {
-        ok: false,
-        error: "Same bowler can't bowl consecutive overs",
-      };
-    }
-  }
+  const bowlerCheck = validateBowlerRules({
+    prevBalls: prevBalls ?? [],
+    newBowlerId: parsed.data.bowler_id,
+    rules,
+    inningsNumber: inningsRow?.innings_number ?? 1,
+  });
+  if (!bowlerCheck.ok) return bowlerCheck;
 
   // Sync engine slots with the new ball's chosen striker / non-striker /
   // bowler before validation. Same reason as the replay loop above:
@@ -450,31 +377,11 @@ export async function recordBall(
     return { ok: false, error: validation.error.message };
   }
 
-  // Compute the over/ball/legal-seq for the new row.
-  const ballsPerOver = 6;
-  const last = (prevBalls ?? [])[prevBalls?.length ? prevBalls.length - 1 : -1];
-  let over_number = 1;
-  let ball_in_over = 0;
-  let legal_ball_seq: number | null = null;
-  if (last) {
-    over_number = last.over_number;
-    ball_in_over = last.ball_in_over;
-    if (last.legal_ball_seq != null && last.ball_in_over === ballsPerOver) {
-      over_number += 1;
-      ball_in_over = 0;
-    }
-  }
-  const isLegal =
-    !parsed.data.extra_type || parsed.data.extra_type === "bye";
-  if (isLegal) {
-    ball_in_over += 1;
-    const totalLegalBefore =
-      (prevBalls ?? []).filter(
-        (b) =>
-          b.extra_type !== "wide" && b.extra_type !== "no_ball",
-      ).length;
-    legal_ball_seq = totalLegalBefore + 1;
-  }
+  const { over_number, ball_in_over, legal_ball_seq, isLegal } =
+    computeBallPosition({
+      prevBalls: prevBalls ?? [],
+      newExtraType: parsed.data.extra_type ?? null,
+    });
 
   const isFreeHit = state.free_hit_pending && isLegal;
 
@@ -779,6 +686,21 @@ export async function startSecondInnings(
     .update({ current_innings_id: innings.id, status: "live" })
     .eq("id", match.id);
 
+  const {
+    data: { user: actor2 },
+  } = await supabase.auth.getUser();
+  await logMatchAuditEvent({
+    matchId: match.id,
+    eventType: "innings_2_started",
+    actorId: actor2?.id ?? null,
+    payload: {
+      target,
+      striker_id: parsed.data.striker_id,
+      non_striker_id: parsed.data.non_striker_id,
+      bowler_id: parsed.data.bowler_id,
+    },
+  });
+
   revalidatePath(`/matches/${match.id}/score`);
   return { ok: true, data: { inningsId: innings.id } };
 }
@@ -895,6 +817,21 @@ async function finalizeMatchInternal(
     })
     .eq("id", matchId);
   if (error) return { ok: false, error: error.message };
+
+  const {
+    data: { user: actor },
+  } = await supabase.auth.getUser();
+  await logMatchAuditEvent({
+    matchId,
+    eventType: "match_completed",
+    actorId: actor?.id ?? null,
+    payload: {
+      result_type: resultType,
+      winner_id: winnerId,
+      win_margin: winMargin,
+    },
+  });
+
   return { ok: true, data: undefined };
 }
 
@@ -1019,6 +956,23 @@ export async function startSuperOverInnings(
     .update({ current_innings_id: innings.id, status: "live" })
     .eq("id", match.id);
 
+  const {
+    data: { user: actor },
+  } = await supabase.auth.getUser();
+  await logMatchAuditEvent({
+    matchId: match.id,
+    eventType: "super_over_started",
+    actorId: actor?.id ?? null,
+    payload: {
+      innings_number: parsed.data.inningsNumber,
+      target,
+      batting_team_id: battingTeamId,
+      striker_id: parsed.data.striker_id,
+      non_striker_id: parsed.data.non_striker_id,
+      bowler_id: parsed.data.bowler_id,
+    },
+  });
+
   revalidatePath(`/matches/${match.id}/score`);
   return { ok: true, data: { inningsId: innings.id } };
 }
@@ -1049,6 +1003,12 @@ export async function voidLastBall(
     .single();
   if (!match) return { ok: false, error: "Match not found" };
   await requireTournamentAdmin(match.tournament_id);
+
+  const lock = await enforceScoringLock({
+    matchId: parsed.data.matchId,
+    userId: user.id,
+  });
+  if (!lock.ok) return lock;
 
   const { data: lastBall } = await supabase
     .from("balls")
@@ -1113,6 +1073,12 @@ export async function voidLastN(
     .single();
   if (!match) return { ok: false, error: "Match not found" };
   await requireTournamentAdmin(match.tournament_id);
+
+  const lock = await enforceScoringLock({
+    matchId: parsed.data.matchId,
+    userId: user.id,
+  });
+  if (!lock.ok) return lock;
 
   const { data: balls } = await supabase
     .from("balls")

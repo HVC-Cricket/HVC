@@ -268,6 +268,10 @@ export type Database = {
           win_margin: string | null;
           player_of_match_id: string | null;
           current_innings_id: string | null;
+          primary_scorer_id: string | null;
+          primary_scorer_heartbeat_at: string | null;
+          pending_scorer_request_id: string | null;
+          pending_scorer_request_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -293,6 +297,10 @@ export type Database = {
           win_margin?: string | null;
           player_of_match_id?: string | null;
           current_innings_id?: string | null;
+          primary_scorer_id?: string | null;
+          primary_scorer_heartbeat_at?: string | null;
+          pending_scorer_request_id?: string | null;
+          pending_scorer_request_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -318,6 +326,10 @@ export type Database = {
           win_margin?: string | null;
           player_of_match_id?: string | null;
           current_innings_id?: string | null;
+          primary_scorer_id?: string | null;
+          primary_scorer_heartbeat_at?: string | null;
+          pending_scorer_request_id?: string | null;
+          pending_scorer_request_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -527,6 +539,33 @@ export type Database = {
           voided_at?: string | null;
           scored_by?: string;
           scored_at?: string;
+        };
+        Relationships: [];
+      };
+      match_audit_events: {
+        Row: {
+          id: string;
+          match_id: string;
+          event_type: string;
+          actor_id: string | null;
+          payload: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          match_id: string;
+          event_type: string;
+          actor_id?: string | null;
+          payload?: Json | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          match_id?: string;
+          event_type?: string;
+          actor_id?: string | null;
+          payload?: Json | null;
+          created_at?: string;
         };
         Relationships: [];
       };

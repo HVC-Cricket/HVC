@@ -1,6 +1,13 @@
 "use client";
 
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -12,30 +19,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  countTasksForMatch,
-  deleteTask,
-  enqueueTask,
-  listTasksForMatch,
-  type ScoreTask,
-  type ScoreTaskKind,
-} from "@/lib/offline-queue";
+import { type ScoreTask } from "@/lib/offline-queue";
+import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
 
 import { recordBall, voidLastBall, voidLastN } from "./actions";
 import type { ScoreboardState } from "./state";
-
-type WicketType =
-  | "bowled"
-  | "caught"
-  | "caught_and_bowled"
-  | "run_out"
-  | "stumped"
-  | "hit_wicket"
-  | "retired"
-  | "obstructing"
-  | "timed_out";
-
-type DrainOutcome = "ok" | "validation" | "network";
+import { type DrainOutcome, useOfflineQueue } from "./use-offline-queue";
+import { type WicketType, WicketButton } from "./wicket-button";
 
 type OptimisticBall = {
   /** Stable local id used as the React key in the recent-balls strip. */
@@ -135,11 +125,11 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     state.active.bowler_id ?? state.balls[0]?.bowler_id ?? "",
   );
 
-  // Inline picker state for Wide / No-ball / Bye. Tapping the top-level
-  // button opens a 0–6 sub-picker; tapping a number submits the ball
-  // and closes the picker. `noBallByesPick` is scoped to the No-ball
-  // picker: when on, the chosen runs go to extras (byes) instead of
-  // `runs_off_bat`, so the striker isn't credited.
+  // Inline picker state for Wide / No-ball / Bye / Overthrow. Tapping
+  // the top-level button opens a sub-picker; tapping a number submits
+  // the ball and closes the picker. `noBallByesPick` is scoped to the
+  // No-ball picker — when on, the chosen runs go to extras (byes)
+  // instead of `runs_off_bat`, so the striker isn't credited.
   const [extraPicker, setExtraPicker] = useState<
     "wide" | "no_ball" | "bye" | "overthrow" | null
   >(null);
@@ -155,108 +145,81 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     setNoBallByesPick(false);
   };
 
-  // Mobile-data realities + service-worker offline support: every write is
-  // persisted to IndexedDB before the network attempt, so the queue
-  // survives page reloads, tab closes, and offline gaps of any length.
-  // The drain loop runs serially: on success we drop the task; on a network
-  // throw we pause and resume on the `online` event (or the safety tick).
+  // Mobile-data realities + service-worker offline support: every write
+  // is persisted to IndexedDB before the network attempt, so the queue
+  // survives page reloads, tab close, and offline gaps of any length.
+  // `useOfflineQueue` owns the drain loop + online/offline events;
+  // scorecard-specific concerns (optimistic balls, pending undos) live
+  // below and are reconciled through `onTaskComplete`.
   const matchId = state.match.id;
-  const [pendingCount, setPendingCount] = useState(0);
-  const [isOffline, setIsOffline] = useState(false);
-  const drainingRef = useRef(false);
 
   // Optimistic recordBall entries — pushed instantly on tap so the score
-  // updates without waiting for the server. We reconcile in two ways:
-  //   (1) when state.balls.length advances (server confirmed), shift the
-  //       front of the queue by however many balls landed.
-  //   (2) when a task is dropped due to validation rejection, also shift
-  //       the front. Network errors leave optimistic entries in place so
-  //       the score stays consistent until reconnect.
+  // updates without waiting for the server.
   const [optimistic, setOptimistic] = useState<OptimisticBall[]>([]);
 
-  // Pending undo entries — the inverse of optimistic. When the user taps
-  // "Undo" and there's nothing in the optimistic queue, we capture the
-  // most recent SERVER ball and subtract it from the displayed totals
-  // immediately. The server processes voidLast in the background; when
-  // state.balls regresses, the matching entry pops off the front.
+  // Pending undo entries — the inverse of optimistic.
   const [pendingUndos, setPendingUndos] = useState<PendingUndo[]>([]);
   const serverBallsRef = useRef(state.balls.length);
 
-  const runTask = async (task: ScoreTask): Promise<DrainOutcome> => {
-    try {
-      let result;
-      switch (task.kind) {
-        case "recordBall":
-          result = await recordBall(
-            task.payload as Parameters<typeof recordBall>[0],
-          );
-          break;
-        case "voidLastBall":
-          result = await voidLastBall(
-            task.payload as Parameters<typeof voidLastBall>[0],
-          );
-          break;
-        case "voidLastN":
-          result = await voidLastN(
-            task.payload as Parameters<typeof voidLastN>[0],
-          );
-          break;
+  const runTask = useCallback(
+    async (task: ScoreTask): Promise<DrainOutcome> => {
+      try {
+        let result;
+        switch (task.kind) {
+          case "recordBall":
+            result = await recordBall(
+              task.payload as Parameters<typeof recordBall>[0],
+            );
+            break;
+          case "voidLastBall":
+            result = await voidLastBall(
+              task.payload as Parameters<typeof voidLastBall>[0],
+            );
+            break;
+          case "voidLastN":
+            result = await voidLastN(
+              task.payload as Parameters<typeof voidLastN>[0],
+            );
+            break;
+        }
+        if (result && !result.ok) {
+          toast.error(result.error);
+          return "validation";
+        }
+        return "ok";
+      } catch {
+        // Network / fetch failure — keep the task in IDB and let the
+        // drain loop pause until the browser comes back online.
+        return "network";
       }
-      if (result && !result.ok) {
-        toast.error(result.error);
-        return "validation";
-      }
-      return "ok";
-    } catch {
-      // Network / fetch failure — keep the task in IDB and let the drain
-      // loop pause until the browser comes back online.
-      return "network";
-    }
-  };
+    },
+    [],
+  );
 
-  const drain = async () => {
-    if (drainingRef.current) return;
-    drainingRef.current = true;
-    try {
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const tasks = await listTasksForMatch(matchId);
-        if (tasks.length === 0) break;
-        const next = tasks[0];
-        const outcome = await runTask(next);
-        if (outcome === "network") {
-          setIsOffline(true);
-          break;
-        }
-        if (next.id != null) {
-          try {
-            await deleteTask(next.id);
-          } catch {
-            /* ignore — next drain will retry the delete */
-          }
-        }
-        setPendingCount((c) => Math.max(0, c - 1));
-        setIsOffline(false);
-
-        // On validation rejection, drop the matching optimistic entry —
-        // server didn't accept the ball so it shouldn't stay on-screen.
-        // On success, state.balls will advance/regress and the
-        // reconciliation effect below clears it for us instead.
-        if (outcome === "validation") {
-          if (next.kind === "recordBall") {
-            setOptimistic((q) => q.slice(1));
-          } else if (next.kind === "voidLastBall") {
-            setPendingUndos((q) => q.slice(1));
-          } else if (next.kind === "voidLastN") {
-            const c = (next.payload as { count?: number }).count ?? 1;
-            setPendingUndos((q) => q.slice(c));
-          }
-        }
+  // On validation rejection, drop the matching optimistic entry — the
+  // server didn't accept the ball so it shouldn't stay on-screen. On
+  // success, state.balls will advance/regress and the reconciliation
+  // effect below clears it for us instead.
+  const onTaskComplete = useCallback(
+    (task: ScoreTask, outcome: DrainOutcome) => {
+      if (outcome !== "validation") return;
+      if (task.kind === "recordBall") {
+        setOptimistic((q) => q.slice(1));
+      } else if (task.kind === "voidLastBall") {
+        setPendingUndos((q) => q.slice(1));
+      } else if (task.kind === "voidLastN") {
+        const c = (task.payload as { count?: number }).count ?? 1;
+        setPendingUndos((q) => q.slice(c));
       }
-    } finally {
-      drainingRef.current = false;
-    }
-  };
+    },
+    [],
+  );
+
+  const { enqueue, pendingCount, isOffline } = useOfflineQueue({
+    matchId,
+    runTask,
+    onTaskComplete,
+  });
 
   // Reconcile optimistic + pendingUndo queues with server state. When
   // state.balls grows (recordBall confirmed), shift optimistic from the
@@ -324,63 +287,6 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             .map((p) => p.id),
         );
 
-  const enqueue = async (kind: ScoreTaskKind, payload: unknown) => {
-    setPendingCount((c) => c + 1);
-    try {
-      await enqueueTask({ matchId, kind, payload });
-    } catch (err) {
-      console.error("[hvc-scoring] failed to persist queued task", err);
-      // IDB unavailable (private mode etc.) — fall through and run inline.
-      // We've already incremented the count, so make sure runTask still
-      // takes the slot back.
-      const outcome = await runTask({ matchId, kind, payload, createdAt: Date.now() });
-      setPendingCount((c) => Math.max(0, c - 1));
-      if (outcome === "network") {
-        toast.error("Couldn't reach server. Check your connection.");
-      }
-      return;
-    }
-    void drain();
-  };
-
-  // On mount: load any tasks left over from a previous session and start
-  // draining. Hook the online/offline events and a 15s safety tick.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const count = await countTasksForMatch(matchId);
-        if (!cancelled) setPendingCount(count);
-      } catch (err) {
-        console.error("[hvc-scoring] could not read offline queue", err);
-      }
-      void drain();
-    })();
-
-    const onOnline = () => {
-      setIsOffline(false);
-      void drain();
-    };
-    const onOffline = () => setIsOffline(true);
-    window.addEventListener("online", onOnline);
-    window.addEventListener("offline", onOffline);
-
-    if (typeof navigator !== "undefined" && navigator.onLine === false) {
-      setIsOffline(true);
-    }
-
-    const tick = setInterval(() => {
-      if (!drainingRef.current) void drain();
-    }, 15_000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(tick);
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("offline", onOffline);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matchId]);
 
   const striker = playersById.get(strikerId);
   const nonStriker = playersById.get(nonStrikerId);
@@ -1119,17 +1025,10 @@ function formatBatterStats(
   optimistic?: OptimisticBall[],
 ): string | null {
   if (!playerId) return null;
-  let runs = 0;
-  let bf = 0;
-  let fours = 0;
-  let sixes = 0;
-  for (const b of balls) {
-    if (b.batter_id !== playerId) continue;
-    runs += b.runs_off_bat;
-    if (b.extra_type !== "wide") bf += 1;
-    if (b.runs_off_bat === 4) fours += 1;
-    if (b.runs_off_bat === 6) sixes += 1;
-  }
+  const base = computeBatterStats(balls, playerId);
+  let { runs, balls_faced: bf, fours, sixes } = base;
+  // Optimistic balls' striker_id IS the batter, so we shim the field
+  // name to share the helper with server balls.
   for (const o of optimistic ?? []) {
     if (o.striker_id !== playerId) continue;
     runs += o.runs_off_bat;
@@ -1158,30 +1057,11 @@ function formatBowlerStats(
   optimistic?: OptimisticBall[],
 ): string | null {
   if (!playerId) return null;
-  let legal = 0;
-  let conceded = 0;
-  let wickets = 0;
-  const wicketBowler = new Set([
-    "bowled",
-    "caught",
-    "caught_and_bowled",
-    "stumped",
-    "hit_wicket",
-  ]);
-  let touched = false;
-  for (const b of balls) {
-    if (b.bowler_id !== playerId) continue;
-    touched = true;
-    const isLegal = b.extra_type !== "wide" && b.extra_type !== "no_ball";
-    if (isLegal) legal += 1;
-    conceded += b.runs_off_bat;
-    if (b.extra_type === "wide" || b.extra_type === "no_ball") {
-      conceded += b.extras;
-    }
-    if (b.is_wicket && b.wicket_type && wicketBowler.has(b.wicket_type)) {
-      wickets += 1;
-    }
-  }
+  const base = computeBowlerStats(balls, playerId);
+  let legal = base.legal_balls;
+  let conceded = base.runs_conceded;
+  let wickets = base.wickets;
+  let touched = legal > 0 || conceded > 0 || wickets > 0;
   for (const o of optimistic ?? []) {
     if (o.bowler_id !== playerId) continue;
     touched = true;
@@ -1200,256 +1080,6 @@ function formatBowlerStats(
   const overs = `${Math.floor(legal / 6)}.${legal % 6}`;
   const econ = legal > 0 ? ((conceded / legal) * 6).toFixed(1) : "—";
   return `${wickets}/${conceded} (${overs}) · econ ${econ}`;
-}
-
-type WicketDelivery = "legal" | "no_ball" | "wide" | "bye";
-
-function WicketButton({
-  onSubmit,
-  allowed,
-  onFreeHit,
-  freeHitDismissals,
-  striker,
-  nonStriker,
-  strikerId,
-  nonStrikerId,
-  bowlingXi,
-}: {
-  onSubmit: (
-    wicket_type: WicketType,
-    player_out_id: string | undefined,
-    fielder_id: string | undefined,
-    delivery: WicketDelivery,
-    runs: number,
-    no_ball_byes: boolean,
-  ) => void;
-  allowed: WicketType[];
-  onFreeHit: boolean;
-  freeHitDismissals: WicketType[];
-  striker?: string;
-  nonStriker?: string;
-  strikerId: string;
-  nonStrikerId: string;
-  bowlingXi: { id: string; display_name: string; category: 1 | 2 | 3 | null }[];
-}) {
-  const [open, setOpen] = useState(false);
-  const [wicketType, setWicketType] = useState<WicketType>("bowled");
-  const [whoOut, setWhoOut] = useState<"striker" | "non_striker">("striker");
-  const [fielder, setFielder] = useState("");
-  const [delivery, setDelivery] = useState<WicketDelivery>("legal");
-  const [runs, setRuns] = useState<number>(0);
-  // Only meaningful when delivery = no_ball. If checked, the chosen
-  // runs are byes (not credited to the striker), in addition to the
-  // standard 1-run no-ball penalty.
-  const [noBallByes, setNoBallByes] = useState<boolean>(false);
-
-  const types = onFreeHit ? freeHitDismissals : allowed;
-  // Fielder picker is only meaningful for `caught`, `run_out`, and
-  // `stumped`. `caught_and_bowled` is, by definition, the bowler
-  // catching off their own delivery — the fielder is implicit and
-  // POTM scoring credits the catch to the bowler.
-  const showFielder = ["caught", "run_out", "stumped"].includes(wicketType);
-
-  const close = () => {
-    setOpen(false);
-    setFielder("");
-    setDelivery("legal");
-    setRuns(0);
-    setNoBallByes(false);
-  };
-
-  // Tiny label that clarifies what the Runs number means for each
-  // delivery type — different conventions for each.
-  const runsHint =
-    delivery === "legal"
-      ? "off the bat"
-      : delivery === "no_ball"
-        ? noBallByes
-          ? "byes (not off the bat)"
-          : "off the bat (penalty added)"
-        : delivery === "wide"
-          ? "additional wides (penalty added)"
-          : "byes";
-
-  // Lock body scroll + escape-to-close while the modal is open.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prevOverflow;
-      window.removeEventListener("keydown", onKey);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-  return (
-    <>
-      <Button
-        variant="destructive"
-        className="h-12"
-        onClick={() => setOpen(true)}
-      >
-        Wicket
-      </Button>
-      {open && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Record wicket"
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
-          onClick={close}
-        >
-          <div
-            className="w-full max-w-md space-y-3 rounded-t-xl bg-background p-4 shadow-xl sm:rounded-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base font-semibold">Record wicket</h2>
-              <button
-                type="button"
-                aria-label="Close"
-                onClick={close}
-                className="rounded p-1 text-xl leading-none text-muted-foreground hover:bg-muted"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="space-y-1">
-                <span className="text-xs text-muted-foreground">Type</span>
-                <select
-                  value={wicketType}
-                  onChange={(e) => setWicketType(e.target.value as WicketType)}
-                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                >
-                  {types.map((t) => (
-                    <option key={t} value={t}>
-                      {t.replace(/_/g, " ")}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="space-y-1">
-                <span className="text-xs text-muted-foreground">Player out</span>
-                <select
-                  value={whoOut}
-                  onChange={(e) =>
-                    setWhoOut(e.target.value as "striker" | "non_striker")
-                  }
-                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                >
-                  <option value="striker">Striker — {striker ?? "?"}</option>
-                  <option value="non_striker">
-                    Non-striker — {nonStriker ?? "?"}
-                  </option>
-                </select>
-              </label>
-              <label className="space-y-1 sm:col-span-2">
-                <span className="text-xs text-muted-foreground">Delivery</span>
-                <select
-                  value={delivery}
-                  onChange={(e) =>
-                    setDelivery(e.target.value as WicketDelivery)
-                  }
-                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                >
-                  <option value="legal">Legal ball</option>
-                  <option value="no_ball">No-ball (+1 penalty)</option>
-                  <option value="wide">Wide (+1 penalty)</option>
-                  <option value="bye">Bye</option>
-                </select>
-              </label>
-              <div className="space-y-1 sm:col-span-2">
-                <span className="text-xs text-muted-foreground">
-                  Runs{" "}
-                  <span className="text-muted-foreground/70">({runsHint})</span>
-                </span>
-                <div className="grid grid-cols-5 gap-1">
-                  {[0, 1, 2, 3, 4].map((n) => (
-                    <Button
-                      key={n}
-                      type="button"
-                      size="sm"
-                      variant={runs === n ? "default" : "outline"}
-                      className="h-10"
-                      onClick={() => setRuns(n)}
-                    >
-                      {n}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              {delivery === "no_ball" && (
-                <label className="flex items-center gap-2 sm:col-span-2">
-                  <input
-                    type="checkbox"
-                    checked={noBallByes}
-                    onChange={(e) => setNoBallByes(e.target.checked)}
-                    className="h-4 w-4"
-                  />
-                  <span className="text-sm">
-                    Runs are byes (not off the bat)
-                  </span>
-                </label>
-              )}
-            </div>
-
-            {showFielder && (
-              <label className="block space-y-1">
-                <span className="text-xs text-muted-foreground">
-                  Fielder{" "}
-                  <span className="text-muted-foreground/70">
-                    ({wicketType === "stumped" ? "wicket-keeper" : "who took it"})
-                  </span>
-                </span>
-                <select
-                  value={fielder}
-                  onChange={(e) => setFielder(e.target.value)}
-                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"
-                >
-                  <option value="">—</option>
-                  {bowlingXi.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.display_name}
-                      {p.category ? ` · C${p.category}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-
-            <div className="flex justify-end gap-2 pt-1">
-              <Button variant="ghost" size="sm" onClick={close}>
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => {
-                  onSubmit(
-                    wicketType,
-                    whoOut === "striker" ? strikerId : nonStrikerId,
-                    showFielder && fielder ? fielder : undefined,
-                    delivery,
-                    runs,
-                    noBallByes,
-                  );
-                  close();
-                }}
-              >
-                Save wicket
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
-  );
 }
 
 type RenderBall = {

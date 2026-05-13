@@ -10,8 +10,10 @@ import {
 import { requireTournamentAdmin } from "@/lib/auth";
 
 import { InningsBreakPanel } from "./innings-break-panel";
+import { getScoringLockStatus } from "./lock-actions";
 import { MatchCompletePanel } from "./match-complete-panel";
 import { Scoreboard } from "./scoreboard";
+import { ScoringLockGate } from "./scoring-lock-gate";
 import { StartMatchPanel } from "./start-match-panel";
 import { SuperOverPanel } from "./super-over-panel";
 import { loadScoreboardState } from "./state";
@@ -24,6 +26,10 @@ export default async function ScorePage(props: {
   const { matchId } = await props.params;
   const state = await loadScoreboardState(matchId);
   await requireTournamentAdmin(state.tournament.id);
+
+  // Multi-scorer lock state at page-load time. The client gate
+  // refines this on mount and keeps it fresh via heartbeat.
+  const initialLockStatus = await getScoringLockStatus(matchId);
 
   // Gating: toss set + both XIs picked.
   const hasToss = !!state.match.toss_winner_id && !!state.match.toss_decision;
@@ -100,7 +106,14 @@ export default async function ScorePage(props: {
           state.phase === "innings_2" ||
           state.phase === "super_over_1" ||
           state.phase === "super_over_2") &&
-          state.innings && <Scoreboard state={state} />}
+          state.innings && (
+            <ScoringLockGate
+              matchId={matchId}
+              initialStatus={initialLockStatus}
+            >
+              <Scoreboard state={state} />
+            </ScoringLockGate>
+          )}
 
         {state.phase === "innings_break" && (
           <InningsBreakPanel state={state} />

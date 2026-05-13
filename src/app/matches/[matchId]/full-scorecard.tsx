@@ -5,11 +5,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
-
-import type { Database } from "@/lib/supabase/database.types";
-
-type BallRow = Database["public"]["Tables"]["balls"]["Row"];
+import type { BallRow } from "@/lib/supabase/row-types";
 type PlayerLite = {
   id: string;
   display_name: string;
@@ -403,80 +401,6 @@ function BowlingTable({
 // Stat computation helpers (mirror the SQL views)
 // ---------------------------------------------------------------------------
 
-function computeBatterStats(balls: BallRow[], playerId: string) {
-  let runs = 0;
-  let balls_faced = 0;
-  let fours = 0;
-  let sixes = 0;
-  for (const b of balls) {
-    if (b.batter_id !== playerId) continue;
-    runs += b.runs_off_bat;
-    if (b.extra_type !== "wide") balls_faced += 1;
-    if (b.runs_off_bat === 4) fours += 1;
-    if (b.runs_off_bat === 6) sixes += 1;
-  }
-  return { runs, balls_faced, fours, sixes };
-}
-
-function computeBowlerStats(balls: BallRow[], playerId: string) {
-  let legal_balls = 0;
-  let runs_conceded = 0;
-  let wickets = 0;
-  let wides = 0;
-  let no_balls = 0;
-  let dots = 0;
-  const wicketBowler = new Set([
-    "bowled",
-    "caught",
-    "caught_and_bowled",
-    "lbw",
-    "stumped",
-    "hit_wicket",
-  ]);
-  const overBalls = new Map<number, BallRow[]>();
-  for (const b of balls) {
-    if (b.bowler_id !== playerId) continue;
-    const isLegal = b.extra_type !== "wide" && b.extra_type !== "no_ball";
-    if (isLegal) legal_balls += 1;
-    runs_conceded += b.runs_off_bat;
-    if (b.extra_type === "wide" || b.extra_type === "no_ball") {
-      runs_conceded += b.extras;
-    }
-    if (b.extra_type === "wide") wides += 1;
-    if (b.extra_type === "no_ball") no_balls += 1;
-    if (b.is_wicket && b.wicket_type && wicketBowler.has(b.wicket_type)) {
-      wickets += 1;
-    }
-    // Dot ball: a legal delivery with zero runs to the batter and zero
-    // extras off the bowler (byes count as runs in the over → not a dot).
-    if (isLegal && b.runs_off_bat + b.extras === 0) dots += 1;
-    if (!overBalls.has(b.over_number)) overBalls.set(b.over_number, []);
-    overBalls.get(b.over_number)!.push(b);
-  }
-  // Maiden: an over where the bowler bowled all 6 legal balls AND zero
-  // runs were scored (off bat, as wides, no-balls, or byes).
-  let maidens = 0;
-  for (const [, group] of overBalls) {
-    const legalInOver = group.filter(
-      (b) => b.extra_type !== "wide" && b.extra_type !== "no_ball",
-    ).length;
-    if (legalInOver !== 6) continue;
-    const runsInOver = group.reduce(
-      (s, b) => s + b.runs_off_bat + b.extras,
-      0,
-    );
-    if (runsInOver === 0) maidens += 1;
-  }
-  return {
-    legal_balls,
-    runs_conceded,
-    wickets,
-    wides,
-    no_balls,
-    dots,
-    maidens,
-  };
-}
 
 function computeDismissal(
   balls: BallRow[],

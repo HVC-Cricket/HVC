@@ -5,13 +5,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
-
-import type { Database } from "@/lib/supabase/database.types";
+import type { BallRow } from "@/lib/supabase/row-types";
 
 import { PlayerOfMatchForm } from "./player-of-match-form";
-
-type BallRow = Database["public"]["Tables"]["balls"]["Row"];
 
 /**
  * Renders the "Player of the match" banner on a completed match.
@@ -260,29 +258,14 @@ function computePerformances(
   xi: { player_id: string; team_id: string }[],
   winnerId: string | null,
 ): Performance[] {
-  const wicketBowler = new Set([
-    "bowled",
-    "caught",
-    "caught_and_bowled",
-    "lbw",
-    "stumped",
-    "hit_wicket",
-  ]);
-
   return xi.map(({ player_id, team_id }) => {
-    // Batting
-    let runs = 0;
-    let balls_faced = 0;
-    let fours = 0;
-    let sixes = 0;
+    // Batting — shared batter compute + a separate scan for "did this
+    // player get out at all" (the POTM duck penalty needs it).
+    const { runs, balls_faced, fours, sixes } = computeBatterStats(
+      balls,
+      player_id,
+    );
     let got_out = false;
-    for (const b of balls) {
-      if (b.batter_id !== player_id) continue;
-      runs += b.runs_off_bat;
-      if (b.extra_type !== "wide") balls_faced += 1;
-      if (b.runs_off_bat === 4) fours += 1;
-      if (b.runs_off_bat === 6) sixes += 1;
-    }
     for (const b of balls) {
       if (b.is_wicket && b.player_out_id === player_id) {
         got_out = true;
@@ -290,37 +273,15 @@ function computePerformances(
       }
     }
 
-    // Bowling
-    let wickets = 0;
-    let legal_balls = 0;
-    let runs_conceded = 0;
-    let dots = 0;
-    const overBalls = new Map<number, BallRow[]>();
-    for (const b of balls) {
-      if (b.bowler_id !== player_id) continue;
-      const isLegal = b.extra_type !== "wide" && b.extra_type !== "no_ball";
-      if (isLegal) legal_balls += 1;
-      runs_conceded += b.runs_off_bat;
-      if (b.extra_type === "wide" || b.extra_type === "no_ball")
-        runs_conceded += b.extras;
-      if (b.is_wicket && b.wicket_type && wicketBowler.has(b.wicket_type))
-        wickets += 1;
-      if (isLegal && b.runs_off_bat + b.extras === 0) dots += 1;
-      if (!overBalls.has(b.over_number)) overBalls.set(b.over_number, []);
-      overBalls.get(b.over_number)!.push(b);
-    }
-    let maidens = 0;
-    for (const [, group] of overBalls) {
-      const legalInOver = group.filter(
-        (b) => b.extra_type !== "wide" && b.extra_type !== "no_ball",
-      ).length;
-      if (legalInOver !== 6) continue;
-      const runsInOver = group.reduce(
-        (s, b) => s + b.runs_off_bat + b.extras,
-        0,
-      );
-      if (runsInOver === 0) maidens += 1;
-    }
+    // Bowling — shared bowler compute. POTM scoring doesn't use the
+    // wides / no-balls count, but everything else is identical.
+    const {
+      legal_balls,
+      runs_conceded,
+      wickets,
+      dots,
+      maidens,
+    } = computeBowlerStats(balls, player_id);
 
     // Fielding (incl. c&b → bowler gets the catch credit)
     let catches = 0;

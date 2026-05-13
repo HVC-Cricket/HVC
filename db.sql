@@ -164,11 +164,30 @@ create table if not exists matches (
   win_margin            text,
   player_of_match_id    uuid references players(id),
   current_innings_id    uuid,                     -- FK added after innings table exists
+  -- Multi-scorer concurrency lock. At most one tournament admin holds
+  -- the "primary scorer" claim on a match at a time. Lock auto-expires
+  -- after 2 minutes of no heartbeat (enforced by the recordBall /
+  -- voidLast* server actions, not by triggers here).
+  primary_scorer_id              uuid references auth.users(id) on delete set null,
+  primary_scorer_heartbeat_at    timestamptz,
+  -- Permission-based takeover queue. A second admin files a request
+  -- here; the current holder sees an Allow / Deny banner.
+  pending_scorer_request_id      uuid references auth.users(id) on delete set null,
+  pending_scorer_request_at      timestamptz,
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now(),
   check (team_a_id <> team_b_id),
   unique (tournament_id, match_number)
 );
+
+-- Back-fill the lock + takeover-request columns for installs that ran
+-- the matches table from an earlier revision.
+alter table matches add column if not exists primary_scorer_id           uuid references auth.users(id) on delete set null;
+alter table matches add column if not exists primary_scorer_heartbeat_at timestamptz;
+alter table matches add column if not exists pending_scorer_request_id   uuid references auth.users(id) on delete set null;
+alter table matches add column if not exists pending_scorer_request_at   timestamptz;
+create index if not exists idx_matches_primary_scorer        on matches(primary_scorer_id)        where primary_scorer_id is not null;
+create index if not exists idx_matches_pending_scorer_request on matches(pending_scorer_request_id) where pending_scorer_request_id is not null;
 
 
 -- ---------------------------------------------------------------------
@@ -1018,6 +1037,34 @@ create index if not exists idx_push_subs_by_match
   on push_subscriptions(match_id);
 
 alter table push_subscriptions enable row level security;
+-- No policies → only the service role can read/write.
+
+
+-- =====================================================================
+-- Match-level audit events
+-- ---------------------------------------------------------------------
+-- Sibling to the per-ball log built into `balls` (scored_by / voided_by
+-- columns). Tracks admin actions on a match that AREN'T ball entries:
+-- toss, XI changes, match start, innings transitions, match
+-- completion, POTM picks.
+--
+-- RLS: deny all to anon/authenticated. Server Actions log via service
+-- role (writes already gated by `requireTournamentAdmin`); the
+-- /matches/[id]/activity page reads via service role (also admin-gated).
+-- =====================================================================
+create table if not exists match_audit_events (
+  id          uuid primary key default gen_random_uuid(),
+  match_id    uuid not null references matches(id) on delete cascade,
+  event_type  text not null,
+  actor_id    uuid references auth.users(id) on delete set null,
+  payload     jsonb,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists idx_match_audit_match_created
+  on match_audit_events(match_id, created_at desc);
+
+alter table match_audit_events enable row level security;
 -- No policies → only the service role can read/write.
 
 

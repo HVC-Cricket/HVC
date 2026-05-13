@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { requireOrganizer, requireUser } from "@/lib/auth";
+import { logMatchAuditEvent } from "@/lib/match-audit";
 import { createClient } from "@/lib/supabase/server";
 
 import type { ActionResult } from "@/app/tournaments/actions";
@@ -89,6 +90,23 @@ export async function savePlayingXI(
       return { ok: false, error: insErr.message };
     }
   }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  await logMatchAuditEvent({
+    matchId: match.id,
+    eventType: "xi_changed",
+    actorId: user?.id ?? null,
+    payload: {
+      team_id: parsed.data.teamId,
+      player_count: parsed.data.entries.length,
+      captain_id:
+        parsed.data.entries.find((e) => e.is_captain)?.player_id ?? null,
+      keeper_id:
+        parsed.data.entries.find((e) => e.is_keeper)?.player_id ?? null,
+    },
+  });
 
   revalidatePath(`/matches/${match.id}`);
   revalidatePath(`/matches/${match.id}/xi/${parsed.data.teamId}`);

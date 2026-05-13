@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { requireTournamentAdmin } from "@/lib/auth";
+import { logMatchAuditEvent } from "@/lib/match-audit";
 import { createClient } from "@/lib/supabase/server";
 
 const schema = z.object({
@@ -60,6 +61,16 @@ export async function setPlayerOfMatch(
     .update({ player_of_match_id: parsed.data.playerId })
     .eq("id", match.id);
   if (error) return { ok: false, error: error.message };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  await logMatchAuditEvent({
+    matchId: match.id,
+    eventType: parsed.data.playerId ? "potm_set" : "potm_cleared",
+    actorId: user?.id ?? null,
+    payload: parsed.data.playerId ? { player_id: parsed.data.playerId } : null,
+  });
 
   revalidatePath(`/matches/${match.id}`);
   return { ok: true };
