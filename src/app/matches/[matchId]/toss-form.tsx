@@ -4,6 +4,13 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { setToss } from "@/app/tournaments/[slug]/matches/actions";
 
@@ -47,24 +54,34 @@ export function TossForm({ matchId, teamA, teamB, current }: Props) {
         });
       }}
     >
-      <select
+      <Select
         name="toss_winner_id"
-        defaultValue={current?.toss_winner_id ?? ""}
-        className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
+        defaultValue={current?.toss_winner_id ?? undefined}
       >
-        <option value="">Toss winner…</option>
-        <option value={teamA.id}>{teamA.name}</option>
-        <option value={teamB.id}>{teamB.name}</option>
-      </select>
-      <select
+        <SelectTrigger className="capitalize">
+          <SelectValue placeholder="Toss winner…" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={teamA.id} className="capitalize">
+            {teamA.name}
+          </SelectItem>
+          <SelectItem value={teamB.id} className="capitalize">
+            {teamB.name}
+          </SelectItem>
+        </SelectContent>
+      </Select>
+      <Select
         name="toss_decision"
-        defaultValue={current?.toss_decision ?? ""}
-        className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
+        defaultValue={current?.toss_decision ?? undefined}
       >
-        <option value="">Decision…</option>
-        <option value="bat">Bat first</option>
-        <option value="bowl">Bowl first</option>
-      </select>
+        <SelectTrigger>
+          <SelectValue placeholder="Decision…" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="bat">Bat first</SelectItem>
+          <SelectItem value="bowl">Bowl first</SelectItem>
+        </SelectContent>
+      </Select>
       <Button type="submit" size="sm" disabled={pending}>
         {pending ? "Saving…" : current ? "Update toss" : "Save toss"}
       </Button>

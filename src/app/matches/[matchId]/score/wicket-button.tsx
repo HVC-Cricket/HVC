@@ -3,6 +3,13 @@
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export type WicketType =
   | "bowled"
@@ -148,47 +155,67 @@ export function WicketButton({
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-1">
                 <span className="text-xs text-muted-foreground">Type</span>
-                <select
+                <Select
                   value={wicketType}
-                  onChange={(e) => setWicketType(e.target.value as WicketType)}
-                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                  onValueChange={(v) => setWicketType(v as WicketType)}
                 >
-                  {types.map((t) => (
-                    <option key={t} value={t}>
-                      {t.replace(/_/g, " ")}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-10 capitalize">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {types.map((t) => (
+                      <SelectItem
+                        key={t}
+                        value={t}
+                        className="capitalize"
+                      >
+                        {t.replace(/_/g, " ")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </label>
               <label className="space-y-1">
-                <span className="text-xs text-muted-foreground">Player out</span>
-                <select
+                <span className="text-xs text-muted-foreground">
+                  Player out
+                </span>
+                <Select
                   value={whoOut}
-                  onChange={(e) =>
-                    setWhoOut(e.target.value as "striker" | "non_striker")
+                  onValueChange={(v) =>
+                    setWhoOut(v as "striker" | "non_striker")
                   }
-                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"
                 >
-                  <option value="striker">Striker — {striker ?? "?"}</option>
-                  <option value="non_striker">
-                    Non-striker — {nonStriker ?? "?"}
-                  </option>
-                </select>
+                  <SelectTrigger className="h-10 capitalize">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="striker" className="capitalize">
+                      Striker — {striker ?? "?"}
+                    </SelectItem>
+                    <SelectItem value="non_striker" className="capitalize">
+                      Non-striker — {nonStriker ?? "?"}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </label>
               <label className="space-y-1 sm:col-span-2">
                 <span className="text-xs text-muted-foreground">Delivery</span>
-                <select
+                <Select
                   value={delivery}
-                  onChange={(e) =>
-                    setDelivery(e.target.value as WicketDelivery)
-                  }
-                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                  onValueChange={(v) => setDelivery(v as WicketDelivery)}
                 >
-                  <option value="legal">Legal ball</option>
-                  <option value="no_ball">No-ball (+1 penalty)</option>
-                  <option value="wide">Wide (+1 penalty)</option>
-                  <option value="bye">Bye</option>
-                </select>
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="legal">Legal ball</SelectItem>
+                    <SelectItem value="no_ball">
+                      No-ball (+1 penalty)
+                    </SelectItem>
+                    <SelectItem value="wide">Wide (+1 penalty)</SelectItem>
+                    <SelectItem value="bye">Bye</SelectItem>
+                  </SelectContent>
+                </Select>
               </label>
               <div className="space-y-1 sm:col-span-2">
                 <span className="text-xs text-muted-foreground">
@@ -233,19 +260,26 @@ export function WicketButton({
                     ({wicketType === "stumped" ? "wicket-keeper" : "who took it"})
                   </span>
                 </span>
-                <select
-                  value={fielder}
-                  onChange={(e) => setFielder(e.target.value)}
-                  className="h-10 w-full rounded-md border border-input bg-transparent px-3 text-sm"
+                <Select
+                  value={fielder || undefined}
+                  onValueChange={setFielder}
                 >
-                  <option value="">—</option>
-                  {bowlingXi.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.display_name}
-                      {p.category ? ` · C${p.category}` : ""}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="h-10 capitalize">
+                    <SelectValue placeholder="—" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bowlingXi.map((p) => (
+                      <SelectItem
+                        key={p.id}
+                        value={p.id}
+                        className="capitalize"
+                      >
+                        {p.display_name}
+                        {p.category ? ` · C${p.category}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </label>
             )}
 

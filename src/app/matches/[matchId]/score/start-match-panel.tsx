@@ -11,6 +11,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { startMatch } from "./actions";
 import type { ScoreboardState } from "./state";
@@ -143,20 +150,20 @@ function Pick({
   return (
     <label className="block space-y-1">
       <span className="text-sm">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
-      >
-        <option value="">Select…</option>
-        {options.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.display_name}
-            {p.category ? ` · C${p.category}` : ""}
-            {highlightCat && p.category === highlightCat ? " ⭑" : ""}
-          </option>
-        ))}
-      </select>
+      <Select value={value || undefined} onValueChange={onChange}>
+        <SelectTrigger className="capitalize">
+          <SelectValue placeholder="Select…" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((p) => (
+            <SelectItem key={p.id} value={p.id} className="capitalize">
+              {p.display_name}
+              {p.category ? ` · C${p.category}` : ""}
+              {highlightCat && p.category === highlightCat ? " ⭑" : ""}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </label>
   );
 }

@@ -16,6 +16,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { createMatch } from "../actions";
 
@@ -100,19 +107,24 @@ export function NewMatchForm({ tournamentSlug, teams, defaults }: Props) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Stage</FormLabel>
-                <FormControl>
-                  <select
-                    {...field}
-                    className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
-                  >
-                    <option value="group">Group</option>
-                    <option value="qualifier">Qualifier</option>
-                    <option value="quarter">Quarter-final</option>
-                    <option value="semi">Semi-final</option>
-                    <option value="final">Final</option>
-                    <option value="exhibition">Exhibition</option>
-                  </select>
-                </FormControl>
+                <Select
+                  value={field.value}
+                  onValueChange={field.onChange}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Pick a stage" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="group">Group</SelectItem>
+                    <SelectItem value="qualifier">Qualifier</SelectItem>
+                    <SelectItem value="quarter">Quarter-final</SelectItem>
+                    <SelectItem value="semi">Semi-final</SelectItem>
+                    <SelectItem value="final">Final</SelectItem>
+                    <SelectItem value="exhibition">Exhibition</SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -124,25 +136,29 @@ export function NewMatchForm({ tournamentSlug, teams, defaults }: Props) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Team A</FormLabel>
-                  <FormControl>
-                    <select
-                      {...field}
-                      className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm capitalize shadow-sm"
-                    >
-                      <option value="">Select…</option>
+                  <Select
+                    value={field.value || undefined}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="capitalize">
+                        <SelectValue placeholder="Select…" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
                       {teams
                         .filter((t) => t.id !== teamBId)
                         .map((t) => (
-                          <option
+                          <SelectItem
                             key={t.id}
                             value={t.id}
                             className="capitalize"
                           >
                             {t.name}
-                          </option>
+                          </SelectItem>
                         ))}
-                    </select>
-                  </FormControl>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -153,25 +169,29 @@ export function NewMatchForm({ tournamentSlug, teams, defaults }: Props) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Team B</FormLabel>
-                  <FormControl>
-                    <select
-                      {...field}
-                      className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm capitalize shadow-sm"
-                    >
-                      <option value="">Select…</option>
+                  <Select
+                    value={field.value || undefined}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="capitalize">
+                        <SelectValue placeholder="Select…" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
                       {teams
                         .filter((t) => t.id !== teamAId)
                         .map((t) => (
-                          <option
+                          <SelectItem
                             key={t.id}
                             value={t.id}
                             className="capitalize"
                           >
                             {t.name}
-                          </option>
+                          </SelectItem>
                         ))}
-                    </select>
-                  </FormControl>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

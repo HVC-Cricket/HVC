@@ -4,6 +4,13 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { setPlayerOfMatch } from "./actions";
 
@@ -100,20 +107,27 @@ export function PlayerOfMatchForm({
           Or pick someone else
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
-          <select
-            value={value}
-            onChange={(e) => save(e.target.value)}
+          <Select
+            value={value || undefined}
+            onValueChange={(v) => save(v)}
             disabled={pending}
-            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
           >
-            <option value="">— use auto-pick —</option>
-            {options.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.display_name} · {p.team_short}
-                {p.category ? ` · C${p.category}` : ""}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="min-w-[12rem] capitalize">
+              <SelectValue placeholder="— use auto-pick —" />
+            </SelectTrigger>
+            <SelectContent>
+              {options.map((p) => (
+                <SelectItem
+                  key={p.id}
+                  value={p.id}
+                  className="capitalize"
+                >
+                  {p.display_name} · {p.team_short}
+                  {p.category ? ` · C${p.category}` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {value && (
             <Button
               variant="ghost"

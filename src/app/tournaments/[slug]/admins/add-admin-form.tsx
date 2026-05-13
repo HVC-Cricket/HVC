@@ -15,6 +15,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { addAdmin } from "./actions";
 
@@ -73,17 +80,19 @@ export function AddAdminForm({ tournamentSlug, allowOrganizer }: Props) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Role</FormLabel>
-              <FormControl>
-                <select
-                  {...field}
-                  className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
-                >
-                  <option value="scorer">Scorer</option>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Role" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="scorer">Scorer</SelectItem>
                   {allowOrganizer && (
-                    <option value="organizer">Organizer</option>
+                    <SelectItem value="organizer">Organizer</SelectItem>
                   )}
-                </select>
-              </FormControl>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}

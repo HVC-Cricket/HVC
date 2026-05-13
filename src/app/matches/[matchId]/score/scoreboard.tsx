@@ -19,6 +19,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectPrimitiveTrigger,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { type ScoreTask } from "@/lib/offline-queue";
 import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
 
@@ -493,18 +501,22 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             <span className="text-xs uppercase text-muted-foreground">
               Category
             </span>
-            <select
-              value={overCategory}
-              onChange={(e) =>
-                setOverCategory(Number(e.target.value) as 1 | 2 | 3)
-              }
-              className="h-8 rounded-md border border-input bg-transparent px-2 text-sm shadow-sm"
-              aria-label="Over category"
+            <Select
+              value={String(overCategory)}
+              onValueChange={(v) => setOverCategory(Number(v) as 1 | 2 | 3)}
             >
-              <option value={1}>Cat 1</option>
-              <option value={2}>Cat 2</option>
-              <option value={3}>Cat 3</option>
-            </select>
+              <SelectTrigger
+                className="h-8 w-auto px-2"
+                aria-label="Over category"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Cat 1</SelectItem>
+                <SelectItem value="2">Cat 2</SelectItem>
+                <SelectItem value="3">Cat 3</SelectItem>
+              </SelectContent>
+            </Select>
             <span className="text-xs text-muted-foreground">
               {overCategory === 2
                 ? "Any striker / any bowler"
@@ -923,11 +935,9 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
 
 /**
  * Combined display + picker for the three active slots (striker, non-
- * striker, bowler). Tile shows the current player + category badge, but
- * the whole tile is a native `<select>` — on mobile this triggers the OS
- * wheel picker, which is the fastest possible swap in box-cricket pace.
- * The previous "Who's batting / bowling?" card was just a duplicate of
- * this in editable form, so it's gone.
+ * striker, bowler). The whole tile is the Select trigger — tapping
+ * anywhere on it opens the Radix menu, so it works consistently on
+ * desktop, mobile, and DevTools mobile emulation.
  */
 function SlotPicker({
   label,
@@ -953,58 +963,61 @@ function SlotPicker({
    *  label so the scorer knows *why* the option is greyed. */
   dismissedIds?: Set<string>;
   /** Optional content rendered inside the tile below the stats line.
-   *  Currently used by the bowler tile to surface the this-over
-   *  pill strip. Pointer events bubble to the underlying select, so
-   *  tapping the footer also opens the picker (acceptable trade-off
-   *  for visual integration). */
+   *  Currently used by the bowler tile to surface the this-over pill
+   *  strip. */
   footer?: ReactNode;
 }) {
   const selected = options.find((p) => p.id === value);
   return (
-    <label className="relative block rounded-md border border-foreground/10 bg-muted/30 px-3 py-2 cursor-pointer hover:bg-muted/50 transition">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">{label}</span>
-        {selected?.category && (
-          <span className="rounded bg-foreground/10 px-1 text-[10px] font-mono">
-            C{selected.category}
-          </span>
-        )}
-      </div>
-      <div className="mt-0.5 flex items-center gap-1 font-medium">
-        <span className="truncate">{selected?.display_name ?? "—"}</span>
-        <span className="text-xs text-muted-foreground">▾</span>
-      </div>
-      {statsLine && (
-        <div className="text-[11px] font-mono text-muted-foreground">
-          {statsLine}
-        </div>
-      )}
-      {footer && (
-        <div className="mt-2 border-t border-foreground/10 pt-2">
-          {footer}
-        </div>
-      )}
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="absolute inset-0 cursor-pointer opacity-0"
-        aria-label={label}
-      >
-        <option value="">—</option>
+    <Select value={value || undefined} onValueChange={onChange}>
+      <SelectPrimitiveTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          className="block w-full rounded-md border border-foreground/10 bg-muted/30 px-3 py-2 text-left transition hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-muted-foreground">{label}</span>
+            {selected?.category && (
+              <span className="rounded bg-foreground/10 px-1 font-mono text-[10px]">
+                C{selected.category}
+              </span>
+            )}
+          </div>
+          <div className="mt-0.5 flex items-center gap-1 font-medium">
+            <span className="truncate capitalize">
+              {selected?.display_name ?? "—"}
+            </span>
+            <span className="text-xs text-muted-foreground">▾</span>
+          </div>
+          {statsLine && (
+            <div className="font-mono text-[11px] text-muted-foreground">
+              {statsLine}
+            </div>
+          )}
+          {footer && (
+            <div className="mt-2 border-t border-foreground/10 pt-2">
+              {footer}
+            </div>
+          )}
+        </button>
+      </SelectPrimitiveTrigger>
+      <SelectContent>
         {options.map((p) => (
-          <option
+          <SelectItem
             key={p.id}
             value={p.id}
             disabled={disabledIds?.has(p.id)}
+            className="capitalize"
           >
             {p.display_name}
             {p.category ? ` · C${p.category}` : ""}
             {highlightCat && p.category === highlightCat ? " ⭑" : ""}
             {dismissedIds?.has(p.id) ? " (out)" : ""}
-          </option>
+          </SelectItem>
         ))}
-      </select>
-    </label>
+      </SelectContent>
+    </Select>
   );
 }
 

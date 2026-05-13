@@ -14,6 +14,13 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { addPlayerToTeam } from "../actions";
 
@@ -59,19 +66,27 @@ export function AddRosterForm({ tournamentSlug, teamId, players }: Props) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Player</FormLabel>
-              <FormControl>
-                <select
-                  {...field}
-                  className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
-                >
-                  <option value="">Select a player…</option>
+              <Select
+                value={field.value || undefined}
+                onValueChange={field.onChange}
+              >
+                <FormControl>
+                  <SelectTrigger className="capitalize">
+                    <SelectValue placeholder="Select a player…" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
                   {players.map((p) => (
-                    <option key={p.id} value={p.id}>
+                    <SelectItem
+                      key={p.id}
+                      value={p.id}
+                      className="capitalize"
+                    >
                       {p.display_name}
-                    </option>
+                    </SelectItem>
                   ))}
-                </select>
-              </FormControl>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
@@ -82,17 +97,21 @@ export function AddRosterForm({ tournamentSlug, teamId, players }: Props) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Role</FormLabel>
-              <FormControl>
-                <select
-                  {...field}
-                  className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
-                >
-                  <option value="player">Player</option>
-                  <option value="captain">Captain</option>
-                  <option value="vice_captain">Vice captain</option>
-                  <option value="wicket_keeper">Wicket-keeper</option>
-                </select>
-              </FormControl>
+              <Select value={field.value} onValueChange={field.onChange}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Role" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="player">Player</SelectItem>
+                  <SelectItem value="captain">Captain</SelectItem>
+                  <SelectItem value="vice_captain">Vice captain</SelectItem>
+                  <SelectItem value="wicket_keeper">
+                    Wicket-keeper
+                  </SelectItem>
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}

@@ -1,7 +1,15 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { updateRosterRole } from "../actions";
 
@@ -19,13 +27,15 @@ export function RosterRoleSelect({
   initialRole: Role;
 }) {
   const [pending, startTransition] = useTransition();
+  const [value, setValue] = useState<Role>(initialRole);
 
   return (
-    <select
-      defaultValue={initialRole}
+    <Select
+      value={value}
       disabled={pending}
-      onChange={(e) => {
-        const role = e.target.value as Role;
+      onValueChange={(v) => {
+        const role = v as Role;
+        setValue(role);
         startTransition(async () => {
           const result = await updateRosterRole({
             tournamentSlug,
@@ -35,15 +45,20 @@ export function RosterRoleSelect({
           });
           if (result && !result.ok) {
             toast.error(result.error);
+            setValue(initialRole);
           }
         });
       }}
-      className="h-7 rounded-md border border-input bg-transparent px-2 text-xs"
     >
-      <option value="player">Player</option>
-      <option value="captain">Captain</option>
-      <option value="vice_captain">Vice captain</option>
-      <option value="wicket_keeper">Wicket-keeper</option>
-    </select>
+      <SelectTrigger className="h-7 px-2 text-xs">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="player">Player</SelectItem>
+        <SelectItem value="captain">Captain</SelectItem>
+        <SelectItem value="vice_captain">Vice captain</SelectItem>
+        <SelectItem value="wicket_keeper">Wicket-keeper</SelectItem>
+      </SelectContent>
+    </Select>
   );
 }

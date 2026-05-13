@@ -16,6 +16,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { createPlayer } from "../actions";
 
@@ -110,17 +117,21 @@ export function NewPlayerForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Category</FormLabel>
-              <FormControl>
-                <select
-                  {...field}
-                  className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
-                >
-                  <option value="">Select category…</option>
-                  <option value="1">Category 1</option>
-                  <option value="2">Category 2</option>
-                  <option value="3">Category 3</option>
-                </select>
-              </FormControl>
+              <Select
+                value={field.value || undefined}
+                onValueChange={field.onChange}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category…" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="1">Category 1</SelectItem>
+                  <SelectItem value="2">Category 2</SelectItem>
+                  <SelectItem value="3">Category 3</SelectItem>
+                </SelectContent>
+              </Select>
               <FormDescription>
                 HVC: Cat 1 bowls over 1 vs Cat 1 batter, Cat 3 bowls over 2 vs
                 Cat 3 batter, Cat 2 bowls the rest. Max 2 overs per bowler.
@@ -181,16 +192,20 @@ export function NewPlayerForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Batting</FormLabel>
-                <FormControl>
-                  <select
-                    {...field}
-                    className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
-                  >
-                    <option value="">—</option>
-                    <option value="right_hand">Right hand</option>
-                    <option value="left_hand">Left hand</option>
-                  </select>
-                </FormControl>
+                <Select
+                  value={field.value || undefined}
+                  onValueChange={field.onChange}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="—" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="right_hand">Right hand</SelectItem>
+                    <SelectItem value="left_hand">Left hand</SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -201,22 +216,42 @@ export function NewPlayerForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Bowling</FormLabel>
-                <FormControl>
-                  <select
-                    {...field}
-                    className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
-                  >
-                    <option value="">—</option>
-                    <option value="right_arm_fast">Right arm fast</option>
-                    <option value="right_arm_medium">Right arm medium</option>
-                    <option value="right_arm_off_spin">Right arm off-spin</option>
-                    <option value="right_arm_leg_spin">Right arm leg-spin</option>
-                    <option value="left_arm_fast">Left arm fast</option>
-                    <option value="left_arm_medium">Left arm medium</option>
-                    <option value="left_arm_orthodox">Left arm orthodox</option>
-                    <option value="left_arm_chinaman">Left arm chinaman</option>
-                  </select>
-                </FormControl>
+                <Select
+                  value={field.value || undefined}
+                  onValueChange={field.onChange}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="—" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="right_arm_fast">
+                      Right arm fast
+                    </SelectItem>
+                    <SelectItem value="right_arm_medium">
+                      Right arm medium
+                    </SelectItem>
+                    <SelectItem value="right_arm_off_spin">
+                      Right arm off-spin
+                    </SelectItem>
+                    <SelectItem value="right_arm_leg_spin">
+                      Right arm leg-spin
+                    </SelectItem>
+                    <SelectItem value="left_arm_fast">
+                      Left arm fast
+                    </SelectItem>
+                    <SelectItem value="left_arm_medium">
+                      Left arm medium
+                    </SelectItem>
+                    <SelectItem value="left_arm_orthodox">
+                      Left arm orthodox
+                    </SelectItem>
+                    <SelectItem value="left_arm_chinaman">
+                      Left arm chinaman
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}

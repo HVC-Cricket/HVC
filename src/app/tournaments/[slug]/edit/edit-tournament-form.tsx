@@ -19,6 +19,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { LogoUploader } from "@/components/logo-uploader";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { deleteTournament, updateTournament } from "../../actions";
 
@@ -133,18 +140,20 @@ export function EditTournamentForm({ tournament }: Props) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Format</FormLabel>
-                <FormControl>
-                  <select
-                    {...field}
-                    className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
-                  >
-                    <option value="league">League</option>
-                    <option value="knockout">Knockout</option>
-                    <option value="group_then_knockout">
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Format" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="league">League</SelectItem>
+                    <SelectItem value="knockout">Knockout</SelectItem>
+                    <SelectItem value="group_then_knockout">
                       Group then knockout
-                    </option>
-                  </select>
-                </FormControl>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
@@ -155,17 +164,19 @@ export function EditTournamentForm({ tournament }: Props) {
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Status</FormLabel>
-                <FormControl>
-                  <select
-                    {...field}
-                    className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="active">Active</option>
-                    <option value="completed">Completed</option>
-                    <option value="archived">Archived</option>
-                  </select>
-                </FormControl>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
                 <FormMessage />
               </FormItem>
             )}
