@@ -268,6 +268,8 @@ export type Database = {
           win_margin: string | null;
           player_of_match_id: string | null;
           current_innings_id: string | null;
+          primary_scorer_id: string | null;
+          primary_scorer_heartbeat_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -293,6 +295,8 @@ export type Database = {
           win_margin?: string | null;
           player_of_match_id?: string | null;
           current_innings_id?: string | null;
+          primary_scorer_id?: string | null;
+          primary_scorer_heartbeat_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -318,6 +322,8 @@ export type Database = {
           win_margin?: string | null;
           player_of_match_id?: string | null;
           current_innings_id?: string | null;
+          primary_scorer_id?: string | null;
+          primary_scorer_heartbeat_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

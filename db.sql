@@ -164,11 +164,23 @@ create table if not exists matches (
   win_margin            text,
   player_of_match_id    uuid references players(id),
   current_innings_id    uuid,                     -- FK added after innings table exists
+  -- Multi-scorer concurrency lock. At most one tournament admin holds
+  -- the "primary scorer" claim on a match at a time. Lock auto-expires
+  -- after 2 minutes of no heartbeat (enforced by the recordBall /
+  -- voidLast* server actions, not by triggers here).
+  primary_scorer_id              uuid references auth.users(id) on delete set null,
+  primary_scorer_heartbeat_at    timestamptz,
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now(),
   check (team_a_id <> team_b_id),
   unique (tournament_id, match_number)
 );
+
+-- Back-fill the two scoring-lock columns for installs that ran the
+-- matches table from an earlier revision.
+alter table matches add column if not exists primary_scorer_id           uuid references auth.users(id) on delete set null;
+alter table matches add column if not exists primary_scorer_heartbeat_at timestamptz;
+create index if not exists idx_matches_primary_scorer on matches(primary_scorer_id) where primary_scorer_id is not null;
 
 
 -- ---------------------------------------------------------------------

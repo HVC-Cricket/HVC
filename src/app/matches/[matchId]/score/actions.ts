@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import type { ActionResult } from "@/app/tournaments/actions";
 
+import { enforceScoringLock } from "./lock-actions";
 import {
   computeBallPosition,
   validateBowlerRules,
@@ -232,6 +233,14 @@ export async function recordBall(
     .single();
   if (!match) return { ok: false, error: "Match not found" };
   await requireTournamentAdmin(match.tournament_id);
+
+  // Block writes from a non-primary scorer + bump heartbeat for the
+  // primary scorer in the same atomic step.
+  const lock = await enforceScoringLock({
+    matchId: parsed.data.matchId,
+    userId: user.id,
+  });
+  if (!lock.ok) return lock;
 
   // Load rules for engine validation.
   const { data: tournament } = await supabase
@@ -914,6 +923,12 @@ export async function voidLastBall(
   if (!match) return { ok: false, error: "Match not found" };
   await requireTournamentAdmin(match.tournament_id);
 
+  const lock = await enforceScoringLock({
+    matchId: parsed.data.matchId,
+    userId: user.id,
+  });
+  if (!lock.ok) return lock;
+
   const { data: lastBall } = await supabase
     .from("balls")
     .select("id")
@@ -977,6 +992,12 @@ export async function voidLastN(
     .single();
   if (!match) return { ok: false, error: "Match not found" };
   await requireTournamentAdmin(match.tournament_id);
+
+  const lock = await enforceScoringLock({
+    matchId: parsed.data.matchId,
+    userId: user.id,
+  });
+  if (!lock.ok) return lock;
 
   const { data: balls } = await supabase
     .from("balls")
