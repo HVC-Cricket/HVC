@@ -7,13 +7,13 @@ import { z } from "zod";
 import { requireTournamentAdmin } from "@/lib/auth";
 import { type MatchPushPayload, notifyMatch } from "@/lib/push";
 import {
-  type EnginePlayer,
   advanceBowler,
   applyBall,
+  createEnginePlayerFactory,
   getRuleSet,
+  replayInnings,
   setNonStriker,
   setStriker,
-  startInnings,
 } from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
 
@@ -261,15 +261,7 @@ export async function recordBall(
   const playerById = new Map(
     (playerRows ?? []).map((p) => [p.id, p]),
   );
-  const toEnginePlayer = (id: string): EnginePlayer => {
-    const p = playerById.get(id);
-    return {
-      id,
-      display_name: p?.display_name ?? "?",
-      category: (p?.category as 1 | 2 | 3 | null) ?? null,
-      team_id: teamByPlayer.get(id) ?? "",
-    };
-  };
+  const toEnginePlayer = createEnginePlayerFactory(playerById, teamByPlayer);
 
   // Replay through the engine to derive current state, then apply the
   // proposed ball to validate. innings_number > 2 means super over →
@@ -281,69 +273,34 @@ export async function recordBall(
     .single();
   const isSuperOver = (inningsRow?.innings_number ?? 1) > 2;
 
-  let state = startInnings({
+  const replay = replayInnings({
     innings_number: inningsRow?.innings_number ?? 1,
     batting_team_id: innings.batting_team_id,
     bowling_team_id: innings.bowling_team_id,
     is_super_over: isSuperOver,
-    striker: toEnginePlayer(
+    seedStriker: toEnginePlayer(
       prevBalls?.[0]?.batter_id ?? parsed.data.striker_id,
     ),
-    non_striker: toEnginePlayer(
+    seedNonStriker: toEnginePlayer(
       prevBalls?.[0]?.non_striker_id ?? parsed.data.non_striker_id,
     ),
-    bowler: toEnginePlayer(
+    seedBowler: toEnginePlayer(
       prevBalls?.[0]?.bowler_id ?? parsed.data.bowler_id,
     ),
+    balls: prevBalls ?? [],
     rules,
+    toEnginePlayer,
   });
-
-  for (const b of prevBalls ?? []) {
-    // applyBall doesn't read striker / non-striker / bowler from the
-    // BallInput — it only rotates them via cricket rules. Sync them
-    // from each recorded ball so the engine tracks scorer-driven
-    // mid-innings substitutions (replacement after a wicket, etc.).
-    if (b.batter_id !== state.striker_id) {
-      state = setStriker(state, b.batter_id);
-    }
-    if (b.non_striker_id !== state.non_striker_id) {
-      state = setNonStriker(state, b.non_striker_id);
-    }
-    if (b.bowler_id !== state.bowler_id) {
-      state = advanceBowler(
-        state,
-        toEnginePlayer(b.bowler_id),
-        toEnginePlayer(state.striker_id),
-        toEnginePlayer(state.non_striker_id),
-        rules,
-      );
-    }
-    const r = applyBall(
-      state,
-      {
-        runs_off_bat: b.runs_off_bat,
-        extras: b.extras,
-        extra_type: b.extra_type as
-          | "wide"
-          | "no_ball"
-          | "bye"
-          | null,
-        is_wicket: b.is_wicket,
-        wicket_type: b.wicket_type as Parameters<
-          typeof applyBall
-        >[1]["wicket_type"],
-        player_out_id: b.player_out_id,
-      },
-      rules,
-    );
-    if (!r.ok) {
-      return {
-        ok: false,
-        error: `Replay failed at over ${b.over_number}.${b.ball_in_over}: ${r.error.message}`,
-      };
-    }
-    state = r.state;
+  if (!replay.ok) {
+    const failedBall = (prevBalls ?? [])[replay.failedAtIndex];
+    return {
+      ok: false,
+      error: failedBall
+        ? `Replay failed at over ${failedBall.over_number}.${failedBall.ball_in_over}: ${replay.error}`
+        : `Replay failed: ${replay.error}`,
+    };
   }
+  let state = replay.state;
 
   // Bowling restrictions for the regular innings (super overs have their
   // own caps; skip these for innings 3/4):

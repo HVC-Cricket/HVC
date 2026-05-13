@@ -20,6 +20,7 @@ import {
   type ScoreTask,
   type ScoreTaskKind,
 } from "@/lib/offline-queue";
+import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
 
 import { recordBall, voidLastBall, voidLastN } from "./actions";
 import type { ScoreboardState } from "./state";
@@ -944,17 +945,10 @@ function formatBatterStats(
   optimistic?: OptimisticBall[],
 ): string | null {
   if (!playerId) return null;
-  let runs = 0;
-  let bf = 0;
-  let fours = 0;
-  let sixes = 0;
-  for (const b of balls) {
-    if (b.batter_id !== playerId) continue;
-    runs += b.runs_off_bat;
-    if (b.extra_type !== "wide") bf += 1;
-    if (b.runs_off_bat === 4) fours += 1;
-    if (b.runs_off_bat === 6) sixes += 1;
-  }
+  const base = computeBatterStats(balls, playerId);
+  let { runs, balls_faced: bf, fours, sixes } = base;
+  // Optimistic balls' striker_id IS the batter, so we shim the field
+  // name to share the helper with server balls.
   for (const o of optimistic ?? []) {
     if (o.striker_id !== playerId) continue;
     runs += o.runs_off_bat;
@@ -983,30 +977,11 @@ function formatBowlerStats(
   optimistic?: OptimisticBall[],
 ): string | null {
   if (!playerId) return null;
-  let legal = 0;
-  let conceded = 0;
-  let wickets = 0;
-  const wicketBowler = new Set([
-    "bowled",
-    "caught",
-    "caught_and_bowled",
-    "stumped",
-    "hit_wicket",
-  ]);
-  let touched = false;
-  for (const b of balls) {
-    if (b.bowler_id !== playerId) continue;
-    touched = true;
-    const isLegal = b.extra_type !== "wide" && b.extra_type !== "no_ball";
-    if (isLegal) legal += 1;
-    conceded += b.runs_off_bat;
-    if (b.extra_type === "wide" || b.extra_type === "no_ball") {
-      conceded += b.extras;
-    }
-    if (b.is_wicket && b.wicket_type && wicketBowler.has(b.wicket_type)) {
-      wickets += 1;
-    }
-  }
+  const base = computeBowlerStats(balls, playerId);
+  let legal = base.legal_balls;
+  let conceded = base.runs_conceded;
+  let wickets = base.wickets;
+  let touched = legal > 0 || conceded > 0 || wickets > 0;
   for (const o of optimistic ?? []) {
     if (o.bowler_id !== playerId) continue;
     touched = true;

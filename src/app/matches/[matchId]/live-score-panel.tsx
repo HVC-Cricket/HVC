@@ -5,6 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
 
 import { AutoRefresh } from "./auto-refresh";
 import type { ScoreboardState } from "./score/state";
@@ -119,8 +120,8 @@ function InningsCard({
     state.active.non_striker_id ?? last?.non_striker_id ?? null;
   const bowlerId = state.active.bowler_id ?? last?.bowler_id ?? null;
 
-  const batsmanStats = (playerId: string) => computeBattingStats(balls, playerId);
-  const bowlerStats = (playerId: string) => computeBowlingStats(balls, playerId);
+  const batsmanStats = (playerId: string) => computeBatterStats(balls, playerId);
+  const bowlerStats = (playerId: string) => computeBowlerStats(balls, playerId);
 
   const sIdStats = strikerId ? batsmanStats(strikerId) : null;
   const nsIdStats = nonStrikerId ? batsmanStats(nonStrikerId) : null;
@@ -267,7 +268,7 @@ function BatsmanRow({
   label: string;
   name?: string | null;
   cat?: 1 | 2 | 3 | null;
-  stats: ReturnType<typeof computeBattingStats> | null;
+  stats: ReturnType<typeof computeBatterStats> | null;
 }) {
   return (
     <div className="rounded-md border border-foreground/10 bg-muted/30 px-3 py-2">
@@ -307,7 +308,7 @@ function BowlerRow({
 }: {
   name?: string | null;
   cat?: 1 | 2 | 3 | null;
-  stats: ReturnType<typeof computeBowlingStats> | null;
+  stats: ReturnType<typeof computeBowlerStats> | null;
 }) {
   const overs = stats
     ? `${Math.floor(stats.legal_balls / 6)}.${stats.legal_balls % 6}`
@@ -404,72 +405,9 @@ function RecentBalls({
 }
 
 // ---------------------------------------------------------------------------
-// Pure stat computations from balls. Mirrors the SQL views (v_innings_batting,
-// v_innings_bowling) but stays in the client-friendly side of the engine.
+// Live-only derivations from balls. Shared batter / bowler stats live in
+// `@/lib/scoring/stats` and are imported above.
 // ---------------------------------------------------------------------------
-
-function computeBattingStats(balls: Ball[], playerId: string) {
-  let runs = 0;
-  let balls_faced = 0;
-  let fours = 0;
-  let sixes = 0;
-  for (const b of balls) {
-    if (b.batter_id !== playerId) continue;
-    runs += b.runs_off_bat;
-    if (b.extra_type !== "wide") balls_faced += 1;
-    if (b.runs_off_bat === 4) fours += 1;
-    if (b.runs_off_bat === 6) sixes += 1;
-  }
-  return { runs, balls_faced, fours, sixes };
-}
-
-function computeBowlingStats(balls: Ball[], playerId: string) {
-  let legal_balls = 0;
-  let runs_conceded = 0;
-  let wickets = 0;
-  let wides = 0;
-  let no_balls = 0;
-  let dots = 0;
-  const wicketBowler = new Set([
-    "bowled",
-    "caught",
-    "caught_and_bowled",
-    "lbw",
-    "stumped",
-    "hit_wicket",
-  ]);
-  const overBalls = new Map<number, Ball[]>();
-  for (const b of balls) {
-    if (b.bowler_id !== playerId) continue;
-    const isLegal = b.extra_type !== "wide" && b.extra_type !== "no_ball";
-    if (isLegal) legal_balls += 1;
-    runs_conceded += b.runs_off_bat;
-    if (b.extra_type === "wide" || b.extra_type === "no_ball") {
-      runs_conceded += b.extras;
-    }
-    if (b.extra_type === "wide") wides += 1;
-    if (b.extra_type === "no_ball") no_balls += 1;
-    if (b.is_wicket && b.wicket_type && wicketBowler.has(b.wicket_type)) {
-      wickets += 1;
-    }
-    if (isLegal && b.runs_off_bat + b.extras === 0) dots += 1;
-    if (!overBalls.has(b.over_number)) overBalls.set(b.over_number, []);
-    overBalls.get(b.over_number)!.push(b);
-  }
-  let maidens = 0;
-  for (const [, group] of overBalls) {
-    const legalInOver = group.filter(
-      (b) => b.extra_type !== "wide" && b.extra_type !== "no_ball",
-    ).length;
-    if (legalInOver !== 6) continue;
-    const runsInOver = group.reduce(
-      (s, b) => s + b.runs_off_bat + b.extras,
-      0,
-    );
-    if (runsInOver === 0) maidens += 1;
-  }
-  return { legal_balls, runs_conceded, wickets, wides, no_balls, dots, maidens };
-}
 
 /**
  * Runs and legal balls accrued since the most recent wicket (or from

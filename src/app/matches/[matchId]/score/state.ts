@@ -3,22 +3,13 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   type EnginePlayer,
-  type ExtraType,
   type InningsState,
   type RuleSet,
-  type WicketType,
-  advanceBowler,
-  applyBall,
+  createEnginePlayerFactory,
   getRuleSet,
-  setNonStriker,
-  setStriker,
-  startInnings,
+  replayInnings,
 } from "@/lib/scoring";
-
-import type { Database } from "@/lib/supabase/database.types";
-
-type BallRow = Database["public"]["Tables"]["balls"]["Row"];
-type MatchRow = Database["public"]["Tables"]["matches"]["Row"];
+import type { BallRow, MatchRow } from "@/lib/supabase/row-types";
 
 export type InningsSummary = {
   id: string;
@@ -181,15 +172,7 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
   // status the moment a ball is confirmed.
   const teamByPlayer = new Map<string, string>();
   for (const r of xiRows ?? []) teamByPlayer.set(r.player_id, r.team_id);
-  const toEnginePlayer = (id: string): EnginePlayer => {
-    const p = playerById.get(id);
-    return {
-      id,
-      display_name: p?.display_name ?? "?",
-      category: (p?.category as 1 | 2 | 3 | null) ?? null,
-      team_id: teamByPlayer.get(id) ?? "",
-    };
-  };
+  const toEnginePlayer = createEnginePlayerFactory(playerById, teamByPlayer);
 
   let engineState: InningsState | null = null;
   if (innings) {
@@ -200,60 +183,19 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
     const seedBowlerId =
       innings.initial_bowler_id ?? balls[0]?.bowler_id ?? null;
     if (seedStrikerId && seedNonStrikerId && seedBowlerId) {
-      let s = startInnings({
+      const result = replayInnings({
         innings_number: innings.innings_number,
         batting_team_id: innings.batting_team_id,
         bowling_team_id: innings.bowling_team_id,
         is_super_over: innings.innings_number > 2,
-        striker: toEnginePlayer(seedStrikerId),
-        non_striker: toEnginePlayer(seedNonStrikerId),
-        bowler: toEnginePlayer(seedBowlerId),
+        seedStriker: toEnginePlayer(seedStrikerId),
+        seedNonStriker: toEnginePlayer(seedNonStrikerId),
+        seedBowler: toEnginePlayer(seedBowlerId),
+        balls,
         rules,
+        toEnginePlayer,
       });
-      let replayOk = true;
-      for (const b of balls) {
-        // applyBall doesn't read striker / non-striker / bowler from
-        // the BallInput — it only rotates them via cricket rules. So if
-        // the scorer manually picks a new batter after a wicket (or a
-        // mid-over substitution we'll one day support), the engine's
-        // internal slots stay stale. Sync them from each recorded ball
-        // before applying so engine.striker_id / non_striker_id /
-        // bowler_id always match the row.
-        if (b.batter_id !== s.striker_id) {
-          s = setStriker(s, b.batter_id);
-        }
-        if (b.non_striker_id !== s.non_striker_id) {
-          s = setNonStriker(s, b.non_striker_id);
-        }
-        if (b.bowler_id !== s.bowler_id) {
-          s = advanceBowler(
-            s,
-            toEnginePlayer(b.bowler_id),
-            toEnginePlayer(s.striker_id),
-            toEnginePlayer(s.non_striker_id),
-            rules,
-          );
-        }
-        const r = applyBall(
-          s,
-          {
-            runs_off_bat: b.runs_off_bat,
-            extras: b.extras,
-            extra_type: b.extra_type as ExtraType | null,
-            is_wicket: b.is_wicket,
-            wicket_type: b.wicket_type as WicketType | null,
-            player_out_id: b.player_out_id,
-            fielder_id: b.fielder_id,
-          },
-          rules,
-        );
-        if (!r.ok) {
-          replayOk = false;
-          break;
-        }
-        s = r.state;
-      }
-      if (replayOk) engineState = s;
+      if (result.ok) engineState = result.state;
     }
   }
 
