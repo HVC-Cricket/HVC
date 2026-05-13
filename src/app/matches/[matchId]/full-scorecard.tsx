@@ -69,45 +69,65 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
   const allBalls = (ballsRows ?? []) as BallRow[];
 
   return (
-    <div className="space-y-6">
-      {innings.map((i) => {
-        const battingTeam = teamById.get(i.batting_team_id);
-        const bowlingTeam = teamById.get(i.bowling_team_id);
-        const inningsBalls = allBalls.filter((b) => b.innings_id === i.id);
-        const battingXi = (xi ?? []).filter((r) => r.team_id === i.batting_team_id);
-        const bowlingXi = (xi ?? []).filter((r) => r.team_id === i.bowling_team_id);
-        const overs = `${Math.floor(i.total_legal_balls / 6)}.${i.total_legal_balls % 6}`;
+    <section className="space-y-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="text-lg font-semibold">Scorecard</h2>
+        <span className="text-xs text-muted-foreground">
+          Per-player batting &amp; bowling
+        </span>
+      </div>
+      <div className="space-y-4">
+        {innings.map((i) => {
+          const battingTeam = teamById.get(i.batting_team_id);
+          const bowlingTeam = teamById.get(i.bowling_team_id);
+          const inningsBalls = allBalls.filter((b) => b.innings_id === i.id);
+          const battingXi = (xi ?? []).filter(
+            (r) => r.team_id === i.batting_team_id,
+          );
+          const bowlingXi = (xi ?? []).filter(
+            (r) => r.team_id === i.bowling_team_id,
+          );
+          const overs = `${Math.floor(i.total_legal_balls / 6)}.${i.total_legal_balls % 6}`;
 
-        return (
-          <Card key={i.id}>
-            <CardHeader>
-              <CardTitle className="text-base">
-                {battingTeam?.name ?? "?"} — Innings {i.innings_number}
-              </CardTitle>
-              <CardDescription>
-                {i.total_runs}/{i.total_wickets} ({overs} overs)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 p-0">
-              <BattingTable
-                balls={inningsBalls}
-                xi={battingXi}
-                playerById={playerById}
-              />
-              <FallOfWickets balls={inningsBalls} playerById={playerById} />
-              <ExtrasRow innings={i} />
-              <BowlingTable
-                balls={inningsBalls}
-                xi={bowlingXi}
-                playerById={playerById}
-                bowlingTeamName={bowlingTeam?.name}
-              />
-              <Partnerships balls={inningsBalls} playerById={playerById} />
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
+          return (
+            <Card key={i.id} className="overflow-hidden">
+              <CardHeader className="border-b border-foreground/5 bg-muted/30">
+                <div className="flex items-baseline justify-between gap-2">
+                  <CardTitle className="text-base capitalize">
+                    {battingTeam?.name ?? "?"}
+                    <span className="ml-2 text-xs font-normal uppercase tracking-wide text-muted-foreground">
+                      Innings {i.innings_number}
+                    </span>
+                  </CardTitle>
+                  <CardDescription className="font-mono text-sm font-semibold text-foreground">
+                    {i.total_runs}/{i.total_wickets}
+                    <span className="ml-1 text-xs font-normal text-muted-foreground">
+                      ({overs} ov)
+                    </span>
+                  </CardDescription>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-0 p-0">
+                <BattingTable
+                  balls={inningsBalls}
+                  xi={battingXi}
+                  playerById={playerById}
+                />
+                <FallOfWickets balls={inningsBalls} playerById={playerById} />
+                <ExtrasRow innings={i} />
+                <BowlingTable
+                  balls={inningsBalls}
+                  xi={bowlingXi}
+                  playerById={playerById}
+                  bowlingTeamName={bowlingTeam?.name}
+                />
+                <Partnerships balls={inningsBalls} playerById={playerById} />
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
@@ -145,48 +165,88 @@ function BattingTable({
   const batters = sorted.filter((row) => didBat(row.player_id));
   const dnb = sorted.filter((row) => !didBat(row.player_id));
 
+  // Currently at the crease — last legal ball's batter + non-striker.
+  const lastBall = balls[balls.length - 1];
+  const onStrike = lastBall?.batter_id ?? null;
+  const nonStriker = lastBall?.non_striker_id ?? null;
+
   return (
     <>
       <table className="w-full text-sm">
-        <thead className="text-xs uppercase text-muted-foreground">
-          <tr className="border-y border-foreground/10">
-            <th className="px-4 py-2 text-left font-medium">Batter</th>
-            <th className="px-2 py-2 text-left font-medium">Out</th>
-            <th className="px-2 py-2 text-right font-medium">R</th>
-            <th className="px-2 py-2 text-right font-medium">B</th>
-            <th className="px-2 py-2 text-right font-medium">4s</th>
-            <th className="px-2 py-2 text-right font-medium">6s</th>
-            <th className="px-4 py-2 text-right font-medium">SR</th>
+        <thead>
+          <tr className="border-b border-foreground/10 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <th className="px-3 py-2 text-left font-medium">Batter</th>
+            <th className="px-1.5 py-2 text-right font-medium">R</th>
+            <th className="px-1.5 py-2 text-right font-medium">B</th>
+            <th className="px-1.5 py-2 text-right font-medium">4s</th>
+            <th className="px-1.5 py-2 text-right font-medium">6s</th>
+            <th className="px-3 py-2 text-right font-medium">SR</th>
           </tr>
         </thead>
         <tbody>
           {batters.map((row) => {
             const p = playerById.get(row.player_id);
             const stats = computeBatterStats(balls, row.player_id);
-            const dismissal = computeDismissal(balls, row.player_id, playerById);
+            const dismissal = computeDismissal(
+              balls,
+              row.player_id,
+              playerById,
+            );
+            const atCrease =
+              onStrike === row.player_id || nonStriker === row.player_id;
+            const isStriker = onStrike === row.player_id;
             return (
               <tr
                 key={row.player_id}
-                className="border-b border-foreground/5 last:border-b-0"
+                className={
+                  "border-b border-foreground/5 last:border-b-0 " +
+                  (atCrease ? "bg-emerald-500/5" : "")
+                }
               >
-                <td className="px-4 py-2">
-                  <span className="font-medium">{p?.display_name ?? "(unknown)"}</span>
-                  {p?.category && (
-                    <span className="ml-2 text-[10px] font-mono text-muted-foreground">
-                      C{p.category}
+                <td className="px-3 py-2">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="font-medium capitalize">
+                      {p?.display_name ?? "(unknown)"}
                     </span>
-                  )}
+                    {isStriker && (
+                      <span
+                        className="text-xs font-bold text-emerald-700 dark:text-emerald-300"
+                        title="On strike"
+                      >
+                        *
+                      </span>
+                    )}
+                    {!isStriker && atCrease && (
+                      <span
+                        className="text-[10px] text-emerald-700/80 dark:text-emerald-300/80"
+                        title="At the crease"
+                      >
+                        •
+                      </span>
+                    )}
+                    {p?.category && (
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        C{p.category}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {dismissal ?? (atCrease ? "batting" : "not out")}
+                  </div>
                 </td>
-                <td className="px-2 py-2 text-xs text-muted-foreground">
-                  {dismissal ?? "not out"}
+                <td className="px-1.5 py-2 text-right font-mono font-semibold tabular-nums">
+                  {stats.runs}
                 </td>
-                <td className="px-2 py-2 text-right font-mono">{stats.runs}</td>
-                <td className="px-2 py-2 text-right font-mono">
+                <td className="px-1.5 py-2 text-right font-mono tabular-nums text-muted-foreground">
                   {stats.balls_faced}
                 </td>
-                <td className="px-2 py-2 text-right font-mono">{stats.fours}</td>
-                <td className="px-2 py-2 text-right font-mono">{stats.sixes}</td>
-                <td className="px-4 py-2 text-right font-mono">
+                <td className="px-1.5 py-2 text-right font-mono tabular-nums text-muted-foreground">
+                  {stats.fours}
+                </td>
+                <td className="px-1.5 py-2 text-right font-mono tabular-nums text-muted-foreground">
+                  {stats.sixes}
+                </td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">
                   {stats.balls_faced > 0
                     ? ((stats.runs / stats.balls_faced) * 100).toFixed(1)
                     : "—"}
@@ -197,11 +257,15 @@ function BattingTable({
         </tbody>
       </table>
       {dnb.length > 0 && (
-        <div className="border-b border-foreground/10 px-4 py-2 text-xs text-muted-foreground">
-          <span className="font-medium uppercase">Did not bat:</span>{" "}
-          {dnb
-            .map((row) => playerById.get(row.player_id)?.display_name ?? "?")
-            .join(", ")}
+        <div className="border-b border-foreground/10 px-3 py-2 text-[11px] text-muted-foreground">
+          <span className="font-semibold uppercase tracking-wide">
+            Did not bat:
+          </span>{" "}
+          <span className="capitalize">
+            {dnb
+              .map((row) => playerById.get(row.player_id)?.display_name ?? "?")
+              .join(", ")}
+          </span>
         </div>
       )}
     </>
@@ -218,25 +282,26 @@ function FallOfWickets({
   const fows = computeFallOfWickets(balls, playerById);
   if (fows.length === 0) return null;
   return (
-    <div className="border-b border-foreground/10 px-4 py-2 text-xs">
-      <span className="font-medium uppercase text-muted-foreground">
-        Fall of wickets:
-      </span>{" "}
-      <span className="text-foreground">
-        {fows.map((w, i) => (
-          <span key={w.wicketNum}>
-            {i > 0 && ", "}
-            <span className="font-mono">
+    <div className="border-t border-foreground/10 px-3 py-2 text-[11px] leading-relaxed">
+      <span className="font-semibold uppercase tracking-wide text-muted-foreground">
+        Fall of wickets
+      </span>
+      <div className="mt-1 flex flex-wrap gap-1.5">
+        {fows.map((w) => (
+          <span
+            key={w.wicketNum}
+            className="inline-flex items-center gap-1 rounded-full border border-foreground/10 bg-muted/40 px-2 py-0.5"
+          >
+            <span className="font-mono font-semibold tabular-nums">
               {w.wicketNum}-{w.runs}
             </span>
-            {" ("}
-            {w.player}
-            {", "}
-            <span className="font-mono">{w.over}</span>
-            {")"}
+            <span className="capitalize text-muted-foreground">{w.player}</span>
+            <span className="font-mono text-muted-foreground tabular-nums">
+              ({w.over})
+            </span>
           </span>
         ))}
-      </span>
+      </div>
     </div>
   );
 }
@@ -252,16 +317,16 @@ function Partnerships({
   if (ps.length === 0) return null;
   return (
     <>
-      <div className="px-4 py-2 text-xs uppercase text-muted-foreground">
+      <div className="border-t border-foreground/10 bg-muted/30 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
         Partnerships
       </div>
       <table className="w-full text-sm">
-        <thead className="text-xs uppercase text-muted-foreground">
-          <tr className="border-y border-foreground/10">
-            <th className="px-4 py-2 text-left font-medium">Wkt</th>
-            <th className="px-2 py-2 text-left font-medium">Batters</th>
-            <th className="px-2 py-2 text-right font-medium">Runs</th>
-            <th className="px-4 py-2 text-right font-medium">Balls</th>
+        <thead>
+          <tr className="border-b border-foreground/10 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <th className="px-3 py-2 text-left font-medium">Wkt</th>
+            <th className="px-1.5 py-2 text-left font-medium">Batters</th>
+            <th className="px-1.5 py-2 text-right font-medium">R</th>
+            <th className="px-3 py-2 text-right font-medium">B</th>
           </tr>
         </thead>
         <tbody>
@@ -270,16 +335,20 @@ function Partnerships({
               key={p.index}
               className="border-b border-foreground/5 last:border-b-0"
             >
-              <td className="px-4 py-2 font-mono text-muted-foreground">
+              <td className="px-3 py-2 font-mono tabular-nums text-muted-foreground">
                 {p.index}
               </td>
-              <td className="px-2 py-2">
+              <td className="px-1.5 py-2 capitalize">
                 {playerById.get(p.bat1)?.display_name ?? "?"}
-                <span className="text-muted-foreground"> & </span>
+                <span className="text-muted-foreground"> &amp; </span>
                 {playerById.get(p.bat2)?.display_name ?? "?"}
               </td>
-              <td className="px-2 py-2 text-right font-mono">{p.runs}</td>
-              <td className="px-4 py-2 text-right font-mono">{p.balls}</td>
+              <td className="px-1.5 py-2 text-right font-mono font-semibold tabular-nums">
+                {p.runs}
+              </td>
+              <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">
+                {p.balls}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -300,25 +369,29 @@ function ExtrasRow({
     total_legal_balls: number;
   };
 }) {
-  const extras = innings.extras_wides + innings.extras_no_balls + innings.extras_byes;
+  const extras =
+    innings.extras_wides + innings.extras_no_balls + innings.extras_byes;
+  const overs = `${Math.floor(innings.total_legal_balls / 6)}.${innings.total_legal_balls % 6}`;
   return (
-    <div className="border-y border-foreground/10 px-4 py-2 text-sm">
-      <div className="flex justify-between gap-3">
+    <div className="border-t border-foreground/10 bg-muted/20 px-3 py-2 text-sm">
+      <div className="flex items-baseline justify-between gap-3">
         <span className="text-muted-foreground">
           Extras
-          <span className="ml-2 text-xs">
-            (wd {innings.extras_wides} · nb {innings.extras_no_balls} · b {innings.extras_byes})
+          <span className="ml-2 text-[11px]">
+            wd {innings.extras_wides} · nb {innings.extras_no_balls} · b{" "}
+            {innings.extras_byes}
           </span>
         </span>
-        <span className="font-mono">{extras}</span>
+        <span className="font-mono tabular-nums">{extras}</span>
       </div>
-      <div className="flex justify-between gap-3 pt-1 text-xs text-muted-foreground">
+      <div className="mt-1 flex items-baseline justify-between gap-3 text-[11px] text-muted-foreground">
         <span>
-          Total — {innings.total_wickets} wickets in{" "}
-          {Math.floor(innings.total_legal_balls / 6)}.
-          {innings.total_legal_balls % 6} overs
+          Total — {innings.total_wickets} wkt
+          {innings.total_wickets === 1 ? "" : "s"} in {overs} overs
         </span>
-        <span className="font-mono text-foreground">{innings.total_runs}</span>
+        <span className="font-mono font-semibold tabular-nums text-foreground">
+          {innings.total_runs}
+        </span>
       </div>
     </div>
   );
@@ -339,23 +412,23 @@ function BowlingTable({
   const bowlers = xi.filter((r) => bowlerIds.has(r.player_id));
   if (bowlers.length === 0) return null;
 
+  // Currently bowling — last legal ball's bowler.
+  const lastBall = balls[balls.length - 1];
+  const currentBowler = lastBall?.bowler_id ?? null;
+
   return (
     <>
-      <div className="px-4 py-2 text-xs uppercase text-muted-foreground">
-        {bowlingTeamName ?? "Bowling"}
+      <div className="border-t border-foreground/10 bg-muted/30 px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        <span className="capitalize">{bowlingTeamName ?? "Bowling"}</span> bowling
       </div>
       <table className="w-full text-sm">
-        <thead className="text-xs uppercase text-muted-foreground">
-          <tr className="border-y border-foreground/10">
-            <th className="px-4 py-2 text-left font-medium">Bowler</th>
-            <th className="px-2 py-2 text-right font-medium">O</th>
-            <th className="px-2 py-2 text-right font-medium">M</th>
-            <th className="px-2 py-2 text-right font-medium">R</th>
-            <th className="px-2 py-2 text-right font-medium">W</th>
-            <th className="px-2 py-2 text-right font-medium">Wd</th>
-            <th className="px-2 py-2 text-right font-medium">Nb</th>
-            <th className="px-2 py-2 text-right font-medium">Dots</th>
-            <th className="px-4 py-2 text-right font-medium">Econ</th>
+        <thead>
+          <tr className="border-b border-foreground/10 text-[10px] uppercase tracking-wide text-muted-foreground">
+            <th className="px-3 py-2 text-left font-medium">Bowler</th>
+            <th className="px-1.5 py-2 text-right font-medium">O</th>
+            <th className="px-1.5 py-2 text-right font-medium">R</th>
+            <th className="px-1.5 py-2 text-right font-medium">W</th>
+            <th className="px-3 py-2 text-right font-medium">Econ</th>
           </tr>
         </thead>
         <tbody>
@@ -367,27 +440,58 @@ function BowlingTable({
               stats.legal_balls > 0
                 ? ((stats.runs_conceded / stats.legal_balls) * 6).toFixed(2)
                 : "—";
+            const isCurrent = currentBowler === row.player_id;
+            // Build subtitle from secondary stats; omit zeros to keep it tight.
+            const extras: string[] = [];
+            if (stats.maidens) extras.push(`${stats.maidens} mdn`);
+            if (stats.wides) extras.push(`${stats.wides} wd`);
+            if (stats.no_balls) extras.push(`${stats.no_balls} nb`);
+            if (stats.dots) extras.push(`${stats.dots} dot`);
             return (
               <tr
                 key={row.player_id}
-                className="border-b border-foreground/5 last:border-b-0"
+                className={
+                  "border-b border-foreground/5 last:border-b-0 " +
+                  (isCurrent ? "bg-amber-500/5" : "")
+                }
               >
-                <td className="px-4 py-2">
-                  <span className="font-medium">{p?.display_name ?? "(unknown)"}</span>
-                  {p?.category && (
-                    <span className="ml-2 text-[10px] font-mono text-muted-foreground">
-                      C{p.category}
+                <td className="px-3 py-2">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="font-medium capitalize">
+                      {p?.display_name ?? "(unknown)"}
                     </span>
+                    {isCurrent && (
+                      <span
+                        className="text-xs font-bold text-amber-700 dark:text-amber-300"
+                        title="Currently bowling"
+                      >
+                        *
+                      </span>
+                    )}
+                    {p?.category && (
+                      <span className="font-mono text-[10px] text-muted-foreground">
+                        C{p.category}
+                      </span>
+                    )}
+                  </div>
+                  {extras.length > 0 && (
+                    <div className="text-[11px] text-muted-foreground">
+                      {extras.join(" · ")}
+                    </div>
                   )}
                 </td>
-                <td className="px-2 py-2 text-right font-mono">{overs}</td>
-                <td className="px-2 py-2 text-right font-mono">{stats.maidens}</td>
-                <td className="px-2 py-2 text-right font-mono">{stats.runs_conceded}</td>
-                <td className="px-2 py-2 text-right font-mono">{stats.wickets}</td>
-                <td className="px-2 py-2 text-right font-mono">{stats.wides}</td>
-                <td className="px-2 py-2 text-right font-mono">{stats.no_balls}</td>
-                <td className="px-2 py-2 text-right font-mono">{stats.dots}</td>
-                <td className="px-4 py-2 text-right font-mono">{econ}</td>
+                <td className="px-1.5 py-2 text-right font-mono tabular-nums">
+                  {overs}
+                </td>
+                <td className="px-1.5 py-2 text-right font-mono tabular-nums">
+                  {stats.runs_conceded}
+                </td>
+                <td className="px-1.5 py-2 text-right font-mono font-semibold tabular-nums">
+                  {stats.wickets}
+                </td>
+                <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">
+                  {econ}
+                </td>
               </tr>
             );
           })}

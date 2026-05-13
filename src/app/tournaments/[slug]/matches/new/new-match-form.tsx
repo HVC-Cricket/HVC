@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -66,150 +67,198 @@ export function NewMatchForm({ tournamentSlug, teams, defaults }: Props) {
     }
   };
 
+  const teamAId = form.watch("team_a_id");
+  const teamBId = form.watch("team_b_id");
+
   if (teams.length < 2) {
     return (
-      <div className="rounded-md border border-foreground/10 bg-muted/30 p-4 text-sm text-muted-foreground">
-        At least two teams are required before scheduling a match. Add teams
-        first on the tournament page.
+      <div className="space-y-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
+        <p className="text-amber-700 dark:text-amber-300">
+          At least two teams are required before scheduling a match.
+        </p>
+        <Link
+          href={`/tournaments/${tournamentSlug}`}
+          prefetch
+          className="inline-flex"
+        >
+          <Button size="sm" variant="ghost">
+            Back to tournament
+          </Button>
+        </Link>
       </div>
     );
   }
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField
-          control={form.control}
-          name="stage"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Stage</FormLabel>
-              <FormControl>
-                <select
-                  {...field}
-                  className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
-                >
-                  <option value="group">Group</option>
-                  <option value="qualifier">Qualifier</option>
-                  <option value="quarter">Quarter-final</option>
-                  <option value="semi">Semi-final</option>
-                  <option value="final">Final</option>
-                  <option value="exhibition">Exhibition</option>
-                </select>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="grid grid-cols-2 gap-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        {/* Section 1 — Stage + teams */}
+        <section className="space-y-4">
           <FormField
             control={form.control}
-            name="team_a_id"
+            name="stage"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Team A</FormLabel>
+                <FormLabel>Stage</FormLabel>
                 <FormControl>
                   <select
                     {...field}
                     className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
                   >
-                    <option value="">Select…</option>
-                    {teams.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
+                    <option value="group">Group</option>
+                    <option value="qualifier">Qualifier</option>
+                    <option value="quarter">Quarter-final</option>
+                    <option value="semi">Semi-final</option>
+                    <option value="final">Final</option>
+                    <option value="exhibition">Exhibition</option>
                   </select>
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+          <div className="grid grid-cols-2 gap-3">
+            <FormField
+              control={form.control}
+              name="team_a_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Team A</FormLabel>
+                  <FormControl>
+                    <select
+                      {...field}
+                      className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm capitalize shadow-sm"
+                    >
+                      <option value="">Select…</option>
+                      {teams
+                        .filter((t) => t.id !== teamBId)
+                        .map((t) => (
+                          <option
+                            key={t.id}
+                            value={t.id}
+                            className="capitalize"
+                          >
+                            {t.name}
+                          </option>
+                        ))}
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="team_b_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Team B</FormLabel>
+                  <FormControl>
+                    <select
+                      {...field}
+                      className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm capitalize shadow-sm"
+                    >
+                      <option value="">Select…</option>
+                      {teams
+                        .filter((t) => t.id !== teamAId)
+                        .map((t) => (
+                          <option
+                            key={t.id}
+                            value={t.id}
+                            className="capitalize"
+                          >
+                            {t.name}
+                          </option>
+                        ))}
+                    </select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </section>
+
+        <hr className="border-foreground/10" />
+
+        {/* Section 2 — When + where */}
+        <section className="space-y-4">
           <FormField
             control={form.control}
-            name="team_b_id"
+            name="scheduled_at"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Team B</FormLabel>
+                <FormLabel>Scheduled at</FormLabel>
                 <FormControl>
-                  <select
-                    {...field}
-                    className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm"
-                  >
-                    <option value="">Select…</option>
-                    {teams.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name}
-                      </option>
-                    ))}
-                  </select>
+                  <Input type="datetime-local" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
+          <FormField
+            control={form.control}
+            name="venue"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Venue</FormLabel>
+                <FormControl>
+                  <Input placeholder="Ground / location" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </section>
+
+        <hr className="border-foreground/10" />
+
+        {/* Section 3 — Format settings */}
+        <section className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <FormField
+              control={form.control}
+              name="overs_per_innings"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Overs / innings</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={1} max={50} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="players_per_side"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Players / side</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={2} max={15} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </section>
+
+        {/* Footer actions */}
+        <div className="flex items-center justify-end gap-2 border-t border-foreground/10 pt-4">
+          <Link href={`/tournaments/${tournamentSlug}`} prefetch>
+            <Button type="button" variant="ghost">
+              Cancel
+            </Button>
+          </Link>
+          <Button
+            type="submit"
+            disabled={form.formState.isSubmitting}
+          >
+            {form.formState.isSubmitting ? "Creating…" : "Create match"}
+          </Button>
         </div>
-        <FormField
-          control={form.control}
-          name="scheduled_at"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Scheduled at</FormLabel>
-              <FormControl>
-                <Input type="datetime-local" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="venue"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Venue</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <div className="grid grid-cols-2 gap-4">
-          <FormField
-            control={form.control}
-            name="overs_per_innings"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Overs / innings</FormLabel>
-                <FormControl>
-                  <Input type="number" min={1} max={50} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="players_per_side"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Players / side</FormLabel>
-                <FormControl>
-                  <Input type="number" min={2} max={15} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={form.formState.isSubmitting}
-        >
-          {form.formState.isSubmitting ? "Creating…" : "Create match"}
-        </Button>
       </form>
     </Form>
   );

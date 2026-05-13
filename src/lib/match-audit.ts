@@ -37,12 +37,25 @@ export type MatchAuditEvent = {
   created_at: string;
 };
 
+let warnedMissingEnv = false;
+function envOk(): boolean {
+  if (process.env.SUPABASE_SERVICE_ROLE_KEY) return true;
+  if (!warnedMissingEnv) {
+    console.warn(
+      "[match-audit] SUPABASE_SERVICE_ROLE_KEY not set — audit log disabled (set it in .env.local to enable).",
+    );
+    warnedMissingEnv = true;
+  }
+  return false;
+}
+
 export async function logMatchAuditEvent(args: {
   matchId: string;
   eventType: MatchAuditEventType;
   actorId: string | null;
   payload?: Record<string, unknown> | null;
 }): Promise<void> {
+  if (!envOk()) return;
   try {
     const admin = createAdminClient();
     await admin.from("match_audit_events").insert({
@@ -63,6 +76,7 @@ export async function logMatchAuditEvent(args: {
 export async function listMatchAuditEvents(
   matchId: string,
 ): Promise<MatchAuditEvent[]> {
+  if (!envOk()) return [];
   try {
     const admin = createAdminClient();
     const { data } = await admin

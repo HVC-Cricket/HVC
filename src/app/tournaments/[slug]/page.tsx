@@ -1,3 +1,4 @@
+import { CalendarDays, MapPin, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -16,6 +17,54 @@ import { PointsTableSection } from "./points-table-section";
 
 export const dynamic = "force-dynamic";
 
+type TournamentFormat = "league" | "knockout" | "group_then_knockout";
+type TournamentStatus = "draft" | "active" | "completed" | "archived";
+type MatchStatus =
+  | "scheduled"
+  | "live"
+  | "innings_break"
+  | "completed"
+  | "abandoned";
+
+const STATUS_LABEL: Record<TournamentStatus, string> = {
+  active: "Live",
+  draft: "Draft",
+  completed: "Completed",
+  archived: "Archived",
+};
+const STATUS_CLASSES: Record<TournamentStatus, string> = {
+  active:
+    "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  draft:
+    "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  completed:
+    "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300",
+  archived: "border-foreground/15 bg-muted text-muted-foreground",
+};
+const FORMAT_LABEL: Record<TournamentFormat, string> = {
+  league: "League",
+  knockout: "Knockout",
+  group_then_knockout: "Group → Knockout",
+};
+
+const MATCH_STATUS_LABEL: Record<MatchStatus, string> = {
+  scheduled: "Scheduled",
+  live: "Live",
+  innings_break: "Break",
+  completed: "Completed",
+  abandoned: "Abandoned",
+};
+const MATCH_STATUS_CLASSES: Record<MatchStatus, string> = {
+  scheduled: "border-foreground/15 bg-muted text-muted-foreground",
+  live: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+  innings_break:
+    "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  completed:
+    "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300",
+  abandoned:
+    "border-destructive/30 bg-destructive/10 text-destructive",
+};
+
 export default async function TournamentDetailPage(props: {
   params: Promise<{ slug: string }>;
 }) {
@@ -31,194 +80,302 @@ export default async function TournamentDetailPage(props: {
 
   if (error || !tournament) notFound();
 
-  const { data: teams } = await supabase
-    .from("teams")
-    .select("id, name, short_name, logo_url")
-    .eq("tournament_id", tournament.id)
-    .order("created_at", { ascending: true });
+  const [teamsRes, matchesRes, canManage] = await Promise.all([
+    supabase
+      .from("teams")
+      .select("id, name, short_name, logo_url")
+      .eq("tournament_id", tournament.id)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("matches")
+      .select(
+        "id, match_number, stage, status, scheduled_at, team_a_id, team_b_id",
+      )
+      .eq("tournament_id", tournament.id)
+      .order("match_number", { ascending: true }),
+    ctx
+      ? isTournamentOrganizer(tournament.id, ctx)
+      : Promise.resolve(false),
+  ]);
 
-  const { data: matches } = await supabase
-    .from("matches")
-    .select(
-      "id, match_number, stage, status, scheduled_at, team_a_id, team_b_id",
-    )
-    .eq("tournament_id", tournament.id)
-    .order("match_number", { ascending: true });
+  const teams = teamsRes.data ?? [];
+  const matches = matchesRes.data ?? [];
+  const teamLookup = new Map(teams.map((t) => [t.id, t]));
 
-  const teamLookup = new Map((teams ?? []).map((t) => [t.id, t]));
+  // Player counts per team — single query, group client side.
+  const teamIds = teams.map((t) => t.id);
+  const playerCountByTeam = new Map<string, number>();
+  if (teamIds.length > 0) {
+    const { data: memberships } = await supabase
+      .from("team_players")
+      .select("team_id")
+      .in("team_id", teamIds);
+    for (const m of memberships ?? []) {
+      playerCountByTeam.set(
+        m.team_id,
+        (playerCountByTeam.get(m.team_id) ?? 0) + 1,
+      );
+    }
+  }
 
-  const canManage = ctx
-    ? await isTournamentOrganizer(tournament.id, ctx)
-    : false;
+  const fmt = tournament.format as TournamentFormat;
+  const status = tournament.status as TournamentStatus;
 
   return (
-    <main className="flex-1 p-6">
+    <main className="flex-1 p-4 sm:p-6">
       <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
-            {tournament.logo_url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={tournament.logo_url}
-                alt=""
-                className="h-14 w-14 rounded-md border border-foreground/10 object-cover"
-              />
+        {/* Header */}
+        <header className="space-y-4">
+          {tournament.banner_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={tournament.banner_url}
+              alt=""
+              className="h-32 w-full rounded-xl border border-foreground/10 object-cover sm:h-44"
+            />
+          )}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              {tournament.logo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={tournament.logo_url}
+                  alt=""
+                  className="size-14 shrink-0 rounded-lg border border-foreground/10 object-cover"
+                />
+              ) : (
+                <div className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                  <Trophy className="size-6" />
+                </div>
+              )}
+              <div className="min-w-0 space-y-1.5">
+                <h1 className="truncate text-2xl font-semibold capitalize sm:text-3xl">
+                  {tournament.name}
+                </h1>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span
+                    className={
+                      "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide " +
+                      STATUS_CLASSES[status]
+                    }
+                  >
+                    {status === "active" && (
+                      <span className="relative flex size-1.5">
+                        <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                        <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+                      </span>
+                    )}
+                    {STATUS_LABEL[status]}
+                  </span>
+                  <span className="inline-flex items-center rounded-full border border-foreground/15 bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {FORMAT_LABEL[fmt]}
+                  </span>
+                </div>
+                {tournament.description && (
+                  <p className="pt-1 text-sm text-muted-foreground">
+                    {tournament.description}
+                  </p>
+                )}
+              </div>
+            </div>
+            {canManage && (
+              <div className="flex shrink-0 items-center gap-2">
+                <Link href={`/tournaments/${tournament.slug}/admins`}>
+                  <Button variant="ghost" size="sm">
+                    Admins
+                  </Button>
+                </Link>
+                <Link href={`/tournaments/${tournament.slug}/edit`}>
+                  <Button variant="ghost" size="sm">
+                    Edit
+                  </Button>
+                </Link>
+              </div>
             )}
-            <div className="space-y-1">
-              <h1 className="text-2xl font-semibold">{tournament.name}</h1>
-              <p className="text-sm text-muted-foreground capitalize">
-                {tournament.format.replace(/_/g, " ")} · {tournament.status}
-              </p>
-              {tournament.description && (
-                <p className="pt-2 text-sm">{tournament.description}</p>
+          </div>
+
+          {/* Quick stats */}
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <Stat label="Teams" value={teams.length} />
+            <Stat label="Matches" value={matches.length} />
+            <Stat
+              label="Overs / innings"
+              value={tournament.default_overs_per_innings}
+            />
+            <Stat
+              label="Players / side"
+              value={tournament.default_players_per_side}
+            />
+          </div>
+
+          {/* Venue / dates */}
+          {(tournament.venue ||
+            tournament.start_date ||
+            tournament.end_date) && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              {tournament.venue && (
+                <span className="inline-flex items-center gap-1.5 capitalize">
+                  <MapPin className="size-3.5" />
+                  {tournament.venue}
+                </span>
+              )}
+              {(tournament.start_date || tournament.end_date) && (
+                <span className="inline-flex items-center gap-1.5">
+                  <CalendarDays className="size-3.5" />
+                  {formatDateRange(
+                    tournament.start_date,
+                    tournament.end_date,
+                  )}
+                </span>
               )}
             </div>
-          </div>
-          {canManage && (
-            <div className="flex items-center gap-2">
-              <Link href={`/tournaments/${tournament.slug}/admins`}>
-                <Button variant="ghost" size="sm">
-                  Admins
-                </Button>
-              </Link>
-              <Link href={`/tournaments/${tournament.slug}/edit`}>
-                <Button variant="ghost" size="sm">
-                  Edit
-                </Button>
-              </Link>
-            </div>
           )}
-        </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Details</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
-            <Row label="Default overs / innings" value={String(tournament.default_overs_per_innings)} />
-            <Row label="Default players / side" value={String(tournament.default_players_per_side)} />
-            <Row label="Venue" value={tournament.venue ?? "—"} />
-            <Row
-              label="Dates"
-              value={
-                tournament.start_date || tournament.end_date
-                  ? `${tournament.start_date ? new Date(tournament.start_date).toLocaleDateString() : "TBD"} — ${tournament.end_date ? new Date(tournament.end_date).toLocaleDateString() : "TBD"}`
-                  : "—"
-              }
-            />
-          </CardContent>
-        </Card>
+        </header>
 
         <PointsTableSection
           tournamentId={tournament.id}
-          teams={teams ?? []}
+          teams={teams}
         />
 
+        {/* Matches */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Matches</h2>
             {canManage && (
-              <Link href={`/tournaments/${tournament.slug}/matches/new`}>
+              <Link
+                href={`/tournaments/${tournament.slug}/matches/new`}
+                prefetch
+              >
                 <Button size="sm">New match</Button>
               </Link>
             )}
           </div>
-          {!matches || matches.length === 0 ? (
-            <Card>
-              <CardHeader>
-                <CardDescription>
-                  No matches scheduled yet
-                  {canManage ? ". Add the first one with the button above." : "."}
-                </CardDescription>
-              </CardHeader>
+          {matches.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                No matches scheduled yet
+                {canManage ? ". Add the first one with the button above." : "."}
+              </CardContent>
             </Card>
           ) : (
-            <ul className="divide-y divide-foreground/10 rounded-md border border-foreground/10">
+            <div className="space-y-2">
               {matches.map((m) => {
                 const a = teamLookup.get(m.team_a_id);
                 const b = teamLookup.get(m.team_b_id);
+                const ms = m.status as MatchStatus;
                 return (
-                  <li key={m.id}>
-                    <Link
-                      href={`/matches/${m.id}`}
-                      className="flex items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-muted/40"
-                    >
-                      <span className="flex items-center gap-3">
-                        <span className="inline-flex w-8 justify-end font-mono text-muted-foreground">
-                          #{m.match_number}
-                        </span>
-                        <span className="flex items-center gap-2 font-medium">
+                  <Link
+                    key={m.id}
+                    href={`/matches/${m.id}`}
+                    className="group flex items-center justify-between gap-3 rounded-lg border border-foreground/10 bg-background p-3 transition hover:border-foreground/25 hover:bg-muted/30"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-muted font-mono text-xs text-muted-foreground">
+                        #{m.match_number}
+                      </span>
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-2">
                           <TeamMini team={a} />
-                          <span>vs</span>
-                          <TeamMini team={b} />
-                        </span>
-                        <span className="text-xs text-muted-foreground capitalize">
-                          {m.stage.replace(/_/g, " ")}
-                        </span>
-                      </span>
-                      <span className="flex items-center gap-3 text-xs text-muted-foreground">
-                        {m.scheduled_at && (
-                          <span>
-                            {new Date(m.scheduled_at).toLocaleString()}
+                          <span className="text-xs text-muted-foreground">
+                            vs
                           </span>
-                        )}
-                        <span className="capitalize">
-                          {m.status.replace(/_/g, " ")}
+                          <TeamMini team={b} />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground">
+                          <span className="capitalize">
+                            {m.stage.replace(/_/g, " ")}
+                          </span>
+                          {m.scheduled_at && (
+                            <>
+                              <span className="text-foreground/20">·</span>
+                              <span>{formatMatchTime(m.scheduled_at)}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <span
+                      className={
+                        "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide " +
+                        MATCH_STATUS_CLASSES[ms]
+                      }
+                    >
+                      {ms === "live" && (
+                        <span className="relative flex size-1.5">
+                          <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                          <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
                         </span>
-                      </span>
-                    </Link>
-                  </li>
+                      )}
+                      {MATCH_STATUS_LABEL[ms]}
+                    </span>
+                  </Link>
                 );
               })}
-            </ul>
+            </div>
           )}
         </section>
 
+        {/* Teams */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Teams</h2>
             {canManage && (
-              <Link href={`/tournaments/${tournament.slug}/teams/new`}>
+              <Link
+                href={`/tournaments/${tournament.slug}/teams/new`}
+                prefetch
+              >
                 <Button size="sm">Add team</Button>
               </Link>
             )}
           </div>
-          {!teams || teams.length === 0 ? (
-            <Card>
-              <CardHeader>
-                <CardDescription>
-                  No teams yet
-                  {canManage ? ". Add the first one with the button above." : "."}
-                </CardDescription>
-              </CardHeader>
+          {teams.length === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                No teams yet
+                {canManage ? ". Add the first one with the button above." : "."}
+              </CardContent>
             </Card>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {teams.map((team) => (
-                <Link
-                  key={team.id}
-                  href={`/tournaments/${tournament.slug}/teams/${team.id}`}
-                >
-                  <Card className="h-full transition hover:bg-muted/40">
-                    <CardHeader>
-                      <div className="flex items-start gap-3">
-                        {team.logo_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={team.logo_url}
-                            alt=""
-                            className="h-10 w-10 rounded-md border border-foreground/10 object-cover"
-                          />
-                        ) : null}
-                        <div className="space-y-1">
-                          <CardTitle>{team.name}</CardTitle>
-                          <CardDescription>{team.short_name}</CardDescription>
-                        </div>
+              {teams.map((team) => {
+                const playerCount = playerCountByTeam.get(team.id) ?? 0;
+                return (
+                  <Link
+                    key={team.id}
+                    href={`/tournaments/${tournament.slug}/teams/${team.id}`}
+                    className="group flex items-center gap-3 rounded-xl border border-foreground/10 bg-background p-3 transition hover:border-foreground/25 hover:bg-muted/30"
+                  >
+                    {team.logo_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={team.logo_url}
+                        alt=""
+                        className="size-11 shrink-0 rounded-lg border border-foreground/10 object-cover"
+                      />
+                    ) : (
+                      <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-muted text-[10px] font-semibold text-muted-foreground">
+                        {team.short_name.slice(0, 2).toUpperCase()}
                       </div>
-                    </CardHeader>
-                  </Card>
-                </Link>
-              ))}
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium capitalize">
+                        {team.name}
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                        <span className="font-mono uppercase">
+                          {team.short_name}
+                        </span>
+                        <span className="text-foreground/20">·</span>
+                        <span className="inline-flex items-center gap-1">
+                          <Users className="size-3" />
+                          {playerCount}{" "}
+                          {playerCount === 1 ? "player" : "players"}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </section>
@@ -227,12 +384,18 @@ export default async function TournamentDetailPage(props: {
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="flex justify-between gap-3">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right">{value}</span>
-    </div>
+    <Card className="border-foreground/10">
+      <CardContent className="space-y-0.5 py-3 text-center">
+        <div className="font-mono text-2xl font-semibold leading-none tabular-nums">
+          {value}
+        </div>
+        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+          {label}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -241,18 +404,55 @@ function TeamMini({
 }: {
   team?: { short_name: string; logo_url: string | null };
 }) {
-  if (!team) return <span>?</span>;
+  if (!team)
+    return <span className="text-sm font-medium text-muted-foreground">?</span>;
   return (
     <span className="inline-flex items-center gap-1.5">
-      {team.logo_url && (
+      {team.logo_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={team.logo_url}
           alt=""
-          className="h-5 w-5 rounded-sm border border-foreground/10 object-cover"
+          className="size-5 rounded-full border border-foreground/10 object-cover"
         />
+      ) : (
+        <span className="flex size-5 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-muted-foreground">
+          {team.short_name.slice(0, 2).toUpperCase()}
+        </span>
       )}
-      <span>{team.short_name}</span>
+      <span className="font-mono text-sm font-semibold uppercase">
+        {team.short_name}
+      </span>
     </span>
   );
+}
+
+function formatDateRange(
+  start: string | null,
+  end: string | null,
+): string {
+  if (!start && !end) return "TBD";
+  const fmt = (d: string) =>
+    new Date(d).toLocaleDateString(undefined, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  if (start && end) {
+    const s = new Date(start);
+    const e = new Date(end);
+    if (s.toDateString() === e.toDateString()) return fmt(start);
+    const sameMonth =
+      s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth();
+    if (sameMonth) {
+      return `${s.toLocaleDateString(undefined, { day: "numeric", month: "short" })} – ${e.getDate()}, ${e.getFullYear()}`;
+    }
+    return `${fmt(start)} – ${fmt(end)}`;
+  }
+  return `${start ? fmt(start) : "TBD"} – ${end ? fmt(end) : "TBD"}`;
+}
+
+function formatMatchTime(iso: string): string {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString(undefined, { day: "numeric", month: "short" })} · ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
 }
