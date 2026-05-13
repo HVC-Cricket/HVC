@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireOrganizer, requireUser } from "@/lib/auth";
+import { logMatchAuditEvent } from "@/lib/match-audit";
 import { createClient } from "@/lib/supabase/server";
 
 import type { ActionResult } from "@/app/tournaments/actions";
@@ -250,6 +251,19 @@ export async function setToss(
     .eq("id", match.id);
 
   if (error) return { ok: false, error: error.message };
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  await logMatchAuditEvent({
+    matchId: match.id,
+    eventType: "toss_set",
+    actorId: user?.id ?? null,
+    payload: {
+      toss_winner_id: parsed.data.toss_winner_id,
+      toss_decision: parsed.data.toss_decision,
+    },
+  });
 
   revalidatePath(`/matches/${match.id}`);
   return { ok: true, data: undefined };

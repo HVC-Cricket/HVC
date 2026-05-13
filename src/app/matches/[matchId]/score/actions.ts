@@ -5,6 +5,7 @@ import { after } from "next/server";
 import { z } from "zod";
 
 import { requireTournamentAdmin } from "@/lib/auth";
+import { logMatchAuditEvent } from "@/lib/match-audit";
 import { type MatchPushPayload, notifyMatch } from "@/lib/push";
 import {
   advanceBowler,
@@ -168,6 +169,22 @@ export async function startMatch(
   if (updErr) {
     return { ok: false, error: updErr.message };
   }
+
+  const {
+    data: { user: actor },
+  } = await supabase.auth.getUser();
+  await logMatchAuditEvent({
+    matchId: match.id,
+    eventType: "match_started",
+    actorId: actor?.id ?? null,
+    payload: {
+      batting_team_id: battingTeamId,
+      bowling_team_id: bowlingTeamId,
+      striker_id: parsed.data.striker_id,
+      non_striker_id: parsed.data.non_striker_id,
+      bowler_id: parsed.data.bowler_id,
+    },
+  });
 
   revalidatePath(`/matches/${match.id}`);
   revalidatePath(`/matches/${match.id}/score`);
@@ -652,6 +669,21 @@ export async function startSecondInnings(
     .update({ current_innings_id: innings.id, status: "live" })
     .eq("id", match.id);
 
+  const {
+    data: { user: actor2 },
+  } = await supabase.auth.getUser();
+  await logMatchAuditEvent({
+    matchId: match.id,
+    eventType: "innings_2_started",
+    actorId: actor2?.id ?? null,
+    payload: {
+      target,
+      striker_id: parsed.data.striker_id,
+      non_striker_id: parsed.data.non_striker_id,
+      bowler_id: parsed.data.bowler_id,
+    },
+  });
+
   revalidatePath(`/matches/${match.id}/score`);
   return { ok: true, data: { inningsId: innings.id } };
 }
@@ -768,6 +800,21 @@ async function finalizeMatchInternal(
     })
     .eq("id", matchId);
   if (error) return { ok: false, error: error.message };
+
+  const {
+    data: { user: actor },
+  } = await supabase.auth.getUser();
+  await logMatchAuditEvent({
+    matchId,
+    eventType: "match_completed",
+    actorId: actor?.id ?? null,
+    payload: {
+      result_type: resultType,
+      winner_id: winnerId,
+      win_margin: winMargin,
+    },
+  });
+
   return { ok: true, data: undefined };
 }
 
@@ -891,6 +938,23 @@ export async function startSuperOverInnings(
     .from("matches")
     .update({ current_innings_id: innings.id, status: "live" })
     .eq("id", match.id);
+
+  const {
+    data: { user: actor },
+  } = await supabase.auth.getUser();
+  await logMatchAuditEvent({
+    matchId: match.id,
+    eventType: "super_over_started",
+    actorId: actor?.id ?? null,
+    payload: {
+      innings_number: parsed.data.inningsNumber,
+      target,
+      batting_team_id: battingTeamId,
+      striker_id: parsed.data.striker_id,
+      non_striker_id: parsed.data.non_striker_id,
+      bowler_id: parsed.data.bowler_id,
+    },
+  });
 
   revalidatePath(`/matches/${match.id}/score`);
   return { ok: true, data: { inningsId: innings.id } };

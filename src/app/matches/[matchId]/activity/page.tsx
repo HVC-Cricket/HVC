@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireTournamentAdmin } from "@/lib/auth";
+import { listMatchAuditEvents } from "@/lib/match-audit";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
 
@@ -86,6 +87,13 @@ export default async function ActivityPage(props: {
   const playerName = new Map(
     (playerRows ?? []).map((p) => [p.id, p.display_name]),
   );
+  // Match-level events come from a separate audit table (toss / XI /
+  // start / completion / POTM). They get folded into the same stream.
+  const auditEvents = await listMatchAuditEvents(matchId);
+  for (const ev of auditEvents) {
+    if (ev.actor_id) userIds.add(ev.actor_id);
+  }
+
   const { data: profileRows } = userIds.size
     ? await supabase
         .from("profiles")
@@ -96,22 +104,35 @@ export default async function ActivityPage(props: {
     (profileRows ?? []).map((p) => [p.id, p.display_name]),
   );
 
-  // Expand into events: one for record, one for void (if voided).
-  type Event = {
+  // Expand into events. Each ball produces one or two ball-events
+  // (record + optional void); each match_audit_events row produces
+  // one match-event. We tag with `source` so the renderer can style
+  // them differently.
+  type BallEvent = {
+    source: "ball";
     key: string;
     kind: "recorded" | "voided";
     ts: string;
-    scorerId: string | null;
     scorerName: string;
     ball: BallRow;
   };
+  type MatchEvent = {
+    source: "match";
+    key: string;
+    ts: string;
+    eventType: string;
+    actorName: string;
+    payload: Record<string, unknown> | null;
+  };
+  type Event = BallEvent | MatchEvent;
   const events: Event[] = [];
+
   for (const b of balls) {
     events.push({
+      source: "ball",
       key: `${b.id}-rec`,
       kind: "recorded",
       ts: b.scored_at,
-      scorerId: b.scored_by,
       scorerName: b.scored_by
         ? (profileName.get(b.scored_by) ?? shortId(b.scored_by))
         : "?",
@@ -119,10 +140,10 @@ export default async function ActivityPage(props: {
     });
     if (b.is_voided && b.voided_at) {
       events.push({
+        source: "ball",
         key: `${b.id}-void`,
         kind: "voided",
         ts: b.voided_at,
-        scorerId: b.voided_by,
         scorerName: b.voided_by
           ? (profileName.get(b.voided_by) ?? shortId(b.voided_by))
           : "?",
@@ -130,6 +151,20 @@ export default async function ActivityPage(props: {
       });
     }
   }
+
+  for (const ev of auditEvents) {
+    events.push({
+      source: "match",
+      key: ev.id,
+      ts: ev.created_at,
+      eventType: ev.event_type,
+      actorName: ev.actor_id
+        ? (profileName.get(ev.actor_id) ?? shortId(ev.actor_id))
+        : "?",
+      payload: ev.payload,
+    });
+  }
+
   events.sort((a, b) => b.ts.localeCompare(a.ts));
 
   return (
@@ -160,8 +195,9 @@ export default async function ActivityPage(props: {
             Activity log — {teamA?.short_name ?? "?"} vs {teamB?.short_name ?? "?"}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Every recorded and voided ball, in reverse chronological order.
-            Match-level changes (toss, XI, status) aren&apos;t logged.
+            Every recorded and voided ball plus match-level admin
+            actions (toss, XI changes, innings transitions, POTM picks),
+            in reverse chronological order.
           </p>
         </div>
 
@@ -191,6 +227,34 @@ export default async function ActivityPage(props: {
                 </thead>
                 <tbody>
                   {events.map((ev) => {
+                    if (ev.source === "match") {
+                      return (
+                        <tr
+                          key={ev.key}
+                          className="border-b border-foreground/5 bg-blue-500/5 last:border-b-0"
+                        >
+                          <td className="whitespace-nowrap px-4 py-2 text-xs text-muted-foreground">
+                            {formatTimestamp(ev.ts)}
+                          </td>
+                          <td className="px-2 py-2">
+                            <span className="rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-medium uppercase text-blue-700">
+                              {formatMatchEventLabel(ev.eventType)}
+                            </span>
+                          </td>
+                          <td className="px-2 py-2 font-mono text-xs">—</td>
+                          <td className="px-2 py-2 font-mono text-xs">—</td>
+                          <td className="px-2 py-2 text-xs">
+                            {describeMatchEvent(
+                              ev.eventType,
+                              ev.payload,
+                              teamShort,
+                              playerName,
+                            )}
+                          </td>
+                          <td className="px-4 py-2 text-xs">{ev.actorName}</td>
+                        </tr>
+                      );
+                    }
                     const inn = inningsById.get(ev.ball.innings_id);
                     const innLabel = inn
                       ? `${inn.innings_number > 2 ? "SO" : "I"}${inn.innings_number} · ${teamShort.get(inn.batting_team_id) ?? "?"}`
@@ -258,6 +322,90 @@ function formatTimestamp(iso: string): string {
     minute: "2-digit",
     second: "2-digit",
   })}`;
+}
+
+function formatMatchEventLabel(type: string): string {
+  switch (type) {
+    case "toss_set":
+      return "Toss";
+    case "xi_changed":
+      return "XI";
+    case "match_started":
+      return "Match start";
+    case "innings_2_started":
+      return "Innings 2";
+    case "super_over_started":
+      return "Super over";
+    case "match_completed":
+      return "Completed";
+    case "match_unfinalized":
+      return "Re-opened";
+    case "potm_set":
+      return "POTM set";
+    case "potm_cleared":
+      return "POTM cleared";
+    default:
+      return type.replace(/_/g, " ");
+  }
+}
+
+function describeMatchEvent(
+  type: string,
+  payload: Record<string, unknown> | null,
+  teamShort: Map<string, string>,
+  playerName: Map<string, string>,
+): string {
+  const get = (k: string) => (payload && k in payload ? String(payload[k]) : null);
+  const teamLabel = (id: string | null) =>
+    id ? (teamShort.get(id) ?? id.slice(0, 8)) : "?";
+  const playerLabel = (id: string | null) =>
+    id ? (playerName.get(id) ?? id.slice(0, 8)) : "?";
+
+  switch (type) {
+    case "toss_set": {
+      const winner = teamLabel(get("toss_winner_id"));
+      const decision = get("toss_decision");
+      return `${winner} won the toss, chose to ${decision ?? "?"}`;
+    }
+    case "xi_changed": {
+      const team = teamLabel(get("team_id"));
+      const count = get("player_count") ?? "?";
+      return `${team} XI updated — ${count} players`;
+    }
+    case "match_started": {
+      const batting = teamLabel(get("batting_team_id"));
+      const striker = playerLabel(get("striker_id"));
+      const nonStriker = playerLabel(get("non_striker_id"));
+      const bowler = playerLabel(get("bowler_id"));
+      return `${batting} batting · ${striker} + ${nonStriker} vs ${bowler}`;
+    }
+    case "innings_2_started": {
+      const target = get("target") ?? "?";
+      const striker = playerLabel(get("striker_id"));
+      const bowler = playerLabel(get("bowler_id"));
+      return `Target ${target} · ${striker} vs ${bowler}`;
+    }
+    case "super_over_started": {
+      const innings = get("innings_number") ?? "?";
+      const target = get("target") ?? "?";
+      return `Super over (innings ${innings}) · target ${target}`;
+    }
+    case "match_completed": {
+      const winner = teamLabel(get("winner_id"));
+      const margin = get("win_margin") ?? "";
+      const result = get("result_type");
+      if (result === "tie") return "Match tied";
+      return `${winner} ${margin}`;
+    }
+    case "potm_set":
+      return `Picked ${playerLabel(get("player_id"))}`;
+    case "potm_cleared":
+      return "Cleared (reverted to auto)";
+    case "match_unfinalized":
+      return "Match re-opened (final result reverted)";
+    default:
+      return payload ? JSON.stringify(payload) : "—";
+  }
 }
 
 function describeBall(b: BallRow, players: Map<string, string>): string {

@@ -539,6 +539,33 @@ export type Database = {
         };
         Relationships: [];
       };
+      match_audit_events: {
+        Row: {
+          id: string;
+          match_id: string;
+          event_type: string;
+          actor_id: string | null;
+          payload: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          match_id: string;
+          event_type: string;
+          actor_id?: string | null;
+          payload?: Json | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          match_id?: string;
+          event_type?: string;
+          actor_id?: string | null;
+          payload?: Json | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       push_subscriptions: {
         Row: {
           id: string;

@@ -1034,6 +1034,34 @@ alter table push_subscriptions enable row level security;
 
 
 -- =====================================================================
+-- Match-level audit events
+-- ---------------------------------------------------------------------
+-- Sibling to the per-ball log built into `balls` (scored_by / voided_by
+-- columns). Tracks admin actions on a match that AREN'T ball entries:
+-- toss, XI changes, match start, innings transitions, match
+-- completion, POTM picks.
+--
+-- RLS: deny all to anon/authenticated. Server Actions log via service
+-- role (writes already gated by `requireTournamentAdmin`); the
+-- /matches/[id]/activity page reads via service role (also admin-gated).
+-- =====================================================================
+create table if not exists match_audit_events (
+  id          uuid primary key default gen_random_uuid(),
+  match_id    uuid not null references matches(id) on delete cascade,
+  event_type  text not null,
+  actor_id    uuid references auth.users(id) on delete set null,
+  payload     jsonb,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists idx_match_audit_match_created
+  on match_audit_events(match_id, created_at desc);
+
+alter table match_audit_events enable row level security;
+-- No policies → only the service role can read/write.
+
+
+-- =====================================================================
 -- DONE
 --
 -- Next manual step after first signup:
