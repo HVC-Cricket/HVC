@@ -1,5 +1,7 @@
 "use client";
 
+import { Trophy } from "lucide-react";
+import Link from "next/link";
 import { useTransition } from "react";
 import { toast } from "sonner";
 
@@ -30,19 +32,30 @@ export function MatchCompletePanel({ state }: { state: ScoreboardState }) {
 
   const finished = state.match.status === "completed";
 
-  let title = "Match complete (pending finalize)";
+  // Split the headline from the margin so we can render them at
+  // different sizes — previously both lines repeated the margin.
+  let primary: string;
+  let secondary: string | null = null;
   if (finished) {
     if (state.match.winner_id) {
-      title = `${teamName(state.match.winner_id)} ${state.match.win_margin ?? "won"}`;
+      primary = teamName(state.match.winner_id);
+      secondary =
+        state.match.result_type === "super_over"
+          ? `${state.match.win_margin ?? "won"} (super over)`
+          : state.match.win_margin ?? "won the match";
     } else if (state.match.result_type === "tie") {
-      title = "Match tied";
+      primary = "Match tied";
     } else {
-      title = "Match complete";
+      primary = "Match complete";
     }
   } else if (state.phase === "super_over_decided") {
-    title = "Super over decided — finalize to record the result";
+    primary = "Super over decided";
+    secondary = "Finalize to record the result.";
   } else if (state.phase === "super_over_tied") {
-    title = "Super over also tied";
+    primary = "Super over also tied";
+  } else {
+    primary = "Match complete";
+    secondary = "Pending finalize.";
   }
 
   const onFinalize = () => {
@@ -53,57 +66,98 @@ export function MatchCompletePanel({ state }: { state: ScoreboardState }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>
-          {state.match.result_type === "super_over"
-            ? "Decided in the super over"
-            : state.match.result_type === "tie"
-              ? "Result: tie"
-              : state.match.win_margin ?? "Final scores below."}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-2 text-sm">
-        {i1 && (
-          <Row
-            label={`${teamShort(i1.batting_team_id)} (1st innings)`}
-            value={`${i1.total_runs}/${i1.total_wickets} in ${Math.floor(i1.total_legal_balls / 6)}.${i1.total_legal_balls % 6}`}
-          />
-        )}
-        {i2 && (
-          <Row
-            label={`${teamShort(i2.batting_team_id)} (2nd innings)`}
-            value={`${i2.total_runs}/${i2.total_wickets} in ${Math.floor(i2.total_legal_balls / 6)}.${i2.total_legal_balls % 6}`}
-          />
-        )}
-        {so1 && (
-          <Row
-            label={`${teamShort(so1.batting_team_id)} (super over)`}
-            value={`${so1.total_runs}/${so1.total_wickets} in ${Math.floor(so1.total_legal_balls / 6)}.${so1.total_legal_balls % 6}`}
-          />
-        )}
-        {so2 && (
-          <Row
-            label={`${teamShort(so2.batting_team_id)} (super over)`}
-            value={`${so2.total_runs}/${so2.total_wickets} in ${Math.floor(so2.total_legal_balls / 6)}.${so2.total_legal_balls % 6}`}
-          />
-        )}
-        {!finished && (
-          <Button onClick={onFinalize} disabled={pending} className="w-full">
-            {pending ? "Finalizing…" : "Finalize match"}
-          </Button>
-        )}
-        {state.phase === "super_over_tied" && (
-          <p className="pt-2 text-muted-foreground">
+    <div className="space-y-4">
+      <Card className="overflow-hidden border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
+        <CardContent className="flex items-center gap-3 p-4 sm:p-5">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
+            <Trophy className="size-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="truncate text-lg font-semibold capitalize sm:text-xl">
+              {primary}
+            </div>
+            {secondary && (
+              <div className="text-sm text-muted-foreground">{secondary}</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Final scores</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {i1 && (
+            <Row
+              label={`${teamShort(i1.batting_team_id)} (1st innings)`}
+              value={`${i1.total_runs}/${i1.total_wickets} in ${Math.floor(i1.total_legal_balls / 6)}.${i1.total_legal_balls % 6}`}
+            />
+          )}
+          {i2 && (
+            <Row
+              label={`${teamShort(i2.batting_team_id)} (2nd innings)`}
+              value={`${i2.total_runs}/${i2.total_wickets} in ${Math.floor(i2.total_legal_balls / 6)}.${i2.total_legal_balls % 6}`}
+            />
+          )}
+          {so1 && (
+            <Row
+              label={`${teamShort(so1.batting_team_id)} (super over)`}
+              value={`${so1.total_runs}/${so1.total_wickets} in ${Math.floor(so1.total_legal_balls / 6)}.${so1.total_legal_balls % 6}`}
+            />
+          )}
+          {so2 && (
+            <Row
+              label={`${teamShort(so2.batting_team_id)} (super over)`}
+              value={`${so2.total_runs}/${so2.total_wickets} in ${Math.floor(so2.total_legal_balls / 6)}.${so2.total_legal_balls % 6}`}
+            />
+          )}
+          {!finished && (
+            <Button onClick={onFinalize} disabled={pending} className="w-full">
+              {pending ? "Finalizing…" : "Finalize match"}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {finished && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Next steps</CardTitle>
+            <CardDescription>
+              Scoring is done. Use these to view the full breakdown or
+              correct the result.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            <Link href={`/matches/${state.match.id}`}>
+              <Button size="sm">View full scorecard</Button>
+            </Link>
+            <Link href={`/matches/${state.match.id}/activity`}>
+              <Button variant="ghost" size="sm">
+                Activity log
+              </Button>
+            </Link>
+            <Link href={`/matches/${state.match.id}/edit`}>
+              <Button variant="ghost" size="sm">
+                Edit match
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {state.phase === "super_over_tied" && (
+        <Card>
+          <CardContent className="py-4 text-sm text-muted-foreground">
             HVC rules don&apos;t yet specify a tiebreaker beyond a single
-            super over. Treating it as a final tie. If a second super over is
-            needed, the schema can support innings 5/6 — wire it up in a
+            super over. Treating it as a final tie. If a second super over
+            is needed, the schema can support innings 5/6 — wire it up in a
             follow-up.
-          </p>
-        )}
-      </CardContent>
-    </Card>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
 

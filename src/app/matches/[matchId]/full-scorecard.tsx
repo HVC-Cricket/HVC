@@ -8,6 +8,8 @@ import {
 import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
+
+import { ScorecardInningsTabs } from "./scorecard-innings-tabs";
 type PlayerLite = {
   id: string;
   display_name: string;
@@ -68,6 +70,62 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
     .order("scored_at", { ascending: true });
   const allBalls = (ballsRows ?? []) as BallRow[];
 
+  const tabs = innings.map((i) => {
+    const battingTeam = teamById.get(i.batting_team_id);
+    const bowlingTeam = teamById.get(i.bowling_team_id);
+    const inningsBalls = allBalls.filter((b) => b.innings_id === i.id);
+    const battingXi = (xi ?? []).filter(
+      (r) => r.team_id === i.batting_team_id,
+    );
+    const bowlingXi = (xi ?? []).filter(
+      (r) => r.team_id === i.bowling_team_id,
+    );
+    const overs = `${Math.floor(i.total_legal_balls / 6)}.${i.total_legal_balls % 6}`;
+    const ordinal = ordinalInnings(i.innings_number);
+
+    return {
+      id: String(i.id),
+      label: battingTeam?.short_name ?? "?",
+      sub: `${ordinal} · ${i.total_runs}/${i.total_wickets} (${overs})`,
+      panel: (
+        <Card className="overflow-hidden">
+          <CardHeader className="border-b border-foreground/5 bg-muted/30">
+            <div className="flex items-baseline justify-between gap-2">
+              <CardTitle className="text-base capitalize">
+                {battingTeam?.name ?? "?"}
+                <span className="ml-2 text-xs font-normal uppercase tracking-wide text-muted-foreground">
+                  {ordinal}
+                </span>
+              </CardTitle>
+              <CardDescription className="font-mono text-sm font-semibold text-foreground">
+                {i.total_runs}/{i.total_wickets}
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                  ({overs} ov)
+                </span>
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-0 p-0">
+            <BattingTable
+              balls={inningsBalls}
+              xi={battingXi}
+              playerById={playerById}
+            />
+            <FallOfWickets balls={inningsBalls} playerById={playerById} />
+            <ExtrasRow innings={i} />
+            <BowlingTable
+              balls={inningsBalls}
+              xi={bowlingXi}
+              playerById={playerById}
+              bowlingTeamName={bowlingTeam?.name}
+            />
+            <Partnerships balls={inningsBalls} playerById={playerById} />
+          </CardContent>
+        </Card>
+      ),
+    };
+  });
+
   return (
     <section className="space-y-3">
       <div className="flex items-baseline justify-between gap-2">
@@ -76,59 +134,19 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
           Per-player batting &amp; bowling
         </span>
       </div>
-      <div className="space-y-4">
-        {innings.map((i) => {
-          const battingTeam = teamById.get(i.batting_team_id);
-          const bowlingTeam = teamById.get(i.bowling_team_id);
-          const inningsBalls = allBalls.filter((b) => b.innings_id === i.id);
-          const battingXi = (xi ?? []).filter(
-            (r) => r.team_id === i.batting_team_id,
-          );
-          const bowlingXi = (xi ?? []).filter(
-            (r) => r.team_id === i.bowling_team_id,
-          );
-          const overs = `${Math.floor(i.total_legal_balls / 6)}.${i.total_legal_balls % 6}`;
-
-          return (
-            <Card key={i.id} className="overflow-hidden">
-              <CardHeader className="border-b border-foreground/5 bg-muted/30">
-                <div className="flex items-baseline justify-between gap-2">
-                  <CardTitle className="text-base capitalize">
-                    {battingTeam?.name ?? "?"}
-                    <span className="ml-2 text-xs font-normal uppercase tracking-wide text-muted-foreground">
-                      Innings {i.innings_number}
-                    </span>
-                  </CardTitle>
-                  <CardDescription className="font-mono text-sm font-semibold text-foreground">
-                    {i.total_runs}/{i.total_wickets}
-                    <span className="ml-1 text-xs font-normal text-muted-foreground">
-                      ({overs} ov)
-                    </span>
-                  </CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-0 p-0">
-                <BattingTable
-                  balls={inningsBalls}
-                  xi={battingXi}
-                  playerById={playerById}
-                />
-                <FallOfWickets balls={inningsBalls} playerById={playerById} />
-                <ExtrasRow innings={i} />
-                <BowlingTable
-                  balls={inningsBalls}
-                  xi={bowlingXi}
-                  playerById={playerById}
-                  bowlingTeamName={bowlingTeam?.name}
-                />
-                <Partnerships balls={inningsBalls} playerById={playerById} />
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      <ScorecardInningsTabs tabs={tabs} />
     </section>
   );
+}
+
+function ordinalInnings(n: number): string {
+  // Super overs (3, 4) show as "Super over 1", "Super over 2" so the
+  // tab label is meaningful instead of "3rd / 4th innings".
+  if (n === 1) return "1st innings";
+  if (n === 2) return "2nd innings";
+  if (n === 3) return "Super over 1";
+  if (n === 4) return "Super over 2";
+  return `Innings ${n}`;
 }
 
 function BattingTable({
