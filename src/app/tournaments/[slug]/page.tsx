@@ -1,6 +1,7 @@
 import { CalendarDays, MapPin, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +15,9 @@ import { getSessionContext, isTournamentOrganizer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 import { PointsTableSection } from "./points-table-section";
+import { TournamentMvp } from "./tournament-mvp";
+import { TournamentStats } from "./tournament-stats";
+import { TournamentTabs } from "./tournament-tabs";
 
 export const dynamic = "force-dynamic";
 
@@ -232,153 +236,201 @@ export default async function TournamentDetailPage(props: {
           )}
         </header>
 
-        <PointsTableSection
-          tournamentId={tournament.id}
-          teams={teams}
-        />
-
-        {/* Matches */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Matches</h2>
-            {canManage && (
-              <Link
-                href={`/tournaments/${tournament.slug}/matches/new`}
-                prefetch
-              >
-                <Button size="sm">New match</Button>
-              </Link>
-            )}
-          </div>
-          {matches.length === 0 ? (
-            <Card className="border-dashed">
-              <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                No matches scheduled yet
-                {canManage ? ". Add the first one with the button above." : "."}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {matches.map((m) => {
-                const a = teamLookup.get(m.team_a_id);
-                const b = teamLookup.get(m.team_b_id);
-                const ms = m.status as MatchStatus;
-                return (
+        <TournamentTabs
+          matches={
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Matches</h2>
+                {canManage && (
                   <Link
-                    key={m.id}
-                    href={`/matches/${m.id}`}
-                    className="group flex items-center justify-between gap-3 rounded-lg border border-foreground/10 bg-background p-3 transition hover:border-foreground/25 hover:bg-muted/30"
+                    href={`/tournaments/${tournament.slug}/matches/new`}
+                    prefetch
                   >
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-muted font-mono text-xs text-muted-foreground">
-                        #{m.match_number}
-                      </span>
-                      <div className="min-w-0 space-y-0.5">
-                        <div className="flex items-center gap-2">
-                          <TeamMini team={a} />
-                          <span className="text-xs text-muted-foreground">
-                            vs
+                    <Button size="sm">New match</Button>
+                  </Link>
+                )}
+              </div>
+              {matches.length === 0 ? (
+                <Card className="border-dashed">
+                  <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                    No matches scheduled yet
+                    {canManage
+                      ? ". Add the first one with the button above."
+                      : "."}
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-2">
+                  {matches.map((m) => {
+                    const a = teamLookup.get(m.team_a_id);
+                    const b = teamLookup.get(m.team_b_id);
+                    const ms = m.status as MatchStatus;
+                    return (
+                      <Link
+                        key={m.id}
+                        href={`/matches/${m.id}`}
+                        className="group flex items-center justify-between gap-3 rounded-lg border border-foreground/10 bg-background p-3 transition hover:border-foreground/25 hover:bg-muted/30"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-muted font-mono text-xs text-muted-foreground">
+                            #{m.match_number}
                           </span>
-                          <TeamMini team={b} />
+                          <div className="min-w-0 space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <TeamMini team={a} />
+                              <span className="text-xs text-muted-foreground">
+                                vs
+                              </span>
+                              <TeamMini team={b} />
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground">
+                              <span className="capitalize">
+                                {m.stage.replace(/_/g, " ")}
+                              </span>
+                              {m.scheduled_at && (
+                                <>
+                                  <span className="text-foreground/20">·</span>
+                                  <span>
+                                    {formatMatchTime(m.scheduled_at)}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground">
-                          <span className="capitalize">
-                            {m.stage.replace(/_/g, " ")}
-                          </span>
-                          {m.scheduled_at && (
-                            <>
-                              <span className="text-foreground/20">·</span>
-                              <span>{formatMatchTime(m.scheduled_at)}</span>
-                            </>
+                        <span
+                          className={
+                            "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide " +
+                            MATCH_STATUS_CLASSES[ms]
+                          }
+                        >
+                          {ms === "live" && (
+                            <span className="relative flex size-1.5">
+                              <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                              <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+                            </span>
                           )}
-                        </div>
-                      </div>
-                    </div>
-                    <span
-                      className={
-                        "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide " +
-                        MATCH_STATUS_CLASSES[ms]
-                      }
-                    >
-                      {ms === "live" && (
-                        <span className="relative flex size-1.5">
-                          <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-                          <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+                          {MATCH_STATUS_LABEL[ms]}
                         </span>
-                      )}
-                      {MATCH_STATUS_LABEL[ms]}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* Teams */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Teams</h2>
-            {canManage && (
-              <Link
-                href={`/tournaments/${tournament.slug}/teams/new`}
-                prefetch
-              >
-                <Button size="sm">Add team</Button>
-              </Link>
-            )}
-          </div>
-          {teams.length === 0 ? (
-            <Card className="border-dashed">
-              <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                No teams yet
-                {canManage ? ". Add the first one with the button above." : "."}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {teams.map((team) => {
-                const playerCount = playerCountByTeam.get(team.id) ?? 0;
-                return (
-                  <Link
-                    key={team.id}
-                    href={`/tournaments/${tournament.slug}/teams/${team.id}`}
-                    className="group flex items-center gap-3 rounded-xl border border-foreground/10 bg-background p-3 transition hover:border-foreground/25 hover:bg-muted/30"
-                  >
-                    {team.logo_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={team.logo_url}
-                        alt=""
-                        className="size-11 shrink-0 rounded-lg border border-foreground/10 object-cover"
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          }
+          table={
+            <PointsTableSection
+              tournamentId={tournament.id}
+              teams={teams}
+            />
+          }
+          stats={
+            <Suspense
+              fallback={
+                <Card>
+                  <CardContent className="space-y-2 py-6">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-3 animate-pulse rounded bg-muted"
+                        style={{ width: `${100 - i * 10}%` }}
                       />
-                    ) : (
-                      <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-muted text-[10px] font-semibold text-muted-foreground">
-                        {team.short_name.slice(0, 2).toUpperCase()}
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium capitalize">
-                        {team.name}
-                      </div>
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <span className="font-mono uppercase">
-                          {team.short_name}
-                        </span>
-                        <span className="text-foreground/20">·</span>
-                        <span className="inline-flex items-center gap-1">
-                          <Users className="size-3" />
-                          {playerCount}{" "}
-                          {playerCount === 1 ? "player" : "players"}
-                        </span>
-                      </div>
-                    </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              }
+            >
+              <TournamentStats tournamentId={tournament.id} />
+            </Suspense>
+          }
+          mvp={
+            <Suspense
+              fallback={
+                <Card>
+                  <CardContent className="space-y-2 py-6">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-3 animate-pulse rounded bg-muted"
+                        style={{ width: `${100 - i * 10}%` }}
+                      />
+                    ))}
+                  </CardContent>
+                </Card>
+              }
+            >
+              <TournamentMvp tournamentId={tournament.id} />
+            </Suspense>
+          }
+          teams={
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold">Teams</h2>
+                {canManage && (
+                  <Link
+                    href={`/tournaments/${tournament.slug}/teams/new`}
+                    prefetch
+                  >
+                    <Button size="sm">Add team</Button>
                   </Link>
-                );
-              })}
-            </div>
-          )}
-        </section>
+                )}
+              </div>
+              {teams.length === 0 ? (
+                <Card className="border-dashed">
+                  <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                    No teams yet
+                    {canManage
+                      ? ". Add the first one with the button above."
+                      : "."}
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {teams.map((team) => {
+                    const playerCount = playerCountByTeam.get(team.id) ?? 0;
+                    return (
+                      <Link
+                        key={team.id}
+                        href={`/tournaments/${tournament.slug}/teams/${team.id}`}
+                        className="group flex items-center gap-3 rounded-xl border border-foreground/10 bg-background p-3 transition hover:border-foreground/25 hover:bg-muted/30"
+                      >
+                        {team.logo_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={team.logo_url}
+                            alt=""
+                            className="size-11 shrink-0 rounded-lg border border-foreground/10 object-cover"
+                          />
+                        ) : (
+                          <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-muted text-[10px] font-semibold text-muted-foreground">
+                            {team.short_name.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-medium capitalize">
+                            {team.name}
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                            <span className="font-mono uppercase">
+                              {team.short_name}
+                            </span>
+                            <span className="text-foreground/20">·</span>
+                            <span className="inline-flex items-center gap-1">
+                              <Users className="size-3" />
+                              {playerCount}{" "}
+                              {playerCount === 1 ? "player" : "players"}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          }
+        />
       </div>
     </main>
   );
