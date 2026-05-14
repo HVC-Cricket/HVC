@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -66,7 +67,13 @@ export function WicketButton({
 }) {
   const [open, setOpen] = useState(false);
   const [wicketType, setWicketType] = useState<WicketType>("bowled");
-  const [whoOut, setWhoOut] = useState<"striker" | "non_striker">("striker");
+  // "" represents an unset value — used for run-out, where the scorer
+  // must explicitly choose striker or non-striker. For all other
+  // dismissal types we default to "striker" (the striker is the only
+  // one out for bowled / caught / stumped / hit-wicket / etc).
+  const [whoOut, setWhoOut] = useState<"striker" | "non_striker" | "">(
+    "striker",
+  );
   const [fielder, setFielder] = useState("");
   const [delivery, setDelivery] = useState<WicketDelivery>("legal");
   const [runs, setRuns] = useState<number>(0);
@@ -82,8 +89,17 @@ export function WicketButton({
   // POTM scoring credits the catch to the bowler.
   const showFielder = ["caught", "run_out", "stumped"].includes(wicketType);
 
+  // Reset Player-out default whenever wicket type changes:
+  //   - run_out  → blank (scorer must explicitly pick)
+  //   - anything else → striker (only the striker can be out)
+  useEffect(() => {
+    setWhoOut(wicketType === "run_out" ? "" : "striker");
+  }, [wicketType]);
+
   const close = () => {
     setOpen(false);
+    setWicketType("bowled");
+    setWhoOut("striker");
     setFielder("");
     setDelivery("legal");
     setRuns(0);
@@ -180,13 +196,13 @@ export function WicketButton({
                   Player out
                 </span>
                 <Select
-                  value={whoOut}
+                  value={whoOut || undefined}
                   onValueChange={(v) =>
                     setWhoOut(v as "striker" | "non_striker")
                   }
                 >
                   <SelectTrigger className="h-10 capitalize">
-                    <SelectValue />
+                    <SelectValue placeholder="Select…" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="striker" className="capitalize">
@@ -290,6 +306,10 @@ export function WicketButton({
               <Button
                 size="sm"
                 onClick={() => {
+                  if (!whoOut) {
+                    toast.error("Pick who's out — striker or non-striker");
+                    return;
+                  }
                   onSubmit(
                     wicketType,
                     whoOut === "striker" ? strikerId : nonStrikerId,

@@ -609,14 +609,11 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
               statsLine={formatBatterStats(state.balls, nonStrikerId, optimistic)}
               disabledIds={
                 state.active.last_man_mode
-                  ? // Last-man mode: lock the non-striker slot. Disable
-                    // every option except the current value so the
-                    // picker can't be changed.
-                    new Set(
-                      battingXi
-                        .filter((p) => p.id !== nonStrikerId)
-                        .map((p) => p.id),
-                    )
+                  ? // Last-man mode: the non-striker slot is a "dummy"
+                    // held by any dismissed batter. Only the live
+                    // striker is disabled — dismissed batters stay
+                    // pickable (still labelled "(out)" via dismissedIds).
+                    new Set([strikerId].filter(Boolean) as string[])
                   : new Set(
                       [...state.active.dismissed_ids, strikerId].filter(
                         Boolean,

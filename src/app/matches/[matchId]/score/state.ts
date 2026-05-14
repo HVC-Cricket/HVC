@@ -272,6 +272,33 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
     ) {
       non_striker_id = null;
     }
+
+    // Last-man mode: auto-pick the one remaining live batter as
+    // striker so the scorer doesn't have to. Detected as the batting-
+    // XI member not in `dismissed` and not in `barred_batters`. Then
+    // clear `non_striker_id` if it points to that same live batter —
+    // the dummy at the non-striker end is always a *dismissed* batter
+    // (or empty so the scorer can pick one).
+    if (lastManMode && innings) {
+      const battingXi = xi[innings.batting_team_id] ?? [];
+      const livePlayer = battingXi.find(
+        (p) =>
+          !engineState?.dismissed?.has(p.id) &&
+          !engineState?.barred_batters?.has(p.id),
+      );
+      if (
+        livePlayer &&
+        (!striker_id || engineState?.dismissed?.has(striker_id))
+      ) {
+        striker_id = livePlayer.id;
+      }
+      if (
+        non_striker_id &&
+        !engineState?.dismissed?.has(non_striker_id)
+      ) {
+        non_striker_id = null;
+      }
+    }
   } else if (innings) {
     // No balls yet but innings exists. Fall back to whatever was picked
     // at innings-start so the scoreboard slot tiles aren't empty.
