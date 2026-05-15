@@ -37,3 +37,35 @@ export const FORMAT_LABEL: Record<TournamentFormat, string> = {
   knockout: "Knockout",
   group_then_knockout: "Group → Knockout",
 };
+
+/**
+ * Compute the *effective* tournament status from the match statuses,
+ * so the badge stays honest as scoring progresses. The stored
+ * `tournaments.status` is treated as a fallback — admins set it on
+ * create (default `draft`) but rarely remember to flip it later.
+ *
+ * Rules (in order):
+ *   - `archived` is preserved — admins use it to hide old tournaments,
+ *     so we never override it.
+ *   - Any live / innings_break match → `active`.
+ *   - All matches terminal (completed/abandoned) and at least one
+ *     exists → `completed`.
+ *   - Any completed/abandoned alongside scheduled ones → `active`.
+ *   - Otherwise (no matches yet, or only scheduled & nothing played)
+ *     → fall back to the stored value (typically `draft`).
+ */
+export function deriveTournamentStatus(
+  stored: TournamentStatus,
+  matchStatuses: Array<
+    "scheduled" | "live" | "innings_break" | "completed" | "abandoned"
+  >,
+): TournamentStatus {
+  if (stored === "archived") return "archived";
+  if (matchStatuses.length === 0) return stored;
+  if (matchStatuses.some((s) => s === "live" || s === "innings_break"))
+    return "active";
+  const terminal = (s: string) => s === "completed" || s === "abandoned";
+  if (matchStatuses.every(terminal)) return "completed";
+  if (matchStatuses.some(terminal)) return "active";
+  return stored;
+}

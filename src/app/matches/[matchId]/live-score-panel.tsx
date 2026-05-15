@@ -1,5 +1,6 @@
 import { Trophy } from "lucide-react";
 
+import { BallIcon, BatIcon } from "@/components/cricket-icons";
 import { LiveRefresh } from "@/components/live-refresh";
 import {
   Card,
@@ -9,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
+import { cn } from "@/lib/utils";
 
 import type { ScoreboardState } from "./score/state";
 import { loadScoreboardState } from "./score/state";
@@ -44,27 +46,43 @@ export async function LiveScorePanel({ matchId }: { matchId: string }) {
       )}
 
       {completed && (
-        <Card className="overflow-hidden border-primary/30 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
-          <CardContent className="flex items-center gap-3 p-4 sm:p-5">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-              <Trophy className="size-5" />
+        <Card className="relative overflow-hidden border-primary/30 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent">
+          {/* Subtle decorative blur in the corner — feels celebratory
+              without being loud. */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute -right-8 -top-8 size-32 rounded-full bg-primary/15 blur-2xl"
+          />
+          <CardContent className="relative flex items-center gap-4 p-4 sm:p-5">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary shadow-sm sm:size-14">
+              <Trophy className="size-6 sm:size-7" />
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               {state.match.winner_id ? (
                 <>
-                  <div className="truncate text-lg font-semibold capitalize sm:text-xl">
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-primary">
+                    Winner
+                  </div>
+                  <div className="truncate text-xl font-semibold capitalize leading-tight sm:text-2xl">
                     {teamName(state.match.winner_id)}
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {state.match.win_margin ?? "won the match"}
-                  </div>
+                  {state.match.win_margin && (
+                    <div className="mt-0.5 text-sm text-muted-foreground">
+                      {state.match.win_margin}
+                    </div>
+                  )}
                 </>
               ) : (
-                <div className="text-lg font-semibold">
-                  {state.match.result_type === "tie"
-                    ? "Match tied"
-                    : "Match complete"}
-                </div>
+                <>
+                  <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Result
+                  </div>
+                  <div className="text-xl font-semibold sm:text-2xl">
+                    {state.match.result_type === "tie"
+                      ? "Match tied"
+                      : "Match complete"}
+                  </div>
+                </>
               )}
             </div>
           </CardContent>
@@ -80,25 +98,26 @@ export async function LiveScorePanel({ matchId }: { matchId: string }) {
         />
       )}
 
-      {/* Innings 1 summary when innings 2 is in progress or done */}
+      {/* Innings 1 summary when innings 2 is in progress or done.
+          Slim strip — a full Card was overweight for a single fact. */}
       {i1 && i2 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              <span className="capitalize">
-                {teamName(i1.batting_team_id)}
-              </span>
-              <span className="ml-2 text-xs font-normal uppercase tracking-wide text-muted-foreground">
-                1st innings
-              </span>
-            </CardTitle>
-            <CardDescription className="font-mono">
-              {i1.total_runs}/{i1.total_wickets} in{" "}
-              {Math.floor(i1.total_legal_balls / 6)}.
-              {i1.total_legal_balls % 6} ov
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-foreground/10 bg-muted/30 px-3 py-2 text-sm">
+          <span className="flex items-center gap-2">
+            <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide">
+              1st inn
+            </span>
+            <span className="font-medium capitalize">
+              {teamName(i1.batting_team_id)}
+            </span>
+          </span>
+          <span className="font-mono text-muted-foreground">
+            <span className="text-foreground">
+              {i1.total_runs}/{i1.total_wickets}
+            </span>{" "}
+            ({Math.floor(i1.total_legal_balls / 6)}.
+            {i1.total_legal_balls % 6} ov)
+          </span>
+        </div>
       )}
     </>
   );
@@ -164,34 +183,37 @@ function InningsCard({
     <Card>
       <CardHeader>
         <CardTitle className="flex items-baseline gap-3">
-          <span className="font-mono text-3xl">
+          <span className="font-mono text-3xl tabular-nums sm:text-4xl">
             {innings.total_runs}/{innings.total_wickets}
           </span>
-          <span className="text-base font-normal text-muted-foreground">
+          <span className="font-mono text-base font-normal text-muted-foreground">
             {overs} ov
           </span>
-          <span className="ml-auto text-sm font-normal text-muted-foreground">
-            RR {runRate}
+          <span className="ml-auto flex items-baseline gap-1 text-sm font-normal text-muted-foreground">
+            <span className="text-[10px] uppercase tracking-wide">RR</span>
+            <span className="font-mono text-foreground">{runRate}</span>
           </span>
         </CardTitle>
-        <CardDescription>
-          <span className="capitalize">
-            {teamShort(innings.batting_team_id)}
-          </span>{" "}
-          {completed ? "innings" : "batting"}
-          {completed && target != null && (
-            <>
-              {" · "}
-              <span className="text-foreground">chased {target}</span>
-            </>
-          )}
+        <CardDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>
+            <span className="capitalize">
+              {teamShort(innings.batting_team_id)}
+            </span>{" "}
+            {completed ? "innings" : "batting"}
+            {completed && target != null && (
+              <>
+                {" · "}
+                <span className="text-foreground">chased {target}</span>
+              </>
+            )}
+          </span>
           {!completed && state.active.free_hit_pending && (
-            <span className="ml-2 rounded bg-yellow-500/15 px-1.5 py-0.5 text-xs text-yellow-700">
+            <span className="rounded bg-yellow-500/15 px-1.5 py-0.5 text-xs text-yellow-700 dark:text-yellow-300">
               Free hit
             </span>
           )}
           {!completed && state.active.is_special_over && (
-            <span className="ml-2 rounded bg-blue-500/15 px-1.5 py-0.5 text-xs text-blue-700">
+            <span className="rounded bg-blue-500/15 px-1.5 py-0.5 text-xs text-blue-700 dark:text-blue-300">
               {state.active.is_special_over.toUpperCase()} over
             </span>
           )}
@@ -252,7 +274,7 @@ function InningsCard({
           {/* Batsmen */}
           <div className="grid gap-2 sm:grid-cols-2">
             <BatsmanRow
-              label="Striker"
+              striker
               name={strikerId ? playerById.get(strikerId)?.display_name : null}
               cat={
                 strikerId ? playerById.get(strikerId)?.category ?? null : null
@@ -260,7 +282,6 @@ function InningsCard({
               stats={sIdStats}
             />
             <BatsmanRow
-              label="Non-striker"
               name={
                 nonStrikerId
                   ? playerById.get(nonStrikerId)?.display_name
@@ -294,29 +315,52 @@ function InningsCard({
 }
 
 function BatsmanRow({
-  label,
+  striker,
   name,
   cat,
   stats,
 }: {
-  label: string;
+  striker?: boolean;
   name?: string | null;
   cat?: 1 | 2 | 3 | null;
   stats: ReturnType<typeof computeBatterStats> | null;
 }) {
   return (
-    <div className="rounded-md border border-foreground/10 bg-muted/30 px-3 py-2">
-      <div className="text-xs text-muted-foreground">{label}</div>
+    <div
+      className={cn(
+        "rounded-md border px-3 py-2",
+        striker
+          ? "border-emerald-500/40 bg-emerald-500/5"
+          : "border-foreground/10 bg-muted/30",
+      )}
+    >
       <div className="flex items-center gap-2">
-        <span className="font-medium capitalize">{name ?? "—"}</span>
+        <BatIcon
+          dim={!striker}
+          className={
+            striker
+              ? "size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
+              : undefined
+          }
+        />
+        <span className="truncate font-medium capitalize">{name ?? "—"}</span>
+        {striker && name && (
+          <span
+            className="font-mono text-base leading-none text-emerald-600 dark:text-emerald-400"
+            aria-label="on strike"
+            title="On strike"
+          >
+            *
+          </span>
+        )}
         {cat && (
-          <span className="rounded bg-foreground/10 px-1 text-[10px] font-mono">
+          <span className="shrink-0 rounded bg-foreground/10 px-1 font-mono text-[10px]">
             C{cat}
           </span>
         )}
       </div>
       {stats && (
-        <div className="mt-1 grid grid-cols-5 gap-2 text-[11px] text-muted-foreground">
+        <div className="mt-1.5 grid grid-cols-5 gap-2 text-muted-foreground">
           <Stat k="R" v={stats.runs} />
           <Stat k="B" v={stats.balls_faced} />
           <Stat k="4s" v={stats.fours} />
@@ -352,18 +396,18 @@ function BowlerRow({
       ? ((stats.runs_conceded / stats.legal_balls) * 6).toFixed(2)
       : "—";
   return (
-    <div className="rounded-md border border-foreground/10 bg-muted/30 px-3 py-2">
-      <div className="text-xs text-muted-foreground">Bowler</div>
+    <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
       <div className="flex items-center gap-2">
-        <span className="font-medium capitalize">{name ?? "—"}</span>
+        <BallIcon className="size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+        <span className="truncate font-medium capitalize">{name ?? "—"}</span>
         {cat && (
-          <span className="rounded bg-foreground/10 px-1 text-[10px] font-mono">
+          <span className="shrink-0 rounded bg-foreground/10 px-1 font-mono text-[10px]">
             C{cat}
           </span>
         )}
       </div>
       {stats && (
-        <div className="mt-1 grid grid-cols-6 gap-2 text-[11px] text-muted-foreground">
+        <div className="mt-1.5 grid grid-cols-6 gap-2 text-muted-foreground">
           <Stat k="O" v={overs} />
           <Stat k="M" v={stats.maidens} />
           <Stat k="R" v={stats.runs_conceded} />
@@ -378,9 +422,11 @@ function BowlerRow({
 
 function Stat({ k, v }: { k: string; v: string | number }) {
   return (
-    <span className="flex flex-col">
-      <span className="text-[9px] uppercase">{k}</span>
-      <span className="text-[12px] font-mono text-foreground">{v}</span>
+    <span className="flex flex-col leading-tight">
+      <span className="text-[9px] uppercase tracking-wide">{k}</span>
+      <span className="font-mono text-[13px] tabular-nums text-foreground">
+        {v}
+      </span>
     </span>
   );
 }
@@ -422,21 +468,25 @@ function RecentBalls({
     else if (b.is_wicket) label = "W";
     else if (extraSuffix) label = extraSuffix;
     else label = String(b.runs_off_bat + b.extras);
+    const total = b.runs_off_bat + b.extras;
     const colour = b.is_wicket
-      ? "bg-destructive/15 text-destructive"
-      : "bg-muted/40";
-    // is_free_hit is stored on the ball — show a yellow ring so the
-    // ball pill is obvious in the strip without needing the badge.
+      ? "border-destructive/40 bg-destructive/15 text-destructive"
+      : total >= 6
+        ? "border-primary/40 bg-primary/15 text-primary"
+        : total >= 4
+          ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+          : b.extra_type
+            ? "border-foreground/10 bg-muted/60 text-muted-foreground"
+            : "border-foreground/10 bg-muted/40";
     const ring = b.is_free_hit ? "ring-2 ring-yellow-400" : "";
     return (
       <span
         key={b.id}
-        className={
-          "inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-foreground/10 px-1.5 text-xs font-mono " +
-          colour +
-          " " +
-          ring
-        }
+        className={cn(
+          "inline-flex h-7 min-w-7 items-center justify-center rounded-md border px-1.5 font-mono text-xs tabular-nums",
+          colour,
+          ring,
+        )}
       >
         {label}
       </span>
@@ -444,18 +494,20 @@ function RecentBalls({
   };
   if (current.length === 0 && previous.length === 0) return null;
   return (
-    <div className="space-y-2 pt-1 text-sm">
+    <div className="space-y-1.5 border-t border-foreground/10 pt-3">
       {previous.length > 0 && (
-        <div className="flex items-center gap-2">
-          <span className="w-16 text-xs text-muted-foreground">Prev over</span>
-          <span className="flex flex-wrap gap-1">
-            {previous.map(renderBall)}
+        <div className="flex items-start gap-3">
+          <span className="w-12 shrink-0 pt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Prev
           </span>
+          <div className="flex flex-wrap gap-1">{previous.map(renderBall)}</div>
         </div>
       )}
-      <div className="flex items-center gap-2">
-        <span className="w-16 text-xs text-muted-foreground">This over</span>
-        <span className="flex flex-wrap gap-1">{current.map(renderBall)}</span>
+      <div className="flex items-start gap-3">
+        <span className="w-12 shrink-0 pt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          This
+        </span>
+        <div className="flex flex-wrap gap-1">{current.map(renderBall)}</div>
       </div>
     </div>
   );

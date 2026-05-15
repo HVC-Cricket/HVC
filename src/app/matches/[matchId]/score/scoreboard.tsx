@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/confirm-button";
+import { BallIcon, BatIcon } from "@/components/cricket-icons";
 import {
   Card,
   CardContent,
@@ -1077,59 +1078,6 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
  * anywhere on it opens the Radix menu, so it works consistently on
  * desktop, mobile, and DevTools mobile emulation.
  */
-function BatIcon({ dim }: { dim?: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="currentColor"
-      className={
-        "size-4 shrink-0 " +
-        (dim
-          ? "text-muted-foreground/40"
-          : "text-cyan-600 dark:text-cyan-400")
-      }
-    >
-      {/* handle */}
-      <rect x="11" y="2" width="2" height="7" rx="0.5" />
-      {/* blade */}
-      <rect x="8.5" y="9" width="7" height="13" rx="2" />
-    </svg>
-  );
-}
-
-function BallIcon() {
-  // Bowler's action — stick figure with the bowling arm extended over
-  // the head + a small ball in the hand. Tinted teal to match the bat
-  // icons' colour family.
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      aria-hidden="true"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="size-5 shrink-0 text-cyan-600 dark:text-cyan-400"
-    >
-      {/* head */}
-      <circle cx="11" cy="4" r="1.8" fill="currentColor" stroke="none" />
-      {/* torso */}
-      <path d="M11 6.5 L11 14" />
-      {/* bowling arm — extended up-and-over */}
-      <path d="M11 8 L16 4" />
-      {/* ball in the bowling hand */}
-      <circle cx="17.2" cy="3.2" r="1.3" fill="currentColor" stroke="none" />
-      {/* trailing arm */}
-      <path d="M11 8 L7 11" />
-      {/* legs in stride */}
-      <path d="M11 14 L8 21" />
-      <path d="M11 14 L15 20" />
-    </svg>
-  );
-}
-
 function SlotPicker({
   label,
   value,

@@ -32,7 +32,10 @@ export function MatchTabs({
   commentary: ReactNode;
   info: ReactNode;
 }) {
-  const [active, setActive] = useState<TabId>(() => readTabFromURL());
+  // Default to "scorecard" on both server and first-client render to keep
+  // hydration matched. After mount, sync from the URL — if someone landed
+  // on ?tab=commentary, useEffect will swap them over in a single paint.
+  const [active, setActive] = useState<TabId>("scorecard");
 
   const setTab = (id: TabId) => {
     setActive(id);
@@ -45,9 +48,9 @@ export function MatchTabs({
     window.history.replaceState({}, "", url.toString());
   };
 
-  // Keep state in sync if someone uses browser back/forward.
   useEffect(() => {
     if (typeof window === "undefined") return;
+    setActive(readTabFromURL());
     const onPop = () => setActive(readTabFromURL());
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
@@ -57,7 +60,7 @@ export function MatchTabs({
     <div className="space-y-4">
       <nav
         role="tablist"
-        className="-mx-4 flex overflow-x-auto border-b border-foreground/10 px-4 sm:mx-0 sm:px-0"
+        className="sticky top-0 z-20 -mx-4 flex overflow-x-auto border-b border-foreground/10 bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/75 sm:mx-0 sm:px-0"
       >
         {TABS.map((t) => {
           const isActive = active === t.id;
@@ -71,7 +74,7 @@ export function MatchTabs({
               className={
                 "-mb-px shrink-0 border-b-2 px-4 py-2.5 text-sm font-medium transition " +
                 (isActive
-                  ? "border-foreground text-foreground"
+                  ? "border-primary text-foreground"
                   : "border-transparent text-muted-foreground hover:text-foreground")
               }
             >

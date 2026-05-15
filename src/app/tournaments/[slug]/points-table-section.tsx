@@ -186,57 +186,79 @@ export async function PointsTableSection({
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <table className="w-full text-sm">
-            <thead className="text-xs uppercase text-muted-foreground">
-              <tr className="border-b border-foreground/10">
-                <th className="px-4 py-2 text-left font-medium">#</th>
-                <th className="px-4 py-2 text-left font-medium">Team</th>
-                <th className="px-2 py-2 text-right font-medium">P</th>
-                <th className="px-2 py-2 text-right font-medium">W</th>
-                <th className="px-2 py-2 text-right font-medium">L</th>
-                <th className="px-2 py-2 text-right font-medium">T</th>
-                <th className="px-2 py-2 text-right font-medium">NR</th>
-                <th className="px-2 py-2 text-right font-medium">Pts</th>
-                <th className="px-4 py-2 text-right font-medium">NRR</th>
-              </tr>
-            </thead>
-            <tbody>
-              {all.map((r, idx) => {
-                const team = teamById.get(r.team_id);
-                return (
-                  <tr
-                    key={r.team_id}
-                    className="border-b border-foreground/5 last:border-b-0"
-                  >
-                    <td className="px-4 py-2 text-muted-foreground">
-                      {idx + 1}
-                    </td>
-                    <td className="px-4 py-2 font-medium">
-                      {team?.name ?? "(unknown)"}
-                      {team?.short_name && (
-                        <span className="ml-2 text-xs text-muted-foreground">
-                          {team.short_name}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-2 py-2 text-right font-mono">{r.played}</td>
-                    <td className="px-2 py-2 text-right font-mono">{r.won}</td>
-                    <td className="px-2 py-2 text-right font-mono">{r.lost}</td>
-                    <td className="px-2 py-2 text-right font-mono">{r.tied}</td>
-                    <td className="px-2 py-2 text-right font-mono">
-                      {r.no_results}
-                    </td>
-                    <td className="px-2 py-2 text-right font-mono font-semibold">
-                      {r.points}
-                    </td>
-                    <td className="px-4 py-2 text-right font-mono text-muted-foreground">
-                      {fmtNrr(nrrByTeam.get(r.team_id))}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          {/* Cricbuzz-style standings: # + Team columns are sticky to
+              the left so the team you're scanning stays visible while
+              the stats columns (P / W / L / T / NR / Pts / NRR) scroll
+              horizontally on narrow screens. */}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[34rem] text-sm">
+              <thead className="text-xs uppercase text-muted-foreground">
+                <tr className="border-b border-foreground/10">
+                  <th className="sticky left-0 z-10 bg-card px-3 py-2 text-left font-medium">
+                    #
+                  </th>
+                  <th className="sticky left-8 z-10 bg-card px-2 py-2 text-left font-medium">
+                    Team
+                  </th>
+                  <th className="px-2.5 py-2 text-right font-medium">P</th>
+                  <th className="px-2.5 py-2 text-right font-medium">W</th>
+                  <th className="px-2.5 py-2 text-right font-medium">L</th>
+                  <th className="px-2.5 py-2 text-right font-medium">T</th>
+                  <th className="px-2.5 py-2 text-right font-medium">NR</th>
+                  <th className="px-2.5 py-2 text-right font-medium">Pts</th>
+                  <th className="px-3 py-2 text-right font-medium">NRR</th>
+                </tr>
+              </thead>
+              <tbody>
+                {all.map((r, idx) => {
+                  const team = teamById.get(r.team_id);
+                  return (
+                    <tr
+                      key={r.team_id}
+                      className="border-b border-foreground/5 last:border-b-0"
+                    >
+                      <td className="sticky left-0 z-10 bg-card px-3 py-2 text-muted-foreground">
+                        {idx + 1}
+                      </td>
+                      <td className="sticky left-8 z-10 bg-card px-2 py-2 font-medium">
+                        <div className="flex min-w-0 items-center gap-1.5">
+                          <span className="truncate capitalize">
+                            {team?.name ?? "(unknown)"}
+                          </span>
+                          {team?.short_name && (
+                            <span className="shrink-0 rounded bg-foreground/10 px-1 font-mono text-[10px] text-muted-foreground">
+                              {team.short_name}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-2.5 py-2 text-right font-mono tabular-nums">
+                        {r.played}
+                      </td>
+                      <td className="px-2.5 py-2 text-right font-mono tabular-nums">
+                        {r.won}
+                      </td>
+                      <td className="px-2.5 py-2 text-right font-mono tabular-nums">
+                        {r.lost}
+                      </td>
+                      <td className="px-2.5 py-2 text-right font-mono tabular-nums">
+                        {r.tied}
+                      </td>
+                      <td className="px-2.5 py-2 text-right font-mono tabular-nums">
+                        {r.no_results}
+                      </td>
+                      <td className="px-2.5 py-2 text-right font-mono font-semibold tabular-nums">
+                        {r.points}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono tabular-nums text-muted-foreground">
+                        {fmtNrr(nrrByTeam.get(r.team_id))}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </section>

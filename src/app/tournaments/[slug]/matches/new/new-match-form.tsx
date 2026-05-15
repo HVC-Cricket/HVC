@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Form,
   FormControl,
@@ -210,7 +211,7 @@ export function NewMatchForm({ tournamentSlug, teams, defaults }: Props) {
               <FormItem>
                 <FormLabel>Scheduled at</FormLabel>
                 <FormControl>
-                  <Input type="datetime-local" {...field} />
+                  <DateInput type="datetime-local" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

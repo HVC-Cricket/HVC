@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { getSessionContext } from "@/lib/auth";
 import {
+  deriveTournamentStatus,
   FORMAT_LABEL,
   STATUS_CLASSES,
   STATUS_LABEL,
@@ -52,25 +53,53 @@ export default async function TournamentsPage() {
     .order("created_at", { ascending: false });
 
   const rows = (tournaments as TournamentRow[] | null) ?? [];
-  const sorted = [...rows].sort(
-    (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status],
-  );
 
-  // Fetch team + match counts for each tournament in parallel.
-  const counts = await Promise.all(
-    sorted.map(async (t) => {
-      const [teamsRes, matchesRes] = await Promise.all([
-        supabase
-          .from("teams")
-          .select("id", { count: "exact", head: true })
-          .eq("tournament_id", t.id),
-        supabase
-          .from("matches")
-          .select("id", { count: "exact", head: true })
-          .eq("tournament_id", t.id),
-      ]);
-      return { teams: teamsRes.count ?? 0, matches: matchesRes.count ?? 0 };
-    }),
+  // Bulk-fetch teams + matches for ALL tournaments in two queries — used
+  // to be N+1 per-tournament count queries. Same data, less round-trips.
+  // We also need each match's status so we can derive the *effective*
+  // tournament status (a draft tournament with a live match should
+  // surface as Live, not Draft — `deriveTournamentStatus` handles that).
+  const tournamentIds = rows.map((t) => t.id);
+  const [teamRowsRes, matchRowsRes] =
+    tournamentIds.length > 0
+      ? await Promise.all([
+          supabase
+            .from("teams")
+            .select("id, tournament_id")
+            .in("tournament_id", tournamentIds),
+          supabase
+            .from("matches")
+            .select("id, tournament_id, status")
+            .in("tournament_id", tournamentIds),
+        ])
+      : [{ data: [] }, { data: [] }];
+
+  const teamCountById = new Map<string, number>();
+  for (const r of teamRowsRes.data ?? []) {
+    teamCountById.set(r.tournament_id, (teamCountById.get(r.tournament_id) ?? 0) + 1);
+  }
+  const matchStatusesById = new Map<string, string[]>();
+  for (const r of matchRowsRes.data ?? []) {
+    const list = matchStatusesById.get(r.tournament_id) ?? [];
+    list.push(r.status);
+    matchStatusesById.set(r.tournament_id, list);
+  }
+
+  // Replace each tournament's stored status with the derived one for
+  // both sorting and rendering — keeps the rest of the page agnostic.
+  const enriched = rows.map((t) => {
+    const matchStatuses = (matchStatusesById.get(t.id) ?? []) as Array<
+      "scheduled" | "live" | "innings_break" | "completed" | "abandoned"
+    >;
+    return {
+      ...t,
+      status: deriveTournamentStatus(t.status, matchStatuses),
+      teamCount: teamCountById.get(t.id) ?? 0,
+      matchCount: matchStatuses.length,
+    };
+  });
+  const sorted = [...enriched].sort(
+    (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status],
   );
 
   return (
@@ -125,12 +154,12 @@ export default async function TournamentsPage() {
 
         {sorted.length > 0 && (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {sorted.map((t, i) => (
+            {sorted.map((t) => (
               <TournamentCard
                 key={t.id}
                 tournament={t}
-                teams={counts[i].teams}
-                matches={counts[i].matches}
+                teams={t.teamCount}
+                matches={t.matchCount}
               />
             ))}
           </div>

@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/confirm-button";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Form,
   FormControl,
@@ -229,7 +230,7 @@ export function EditMatchForm({ match, teams }: Props) {
             <FormItem>
               <FormLabel>Scheduled at</FormLabel>
               <FormControl>
-                <Input type="datetime-local" {...field} />
+                <DateInput type="datetime-local" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

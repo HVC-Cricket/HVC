@@ -97,33 +97,35 @@ export default async function MatchDetailPage(props: {
         </Link>
 
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 space-y-1.5">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              Match {match.match_number}
-              <span> · </span>
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+              <span>Match {match.match_number}</span>
+              <span aria-hidden>·</span>
               <span className="capitalize">
                 {match.stage.replace(/_/g, " ")}
               </span>
-            </p>
-            <h1 className="text-2xl font-semibold capitalize sm:text-3xl">
-              {teamA?.name ?? "?"}
-              <span className="px-2 text-muted-foreground">vs</span>
-              {teamB?.name ?? "?"}
+              <span
+                className={
+                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium " +
+                  MATCH_STATUS_CLASSES[ms]
+                }
+              >
+                {ms === "live" && (
+                  <span className="relative flex size-1.5">
+                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                    <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+                  </span>
+                )}
+                {MATCH_STATUS_LABEL[ms]}
+              </span>
+            </div>
+            <h1 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xl font-semibold capitalize leading-tight sm:text-3xl">
+              <span>{teamA?.name ?? "?"}</span>
+              <span className="text-sm font-normal text-muted-foreground sm:text-base">
+                vs
+              </span>
+              <span>{teamB?.name ?? "?"}</span>
             </h1>
-            <span
-              className={
-                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide " +
-                MATCH_STATUS_CLASSES[ms]
-              }
-            >
-              {ms === "live" && (
-                <span className="relative flex size-1.5">
-                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-                  <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
-                </span>
-              )}
-              {MATCH_STATUS_LABEL[ms]}
-            </span>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {(ms === "live" || ms === "innings_break") && (

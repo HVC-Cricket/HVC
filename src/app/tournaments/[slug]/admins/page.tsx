@@ -1,3 +1,4 @@
+import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -8,10 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  isTournamentOrganizer,
-  requireOrganizer,
-} from "@/lib/auth";
+import { requireOrganizer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getInitials } from "@/lib/utils";
 
@@ -36,20 +34,22 @@ export default async function AdminsPage(props: {
   const ctx = await requireOrganizer(tournament.id);
   const isSuper = ctx.profile?.is_super_admin === true;
 
-  const { data: admins } = await supabase
-    .from("tournament_admins")
-    .select("id, user_id, role, created_at")
-    .eq("tournament_id", tournament.id)
-    .order("created_at", { ascending: true });
-
-  // Fetch ALL signed-up users so the add-admin form can present a
-  // searchable picker instead of asking for an exact email. We then
-  // filter out anyone who's already an admin client-side so the
-  // dropdown doesn't suggest people who can't be added.
-  const { data: allProfiles } = await supabase
-    .from("profiles")
-    .select("id, display_name, avatar_url")
-    .order("display_name", { ascending: true });
+  // Admins list + profile dropdown source are independent — parallelise.
+  const [adminsRes, allProfilesRes] = await Promise.all([
+    supabase
+      .from("tournament_admins")
+      .select("id, user_id, role, created_at")
+      .eq("tournament_id", tournament.id)
+      .order("created_at", { ascending: true }),
+    // Fetch ALL signed-up users so the add-admin form can present a
+    // searchable picker instead of asking for an exact email.
+    supabase
+      .from("profiles")
+      .select("id, display_name, avatar_url")
+      .order("display_name", { ascending: true }),
+  ]);
+  const admins = adminsRes.data;
+  const allProfiles = allProfilesRes.data;
   const profileById = new Map(
     (allProfiles ?? []).map((p) => [p.id, p]),
   );
@@ -64,17 +64,17 @@ export default async function AdminsPage(props: {
   const scorers = (admins ?? []).filter((a) => a.role === "scorer");
 
   return (
-    <main className="flex-1 p-6">
-      <div className="mx-auto max-w-3xl space-y-6">
+    <main className="flex-1 p-4 sm:p-6">
+      <div className="mx-auto max-w-3xl space-y-5">
+        <Link
+          href={`/tournaments/${tournament.slug}`}
+          prefetch
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
+        >
+          <ChevronLeft className="size-4" />
+          <span className="capitalize">{tournament.name}</span>
+        </Link>
         <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">
-            <Link
-              href={`/tournaments/${tournament.slug}`}
-              className="hover:underline"
-            >
-              {tournament.name}
-            </Link>
-          </p>
           <h1 className="text-2xl font-semibold">Admins</h1>
           <p className="text-sm text-muted-foreground">
             Organizers can edit teams, players, and matches. Scorers can enter

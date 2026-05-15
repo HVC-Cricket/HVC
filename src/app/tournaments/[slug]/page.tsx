@@ -18,11 +18,11 @@ import {
   type MatchStatus,
 } from "@/lib/constants/match";
 import {
+  deriveTournamentStatus,
   FORMAT_LABEL,
   STATUS_CLASSES,
   STATUS_LABEL,
   type TournamentFormat,
-  type TournamentStatus,
 } from "@/lib/constants/tournament";
 import { createClient } from "@/lib/supabase/server";
 
@@ -87,7 +87,15 @@ export default async function TournamentDetailPage(props: {
   }
 
   const fmt = tournament.format as TournamentFormat;
-  const status = tournament.status as TournamentStatus;
+  // Derive the badge status from the matches — stored value is just the
+  // admin's initial pick (defaults to `draft`) and rarely matches
+  // reality once scoring starts. `archived` is preserved as-is.
+  const status = deriveTournamentStatus(
+    tournament.status,
+    matches.map((m) => m.status) as Array<
+      "scheduled" | "live" | "innings_break" | "completed" | "abandoned"
+    >,
+  );
 
   return (
     <main className="flex-1 p-4 sm:p-6">
@@ -148,12 +156,15 @@ export default async function TournamentDetailPage(props: {
             </div>
             {canManage && (
               <div className="flex shrink-0 items-center gap-2">
-                <Link href={`/tournaments/${tournament.slug}/admins`}>
+                <Link
+                  href={`/tournaments/${tournament.slug}/admins`}
+                  prefetch
+                >
                   <Button variant="ghost" size="sm">
                     Admins
                   </Button>
                 </Link>
-                <Link href={`/tournaments/${tournament.slug}/edit`}>
+                <Link href={`/tournaments/${tournament.slug}/edit`} prefetch>
                   <Button variant="ghost" size="sm">
                     Edit
                   </Button>

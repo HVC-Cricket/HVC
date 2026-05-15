@@ -1,3 +1,5 @@
+import { ChevronLeft } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import {
@@ -27,14 +29,22 @@ export default async function EditTournamentPage(props: {
   await requireOrganizer(tournament.id);
 
   return (
-    <main className="flex-1 p-6">
-      <div className="mx-auto max-w-2xl">
+    <main className="flex-1 p-4 sm:p-6">
+      <div className="mx-auto max-w-2xl space-y-4">
+        <Link
+          href={`/tournaments/${tournament.slug}`}
+          prefetch
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
+        >
+          <ChevronLeft className="size-4" />
+          <span className="capitalize">{tournament.name}</span>
+        </Link>
         <Card>
           <CardHeader>
             <CardTitle>Edit tournament</CardTitle>
             <CardDescription>
-              Editing <strong>{tournament.name}</strong>. Changing the slug
-              breaks existing URLs.
+              Editing <strong className="capitalize">{tournament.name}</strong>.
+              Changing the slug breaks existing URLs.
             </CardDescription>
           </CardHeader>
           <CardContent>

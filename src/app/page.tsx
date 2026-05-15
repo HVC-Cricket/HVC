@@ -224,10 +224,10 @@ export default async function Home() {
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <span className="relative flex size-2.5">
-                <span className="absolute inline-flex size-full animate-ping rounded-full bg-destructive opacity-60" />
-                <span className="relative inline-flex size-2.5 rounded-full bg-destructive" />
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
               </span>
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-destructive">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
                 Live now
               </h2>
               <span className="text-xs text-muted-foreground">
@@ -335,16 +335,16 @@ function LiveMatchCard({ match }: { match: LiveMatchView }) {
     <Link
       href={`/matches/${match.id}`}
       prefetch
-      className="group flex flex-col overflow-hidden rounded-xl border border-foreground/10 bg-background shadow-sm transition hover:border-destructive/40 hover:shadow-md"
+      className="group flex flex-col overflow-hidden rounded-xl border border-foreground/10 bg-background shadow-sm transition hover:border-primary/40 hover:shadow-md"
     >
       {/* Header bar */}
-      <div className="flex items-center justify-between gap-2 border-b border-foreground/5 bg-destructive/5 px-3 py-1.5">
+      <div className="flex items-center justify-between gap-2 border-b border-foreground/5 bg-emerald-500/5 px-3 py-1.5">
         <div className="flex items-center gap-1.5">
           <span className="relative flex size-2">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-destructive opacity-60" />
-            <span className="relative inline-flex size-2 rounded-full bg-destructive" />
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+            <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
           </span>
-          <span className="text-[10px] font-semibold uppercase tracking-wide text-destructive">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">
             {match.status === "live" ? "Live" : "Innings break"}
           </span>
         </div>
@@ -386,8 +386,8 @@ function LiveMatchCard({ match }: { match: LiveMatchView }) {
         </div>
       )}
 
-      {/* CTA — bold red so it pulls the eye */}
-      <div className="bg-destructive px-3 py-2.5 text-center text-sm font-semibold text-white transition group-hover:bg-destructive/90">
+      {/* CTA — primary brand colour, matches every other primary button. */}
+      <div className="bg-primary px-3 py-2.5 text-center text-sm font-semibold text-primary-foreground transition group-hover:bg-primary/90">
         Watch live →
       </div>
     </Link>

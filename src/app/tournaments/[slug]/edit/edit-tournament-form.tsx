@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/confirm-button";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Form,
   FormControl,
@@ -218,7 +219,7 @@ export function EditTournamentForm({ tournament }: Props) {
               <FormItem>
                 <FormLabel>Start date</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} />
+                  <DateInput {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -231,7 +232,7 @@ export function EditTournamentForm({ tournament }: Props) {
               <FormItem>
                 <FormLabel>End date</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} />
+                  <DateInput {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

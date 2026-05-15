@@ -1,3 +1,5 @@
+import { ChevronLeft } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import {
@@ -27,26 +29,38 @@ export default async function EditMatchPage(props: {
 
   await requireOrganizer(match.tournament_id);
 
-  const { data: tournament } = await supabase
-    .from("tournaments")
-    .select("id, slug, name")
-    .eq("id", match.tournament_id)
-    .single();
+  // Tournament + teams are independent now that we have match — fetch in parallel.
+  const [tournamentRes, teamsRes] = await Promise.all([
+    supabase
+      .from("tournaments")
+      .select("id, slug, name")
+      .eq("id", match.tournament_id)
+      .single(),
+    supabase
+      .from("teams")
+      .select("id, name, short_name")
+      .eq("tournament_id", match.tournament_id)
+      .order("name", { ascending: true }),
+  ]);
+  const tournament = tournamentRes.data;
   if (!tournament) notFound();
-
-  const { data: teams } = await supabase
-    .from("teams")
-    .select("id, name, short_name")
-    .eq("tournament_id", tournament.id)
-    .order("name", { ascending: true });
+  const teams = teamsRes.data;
 
   return (
-    <main className="flex-1 p-6">
-      <div className="mx-auto max-w-2xl">
+    <main className="flex-1 p-4 sm:p-6">
+      <div className="mx-auto max-w-2xl space-y-4">
+        <Link
+          href={`/matches/${match.id}`}
+          prefetch
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
+        >
+          <ChevronLeft className="size-4" />
+          <span>Back to match</span>
+        </Link>
         <Card>
           <CardHeader>
             <CardTitle>Edit match</CardTitle>
-            <CardDescription>
+            <CardDescription className="capitalize">
               {tournament.name} · Match {match.match_number}
             </CardDescription>
           </CardHeader>

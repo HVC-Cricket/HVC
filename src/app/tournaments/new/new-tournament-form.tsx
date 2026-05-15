@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Form,
   FormControl,
@@ -145,7 +146,7 @@ export function NewTournamentForm() {
               <FormItem>
                 <FormLabel>Start date</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} />
+                  <DateInput {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -158,7 +159,7 @@ export function NewTournamentForm() {
               <FormItem>
                 <FormLabel>End date</FormLabel>
                 <FormControl>
-                  <Input type="date" {...field} />
+                  <DateInput {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -188,7 +189,8 @@ export function NewTournamentForm() {
                 <textarea
                   {...field}
                   rows={3}
-                  className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
+                  placeholder="A short note about this tournament…"
+                  className="w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-2 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30"
                 />
               </FormControl>
               <FormDescription>Optional. Markdown not rendered yet.</FormDescription>

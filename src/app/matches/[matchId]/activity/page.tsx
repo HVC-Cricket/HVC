@@ -1,3 +1,4 @@
+import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -41,35 +42,43 @@ export default async function ActivityPage(props: {
   if (!match) notFound();
   await requireTournamentAdmin(match.tournament_id);
 
-  const { data: tournament } = await supabase
-    .from("tournaments")
-    .select("slug, name")
-    .eq("id", match.tournament_id)
-    .single();
-
-  const { data: teams } = await supabase
-    .from("teams")
-    .select("id, short_name, name")
-    .in("id", [match.team_a_id, match.team_b_id]);
+  // Tournament, teams, and innings rows are independent once match is loaded.
+  // Fetching in parallel cuts ~3 sequential round-trips down to 1.
+  const [tournamentRes, teamsRes, inningsRes] = await Promise.all([
+    supabase
+      .from("tournaments")
+      .select("slug, name")
+      .eq("id", match.tournament_id)
+      .single(),
+    supabase
+      .from("teams")
+      .select("id, short_name, name")
+      .in("id", [match.team_a_id, match.team_b_id]),
+    supabase
+      .from("innings")
+      .select("id, innings_number, batting_team_id")
+      .eq("match_id", matchId),
+  ]);
+  const tournament = tournamentRes.data;
+  const teams = teamsRes.data;
   const teamShort = new Map((teams ?? []).map((t) => [t.id, t.short_name]));
   const teamA = teams?.find((t) => t.id === match.team_a_id);
   const teamB = teams?.find((t) => t.id === match.team_b_id);
-
-  const { data: inningsRows } = await supabase
-    .from("innings")
-    .select("id, innings_number, batting_team_id")
-    .eq("match_id", matchId);
-  const innings = inningsRows ?? [];
+  const innings = inningsRes.data ?? [];
   const inningsById = new Map(innings.map((i) => [i.id, i]));
 
-  const { data: ballRows } = innings.length
-    ? await supabase
-        .from("balls")
-        .select("*")
-        .in("innings_id", innings.map((i) => i.id))
-        .order("scored_at", { ascending: true })
-    : { data: [] as BallRow[] };
-  const balls = (ballRows ?? []) as BallRow[];
+  // Balls and audit events are independent of each other — run in parallel.
+  const [ballsRes, auditEvents] = await Promise.all([
+    innings.length
+      ? supabase
+          .from("balls")
+          .select("*")
+          .in("innings_id", innings.map((i) => i.id))
+          .order("scored_at", { ascending: true })
+      : Promise.resolve({ data: [] as BallRow[] }),
+    listMatchAuditEvents(matchId),
+  ]);
+  const balls = (ballsRes.data ?? []) as BallRow[];
 
   // Player + scorer name maps.
   const playerIds = new Set<string>();
@@ -81,34 +90,38 @@ export default async function ActivityPage(props: {
     if (b.scored_by) userIds.add(b.scored_by);
     if (b.voided_by) userIds.add(b.voided_by);
   }
-  const { data: playerRows } = playerIds.size
-    ? await supabase
-        .from("players")
-        .select("id, display_name")
-        .in("id", Array.from(playerIds))
-    : { data: [] as { id: string; display_name: string }[] };
-  const playerName = new Map(
-    (playerRows ?? []).map((p) => [p.id, p.display_name]),
-  );
-  // Match-level events come from a separate audit table (toss / XI /
-  // start / completion / POTM). They get folded into the same stream.
-  const auditEvents = await listMatchAuditEvents(matchId);
   for (const ev of auditEvents) {
     if (ev.actor_id) userIds.add(ev.actor_id);
   }
 
-  const { data: profileRows } = userIds.size
-    ? await supabase
-        .from("profiles")
-        .select("id, display_name, avatar_url")
-        .in("id", Array.from(userIds))
-    : {
-        data: [] as {
-          id: string;
-          display_name: string;
-          avatar_url: string | null;
-        }[],
-      };
+  // Player names + scorer profiles can also run together.
+  const [playerRowsRes, profileRowsRes] = await Promise.all([
+    playerIds.size
+      ? supabase
+          .from("players")
+          .select("id, display_name")
+          .in("id", Array.from(playerIds))
+      : Promise.resolve({
+          data: [] as { id: string; display_name: string }[],
+        }),
+    userIds.size
+      ? supabase
+          .from("profiles")
+          .select("id, display_name, avatar_url")
+          .in("id", Array.from(userIds))
+      : Promise.resolve({
+          data: [] as {
+            id: string;
+            display_name: string;
+            avatar_url: string | null;
+          }[],
+        }),
+  ]);
+  const playerRows = playerRowsRes.data;
+  const profileRows = profileRowsRes.data;
+  const playerName = new Map(
+    (playerRows ?? []).map((p) => [p.id, p.display_name]),
+  );
   const profileName = new Map(
     (profileRows ?? []).map((p) => [p.id, p.display_name]),
   );
@@ -191,27 +204,30 @@ export default async function ActivityPage(props: {
   events.sort((a, b) => b.ts.localeCompare(a.ts));
 
   return (
-    <main className="flex-1 p-6">
-      <div className="mx-auto max-w-4xl space-y-6">
+    <main className="flex-1 p-4 sm:p-6">
+      <div className="mx-auto max-w-4xl space-y-5">
+        <Link
+          href={`/matches/${match.id}`}
+          prefetch
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
+        >
+          <ChevronLeft className="size-4" />
+          <span>Back to match</span>
+        </Link>
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground">
             {tournament && (
               <>
                 <Link
                   href={`/tournaments/${tournament.slug}`}
-                  className="hover:underline"
+                  className="capitalize hover:underline"
                 >
                   {tournament.name}
                 </Link>
                 <span> · </span>
               </>
             )}
-            <Link
-              href={`/matches/${match.id}`}
-              className="hover:underline"
-            >
-              Match {match.match_number}
-            </Link>
+            <span>Match {match.match_number}</span>
             <span className="capitalize"> · {match.stage.replace(/_/g, " ")}</span>
           </p>
           <h1 className="text-2xl font-semibold">
