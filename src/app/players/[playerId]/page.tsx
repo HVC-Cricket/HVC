@@ -66,34 +66,41 @@ export default async function PlayerDetailPage(props: {
 
   const heroPhoto = player.photo_url ?? linkedAvatarUrl;
 
-  const [{ data: rows }, { data: matchRows }, { data: ballRows }] =
-    await Promise.all([
-      supabase
-        .from("v_player_tournament_stats" as never)
-        .select("*")
-        .eq("player_id", playerId),
-      // Match list with tournament_id joined — drives both the career
-      // total (Matches tile) and the per-tournament Matches column.
-      // match_players is unique on (match_id, player_id) so a Set of
-      // match_ids gives the correct distinct count.
-      supabase
-        .from("match_players")
-        .select("match_id, matches!inner(tournament_id)")
-        .eq("player_id", playerId),
-      // Innings actually batted (vs just "appeared in the XI"): every
-      // ball where this player was at the crease as striker OR non-
-      // striker. The non-striker side matters in box cricket where a
-      // partner can be out before they face a ball but still batted.
-      supabase
-        .from("balls")
-        .select(
-          "innings_id, innings!inner(matches!inner(tournament_id))",
-        )
-        .or(
-          `batter_id.eq.${playerId},non_striker_id.eq.${playerId}`,
-        )
-        .eq("is_voided", false),
-    ]);
+  // Three parallel reads: stats view, match_players (for matches
+  // count), and two balls queries split by which crease the player
+  // was at. We split because Supabase's .or() filter combined with
+  // a nested foreign-key select wasn't reliably returning rows —
+  // two simple .eq()s is cheaper to reason about than a compound or.
+  const [
+    { data: rows },
+    { data: matchRows },
+    { data: ballsAsBatter },
+    { data: ballsAsNonStriker },
+  ] = await Promise.all([
+    supabase
+      .from("v_player_tournament_stats" as never)
+      .select("*")
+      .eq("player_id", playerId),
+    // match_players is unique on (match_id, player_id) so a Set of
+    // match_ids gives the correct distinct count.
+    supabase
+      .from("match_players")
+      .select("match_id, matches!inner(tournament_id)")
+      .eq("player_id", playerId),
+    // Innings the player batted as striker (faced a ball).
+    supabase
+      .from("balls")
+      .select("innings_id")
+      .eq("batter_id", playerId)
+      .eq("is_voided", false),
+    // Innings the player was at the crease as non-striker without
+    // necessarily facing a ball (run-out at non-striker, etc.).
+    supabase
+      .from("balls")
+      .select("innings_id")
+      .eq("non_striker_id", playerId)
+      .eq("is_voided", false),
+  ]);
   const stats = (rows as unknown as StatRow[] | null) ?? [];
 
   // Career total + per-tournament breakdown of matches played.
@@ -113,24 +120,33 @@ export default async function PlayerDetailPage(props: {
   }
   const matchesPlayed = playedMatchIds.size;
 
-  // Career + per-tournament breakdown of innings batted (distinct
-  // innings_id from balls where the player was at the crease).
+  // Distinct innings_ids the player was at the crease for.
   const battedInningsIds = new Set<string>();
-  const inningsByTournament = new Map<string, Set<string>>();
-  type BallRowLite = {
-    innings_id: string;
-    innings: { matches: { tournament_id: string } };
-  };
-  for (const r of (ballRows ?? []) as unknown as BallRowLite[]) {
+  for (const r of ballsAsBatter ?? []) battedInningsIds.add(r.innings_id);
+  for (const r of ballsAsNonStriker ?? [])
     battedInningsIds.add(r.innings_id);
-    const tid = r.innings.matches.tournament_id;
-    if (!tid) continue;
-    let s = inningsByTournament.get(tid);
-    if (!s) {
-      s = new Set();
-      inningsByTournament.set(tid, s);
+
+  // Map those innings → tournaments for the per-tournament column.
+  const inningsByTournament = new Map<string, Set<string>>();
+  if (battedInningsIds.size > 0) {
+    const { data: inningsRows } = await supabase
+      .from("innings")
+      .select("id, matches!inner(tournament_id)")
+      .in("id", [...battedInningsIds]);
+    type InnRow = {
+      id: string;
+      matches: { tournament_id: string };
+    };
+    for (const r of (inningsRows ?? []) as unknown as InnRow[]) {
+      const tid = r.matches.tournament_id;
+      if (!tid) continue;
+      let s = inningsByTournament.get(tid);
+      if (!s) {
+        s = new Set();
+        inningsByTournament.set(tid, s);
+      }
+      s.add(r.id);
     }
-    s.add(r.innings_id);
   }
   const inningsBatted = battedInningsIds.size;
 
