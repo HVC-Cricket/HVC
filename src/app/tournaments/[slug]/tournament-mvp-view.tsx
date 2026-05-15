@@ -15,6 +15,8 @@ export type MvpEntry = {
   name: string;
   cat: number | null;
   team: string;
+  /** Resolved player photo: player.photo_url || linked-user avatar || null. */
+  photo: string | null;
   matches: number;
   battingPts: number;
   bowlingPts: number;
@@ -154,6 +156,24 @@ function MvpRow({
           >
             {idx + 1}
           </span>
+          {entry.photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={entry.photo}
+              alt=""
+              className="size-9 shrink-0 rounded-full border border-foreground/10 object-cover"
+            />
+          ) : (
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-semibold uppercase text-primary">
+              {entry.name
+                .split(/\s+/)
+                .map((s) => s[0])
+                .filter(Boolean)
+                .slice(0, 2)
+                .join("")
+                .toUpperCase() || "?"}
+            </span>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <span className="truncate font-medium capitalize">

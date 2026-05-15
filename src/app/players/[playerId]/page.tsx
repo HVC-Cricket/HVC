@@ -45,18 +45,42 @@ export default async function PlayerDetailPage(props: {
   if (!player) notFound();
 
   let linkedEmail: string | null = null;
-  if (player.linked_user_id && ctx) {
-    const { data } = await supabase.rpc("lookup_email_by_user_id", {
-      p_user_id: player.linked_user_id,
-    });
-    linkedEmail = data ?? null;
+  let linkedAvatarUrl: string | null = null;
+  if (player.linked_user_id) {
+    // Fetch the linked profile's avatar — falls back into the hero
+    // photo slot when the player itself has no photo_url set.
+    const { data: linkedProfile } = await supabase
+      .from("profiles")
+      .select("avatar_url")
+      .eq("id", player.linked_user_id)
+      .maybeSingle();
+    linkedAvatarUrl = linkedProfile?.avatar_url ?? null;
+
+    if (ctx) {
+      const { data } = await supabase.rpc("lookup_email_by_user_id", {
+        p_user_id: player.linked_user_id,
+      });
+      linkedEmail = data ?? null;
+    }
   }
 
-  const { data: rows } = await supabase
-    .from("v_player_tournament_stats" as never)
-    .select("*")
-    .eq("player_id", playerId);
+  const heroPhoto = player.photo_url ?? linkedAvatarUrl;
+
+  const [{ data: rows }, { data: matchRows }] = await Promise.all([
+    supabase
+      .from("v_player_tournament_stats" as never)
+      .select("*")
+      .eq("player_id", playerId),
+    // Distinct-match count for the career card. match_players is
+    // unique on (match_id, player_id) so a Set of match_ids gives the
+    // correct number even if a player appears in both the XI and as a
+    // substitute later.
+    supabase.from("match_players").select("match_id").eq("player_id", playerId),
+  ]);
   const stats = (rows as unknown as StatRow[] | null) ?? [];
+  const matchesPlayed = new Set(
+    (matchRows ?? []).map((r) => r.match_id),
+  ).size;
 
   const tournamentIds = Array.from(new Set(stats.map((s) => s.tournament_id)));
   const { data: tournaments } = tournamentIds.length
@@ -114,10 +138,10 @@ export default async function PlayerDetailPage(props: {
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-4">
-            {player.photo_url ? (
+            {heroPhoto ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={player.photo_url}
+                src={heroPhoto}
                 alt=""
                 className="h-16 w-16 rounded-full border border-foreground/10 object-cover"
               />
@@ -171,8 +195,8 @@ export default async function PlayerDetailPage(props: {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            <Stat label="Matches" value={matchesPlayed} />
             <Stat label="Runs" value={career.runs} />
-            <Stat label="Balls" value={career.balls_faced} />
             <Stat label="4s" value={career.fours} />
             <Stat label="6s" value={career.sixes} />
             <Stat label="SR" value={careerSR} />
@@ -195,64 +219,91 @@ export default async function PlayerDetailPage(props: {
                 No matches played yet.
               </p>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="text-xs uppercase text-muted-foreground">
-                  <tr className="border-y border-foreground/10">
-                    <th className="px-4 py-2 text-left font-medium">
-                      Tournament
-                    </th>
-                    <th className="px-2 py-2 text-right font-medium">R</th>
-                    <th className="px-2 py-2 text-right font-medium">B</th>
-                    <th className="px-2 py-2 text-right font-medium">4s</th>
-                    <th className="px-2 py-2 text-right font-medium">6s</th>
-                    <th className="px-2 py-2 text-right font-medium">SR</th>
-                    <th className="px-4 py-2 text-right font-medium">
-                      W (O / R / Econ)
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {playedRows.map((r) => {
-                    const t = tournamentById.get(r.tournament_id);
-                    const sr =
-                      r.balls_faced > 0
-                        ? ((r.runs / r.balls_faced) * 100).toFixed(1)
-                        : "—";
-                    const overs = `${Math.floor(r.legal_balls_bowled / 6)}.${r.legal_balls_bowled % 6}`;
-                    const econ =
-                      r.legal_balls_bowled > 0
-                        ? ((r.runs_conceded / r.legal_balls_bowled) * 6).toFixed(2)
-                        : "—";
-                    return (
-                      <tr
-                        key={r.tournament_id}
-                        className="border-b border-foreground/5 last:border-b-0"
-                      >
-                        <td className="px-4 py-2">
-                          {t ? (
-                            <Link
-                              href={`/tournaments/${t.slug}`}
-                              className="hover:underline"
-                            >
-                              {t.name}
-                            </Link>
-                          ) : (
-                            "(unknown)"
-                          )}
-                        </td>
-                        <td className="px-2 py-2 text-right font-mono">{r.runs}</td>
-                        <td className="px-2 py-2 text-right font-mono">{r.balls_faced}</td>
-                        <td className="px-2 py-2 text-right font-mono">{r.fours}</td>
-                        <td className="px-2 py-2 text-right font-mono">{r.sixes}</td>
-                        <td className="px-2 py-2 text-right font-mono">{sr}</td>
-                        <td className="px-4 py-2 text-right font-mono text-xs">
-                          {r.wickets} ({overs} / {r.runs_conceded} / {econ})
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              // Horizontal scroll on mobile so the bowling columns
+              // (W / Ov / Econ) remain reachable; tournament name
+              // stays pinned to the left via sticky positioning so the
+              // user always knows which row they're looking at.
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-sm">
+                  <thead className="text-xs uppercase text-muted-foreground">
+                    <tr className="border-y border-foreground/10">
+                      <th className="sticky left-0 z-10 bg-card px-4 py-2 text-left font-medium">
+                        Tournament
+                      </th>
+                      <th className="px-2 py-2 text-right font-medium">R</th>
+                      <th className="px-2 py-2 text-right font-medium">B</th>
+                      <th className="px-2 py-2 text-right font-medium">4s</th>
+                      <th className="px-2 py-2 text-right font-medium">6s</th>
+                      <th className="px-2 py-2 text-right font-medium">SR</th>
+                      <th className="px-2 py-2 text-right font-medium">W</th>
+                      <th className="px-2 py-2 text-right font-medium">Ov</th>
+                      <th className="px-4 py-2 text-right font-medium">
+                        Econ
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {playedRows.map((r) => {
+                      const t = tournamentById.get(r.tournament_id);
+                      const sr =
+                        r.balls_faced > 0
+                          ? ((r.runs / r.balls_faced) * 100).toFixed(1)
+                          : "—";
+                      const overs = `${Math.floor(r.legal_balls_bowled / 6)}.${r.legal_balls_bowled % 6}`;
+                      const econ =
+                        r.legal_balls_bowled > 0
+                          ? ((r.runs_conceded / r.legal_balls_bowled) * 6).toFixed(2)
+                          : "—";
+                      return (
+                        <tr
+                          key={r.tournament_id}
+                          className="border-b border-foreground/5 last:border-b-0"
+                        >
+                          <th
+                            scope="row"
+                            className="sticky left-0 z-10 bg-card px-4 py-2 text-left font-normal"
+                          >
+                            {t ? (
+                              <Link
+                                href={`/tournaments/${t.slug}`}
+                                className="capitalize hover:underline"
+                              >
+                                {t.name}
+                              </Link>
+                            ) : (
+                              "(unknown)"
+                            )}
+                          </th>
+                          <td className="px-2 py-2 text-right font-mono tabular-nums">
+                            {r.runs}
+                          </td>
+                          <td className="px-2 py-2 text-right font-mono tabular-nums">
+                            {r.balls_faced}
+                          </td>
+                          <td className="px-2 py-2 text-right font-mono tabular-nums">
+                            {r.fours}
+                          </td>
+                          <td className="px-2 py-2 text-right font-mono tabular-nums">
+                            {r.sixes}
+                          </td>
+                          <td className="px-2 py-2 text-right font-mono tabular-nums">
+                            {sr}
+                          </td>
+                          <td className="px-2 py-2 text-right font-mono tabular-nums">
+                            {r.wickets}
+                          </td>
+                          <td className="px-2 py-2 text-right font-mono tabular-nums">
+                            {r.legal_balls_bowled > 0 ? overs : "—"}
+                          </td>
+                          <td className="px-4 py-2 text-right font-mono tabular-nums">
+                            {econ}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </CardContent>
         </Card>

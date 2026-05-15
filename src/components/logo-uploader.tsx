@@ -9,7 +9,12 @@ import { createClient } from "@/lib/supabase/client";
 const MAX_BYTES = 2 * 1024 * 1024; // 2MB
 
 type Props = {
-  bucket: "tournament-logos" | "team-logos" | "player-photos" | "match-banners";
+  bucket:
+    | "tournament-logos"
+    | "team-logos"
+    | "player-photos"
+    | "match-banners"
+    | "user-avatars";
   value: string | null;
   onChange: (url: string | null) => void;
   disabled?: boolean;

@@ -45,9 +45,15 @@ export default async function AdminsPage(props: {
   const { data: profiles } = userIds.length
     ? await supabase
         .from("profiles")
-        .select("id, display_name")
+        .select("id, display_name, avatar_url")
         .in("id", userIds)
-    : { data: [] as { id: string; display_name: string }[] };
+    : {
+        data: [] as {
+          id: string;
+          display_name: string;
+          avatar_url: string | null;
+        }[],
+      };
   const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
 
   const organizers = (admins ?? []).filter((a) => a.role === "organizer");
@@ -122,7 +128,10 @@ function AdminList({
   title: string;
   description: string;
   admins: { id: string; user_id: string; role: string; created_at: string }[];
-  profileById: Map<string, { id: string; display_name: string }>;
+  profileById: Map<
+    string,
+    { id: string; display_name: string; avatar_url: string | null }
+  >;
   tournamentSlug: string;
   canRemove: boolean;
 }) {
@@ -139,13 +148,33 @@ function AdminList({
           <ul className="divide-y divide-foreground/10">
             {admins.map((a) => {
               const profile = profileById.get(a.user_id);
+              const name = profile?.display_name ?? "(unknown user)";
+              const initials = name
+                .split(/\s+/)
+                .map((s) => s[0])
+                .filter(Boolean)
+                .slice(0, 2)
+                .join("")
+                .toUpperCase();
               return (
                 <li
                   key={a.id}
                   className="flex items-center justify-between gap-3 px-6 py-3 text-sm"
                 >
-                  <span className="font-medium">
-                    {profile?.display_name ?? "(unknown user)"}
+                  <span className="flex items-center gap-3">
+                    {profile?.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={profile.avatar_url}
+                        alt=""
+                        className="size-8 rounded-full border border-foreground/10 object-cover"
+                      />
+                    ) : (
+                      <span className="flex size-8 items-center justify-center rounded-full bg-primary/15 text-[10px] font-semibold text-primary">
+                        {initials || "?"}
+                      </span>
+                    )}
+                    <span className="font-medium capitalize">{name}</span>
                   </span>
                   {canRemove && (
                     <RemoveAdminButton

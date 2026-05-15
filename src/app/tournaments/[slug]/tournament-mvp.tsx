@@ -160,7 +160,7 @@ export async function TournamentMvp({
   const [{ data: players }, { data: teams }] = await Promise.all([
     supabase
       .from("players")
-      .select("id, display_name, category")
+      .select("id, display_name, category, photo_url, linked_user_id")
       .in("id", playerIds),
     supabase.from("teams").select("id, short_name").in("id", teamIds),
   ]);
@@ -169,14 +169,35 @@ export async function TournamentMvp({
     (teams ?? []).map((t) => [t.id, t.short_name]),
   );
 
+  // Avatar fallback: when a player has no photo_url but linked their
+  // auth account, use that account's avatar so the MVP list shows
+  // their face. Matches the same fallback used by player list / POTM.
+  const linkedUserIds = (players ?? [])
+    .map((p) => p.linked_user_id)
+    .filter((id): id is string => !!id);
+  const avatarByUserId = new Map<string, string | null>();
+  if (linkedUserIds.length > 0) {
+    const { data: linkedProfiles } = await supabase
+      .from("profiles")
+      .select("id, avatar_url")
+      .in("id", linkedUserIds);
+    for (const pr of linkedProfiles ?? [])
+      avatarByUserId.set(pr.id, pr.avatar_url);
+  }
+
   const entries: MvpEntry[] = [...agg.values()]
     .map((a) => {
       const p = playerById.get(a.player_id);
+      const photo =
+        p?.photo_url ??
+        (p?.linked_user_id ? avatarByUserId.get(p.linked_user_id) : null) ??
+        null;
       return {
         player_id: a.player_id,
         name: p?.display_name ?? "(unknown)",
         cat: p?.category ?? null,
         team: teamShortById.get(a.team_id) ?? "?",
+        photo,
         matches: a.matches,
         battingPts: a.battingPts,
         bowlingPts: a.bowlingPts,

@@ -55,7 +55,7 @@ export async function MatchAwards({
   const { data: players } = xiIds.length
     ? await supabase
         .from("players")
-        .select("id, display_name, category, photo_url")
+        .select("id, display_name, category, photo_url, linked_user_id")
         .in("id", xiIds)
     : {
         data: [] as {
@@ -63,9 +63,36 @@ export async function MatchAwards({
           display_name: string;
           category: number | null;
           photo_url: string | null;
+          linked_user_id: string | null;
         }[],
       };
-  const playerById = new Map((players ?? []).map((p) => [p.id, p]));
+  // Resolve linked-account avatars so a player who linked their auth
+  // account (but never uploaded a player photo) still shows their face
+  // on the POTM banner.
+  const linkedUserIds = (players ?? [])
+    .map((p) => p.linked_user_id)
+    .filter((id): id is string => !!id);
+  const avatarByUserId = new Map<string, string | null>();
+  if (linkedUserIds.length > 0) {
+    const { data: linkedProfiles } = await supabase
+      .from("profiles")
+      .select("id, avatar_url")
+      .in("id", linkedUserIds);
+    for (const pr of linkedProfiles ?? [])
+      avatarByUserId.set(pr.id, pr.avatar_url);
+  }
+  const playerById = new Map(
+    (players ?? []).map((p) => [
+      p.id,
+      {
+        ...p,
+        resolved_photo:
+          p.photo_url ??
+          (p.linked_user_id ? avatarByUserId.get(p.linked_user_id) : null) ??
+          null,
+      },
+    ]),
+  );
   const teamByPlayerId = new Map((xi ?? []).map((r) => [r.player_id, r.team_id]));
 
   // Compute the auto-ranking from balls.
@@ -150,10 +177,10 @@ export async function MatchAwards({
       <CardContent className="space-y-4">
         {chosen && (
           <div className="flex items-center gap-3">
-            {chosen.photo_url ? (
+            {chosen.resolved_photo ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={chosen.photo_url}
+                src={chosen.resolved_photo}
                 alt={chosen.display_name}
                 width={48}
                 height={48}

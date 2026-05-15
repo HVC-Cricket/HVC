@@ -13,6 +13,8 @@ import { listMatchAuditEvents } from "@/lib/match-audit";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
 
+import { ActivityLogHelp } from "./activity-log-help";
+
 export const dynamic = "force-dynamic";
 
 /**
@@ -97,11 +99,20 @@ export default async function ActivityPage(props: {
   const { data: profileRows } = userIds.size
     ? await supabase
         .from("profiles")
-        .select("id, display_name")
+        .select("id, display_name, avatar_url")
         .in("id", Array.from(userIds))
-    : { data: [] as { id: string; display_name: string }[] };
+    : {
+        data: [] as {
+          id: string;
+          display_name: string;
+          avatar_url: string | null;
+        }[],
+      };
   const profileName = new Map(
     (profileRows ?? []).map((p) => [p.id, p.display_name]),
+  );
+  const profileAvatar = new Map(
+    (profileRows ?? []).map((p) => [p.id, p.avatar_url]),
   );
 
   // Expand into events. Each ball produces one or two ball-events
@@ -114,6 +125,7 @@ export default async function ActivityPage(props: {
     kind: "recorded" | "voided";
     ts: string;
     scorerName: string;
+    scorerAvatar: string | null;
     ball: BallRow;
   };
   type MatchEvent = {
@@ -122,6 +134,7 @@ export default async function ActivityPage(props: {
     ts: string;
     eventType: string;
     actorName: string;
+    actorAvatar: string | null;
     payload: Record<string, unknown> | null;
   };
   type Event = BallEvent | MatchEvent;
@@ -136,6 +149,9 @@ export default async function ActivityPage(props: {
       scorerName: b.scored_by
         ? (profileName.get(b.scored_by) ?? shortId(b.scored_by))
         : "?",
+      scorerAvatar: b.scored_by
+        ? (profileAvatar.get(b.scored_by) ?? null)
+        : null,
       ball: b,
     });
     if (b.is_voided && b.voided_at) {
@@ -147,6 +163,9 @@ export default async function ActivityPage(props: {
         scorerName: b.voided_by
           ? (profileName.get(b.voided_by) ?? shortId(b.voided_by))
           : "?",
+        scorerAvatar: b.voided_by
+          ? (profileAvatar.get(b.voided_by) ?? null)
+          : null,
         ball: b,
       });
     }
@@ -161,6 +180,9 @@ export default async function ActivityPage(props: {
       actorName: ev.actor_id
         ? (profileName.get(ev.actor_id) ?? shortId(ev.actor_id))
         : "?",
+      actorAvatar: ev.actor_id
+        ? (profileAvatar.get(ev.actor_id) ?? null)
+        : null,
       payload: ev.payload,
     });
   }
@@ -199,6 +221,7 @@ export default async function ActivityPage(props: {
             actions (toss, XI changes, innings transitions, POTM picks),
             in reverse chronological order.
           </p>
+          <ActivityLogHelp />
         </div>
 
         {events.length === 0 ? (
@@ -251,7 +274,12 @@ export default async function ActivityPage(props: {
                               playerName,
                             )}
                           </td>
-                          <td className="px-4 py-2 text-xs">{ev.actorName}</td>
+                          <td className="px-4 py-2 text-xs">
+                            <ActorChip
+                              name={ev.actorName}
+                              avatar={ev.actorAvatar}
+                            />
+                          </td>
                         </tr>
                       );
                     }
@@ -297,7 +325,12 @@ export default async function ActivityPage(props: {
                         >
                           {describeBall(ev.ball, playerName)}
                         </td>
-                        <td className="px-4 py-2 text-xs">{ev.scorerName}</td>
+                        <td className="px-4 py-2 text-xs">
+                          <ActorChip
+                            name={ev.scorerName}
+                            avatar={ev.scorerAvatar}
+                          />
+                        </td>
                       </tr>
                     );
                   })}
@@ -434,4 +467,31 @@ function describeBall(b: BallRow, players: Map<string, string>): string {
   if (b.is_free_hit) bits.push("free hit");
 
   return `${bits.join(" · ")} — ${batter} v ${bowler}`;
+}
+
+function ActorChip({ name, avatar }: { name: string; avatar: string | null }) {
+  const initials = name
+    .split(/\s+/)
+    .map((s) => s[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return (
+    <span className="flex items-center gap-1.5 whitespace-nowrap">
+      {avatar ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={avatar}
+          alt=""
+          className="size-5 shrink-0 rounded-full border border-foreground/10 object-cover"
+        />
+      ) : (
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[8px] font-semibold text-primary">
+          {initials || "?"}
+        </span>
+      )}
+      <span className="capitalize">{name}</span>
+    </span>
+  );
 }
