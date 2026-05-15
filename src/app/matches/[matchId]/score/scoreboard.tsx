@@ -294,6 +294,26 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             .map((p) => p.id),
         );
 
+  // Per-bowler legal-ball counts for the dropdown's "X.Y ov" annotation.
+  // Wides + no-balls don't advance the over so they're skipped.
+  const bowlerLegalBalls = new Map<string, number>();
+  for (const b of state.balls) {
+    if (b.extra_type === "wide" || b.extra_type === "no_ball") continue;
+    bowlerLegalBalls.set(
+      b.bowler_id,
+      (bowlerLegalBalls.get(b.bowler_id) ?? 0) + 1,
+    );
+  }
+  const bowlingXiWithOvers = bowlingXi.map((p) => {
+    const legal = bowlerLegalBalls.get(p.id) ?? 0;
+    return {
+      ...p,
+      meta: legal > 0
+        ? `(${Math.floor(legal / 6)}.${legal % 6})`
+        : undefined,
+    };
+  });
+
   // At an over boundary, the bowler who just finished can't bowl the
   // next over. State loader nulls `state.active.bowler_id` at the
   // boundary, so we can detect that case from local state and disable
@@ -544,13 +564,13 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 <SelectItem value="3">Cat 3</SelectItem>
               </SelectContent>
             </Select>
-            <span className="text-xs text-muted-foreground">
-              {state.currentOverBalls.length > 0
-                ? "Locked mid-over"
-                : overCategory === 2
+            {state.currentOverBalls.length === 0 && (
+              <span className="text-xs text-muted-foreground">
+                {overCategory === 2
                   ? "Any striker / any bowler"
                   : `Striker + bowler must both be Cat ${overCategory}`}
-            </span>
+              </span>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -639,7 +659,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 leadingIcon={<BallIcon />}
                 inlineStats
                 value={bowlerId}
-                options={bowlingXi}
+                options={bowlingXiWithOvers}
                 onChange={setBowlerId}
                 highlightCat={overCategory === 2 ? undefined : overCategory}
                 disabledIds={disabledBowlerIds}
@@ -1029,19 +1049,26 @@ function BatIcon({ dim }: { dim?: boolean }) {
 }
 
 function BallIcon() {
+  // Tennis ball — bright yellow with the classic curved white seam.
   return (
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
       className="size-4 shrink-0"
     >
-      <circle cx="12" cy="12" r="9" fill="currentColor" />
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        className="fill-yellow-400 stroke-yellow-600/60"
+        strokeWidth="0.5"
+      />
       <path
-        d="M5 13 Q12 11.4, 19 13"
+        d="M3.5 12 Q8 5, 12 12 T20.5 12"
         stroke="white"
-        strokeWidth="0.8"
+        strokeWidth="0.9"
         fill="none"
-        opacity="0.7"
+        strokeLinecap="round"
       />
     </svg>
   );
@@ -1064,7 +1091,15 @@ function SlotPicker({
 }: {
   label: string;
   value: string;
-  options: { id: string; display_name: string; category: 1 | 2 | 3 | null }[];
+  options: {
+    id: string;
+    display_name: string;
+    category: 1 | 2 | 3 | null;
+    /** Optional inline annotation rendered after the category badge in
+     *  the dropdown list. Used by the bowler picker to show overs
+     *  bowled so far (e.g. "1.3 ov"). */
+    meta?: string;
+  }[];
   onChange: (v: string) => void;
   highlightCat?: 1 | 2 | 3;
   statsLine?: string | null;
@@ -1164,6 +1199,7 @@ function SlotPicker({
           >
             {p.display_name}
             {p.category ? ` · C${p.category}` : ""}
+            {p.meta ? ` ${p.meta}` : ""}
             {highlightCat && p.category === highlightCat ? " ⭑" : ""}
             {dismissedIds?.has(p.id) ? " (out)" : ""}
           </SelectItem>
@@ -1209,10 +1245,10 @@ function formatBatterStats(
 }
 
 /**
- * Compact bowling stat line for the bowler tile — `W/R (O.B) · econ`.
+ * Compact bowling stat line for the bowler tile — `W/R (O.B)`.
  * Returns null until the bowler has bowled at least one delivery.
  * Folds in optimistic balls for the same instant-update behaviour as
- * the batter line above.
+ * the batter line above. Economy rate is in the full scorecard.
  */
 function formatBowlerStats(
   balls: ScoreboardState["balls"],
@@ -1241,8 +1277,7 @@ function formatBowlerStats(
   }
   if (!touched) return null;
   const overs = `${Math.floor(legal / 6)}.${legal % 6}`;
-  const econ = legal > 0 ? ((conceded / legal) * 6).toFixed(1) : "—";
-  return `${wickets}/${conceded} (${overs}) · econ ${econ}`;
+  return `${wickets}/${conceded} (${overs})`;
 }
 
 type RenderBall = {

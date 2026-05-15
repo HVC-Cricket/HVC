@@ -142,7 +142,7 @@ export function WicketButton({
         className="h-12"
         onClick={() => setOpen(true)}
       >
-        Wicket
+        OUT
       </Button>
       {open && (
         <div
