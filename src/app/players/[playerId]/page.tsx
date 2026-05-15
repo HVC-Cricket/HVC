@@ -71,16 +71,33 @@ export default async function PlayerDetailPage(props: {
       .from("v_player_tournament_stats" as never)
       .select("*")
       .eq("player_id", playerId),
-    // Distinct-match count for the career card. match_players is
-    // unique on (match_id, player_id) so a Set of match_ids gives the
-    // correct number even if a player appears in both the XI and as a
-    // substitute later.
-    supabase.from("match_players").select("match_id").eq("player_id", playerId),
+    // Match list with tournament_id joined — drives both the career
+    // total (Matches tile) and the per-tournament Matches column.
+    // match_players is unique on (match_id, player_id) so a Set of
+    // match_ids gives the correct distinct count.
+    supabase
+      .from("match_players")
+      .select("match_id, matches!inner(tournament_id)")
+      .eq("player_id", playerId),
   ]);
   const stats = (rows as unknown as StatRow[] | null) ?? [];
-  const matchesPlayed = new Set(
-    (matchRows ?? []).map((r) => r.match_id),
-  ).size;
+
+  // Career total + per-tournament breakdown of matches played.
+  const playedMatchIds = new Set<string>();
+  const matchesByTournament = new Map<string, Set<string>>();
+  type MatchRow = { match_id: string; matches: { tournament_id: string } };
+  for (const r of (matchRows ?? []) as unknown as MatchRow[]) {
+    playedMatchIds.add(r.match_id);
+    const tid = r.matches.tournament_id;
+    if (!tid) continue;
+    let s = matchesByTournament.get(tid);
+    if (!s) {
+      s = new Set();
+      matchesByTournament.set(tid, s);
+    }
+    s.add(r.match_id);
+  }
+  const matchesPlayed = playedMatchIds.size;
 
   const tournamentIds = Array.from(new Set(stats.map((s) => s.tournament_id)));
   const { data: tournaments } = tournamentIds.length
@@ -231,7 +248,7 @@ export default async function PlayerDetailPage(props: {
                         Tournament
                       </th>
                       <th className="px-2 py-2 text-right font-medium">R</th>
-                      <th className="px-2 py-2 text-right font-medium">B</th>
+                      <th className="px-2 py-2 text-right font-medium">M</th>
                       <th className="px-2 py-2 text-right font-medium">4s</th>
                       <th className="px-2 py-2 text-right font-medium">6s</th>
                       <th className="px-2 py-2 text-right font-medium">SR</th>
@@ -278,7 +295,7 @@ export default async function PlayerDetailPage(props: {
                             {r.runs}
                           </td>
                           <td className="px-2 py-2 text-right font-mono tabular-nums">
-                            {r.balls_faced}
+                            {matchesByTournament.get(r.tournament_id)?.size ?? 0}
                           </td>
                           <td className="px-2 py-2 text-right font-mono tabular-nums">
                             {r.fours}
