@@ -14,7 +14,7 @@ import type { ActionResult } from "@/app/tournaments/actions";
 
 const addAdminSchema = z.object({
   tournamentSlug: z.string().min(1),
-  email: z.string().email("Enter a valid email"),
+  userId: z.string().uuid("Pick a user"),
   role: z.enum(["organizer", "scorer"]),
 });
 
@@ -51,24 +51,20 @@ export async function addAdmin(
     return { ok: false, error: "Only organizers or super admins can add scorers" };
   }
 
-  // Resolve email → user_id via the SECURITY DEFINER helper.
-  const { data: targetUserId, error: lookupErr } = await supabase.rpc(
-    "lookup_user_id_by_email",
-    { p_email: parsed.data.email },
-  );
-  if (lookupErr) {
-    return { ok: false, error: lookupErr.message };
-  }
-  if (!targetUserId) {
-    return {
-      ok: false,
-      error: `No user with email ${parsed.data.email}. They need to sign up first.`,
-    };
+  // Verify the user_id actually exists in profiles before insert so we
+  // can give a clearer error than the FK-violation message.
+  const { data: target } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("id", parsed.data.userId)
+    .maybeSingle();
+  if (!target) {
+    return { ok: false, error: "Selected user not found." };
   }
 
   const { error } = await supabase.from("tournament_admins").insert({
     tournament_id: tournament.id,
-    user_id: targetUserId,
+    user_id: parsed.data.userId,
     role: parsed.data.role,
     added_by: ctx.user.id,
   });

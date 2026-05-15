@@ -42,20 +42,23 @@ export default async function AdminsPage(props: {
     .eq("tournament_id", tournament.id)
     .order("created_at", { ascending: true });
 
-  const userIds = (admins ?? []).map((a) => a.user_id);
-  const { data: profiles } = userIds.length
-    ? await supabase
-        .from("profiles")
-        .select("id, display_name, avatar_url")
-        .in("id", userIds)
-    : {
-        data: [] as {
-          id: string;
-          display_name: string;
-          avatar_url: string | null;
-        }[],
-      };
-  const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+  // Fetch ALL signed-up users so the add-admin form can present a
+  // searchable picker instead of asking for an exact email. We then
+  // filter out anyone who's already an admin client-side so the
+  // dropdown doesn't suggest people who can't be added.
+  const { data: allProfiles } = await supabase
+    .from("profiles")
+    .select("id, display_name, avatar_url")
+    .order("display_name", { ascending: true });
+  const profileById = new Map(
+    (allProfiles ?? []).map((p) => [p.id, p]),
+  );
+  const existingAdminUserIds = new Set(
+    (admins ?? []).map((a) => a.user_id),
+  );
+  const addableUsers = (allProfiles ?? []).filter(
+    (p) => !existingAdminUserIds.has(p.id),
+  );
 
   const organizers = (admins ?? []).filter((a) => a.role === "organizer");
   const scorers = (admins ?? []).filter((a) => a.role === "scorer");
@@ -102,14 +105,15 @@ export default async function AdminsPage(props: {
             <CardTitle className="text-base">Add admin</CardTitle>
             <CardDescription>
               {isSuper
-                ? "Add an organizer or a scorer by email. The user must already have signed up."
-                : "Add a scorer by email. The user must already have signed up. Only super admins can add organizers."}
+                ? "Pick a signed-up user and assign them a role."
+                : "Pick a signed-up user to add as a scorer. Only super admins can add organizers."}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <AddAdminForm
               tournamentSlug={tournament.slug}
               allowOrganizer={isSuper}
+              users={addableUsers}
             />
           </CardContent>
         </Card>
