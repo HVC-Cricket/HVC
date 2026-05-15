@@ -34,7 +34,14 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body
+        className="min-h-full flex flex-col"
+        // Browser extensions (e.g. ColorZilla) inject attributes like
+        // `cz-shortcut-listen` onto <body> before React hydrates,
+        // causing a noisy console warning. The mismatch is harmless
+        // and not from our code — silence it.
+        suppressHydrationWarning
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
