@@ -104,13 +104,17 @@ export default async function PlayerDetailPage(props: {
   const stats = (rows as unknown as StatRow[] | null) ?? [];
 
   // Career total + per-tournament breakdown of matches played.
+  // Also build a match_id → tournament_id index that the innings
+  // breakdown below reuses (saves a separate fetch).
   const playedMatchIds = new Set<string>();
   const matchesByTournament = new Map<string, Set<string>>();
+  const tournamentByMatch = new Map<string, string>();
   type MatchRow = { match_id: string; matches: { tournament_id: string } };
   for (const r of (matchRows ?? []) as unknown as MatchRow[]) {
     playedMatchIds.add(r.match_id);
     const tid = r.matches.tournament_id;
     if (!tid) continue;
+    tournamentByMatch.set(r.match_id, tid);
     let s = matchesByTournament.get(tid);
     if (!s) {
       s = new Set();
@@ -126,19 +130,18 @@ export default async function PlayerDetailPage(props: {
   for (const r of ballsAsNonStriker ?? [])
     battedInningsIds.add(r.innings_id);
 
-  // Map those innings → tournaments for the per-tournament column.
+  // Map those innings → tournaments via match_id. We fetch the
+  // innings row's match_id flat (no embedded join — that was returning
+  // an unexpected shape), then look up the tournament in the index
+  // already built above.
   const inningsByTournament = new Map<string, Set<string>>();
   if (battedInningsIds.size > 0) {
     const { data: inningsRows } = await supabase
       .from("innings")
-      .select("id, matches!inner(tournament_id)")
+      .select("id, match_id")
       .in("id", [...battedInningsIds]);
-    type InnRow = {
-      id: string;
-      matches: { tournament_id: string };
-    };
-    for (const r of (inningsRows ?? []) as unknown as InnRow[]) {
-      const tid = r.matches.tournament_id;
+    for (const r of inningsRows ?? []) {
+      const tid = tournamentByMatch.get(r.match_id);
       if (!tid) continue;
       let s = inningsByTournament.get(tid);
       if (!s) {
