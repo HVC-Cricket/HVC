@@ -116,8 +116,6 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
 
   const battingTeam =
     innings.batting_team_id === state.teamA.id ? state.teamA : state.teamB;
-  const bowlingTeam =
-    innings.bowling_team_id === state.teamA.id ? state.teamA : state.teamB;
 
   const overs =
     `${Math.floor(innings.total_legal_balls / 6)}.${innings.total_legal_balls % 6}` +
@@ -489,12 +487,15 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       {/* Top scoreboard */}
       <Card className={state.active.free_hit_pending ? "ring-2 ring-yellow-400" : undefined}>
         <CardHeader>
-          <CardTitle className="flex items-baseline gap-3">
+          <CardTitle className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span className="font-mono text-3xl">
+              <span className="uppercase">{battingTeam.short_name}</span>{" "}
+              <span className="text-muted-foreground">-</span>{" "}
               {displayRuns}/{displayWickets}
             </span>
             <span className="text-base font-normal text-muted-foreground">
-              {displayOvers}
+              {displayOvers}{" "}
+              <span className="text-xs">(inn {innings.innings_number})</span>
             </span>
             {state.active.free_hit_pending && (
               <span className="text-xs font-medium uppercase text-yellow-600">
@@ -515,10 +516,6 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
               </span>
             )}
           </CardTitle>
-          <CardDescription>
-            {battingTeam.name} batting · {bowlingTeam.name} bowling · innings{" "}
-            {innings.innings_number}
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -528,10 +525,16 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             <Select
               value={String(overCategory)}
               onValueChange={(v) => setOverCategory(Number(v) as 1 | 2 | 3)}
+              disabled={state.currentOverBalls.length > 0}
             >
               <SelectTrigger
                 className="h-8 w-auto px-2"
                 aria-label="Over category"
+                title={
+                  state.currentOverBalls.length > 0
+                    ? "Category is locked once the over has started"
+                    : undefined
+                }
               >
                 <SelectValue />
               </SelectTrigger>
@@ -542,9 +545,11 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
               </SelectContent>
             </Select>
             <span className="text-xs text-muted-foreground">
-              {overCategory === 2
-                ? "Any striker / any bowler"
-                : `Striker + bowler must both be Cat ${overCategory}`}
+              {state.currentOverBalls.length > 0
+                ? "Locked mid-over"
+                : overCategory === 2
+                  ? "Any striker / any bowler"
+                  : `Striker + bowler must both be Cat ${overCategory}`}
             </span>
             <Button
               type="button"
@@ -1095,22 +1100,22 @@ function SlotPicker({
           aria-label={label}
           className="block w-full rounded-md border border-foreground/10 bg-muted/30 px-3 py-2 text-left transition hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
         >
-          <div className="flex items-center justify-between gap-2">
-            {!hideLabel && (
+          {!hideLabel && (
+            <div className="flex items-center justify-between gap-2">
               <span className="text-xs text-muted-foreground">{label}</span>
-            )}
-            {selected?.category && (
-              <span
-                className={
-                  "rounded bg-foreground/10 px-1 font-mono text-[10px]" +
-                  (hideLabel ? " ml-auto" : "")
-                }
-              >
-                C{selected.category}
-              </span>
-            )}
-          </div>
-          <div className="mt-0.5 flex items-center gap-1.5 font-medium">
+              {selected?.category && (
+                <span className="rounded bg-foreground/10 px-1 font-mono text-[10px]">
+                  C{selected.category}
+                </span>
+              )}
+            </div>
+          )}
+          <div
+            className={
+              (hideLabel ? "" : "mt-0.5 ") +
+              "flex items-center gap-1.5 font-medium"
+            }
+          >
             {leadingIcon}
             <span
               className={
@@ -1124,6 +1129,16 @@ function SlotPicker({
             {inlineStats && statsLine && (
               <span className="ml-auto whitespace-nowrap font-mono text-[11px] text-muted-foreground">
                 {statsLine}
+              </span>
+            )}
+            {hideLabel && selected?.category && (
+              <span
+                className={
+                  "rounded bg-foreground/10 px-1 font-mono text-[10px]" +
+                  (inlineStats ? " ml-1.5" : " ml-auto")
+                }
+              >
+                C{selected.category}
               </span>
             )}
           </div>
