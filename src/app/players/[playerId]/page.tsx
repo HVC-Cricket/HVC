@@ -66,20 +66,34 @@ export default async function PlayerDetailPage(props: {
 
   const heroPhoto = player.photo_url ?? linkedAvatarUrl;
 
-  const [{ data: rows }, { data: matchRows }] = await Promise.all([
-    supabase
-      .from("v_player_tournament_stats" as never)
-      .select("*")
-      .eq("player_id", playerId),
-    // Match list with tournament_id joined — drives both the career
-    // total (Matches tile) and the per-tournament Matches column.
-    // match_players is unique on (match_id, player_id) so a Set of
-    // match_ids gives the correct distinct count.
-    supabase
-      .from("match_players")
-      .select("match_id, matches!inner(tournament_id)")
-      .eq("player_id", playerId),
-  ]);
+  const [{ data: rows }, { data: matchRows }, { data: ballRows }] =
+    await Promise.all([
+      supabase
+        .from("v_player_tournament_stats" as never)
+        .select("*")
+        .eq("player_id", playerId),
+      // Match list with tournament_id joined — drives both the career
+      // total (Matches tile) and the per-tournament Matches column.
+      // match_players is unique on (match_id, player_id) so a Set of
+      // match_ids gives the correct distinct count.
+      supabase
+        .from("match_players")
+        .select("match_id, matches!inner(tournament_id)")
+        .eq("player_id", playerId),
+      // Innings actually batted (vs just "appeared in the XI"): every
+      // ball where this player was at the crease as striker OR non-
+      // striker. The non-striker side matters in box cricket where a
+      // partner can be out before they face a ball but still batted.
+      supabase
+        .from("balls")
+        .select(
+          "innings_id, innings!inner(matches!inner(tournament_id))",
+        )
+        .or(
+          `batter_id.eq.${playerId},non_striker_id.eq.${playerId}`,
+        )
+        .eq("is_voided", false),
+    ]);
   const stats = (rows as unknown as StatRow[] | null) ?? [];
 
   // Career total + per-tournament breakdown of matches played.
@@ -98,6 +112,27 @@ export default async function PlayerDetailPage(props: {
     s.add(r.match_id);
   }
   const matchesPlayed = playedMatchIds.size;
+
+  // Career + per-tournament breakdown of innings batted (distinct
+  // innings_id from balls where the player was at the crease).
+  const battedInningsIds = new Set<string>();
+  const inningsByTournament = new Map<string, Set<string>>();
+  type BallRowLite = {
+    innings_id: string;
+    innings: { matches: { tournament_id: string } };
+  };
+  for (const r of (ballRows ?? []) as unknown as BallRowLite[]) {
+    battedInningsIds.add(r.innings_id);
+    const tid = r.innings.matches.tournament_id;
+    if (!tid) continue;
+    let s = inningsByTournament.get(tid);
+    if (!s) {
+      s = new Set();
+      inningsByTournament.set(tid, s);
+    }
+    s.add(r.innings_id);
+  }
+  const inningsBatted = battedInningsIds.size;
 
   const tournamentIds = Array.from(new Set(stats.map((s) => s.tournament_id)));
   const { data: tournaments } = tournamentIds.length
@@ -213,6 +248,7 @@ export default async function PlayerDetailPage(props: {
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
             <Stat label="Matches" value={matchesPlayed} />
+            <Stat label="Innings" value={inningsBatted} />
             <Stat label="Runs" value={career.runs} />
             <Stat label="4s" value={career.fours} />
             <Stat label="6s" value={career.sixes} />
@@ -247,8 +283,9 @@ export default async function PlayerDetailPage(props: {
                       <th className="sticky left-0 z-10 bg-card px-4 py-2 text-left font-medium">
                         Tournament
                       </th>
-                      <th className="px-2 py-2 text-right font-medium">R</th>
                       <th className="px-2 py-2 text-right font-medium">M</th>
+                      <th className="px-2 py-2 text-right font-medium">I</th>
+                      <th className="px-2 py-2 text-right font-medium">R</th>
                       <th className="px-2 py-2 text-right font-medium">4s</th>
                       <th className="px-2 py-2 text-right font-medium">6s</th>
                       <th className="px-2 py-2 text-right font-medium">SR</th>
@@ -292,10 +329,13 @@ export default async function PlayerDetailPage(props: {
                             )}
                           </th>
                           <td className="px-2 py-2 text-right font-mono tabular-nums">
-                            {r.runs}
+                            {matchesByTournament.get(r.tournament_id)?.size ?? 0}
                           </td>
                           <td className="px-2 py-2 text-right font-mono tabular-nums">
-                            {matchesByTournament.get(r.tournament_id)?.size ?? 0}
+                            {inningsByTournament.get(r.tournament_id)?.size ?? 0}
+                          </td>
+                          <td className="px-2 py-2 text-right font-mono tabular-nums">
+                            {r.runs}
                           </td>
                           <td className="px-2 py-2 text-right font-mono tabular-nums">
                             {r.fours}
