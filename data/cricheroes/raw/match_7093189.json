@@ -1,0 +1,960 @@
+{
+  "pageProps": {
+    "tab": "scorecard",
+    "miniScorecard": {
+      "status": false
+    },
+    "scorecard": [
+      {
+        "bowling": [
+          {
+            "player_id": 8578931,
+            "name": "Srihari",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 8,
+            "wickets": 0,
+            "0s": 3,
+            "4s": 1,
+            "6s": 0,
+            "wide": 1,
+            "noball": 0,
+            "extra_type_run_wide": 1,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "8.00",
+            "type_code": "",
+            "inning": 1
+          },
+          {
+            "player_id": 10031570,
+            "name": "Sridhar Ramchandrachar",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 1,
+            "runs": 0,
+            "wickets": 0,
+            "0s": 6,
+            "4s": 0,
+            "6s": 0,
+            "wide": 0,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "0.00",
+            "type_code": "",
+            "inning": 1
+          },
+          {
+            "player_id": 10047098,
+            "name": "Aditya Hatwar",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 13,
+            "wickets": 0,
+            "0s": 1,
+            "4s": 0,
+            "6s": 1,
+            "wide": 3,
+            "noball": 0,
+            "extra_type_run_wide": 3,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "13.00",
+            "type_code": "",
+            "inning": 1
+          },
+          {
+            "player_id": 7662592,
+            "name": "Vittala",
+            "overs": 2,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 24,
+            "wickets": 0,
+            "0s": 6,
+            "4s": 2,
+            "6s": 2,
+            "wide": 0,
+            "noball": 1,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 1,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "12.00",
+            "type_code": "",
+            "inning": 1
+          },
+          {
+            "player_id": 809163,
+            "name": "Pranav PK",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 21,
+            "wickets": 0,
+            "0s": 2,
+            "4s": 0,
+            "6s": 3,
+            "wide": 0,
+            "noball": 1,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 1,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "21.00",
+            "type_code": "",
+            "inning": 1
+          },
+          {
+            "player_id": 8452770,
+            "name": "Ashrith Kashyap",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 28,
+            "wickets": 0,
+            "0s": 1,
+            "4s": 0,
+            "6s": 4,
+            "wide": 0,
+            "noball": 1,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 1,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "28.00",
+            "type_code": "",
+            "inning": 1
+          }
+        ],
+        "fall_of_wicket": {
+          "data": [
+            {
+              "run": 8,
+              "wicket": 1,
+              "over": 1,
+              "balls": 0,
+              "dismiss_player_id": 8445356,
+              "dismiss_player_name": "Pradyumna"
+            },
+            {
+              "run": 8,
+              "wicket": 1,
+              "over": 2,
+              "balls": 0,
+              "dismiss_player_id": 6508655,
+              "dismiss_player_name": "Sudharshan"
+            },
+            {
+              "run": 9,
+              "wicket": 1,
+              "over": 2,
+              "balls": 0,
+              "dismiss_player_id": 8445462,
+              "dismiss_player_name": "Prasad K S"
+            }
+          ],
+          "summary": "8-1 (Pradyumna, 1 ov), 8-1 (Sudharshan, 2 ov), 9-1 (Prasad K S, 2 ov)"
+        },
+        "to_be_bat": [
+          {
+            "short_name": "",
+            "name": "Sridhar",
+            "player_id": 8469156
+          },
+          {
+            "short_name": "",
+            "name": "Krishnamurthy",
+            "player_id": 19421271
+          }
+        ],
+        "extras": {
+          "data": [
+            {
+              "extra_type_id": 1,
+              "type_code": "WD",
+              "type": "",
+              "extra_type_run": 4,
+              "extra_run": 0
+            },
+            {
+              "extra_type_id": 2,
+              "type_code": "NB",
+              "type": "",
+              "extra_type_run": 3,
+              "extra_run": 0
+            }
+          ],
+          "summary": "(wd 4, nb 3)",
+          "total": 7
+        },
+        "batting": [
+          {
+            "how_to_out_short_name": "run out Vittala",
+            "how_to_out": "run out Vittala",
+            "short_name": "",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "116.67",
+            "6s": 0,
+            "4s": 1,
+            "minutes": 6,
+            "balls": 6,
+            "runs": 7,
+            "name": "Pradyumna",
+            "player_id": 8445356
+          },
+          {
+            "how_to_out_short_name": "retired hurt",
+            "how_to_out": "retired hurt",
+            "short_name": "",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "0.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 7,
+            "balls": 0,
+            "runs": 0,
+            "name": "Sudharshan",
+            "player_id": 6508655
+          },
+          {
+            "how_to_out_short_name": "retired hurt",
+            "how_to_out": "retired hurt",
+            "short_name": "",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "0.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 1,
+            "balls": 6,
+            "runs": 0,
+            "name": "Prasad K S  (c)",
+            "player_id": 8445462
+          },
+          {
+            "how_to_out_short_name": "not out",
+            "how_to_out": "not out",
+            "short_name": "",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "300.00",
+            "6s": 7,
+            "4s": 0,
+            "minutes": 14,
+            "balls": 16,
+            "runs": 48,
+            "name": "K S AKSHAY KAUSHIK",
+            "player_id": 8445318
+          },
+          {
+            "how_to_out_short_name": "not out",
+            "how_to_out": "not out",
+            "short_name": "",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "188.24",
+            "6s": 3,
+            "4s": 2,
+            "minutes": 13,
+            "balls": 17,
+            "runs": 32,
+            "name": "Shreenidhi Prakash",
+            "player_id": 8444531
+          }
+        ],
+        "inning": {
+          "team_id": 1597088,
+          "inning": 1,
+          "inning_start_time": "2023-06-11T16:49:49.000Z",
+          "inning_end_time": "2023-06-11T17:11:18.000Z",
+          "is_declare": 0,
+          "is_forfeited": 0,
+          "is_followon": 0,
+          "is_allout": 0,
+          "total_run": 94,
+          "total_wicket": 1,
+          "total_extra": 7,
+          "overs_played": "7.0",
+          "balls_played": 0,
+          "revised_target": 0,
+          "revised_overs": 0,
+          "penalty_run": 0,
+          "lead_by": 0,
+          "trail_by": 0,
+          "negative_run": 0,
+          "summary": {
+            "score": "94/1",
+            "over": "(7.0 Ov)",
+            "ball": "(0 Ball)",
+            "rr": "13.43"
+          }
+        },
+        "team_id": 1597088,
+        "teamName": "Kadamba Yodhas"
+      },
+      {
+        "bowling": [
+          {
+            "player_id": 8445356,
+            "name": "Pradyumna",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 2,
+            "wickets": 0,
+            "0s": 4,
+            "4s": 0,
+            "6s": 0,
+            "wide": 0,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "2.00",
+            "type_code": "",
+            "inning": 2
+          },
+          {
+            "player_id": 8445462,
+            "name": "Prasad K S  (c)",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 4,
+            "wickets": 0,
+            "0s": 2,
+            "4s": 0,
+            "6s": 0,
+            "wide": 0,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "4.00",
+            "type_code": "",
+            "inning": 2
+          },
+          {
+            "player_id": 8445318,
+            "name": "K S AKSHAY KAUSHIK",
+            "overs": 2,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 33,
+            "wickets": 0,
+            "0s": 3,
+            "4s": 1,
+            "6s": 3,
+            "wide": 4,
+            "noball": 1,
+            "extra_type_run_wide": 4,
+            "extra_type_run_noball": 1,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "16.50",
+            "type_code": "",
+            "inning": 2
+          },
+          {
+            "player_id": 8469156,
+            "name": "Sridhar",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 33,
+            "wickets": 0,
+            "0s": 0,
+            "4s": 1,
+            "6s": 4,
+            "wide": 0,
+            "noball": 2,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 2,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "33.00",
+            "type_code": "",
+            "inning": 2
+          },
+          {
+            "player_id": 8444531,
+            "name": "Shreenidhi Prakash",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 14,
+            "wickets": 0,
+            "0s": 1,
+            "4s": 0,
+            "6s": 1,
+            "wide": 4,
+            "noball": 0,
+            "extra_type_run_wide": 4,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "14.00",
+            "type_code": "",
+            "inning": 2
+          },
+          {
+            "player_id": 6508655,
+            "name": "Sudharshan",
+            "overs": 0.4,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 9,
+            "wickets": 0,
+            "0s": 2,
+            "4s": 0,
+            "6s": 1,
+            "wide": 0,
+            "noball": 1,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 1,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "13.50",
+            "type_code": "",
+            "inning": 2
+          }
+        ],
+        "fall_of_wicket": {
+          "data": [
+            {
+              "run": 2,
+              "wicket": 1,
+              "over": 1,
+              "balls": 0,
+              "dismiss_player_id": 8578931,
+              "dismiss_player_name": "Srihari"
+            },
+            {
+              "run": 6,
+              "wicket": 1,
+              "over": 2,
+              "balls": 0,
+              "dismiss_player_id": 7662592,
+              "dismiss_player_name": "Vittala"
+            },
+            {
+              "run": 6,
+              "wicket": 1,
+              "over": 2,
+              "balls": 0,
+              "dismiss_player_id": 10031570,
+              "dismiss_player_name": "Sridhar Ramchandrachar"
+            }
+          ],
+          "summary": "2-1 (Srihari, 1 ov), 6-1 (Vittala, 2 ov), 6-1 (Sridhar Ramchandrachar, 2 ov)"
+        },
+        "to_be_bat": [
+          {
+            "short_name": "",
+            "name": "Bharadwaj Srivatsa (c)",
+            "player_id": 8444550
+          },
+          {
+            "short_name": "",
+            "name": "Aditya Hatwar",
+            "player_id": 10047098
+          }
+        ],
+        "extras": {
+          "data": [
+            {
+              "extra_type_id": 2,
+              "type_code": "NB",
+              "type": "",
+              "extra_type_run": 4,
+              "extra_run": 0
+            },
+            {
+              "extra_type_id": 1,
+              "type_code": "WD",
+              "type": "",
+              "extra_type_run": 8,
+              "extra_run": 0
+            }
+          ],
+          "summary": "(nb 4, wd 8)",
+          "total": 12
+        },
+        "batting": [
+          {
+            "how_to_out_short_name": "retired out",
+            "how_to_out": "retired out",
+            "short_name": "",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "LHB",
+            "SR": "33.33",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 3,
+            "balls": 6,
+            "runs": 2,
+            "name": "Srihari",
+            "player_id": 8578931
+          },
+          {
+            "how_to_out_short_name": "retired hurt",
+            "how_to_out": "retired hurt",
+            "short_name": "",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "0.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 5,
+            "balls": 0,
+            "runs": 0,
+            "name": "Vittala",
+            "player_id": 7662592
+          },
+          {
+            "how_to_out_short_name": "retired hurt",
+            "how_to_out": "retired hurt",
+            "short_name": "",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "LHB",
+            "SR": "66.67",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 2,
+            "balls": 6,
+            "runs": 4,
+            "name": "Sridhar Ramchandrachar",
+            "player_id": 10031570
+          },
+          {
+            "how_to_out_short_name": "not out",
+            "how_to_out": "not out",
+            "short_name": "",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "278.95",
+            "6s": 7,
+            "4s": 1,
+            "minutes": 14,
+            "balls": 19,
+            "runs": 53,
+            "name": "Ashrith Kashyap",
+            "player_id": 8452770
+          },
+          {
+            "how_to_out_short_name": "not out",
+            "how_to_out": "not out",
+            "short_name": "",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "184.62",
+            "6s": 2,
+            "4s": 1,
+            "minutes": 13,
+            "balls": 13,
+            "runs": 24,
+            "name": "Pranav PK",
+            "player_id": 809163
+          }
+        ],
+        "inning": {
+          "team_id": 1597087,
+          "inning": 2,
+          "inning_start_time": "2023-06-11T17:14:39.000Z",
+          "inning_end_time": "2023-06-11T17:34:21.000Z",
+          "is_declare": 0,
+          "is_forfeited": 0,
+          "is_followon": 0,
+          "is_allout": 0,
+          "total_run": 95,
+          "total_wicket": 1,
+          "total_extra": 12,
+          "overs_played": "6.4",
+          "balls_played": 0,
+          "revised_target": 0,
+          "revised_overs": 0,
+          "penalty_run": 0,
+          "lead_by": 0,
+          "trail_by": 0,
+          "negative_run": 0,
+          "summary": {
+            "score": "95/1",
+            "over": "(6.4 Ov)",
+            "ball": "(0 Ball)",
+            "rr": "14.25"
+          }
+        },
+        "team_id": 1597087,
+        "teamName": "Rashtrakuta Ranadheeras"
+      }
+    ],
+    "mvp": {
+      "data": {},
+      "link": "",
+      "error": ""
+    },
+    "summaryData": {
+      "status": true,
+      "data": {
+        "match_id": 7093189,
+        "match_type": "Limited Overs",
+        "is_super_over": 0,
+        "match_event_type": "",
+        "match_event": "",
+        "match_inning": 1,
+        "current_inning": 2,
+        "type": 3,
+        "ball_type": "TENNIS",
+        "status": "past",
+        "overs": 7,
+        "balls": 0,
+        "over_reduce": "",
+        "is_dl": 0,
+        "is_vjd": 0,
+        "ground_id": 170209,
+        "ground_name": "Pro Legacy Sports Academy",
+        "city_id": 1798,
+        "city_name": "Bengaluru (Bangalore)",
+        "start_datetime": "2023-06-11T16:49:49.000Z",
+        "win_by": "5 wickets",
+        "winning_team": "Rashtrakuta Ranadheeras",
+        "match_result": "Resulted",
+        "tournament_id": "577076",
+        "tournament_name": "HVC Season 4",
+        "tournament_category": "",
+        "tournament_round_id": "1078180",
+        "tournament_round_name": "Qualifier  2",
+        "association_name": "",
+        "association_logo": "https://media.cricheroes.in/default/default-association-logo.jpg",
+        "steaming_url": "",
+        "is_display_view": 1,
+        "is_ticker": 0,
+        "is_backend_match": 0,
+        "is_video_analyst": 0,
+        "is_in_review": 0,
+        "is_enable_tournament_streaming": 0,
+        "is_enable_match_streaming": 0,
+        "team_a": {
+          "id": 1597088,
+          "name": "Kadamba Yodhas",
+          "logo": "https://media.cricheroes.in/team_logo/1633170656881_MYuQN81shMlw.jpg",
+          "is_home_team": 0,
+          "summary": "94/1",
+          "innings": [
+            {
+              "team_id": 1597088,
+              "inning": 1,
+              "inning_start_time": "2023-06-11T16:49:49.000Z",
+              "inning_end_time": "2023-06-11T17:11:18.000Z",
+              "is_declare": 0,
+              "is_forfeited": 0,
+              "is_followon": 0,
+              "is_allout": 0,
+              "total_run": 94,
+              "total_wicket": 1,
+              "total_extra": 7,
+              "overs_played": "7.0",
+              "balls_played": 0,
+              "revised_target": 0,
+              "revised_overs": 0,
+              "penalty_run": 0,
+              "lead_by": 0,
+              "trail_by": 0,
+              "summary": {
+                "score": "94/1",
+                "over": "(7.0 Ov)",
+                "ball": "(0 Ball)",
+                "rr": "13.43"
+              }
+            }
+          ]
+        },
+        "team_b": {
+          "id": 1597087,
+          "name": "Rashtrakuta Ranadheeras",
+          "logo": "https://media.cricheroes.in/team_logo/1633170341529_WIh27UDlFcMc.jpg",
+          "is_home_team": 0,
+          "summary": "95/1",
+          "innings": [
+            {
+              "team_id": 1597087,
+              "inning": 2,
+              "inning_start_time": "2023-06-11T17:14:39.000Z",
+              "inning_end_time": "2023-06-11T17:34:21.000Z",
+              "is_declare": 0,
+              "is_forfeited": 0,
+              "is_followon": 0,
+              "is_allout": 0,
+              "total_run": 95,
+              "total_wicket": 1,
+              "total_extra": 12,
+              "overs_played": "6.4",
+              "balls_played": 0,
+              "revised_target": 0,
+              "revised_overs": 0,
+              "penalty_run": 0,
+              "lead_by": 0,
+              "trail_by": 0,
+              "summary": {
+                "score": "95/1",
+                "over": "(6.4 Ov)",
+                "ball": "(0 Ball)",
+                "rr": "14.25"
+              }
+            }
+          ]
+        },
+        "insight_statements": [
+          "<font color='#14212A' face='Source Sans Pro'>Which team has scored more boundaries? <b>Kadamba Yodhas</b> or <b>Rashtrakuta Ranadheeras</b>?</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Which team faced more <b>dot balls</b>? Find out now!</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Did captains make the right choice of <b>bowling attack</b> in this match?</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Which bowler gave away the <b>highest runs</b> in an over?</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Which team gave more <b>extra runs</b>?</font>"
+        ],
+        "streaming_details": [],
+        "primary_video_seconds": 0,
+        "match_category_name": "",
+        "highlight_video": [],
+        "toss_details": "Toss: Kadamba Yodhas opt to bat",
+        "streaming_multiple_url": "",
+        "web_title_message": "Kadamba Yodhas 94/1 vs Rashtrakuta Ranadheeras 95/1 at Pro Legacy Sports Academy, Bengaluru (Bangalore) Check full scoreboard at https://goo.gl/uN5sJH",
+        "short_url": ";",
+        "match_summary": {
+          "team_id": -1,
+          "summary": "Rashtrakuta Ranadheeras won by 5 wickets",
+          "short_summary": "",
+          "full_summary": "",
+          "rrr": "0.00",
+          "target": "-"
+        },
+        "share_message": "Kadamba Yodhas 94/1(7.0) vs Rashtrakuta Ranadheeras 95/1(6.4). Rashtrakuta Ranadheeras won by 5 wickets Full Scorecard: https://cricheroes.in/scorecard/7093189/HVC-Season-4/Kadamba-Yodhas-vs-Rashtrakuta-Ranadheeras via CricHeroes App : https://crichero.es/apps",
+        "whatsapp_share_url": "whatsapp://send?text=Kadamba%20Yodhas%2094%2F1(7.0)%20vs%20Rashtrakuta%20Ranadheeras%2095%2F1(6.4).%20Rashtrakuta%20Ranadheeras%20won%20by%205%20wickets%20Full%20Scorecard%3A%20https%3A%2F%2Fcricheroes.in%2Fscorecard%2F7093189%2FHVC-Season-4%2FKadamba-Yodhas-vs-Rashtrakuta-Ranadheeras%20via%20CricHeroes%20App%20%3A%20https%3A%2F%2Fcrichero.es%2Fapps",
+        "best_performances": {
+          "batting": [
+            {
+              "team_id": 1597087,
+              "team_name": "Rashtrakuta Ranadheeras",
+              "player_id": 8452770,
+              "player_name": "Ashrith Kashyap",
+              "runs": 53,
+              "balls": 19,
+              "4s": 1,
+              "6s": 7,
+              "strike_rate": "278.95",
+              "bonus_run": 0,
+              "is_out": 0,
+              "inning": 2,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1597088,
+              "team_name": "Kadamba Yodhas",
+              "player_id": 8445318,
+              "player_name": "K S Akshay Kaushik",
+              "runs": 48,
+              "balls": 16,
+              "4s": 0,
+              "6s": 7,
+              "strike_rate": "300.00",
+              "bonus_run": 0,
+              "is_out": 0,
+              "inning": 1,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1597088,
+              "team_name": "Kadamba Yodhas",
+              "player_id": 8444531,
+              "player_name": "Shreenidhi Prakash",
+              "runs": 32,
+              "balls": 17,
+              "4s": 2,
+              "6s": 3,
+              "strike_rate": "188.24",
+              "bonus_run": 0,
+              "is_out": 0,
+              "inning": 1,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            }
+          ],
+          "bowling": [
+            {
+              "team_id": 1597087,
+              "team_name": "Rashtrakuta Ranadheeras",
+              "player_id": 10031570,
+              "player_name": "Sridhar Ramchandrachar",
+              "overs": "1.0",
+              "balls": 0,
+              "maidens": 1,
+              "0s": 6,
+              "runs": 0,
+              "wickets": 0,
+              "economy_rate": "0.00",
+              "inning": 1,
+              "bonus_run": 0,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1597088,
+              "team_name": "Kadamba Yodhas",
+              "player_id": 8445356,
+              "player_name": "Pradyumna",
+              "overs": "1.0",
+              "balls": 0,
+              "maidens": 0,
+              "0s": 4,
+              "runs": 2,
+              "wickets": 0,
+              "economy_rate": "2.00",
+              "inning": 2,
+              "bonus_run": 0,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1597088,
+              "team_name": "Kadamba Yodhas",
+              "player_id": 8445462,
+              "player_name": "Prasad K S",
+              "overs": "1.0",
+              "balls": 0,
+              "maidens": 0,
+              "0s": 2,
+              "runs": 4,
+              "wickets": 0,
+              "economy_rate": "4.00",
+              "inning": 2,
+              "bonus_run": 0,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            }
+          ]
+        },
+        "player_of_the_match": {
+          "player_id": 8452770,
+          "player_name": "Ashrith Kashyap",
+          "team_name": "Rashtrakuta Ranadheeras",
+          "profile_photo": "https://media.cricheroes.in/default/user_profile.png"
+        },
+        "match_official": [],
+        "match_notes": [
+          {
+            "team_id": 1597088,
+            "inning": 1,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Match started at 11 Jun, 10:19 PM."
+          },
+          {
+            "team_id": 1597088,
+            "inning": 1,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Kadamba Yodhas: 50 runs in 5 overs, Extras 5"
+          },
+          {
+            "team_id": 1597088,
+            "inning": 1,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "2nd Wicket: 53 runs in 21 balls (K S AKSHAY KAUSHIK 27(8), Shreenidhi Prakash 23(13), Ex 3)"
+          },
+          {
+            "team_id": 1597088,
+            "inning": 1,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Innings Break: Kadamba Yodhas - 94/1 in 7 overs (K S AKSHAY KAUSHIK 48, Shreenidhi Prakash 32)"
+          },
+          {
+            "team_id": 1597088,
+            "inning": 1,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Innings Ended at 11 Jun, 10:41 PM"
+          },
+          {
+            "team_id": 1597087,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Innings Started at 11 Jun, 10:44 PM"
+          },
+          {
+            "team_id": 1597087,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Rashtrakuta Ranadheeras: 55 runs in 4 overs, Extras 4"
+          },
+          {
+            "team_id": 1597087,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "2nd Wicket: 53 runs in 16 balls (Pranav PK 13(6), Ashrith Kashyap 36(10), Ex 4)"
+          },
+          {
+            "team_id": 1597087,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Ashrith Kashyap: 52 off 18 balls (1 X 4, 7 X 6)"
+          },
+          {
+            "team_id": 1597087,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "End of Day: Rashtrakuta Ranadheeras - 95/1 in 6.4 overs (Pranav PK 24, Ashrith Kashyap 53)"
+          },
+          {
+            "team_id": 1597087,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Match ended at 11 Jun, 11:04 PM."
+          }
+        ],
+        "scorer_notes": [],
+        "match_close_of_play": [],
+        "tiny_share_url": ""
+      }
+    },
+    "teamSquad": {
+      "status": false
+    },
+    "upcomingResponse": {
+      "status": false
+    },
+    "key": "/scorecard/7093189/x/x-vs-x/scorecard",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
+  },
+  "__N_SSP": true
+}

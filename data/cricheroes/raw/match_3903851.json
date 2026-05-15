@@ -1,0 +1,988 @@
+{
+  "pageProps": {
+    "tab": "scorecard",
+    "miniScorecard": {
+      "status": false
+    },
+    "scorecard": [
+      {
+        "bowling": [
+          {
+            "player_id": 8445356,
+            "name": "Pradyumna",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 1,
+            "runs": 0,
+            "wickets": 0,
+            "0s": 6,
+            "4s": 0,
+            "6s": 0,
+            "wide": 0,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "0.00",
+            "type_code": "",
+            "inning": 1
+          },
+          {
+            "player_id": 10046726,
+            "name": "Shrivatsa Hatwar",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 5,
+            "wickets": 0,
+            "0s": 5,
+            "4s": 1,
+            "6s": 0,
+            "wide": 1,
+            "noball": 0,
+            "extra_type_run_wide": 1,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "5.00",
+            "type_code": "",
+            "inning": 1
+          },
+          {
+            "player_id": 8445499,
+            "name": "Paneendra Gautham",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 14,
+            "wickets": 1,
+            "0s": 3,
+            "4s": 0,
+            "6s": 2,
+            "wide": 0,
+            "noball": 1,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 1,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "14.00",
+            "type_code": "",
+            "inning": 1
+          },
+          {
+            "player_id": 5994303,
+            "name": "Srikanth T K",
+            "overs": 2,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 29,
+            "wickets": 0,
+            "0s": 8,
+            "4s": 0,
+            "6s": 4,
+            "wide": 3,
+            "noball": 1,
+            "extra_type_run_wide": 3,
+            "extra_type_run_noball": 1,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "14.50",
+            "type_code": "",
+            "inning": 1
+          },
+          {
+            "player_id": 4048334,
+            "name": "Ravi Aniruddha",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 1,
+            "wickets": 0,
+            "0s": 6,
+            "4s": 0,
+            "6s": 0,
+            "wide": 1,
+            "noball": 0,
+            "extra_type_run_wide": 1,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "1.00",
+            "type_code": "",
+            "inning": 1
+          },
+          {
+            "player_id": 4143096,
+            "name": "Aniruddha Dv",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 10,
+            "wickets": 2,
+            "0s": 4,
+            "4s": 0,
+            "6s": 1,
+            "wide": 3,
+            "noball": 0,
+            "extra_type_run_wide": 3,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "10.00",
+            "type_code": "",
+            "inning": 1
+          }
+        ],
+        "fall_of_wicket": {
+          "data": [
+            {
+              "run": 0,
+              "wicket": 1,
+              "over": 1,
+              "balls": 0,
+              "dismiss_player_id": 8445309,
+              "dismiss_player_name": "Sandeep"
+            },
+            {
+              "run": 5,
+              "wicket": 2,
+              "over": 2,
+              "balls": 0,
+              "dismiss_player_id": 10031570,
+              "dismiss_player_name": "Sridhar Ramchandrachar"
+            },
+            {
+              "run": 5,
+              "wicket": 3,
+              "over": 2.1,
+              "balls": 0,
+              "dismiss_player_id": 8469155,
+              "dismiss_player_name": "Krishna Mys"
+            },
+            {
+              "run": 24,
+              "wicket": 3,
+              "over": 5,
+              "balls": 0,
+              "dismiss_player_id": 8444531,
+              "dismiss_player_name": "Shreenidhi Prakash"
+            },
+            {
+              "run": 51,
+              "wicket": 4,
+              "over": 6.1,
+              "balls": 0,
+              "dismiss_player_id": 4416809,
+              "dismiss_player_name": "BHARATH G S AGASTHYA"
+            },
+            {
+              "run": 53,
+              "wicket": 5,
+              "over": 6.5,
+              "balls": 0,
+              "dismiss_player_id": 8445368,
+              "dismiss_player_name": "Jeethu"
+            }
+          ],
+          "summary": "0-1 (Sandeep, 1 ov), 5-2 (Sridhar Ramchandrachar, 2 ov), 5-3 (Krishna Mys, 2.1 ov), 24-3 (Shreenidhi Prakash, 5 ov), 51-4 (BHARATH G S AGASTHYA, 6.1 ov), 53-5 (Jeethu, 6.5 ov)"
+        },
+        "to_be_bat": [
+          {
+            "player_id": 10052264,
+            "name": "Srikrishna"
+          }
+        ],
+        "extras": {
+          "data": [
+            {
+              "extra_type_id": 1,
+              "type_code": "WD",
+              "type": "",
+              "extra_type_run": 8,
+              "extra_run": 0
+            },
+            {
+              "extra_type_id": 2,
+              "type_code": "NB",
+              "type": "",
+              "extra_type_run": 2,
+              "extra_run": 0
+            }
+          ],
+          "summary": "(wd 8, nb 2)",
+          "total": 10
+        },
+        "batting": [
+          {
+            "how_to_out": "retired out",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "",
+            "SR": "0.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 2,
+            "balls": 6,
+            "runs": 0,
+            "name": "Sandeep",
+            "player_id": 8445309
+          },
+          {
+            "how_to_out": "not out",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "25.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 16,
+            "balls": 4,
+            "runs": 1,
+            "name": "Shreenidhi Prakash",
+            "player_id": 8444531
+          },
+          {
+            "how_to_out": "retired out",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "LHB",
+            "SR": "66.67",
+            "6s": 0,
+            "4s": 1,
+            "minutes": 3,
+            "balls": 6,
+            "runs": 4,
+            "name": "Sridhar Ramchandrachar",
+            "player_id": 10031570
+          },
+          {
+            "how_to_out": "c Srikanth T K b Paneendra Gautham",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "0.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 1,
+            "balls": 1,
+            "runs": 0,
+            "name": "Krishna Mys",
+            "player_id": 8469155
+          },
+          {
+            "how_to_out": "b Aniruddha Dv",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "87.50",
+            "6s": 2,
+            "4s": 0,
+            "minutes": 9,
+            "balls": 16,
+            "runs": 14,
+            "name": "BHARATH G S AGASTHYA",
+            "player_id": 4416809
+          },
+          {
+            "how_to_out": "b Aniruddha Dv",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "LHB",
+            "SR": "240.00",
+            "6s": 4,
+            "4s": 0,
+            "minutes": 3,
+            "balls": 10,
+            "runs": 24,
+            "name": "Jeethu",
+            "player_id": 8445368
+          },
+          {
+            "how_to_out": "not out",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "LHB",
+            "SR": "600.00",
+            "6s": 1,
+            "4s": 0,
+            "minutes": 1,
+            "balls": 1,
+            "runs": 6,
+            "name": "Guruprasad Ramachandrachar",
+            "player_id": 8445342
+          }
+        ],
+        "inning": {
+          "team_id": 1597090,
+          "inning": 1,
+          "inning_start_time": "2022-07-03T06:31:12.000Z",
+          "inning_end_time": "2022-07-03T06:49:56.000Z",
+          "is_declare": 0,
+          "is_forfeited": 0,
+          "is_followon": 0,
+          "is_allout": 0,
+          "total_run": 59,
+          "total_wicket": 5,
+          "total_extra": 10,
+          "overs_played": "7.0",
+          "balls_played": 0,
+          "revised_target": 0,
+          "revised_overs": 0,
+          "penalty_run": 0,
+          "lead_by": 0,
+          "trail_by": 0,
+          "summary": {
+            "score": "59/5",
+            "over": "(7.0 Ov)",
+            "ball": "(0 Ball)",
+            "rr": "8.43"
+          }
+        },
+        "team_id": 1597090,
+        "teamName": "Wodeyars The Kings"
+      },
+      {
+        "bowling": [
+          {
+            "player_id": 8445309,
+            "name": "Sandeep",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 10,
+            "wickets": 0,
+            "0s": 3,
+            "4s": 0,
+            "6s": 1,
+            "wide": 2,
+            "noball": 0,
+            "extra_type_run_wide": 2,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "10.00",
+            "type_code": "",
+            "inning": 2
+          },
+          {
+            "player_id": 10031570,
+            "name": "Sridhar Ramchandrachar",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 6,
+            "wickets": 0,
+            "0s": 5,
+            "4s": 0,
+            "6s": 1,
+            "wide": 0,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "6.00",
+            "type_code": "",
+            "inning": 2
+          },
+          {
+            "player_id": 4416809,
+            "name": "BHARATH G S AGASTHYA",
+            "overs": 2,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 15,
+            "wickets": 2,
+            "0s": 5,
+            "4s": 1,
+            "6s": 1,
+            "wide": 0,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "7.50",
+            "type_code": "",
+            "inning": 2
+          },
+          {
+            "player_id": 8445342,
+            "name": "Guruprasad Ramachandrachar",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 5,
+            "wickets": 0,
+            "0s": 3,
+            "4s": 0,
+            "6s": 0,
+            "wide": 2,
+            "noball": 0,
+            "extra_type_run_wide": 2,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "5.00",
+            "type_code": "",
+            "inning": 2
+          },
+          {
+            "player_id": 8445368,
+            "name": "Jeethu",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 7,
+            "wickets": 0,
+            "0s": 4,
+            "4s": 0,
+            "6s": 1,
+            "wide": 0,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "bonus_run": 0,
+            "economy_rate": "7.00",
+            "type_code": "",
+            "inning": 2
+          },
+          {
+            "player_id": 8444531,
+            "name": "Shreenidhi Prakash",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 20,
+            "wickets": 1,
+            "0s": 3,
+            "4s": 0,
+            "6s": 3,
+            "wide": 1,
+            "noball": 0,
+            "extra_type_run_wide": 1,
+            "extra_type_run_noball": 0,
+            "extra_run": 1,
+            "bonus_run": 0,
+            "economy_rate": "20.00",
+            "type_code": "",
+            "inning": 2
+          }
+        ],
+        "fall_of_wicket": {
+          "data": [
+            {
+              "run": 10,
+              "wicket": 1,
+              "over": 1,
+              "balls": 0,
+              "dismiss_player_id": 8445356,
+              "dismiss_player_name": "Pradyumna"
+            },
+            {
+              "run": 16,
+              "wicket": 1,
+              "over": 2,
+              "balls": 0,
+              "dismiss_player_id": 10046726,
+              "dismiss_player_name": "Shrivatsa Hatwar"
+            },
+            {
+              "run": 16,
+              "wicket": 2,
+              "over": 2.2,
+              "balls": 0,
+              "dismiss_player_id": 4143096,
+              "dismiss_player_name": "Aniruddha Dv"
+            },
+            {
+              "run": 32,
+              "wicket": 2,
+              "over": 5,
+              "balls": 0,
+              "dismiss_player_id": 8445499,
+              "dismiss_player_name": "Paneendra Gautham"
+            },
+            {
+              "run": 32,
+              "wicket": 3,
+              "over": 5.2,
+              "balls": 0,
+              "dismiss_player_id": 5994303,
+              "dismiss_player_name": "Srikanth T K"
+            },
+            {
+              "run": 43,
+              "wicket": 4,
+              "over": 6.1,
+              "balls": 0,
+              "dismiss_player_id": 8445499,
+              "dismiss_player_name": "Paneendra Gautham"
+            }
+          ],
+          "summary": "10-1 (Pradyumna, 1 ov), 16-1 (Shrivatsa Hatwar, 2 ov), 16-2 (Aniruddha Dv, 2.2 ov), 32-2 (Paneendra Gautham, 5 ov), 32-3 (Srikanth T K, 5.2 ov), 43-4 (Paneendra Gautham, 6.1 ov)"
+        },
+        "to_be_bat": [
+          {
+            "player_id": 6508655,
+            "name": "Sudharshan"
+          }
+        ],
+        "extras": {
+          "data": [
+            {
+              "extra_type_id": 1,
+              "type_code": "WD",
+              "type": "",
+              "extra_type_run": 5,
+              "extra_run": 1
+            }
+          ],
+          "summary": "(wd 6)",
+          "total": 6
+        },
+        "batting": [
+          {
+            "how_to_out": "retired out",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "133.33",
+            "6s": 1,
+            "4s": 0,
+            "minutes": 2,
+            "balls": 6,
+            "runs": 8,
+            "name": "Pradyumna",
+            "player_id": 8445356
+          },
+          {
+            "how_to_out": "c Shreenidhi Prakash b BHARATH G S AGASTHYA",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "0.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 5,
+            "balls": 1,
+            "runs": 0,
+            "name": "Aniruddha Dv",
+            "player_id": 4143096
+          },
+          {
+            "how_to_out": "not out",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "100.00",
+            "6s": 1,
+            "4s": 0,
+            "minutes": 5,
+            "balls": 6,
+            "runs": 6,
+            "name": "Shrivatsa Hatwar",
+            "player_id": 10046726
+          },
+          {
+            "how_to_out": "c BHARATH G S AGASTHYA b Shreenidhi Prakash",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "129.41",
+            "6s": 2,
+            "4s": 1,
+            "minutes": 9,
+            "balls": 17,
+            "runs": 22,
+            "name": "Paneendra Gautham",
+            "player_id": 8445499
+          },
+          {
+            "how_to_out": "not out",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "210.00",
+            "6s": 3,
+            "4s": 0,
+            "minutes": 12,
+            "balls": 10,
+            "runs": 21,
+            "name": "Ravi Aniruddha",
+            "player_id": 4048334
+          },
+          {
+            "how_to_out": "c Shreenidhi Prakash b BHARATH G S AGASTHYA",
+            "wicket_videos": [],
+            "highlight_videos": [],
+            "batting_hand": "RHB",
+            "SR": "0.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 1,
+            "balls": 2,
+            "runs": 0,
+            "name": "Srikanth T K",
+            "player_id": 5994303
+          }
+        ],
+        "inning": {
+          "team_id": 1597091,
+          "inning": 2,
+          "inning_start_time": "2022-07-03T06:51:02.000Z",
+          "inning_end_time": "2022-07-03T07:09:28.000Z",
+          "is_declare": 0,
+          "is_forfeited": 0,
+          "is_followon": 0,
+          "is_allout": 0,
+          "total_run": 63,
+          "total_wicket": 4,
+          "total_extra": 6,
+          "overs_played": "7.0",
+          "balls_played": 0,
+          "revised_target": 0,
+          "revised_overs": 0,
+          "penalty_run": 0,
+          "lead_by": 0,
+          "trail_by": 0,
+          "summary": {
+            "score": "63/4",
+            "over": "(7.0 Ov)",
+            "ball": "(0 Ball)",
+            "rr": "9.00"
+          }
+        },
+        "team_id": 1597091,
+        "teamName": "Vijayanagara Royals"
+      }
+    ],
+    "mvp": {
+      "data": {},
+      "link": "",
+      "error": ""
+    },
+    "summaryData": {
+      "status": true,
+      "data": {
+        "match_id": 3903851,
+        "match_type": "Limited Overs",
+        "is_super_over": 0,
+        "match_event_type": "",
+        "match_event": "",
+        "match_inning": 1,
+        "current_inning": 2,
+        "type": 3,
+        "ball_type": "TENNIS",
+        "status": "past",
+        "overs": 7,
+        "balls": 0,
+        "over_reduce": "",
+        "is_dl": 0,
+        "is_vjd": 0,
+        "ground_id": 170209,
+        "ground_name": "Pro Legacy Sports Academy",
+        "city_id": 1798,
+        "city_name": "Bengaluru (Bangalore)",
+        "start_datetime": "2022-07-03T06:31:12.000Z",
+        "win_by": "2 wickets",
+        "winning_team": "Vijayanagara Royals",
+        "match_result": "Resulted",
+        "tournament_id": "443660",
+        "tournament_name": "HVC Premier League - Season 3",
+        "tournament_category": "",
+        "tournament_round_id": "781622",
+        "tournament_round_name": "League Matches",
+        "association_name": "",
+        "association_logo": "https://media.cricheroes.in/default/default-association-logo.jpg",
+        "steaming_url": "",
+        "is_display_view": 1,
+        "is_ticker": 0,
+        "is_backend_match": 0,
+        "is_video_analyst": 0,
+        "is_in_review": 0,
+        "is_enable_tournament_streaming": 0,
+        "is_enable_match_streaming": 0,
+        "team_a": {
+          "id": 1597090,
+          "name": "Wodeyars The Kings",
+          "logo": "https://media.cricheroes.in/team_logo/1633170695811_IPVQNkH7jQaq.jpg",
+          "is_home_team": 0,
+          "summary": "59/5",
+          "innings": [
+            {
+              "team_id": 1597090,
+              "inning": 1,
+              "inning_start_time": "2022-07-03T06:31:12.000Z",
+              "inning_end_time": "2022-07-03T06:49:56.000Z",
+              "is_declare": 0,
+              "is_forfeited": 0,
+              "is_followon": 0,
+              "is_allout": 0,
+              "total_run": 59,
+              "total_wicket": 5,
+              "total_extra": 10,
+              "overs_played": "7.0",
+              "balls_played": 0,
+              "revised_target": 0,
+              "revised_overs": 0,
+              "penalty_run": 0,
+              "lead_by": 0,
+              "trail_by": 0,
+              "summary": {
+                "score": "59/5",
+                "over": "(7.0 Ov)",
+                "ball": "(0 Ball)",
+                "rr": "8.43"
+              }
+            }
+          ]
+        },
+        "team_b": {
+          "id": 1597091,
+          "name": "Vijayanagara Royals",
+          "logo": "https://media.cricheroes.in/team_logo/1632742407133_WFLqkX4wweja.jpg",
+          "is_home_team": 0,
+          "summary": "63/4",
+          "innings": [
+            {
+              "team_id": 1597091,
+              "inning": 2,
+              "inning_start_time": "2022-07-03T06:51:02.000Z",
+              "inning_end_time": "2022-07-03T07:09:28.000Z",
+              "is_declare": 0,
+              "is_forfeited": 0,
+              "is_followon": 0,
+              "is_allout": 0,
+              "total_run": 63,
+              "total_wicket": 4,
+              "total_extra": 6,
+              "overs_played": "7.0",
+              "balls_played": 0,
+              "revised_target": 0,
+              "revised_overs": 0,
+              "penalty_run": 0,
+              "lead_by": 0,
+              "trail_by": 0,
+              "summary": {
+                "score": "63/4",
+                "over": "(7.0 Ov)",
+                "ball": "(0 Ball)",
+                "rr": "9.00"
+              }
+            }
+          ]
+        },
+        "insight_statements": [
+          "<font color='#14212A' face='Source Sans Pro'>Which team has scored more boundaries? <b>Wodeyars The Kings</b> or <b>Vijayanagara Royals</b>?</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Which team faced more <b>dot balls</b>? Find out now!</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Did captains make the right choice of <b>bowling attack</b> in this match?</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Which bowler gave away the <b>highest runs</b> in an over?</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Which team gave more <b>extra runs</b>?</font>"
+        ],
+        "streaming_details": [],
+        "primary_video_seconds": 0,
+        "match_category_name": "",
+        "highlight_video": [],
+        "toss_details": "Toss: Vijayanagara Royals opt to field",
+        "streaming_multiple_url": "",
+        "web_title_message": "Wodeyars The Kings 59/5 vs Vijayanagara Royals 63/4 at Pro Legacy Sports Academy, Bengaluru (Bangalore) Check full scoreboard at https://goo.gl/uN5sJH",
+        "short_url": ";",
+        "match_summary": {
+          "team_id": -1,
+          "summary": "Vijayanagara Royals won by 2 wickets",
+          "short_summary": "",
+          "full_summary": "",
+          "rrr": "0.00",
+          "target": "-"
+        },
+        "share_message": "Wodeyars The Kings 59/5(7.0) vs Vijayanagara Royals 63/4(7.0). Vijayanagara Royals won by 2 wickets Full Scorecard: https://cricheroes.in/scorecard/3903851/HVC-Premier-League---Season-3/Wodeyars-The-Kings-vs-Vijayanagara-Royals via CricHeroes App : https://crichero.es/apps",
+        "whatsapp_share_url": "whatsapp://send?text=Wodeyars%20The%20Kings%2059%2F5(7.0)%20vs%20Vijayanagara%20Royals%2063%2F4(7.0).%20Vijayanagara%20Royals%20won%20by%202%20wickets%20Full%20Scorecard%3A%20https%3A%2F%2Fcricheroes.in%2Fscorecard%2F3903851%2FHVC-Premier-League---Season-3%2FWodeyars-The-Kings-vs-Vijayanagara-Royals%20via%20CricHeroes%20App%20%3A%20https%3A%2F%2Fcrichero.es%2Fapps",
+        "best_performances": {
+          "batting": [
+            {
+              "team_id": 1597090,
+              "team_name": "Wodeyars The Kings",
+              "player_id": 8445368,
+              "player_name": "Jeethu",
+              "runs": 24,
+              "balls": 10,
+              "4s": 0,
+              "6s": 4,
+              "strike_rate": "240.00",
+              "bonus_run": 0,
+              "is_out": 1,
+              "inning": 1,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1597091,
+              "team_name": "Vijayanagara Royals",
+              "player_id": 8445499,
+              "player_name": "Paneendra Gautham",
+              "runs": 22,
+              "balls": 17,
+              "4s": 1,
+              "6s": 2,
+              "strike_rate": "129.41",
+              "bonus_run": 0,
+              "is_out": 1,
+              "inning": 2,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1597091,
+              "team_name": "Vijayanagara Royals",
+              "player_id": 4048334,
+              "player_name": "Ravi Aniruddha",
+              "runs": 21,
+              "balls": 10,
+              "4s": 0,
+              "6s": 3,
+              "strike_rate": "210.00",
+              "bonus_run": 0,
+              "is_out": 0,
+              "inning": 2,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            }
+          ],
+          "bowling": [
+            {
+              "team_id": 1597090,
+              "team_name": "Wodeyars The Kings",
+              "player_id": 4416809,
+              "player_name": "Bharath G S Agasthya",
+              "overs": "2.0",
+              "balls": 0,
+              "maidens": 0,
+              "0s": 5,
+              "runs": 15,
+              "wickets": 2,
+              "economy_rate": "7.50",
+              "inning": 2,
+              "bonus_run": 0,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1597091,
+              "team_name": "Vijayanagara Royals",
+              "player_id": 4143096,
+              "player_name": "Aniruddha Dv",
+              "overs": "1.0",
+              "balls": 0,
+              "maidens": 0,
+              "0s": 4,
+              "runs": 10,
+              "wickets": 2,
+              "economy_rate": "10.00",
+              "inning": 1,
+              "bonus_run": 0,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1597091,
+              "team_name": "Vijayanagara Royals",
+              "player_id": 8445499,
+              "player_name": "Paneendra Gautham",
+              "overs": "1.0",
+              "balls": 0,
+              "maidens": 0,
+              "0s": 3,
+              "runs": 14,
+              "wickets": 1,
+              "economy_rate": "14.00",
+              "inning": 1,
+              "bonus_run": 0,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            }
+          ]
+        },
+        "player_of_the_match": {
+          "player_id": 4048334,
+          "player_name": "Ravi Aniruddha",
+          "team_name": "Vijayanagara Royals",
+          "profile_photo": "https://media.cricheroes.in/default/user_profile.png"
+        },
+        "match_official": [],
+        "match_notes": [
+          {
+            "team_id": 1597090,
+            "inning": 1,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Match started at 03 Jul, 12:01 PM."
+          },
+          {
+            "team_id": 1597090,
+            "inning": 1,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Wodeyars The Kings: 50 runs in 6 overs, Extras 8"
+          },
+          {
+            "team_id": 1597090,
+            "inning": 1,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Innings Break: Wodeyars The Kings - 59/5 in 7 overs (Shreenidhi Prakash 1, Guruprasad Ramachandrachar 6)"
+          },
+          {
+            "team_id": 1597090,
+            "inning": 1,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Innings Ended at 03 Jul, 12:19 PM"
+          },
+          {
+            "team_id": 1597091,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Innings Started at 03 Jul, 12:21 PM"
+          },
+          {
+            "team_id": 1597091,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Vijayanagara Royals: 51 runs in 6.3 overs, Extras 6"
+          },
+          {
+            "team_id": 1597091,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "End of Day: Vijayanagara Royals - 63/4 in 7 overs (Ravi Aniruddha 21, Shrivatsa Hatwar 6)"
+          },
+          {
+            "team_id": 1597091,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Match ended at 03 Jul, 12:39 PM."
+          }
+        ],
+        "scorer_notes": [],
+        "match_close_of_play": [],
+        "tiny_share_url": ""
+      }
+    },
+    "teamSquad": {
+      "status": false
+    },
+    "upcomingResponse": {
+      "status": false
+    },
+    "key": "/scorecard/3903851/x/x-vs-x/scorecard",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
+  },
+  "__N_SSP": true
+}

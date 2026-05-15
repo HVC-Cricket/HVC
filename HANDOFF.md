@@ -8,7 +8,9 @@
 
 We are building **HVC Scoring**, a web app for live scoring and spectating a **box cricket tournament** with custom rules. Multiple admins enter ball-by-ball data; 50–60+ spectators (possibly more) follow scores live in their browsers.
 
-**Status as of 2026-05-15:** Phases 0–3 done, Phase 4 done through 4d part 3a (super over flow). Phase 5 done through part 2 (live + completed scorecards, points table, player career page) plus dynamic OG. Phase 6 has PWA + service worker + IndexedDB durable write queue + per-match web push notifications + Manhattan/worm charts + optimistic UI on scoring (record + undo) + scorecard parity pass (fall of wickets, partnerships, did-not-bat, bowler dots/maidens) + auto Player-of-the-Match formula with admin override + a major scoring-page UX overhaul (merged slot tiles, engine-replay rotation, bowler-rule enforcement, modal wicket form). 2026-05-12 layered on: a scoreboard-level Category dropdown (Cat 1 / Cat 2 / Cat 3), Cat-1-must-face-Cat-1 enforcement at innings starts, wicket modal Delivery select, `balls_ball_in_over_range = 0..6`, engine slot-sync during replay. **2026-05-13** layered on: a mobile header fix (Tournaments / Players links now visible at all widths), a wicket-on-extra display fix (`1wd+W` etc), a two-tier refactor pass that extracted shared scoring helpers (`stats.ts`, `replay.ts`) plus split `scoreboard.tsx` / `actions.ts` into smaller siblings (`wicket-button.tsx`, `record-ball-helpers.ts`, `use-offline-queue.ts`), and a **multi-scorer lock with permission-based takeover** (`primary_scorer_id` / `pending_scorer_request_id` columns on matches; only one admin records at a time; second admin files a Request → current holder Allows / Denies; auto-expires after 2 min of no heartbeat). Same day also brought UX + rule additions: default over Category remapped (over 2 → Cat 3, over 3+ → Cat 2); Cat 1/3 **repeat-dismissal rule** (`balls.counts_for_innings_total` — bowler credited each time, team total only on the first dismissal); wicket modal **Runs picker + "Runs are byes" toggle** for the no-ball-byes-wicket case; main panel collapsed to single Wide/No-ball/Bye/Overthrow buttons with inline 0–6 pickers; engine fix to **rotate strike on non-legal odd-run deliveries**; mobile slot tiles split 2/1 (striker + non-striker on row 1, bowler on row 2); "This over" pills moved inside the Bowler tile, "Previous over" panel at the bottom of the page; global site nav hidden on mobile when on the score route; "Record ball" header dropped; **previous-over bowler disabled** in the bowler picker; **last-man-standing rule** (HVC: lone batter keeps batting until dismissed, strike doesn't rotate, non-striker slot locked, orange badge in the header); manual **⇄ Swap** button for striker / non-striker; `pnpm-workspace.yaml` `onlyBuiltDependencies` malformed-string fixed. **2026-05-14** polished the last-man UX: striker is now **auto-picked** as the lone live batter when the rule kicks in; non-striker slot is **cleared** instead of held when it would conflict with the live batter, then accepts any dismissed batter as the dummy via a relaxed picker. Same day: wicket modal **Player out** dropdown now defaults to "Striker" for every dismissal except **run-out**, which clears the field and forces an explicit pick (with a Save-blocking toast if left empty). **2026-05-15** polished the slot tiles themselves: textual labels removed; **bat icon** before each batter (cyan for striker, dim for non-striker); **ball icon** before the bowler; bowler stats inlined onto the same row as the name; `1×4 6×6` boundary count dropped from the batter stats line. Player-registry writes hardened on 2026-05-09: only super-admins and tournament organizers can create/edit players (was: any signed-in user). Dead `updateTournamentStatus` action removed; status changes flow through the gated `updateTournament` action. Two super admins bootstrapped (`pavan.gautham17@gmail.com`, `sudarshan61kv@gmail.com`).
+**Status as of 2026-05-16:** Phases 0–3 done, Phase 4 done through 4d part 3a (super over flow). Phase 5 done through part 2 (live + completed scorecards, points table, player career page) plus dynamic OG. Phase 6 has PWA + service worker + IndexedDB durable write queue + per-match web push notifications + Manhattan/worm charts + optimistic UI on scoring (record + undo) + scorecard parity pass (fall of wickets, partnerships, did-not-bat, bowler dots/maidens) + auto Player-of-the-Match formula with admin override + a major scoring-page UX overhaul (merged slot tiles, engine-replay rotation, bowler-rule enforcement, modal wicket form). 2026-05-12 layered on: a scoreboard-level Category dropdown (Cat 1 / Cat 2 / Cat 3), Cat-1-must-face-Cat-1 enforcement at innings starts, wicket modal Delivery select, `balls_ball_in_over_range = 0..6`, engine slot-sync during replay. **2026-05-13** layered on: a mobile header fix (Tournaments / Players links now visible at all widths), a wicket-on-extra display fix (`1wd+W` etc), a two-tier refactor pass that extracted shared scoring helpers (`stats.ts`, `replay.ts`) plus split `scoreboard.tsx` / `actions.ts` into smaller siblings (`wicket-button.tsx`, `record-ball-helpers.ts`, `use-offline-queue.ts`), and a **multi-scorer lock with permission-based takeover** (`primary_scorer_id` / `pending_scorer_request_id` columns on matches; only one admin records at a time; second admin files a Request → current holder Allows / Denies; auto-expires after 2 min of no heartbeat). Same day also brought UX + rule additions: default over Category remapped (over 2 → Cat 3, over 3+ → Cat 2); Cat 1/3 **repeat-dismissal rule** (`balls.counts_for_innings_total` — bowler credited each time, team total only on the first dismissal); wicket modal **Runs picker + "Runs are byes" toggle** for the no-ball-byes-wicket case; main panel collapsed to single Wide/No-ball/Bye/Overthrow buttons with inline 0–6 pickers; engine fix to **rotate strike on non-legal odd-run deliveries**; mobile slot tiles split 2/1 (striker + non-striker on row 1, bowler on row 2); "This over" pills moved inside the Bowler tile, "Previous over" panel at the bottom of the page; global site nav hidden on mobile when on the score route; "Record ball" header dropped; **previous-over bowler disabled** in the bowler picker; **last-man-standing rule** (HVC: lone batter keeps batting until dismissed, strike doesn't rotate, non-striker slot locked, orange badge in the header); manual **⇄ Swap** button for striker / non-striker; `pnpm-workspace.yaml` `onlyBuiltDependencies` malformed-string fixed. **2026-05-14** polished the last-man UX: striker is now **auto-picked** as the lone live batter when the rule kicks in; non-striker slot is **cleared** instead of held when it would conflict with the live batter, then accepts any dismissed batter as the dummy via a relaxed picker. Same day: wicket modal **Player out** dropdown now defaults to "Striker" for every dismissal except **run-out**, which clears the field and forces an explicit pick (with a Save-blocking toast if left empty). **2026-05-15** polished the slot tiles themselves: textual labels removed; **bat icon** before each batter (cyan for striker, dim for non-striker); **ball icon** before the bowler; bowler stats inlined onto the same row as the name; `1×4 6×6` boundary count dropped from the batter stats line. Player-registry writes hardened on 2026-05-09: only super-admins and tournament organizers can create/edit players (was: any signed-in user). Dead `updateTournamentStatus` action removed; status changes flow through the gated `updateTournament` action. Two super admins bootstrapped (`pavan.gautham17@gmail.com`, `sudarshan61kv@gmail.com`).
+
+**2026-05-16 — Historical data scraped.** Reversing the original "don't migrate CricHeroes" decision, all 6 prior HVC seasons (2021–2025) were scraped from CricHeroes' public `_next/data/*.json` endpoints. Schema-shaped CSVs ready to import live under `data/cricheroes/csv/`; the scraper is `scripts/scrape_cricheroes.py`. **No importer written yet** — see §14 for the import pipeline a future Claude (or human) needs to write.
 
 **Project directory:** `~/Desktop/projects/hvc-scoring/` (Pavan's machine; was `/home/sudharshan/projects/own/hvc-scoring/` for the prior author).
 **Files in repo today:**
@@ -304,6 +306,7 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 | 2026-05-14 | **Last-man-standing UX polish** | The 2026-05-13 version landed but the scorer's experience needed two follow-ups. (1) **Auto-pick striker:** when last-man mode kicks in, `state.ts` now looks up the batting-XI member not in `engine.dismissed` and not in `engine.barred_batters` and fills `striker_id` with them automatically (whenever the slot would otherwise be null or pointing to a dismissed player). (2) **Force non-striker empty when it'd conflict:** loader clears `non_striker_id` when it points to a *non-dismissed* player — that can only be the lone live batter (= same as the new striker), so leaving it would put the same person at both ends. (3) **Non-striker picker relaxed:** in last-man mode the non-striker `SlotPicker` no longer locks the slot — only the live striker is in `disabledIds`, so any dismissed batter is selectable as the "dummy". `dismissedIds` still adds the "(out)" suffix so the scorer sees who's out. |
 | 2026-05-14 | **Wicket modal: Player out auto-defaults from wicket type** | "Player out" used to always default to "Striker", which was fine for bowled / caught / stumped / etc. but a quiet trap for run-outs (the scorer could miss the dropdown and accidentally record the striker as out when the non-striker was the one run out). Modal now defaults to "Striker" for every dismissal type **except** `run_out`, which clears the field and shows a "Select…" placeholder — forcing an explicit pick. A `useEffect` on the wicket-type select drives the reset. Save wicket is blocked with a toast (`"Pick who's out — striker or non-striker"`) when the field is empty. `close()` also resets Type back to bowled and Player out back to striker, so the next open starts clean. |
 | 2026-05-15 | **Scoreboard slot-tile polish: icons + cyan striker + inline bowler stats** | Role identification on the slot tiles now relies on icon + colour rather than a textual label. (1) The "Striker" / "Non-striker" / "Bowler" labels are gone. (2) Small inline-SVG **bat icon** before each batter name — `text-cyan-600 dark:text-cyan-400` for the striker, `text-muted-foreground/40` for the non-striker (dim = "not on strike"). (3) Striker's player name uses the same cyan colour so the pair is visually unmistakable; non-striker stays in default foreground. (4) **Ball icon** (circle + faint seam SVG) before the bowler name. (5) The bowler's stats (`0/4 (0.3) · econ 12.0`) are now inlined on the same row as the name, right-aligned via `ml-auto`. (6) Batter stats line dropped the `1×4 6×6` boundary count — too much detail for the live tile, still surfaces in the full scorecard. `SlotPicker` gained `leadingIcon` + `inlineStats` props. |
+| 2026-05-16 | **Reverse: scrape CricHeroes for Seasons 1–6 (overrides 2026-05-06 "drop" decision).** | Season 7 launches with continuity expectations — career stats, head-to-head, team rosters. Found that CricHeroes' Next.js `_next/data/<buildId>/.../*.json` endpoints are public (no auth, no ToS-violating session hijack). 71/72 matches across 6 seasons saved as schema-shaped CSVs plus raw JSON dumps. One match (`12170963`, Season 5 group stage) is genuinely deleted on CricHeroes' side. Ball-by-ball is NOT exposed — only innings/batting/bowling aggregates. Scraper: `scripts/scrape_cricheroes.py`. CSVs: `data/cricheroes/csv/`. See §14 for the import pipeline. |
 
 ---
 
@@ -750,6 +753,116 @@ db.sql                                 # schema (matches live; includes lookup_u
 .nvmrc                                 # 24
 HANDOFF.md README.md AGENTS.md CLAUDE.md
 ```
+
+---
+
+## 14. Historical data — CricHeroes scrape (Seasons 1–6)
+
+On **2026-05-16** the original "drop CricHeroes migration" decision was reversed (see §7). All 6 prior HVC seasons (2021–2025) were scraped and normalized into CSVs shaped 1:1 like our `db.sql` tables.
+
+### Files added in this work
+
+- **`scripts/scrape_cricheroes.py`** — Python 3, stdlib only. Run with `python3 scripts/scrape_cricheroes.py`. Idempotent; re-running overwrites raw JSON + CSVs in place.
+- **`data/cricheroes/raw/`** — exact JSON dumps from CricHeroes (one file per tournament + one per match, 77 files). The source of truth. Re-running normalization without re-scraping is just reading these.
+- **`data/cricheroes/csv/`** — output. Two flavors below.
+
+### Schema-shaped CSVs (import these into Supabase)
+
+Aligned 1:1 with our DB tables. Every row carries `cricheroes_*_id` source columns so the importer can remap to our UUIDs.
+
+| CSV | Maps to | Rows |
+|---|---|---|
+| `tournaments.csv` | `tournaments` | 6 |
+| `teams.csv` | `teams` | 39 |
+| `players.csv` | `players` | 69 |
+| `team_players.csv` | `team_players` | 164 |
+| `matches.csv` | `matches` | 71 |
+| `match_players.csv` | `match_players` | 925 |
+| `innings.csv` | `innings` | 142 |
+
+### Auxiliary historical aggregates (no DB target — defer)
+
+CricHeroes scorecards don't expose ball-by-ball, so we can't synthesize `balls` rows. These three CSVs preserve per-batter/per-bowler/per-fall-of-wicket detail at the innings level.
+
+| CSV | Rows |
+|---|---|
+| `historical_batting.csv` | 850 (per-batter per-innings: R/B/4s/6s/SR + how_to_out string + is_out) |
+| `historical_bowling.csv` | 776 (per-bowler per-innings: O/M/R/W/dots/Wd/Nb/economy) |
+| `fall_of_wickets.csv` | 684 |
+
+Two options when you're ready to use them:
+- **(a)** Add new tables `player_match_batting`, `player_match_bowling`, `match_fall_of_wickets` (denormalized historical-only). Extend `v_player_tournament_stats` to UNION ALL with these so career totals span both eras.
+- **(b)** Live with Season-7-onwards stats only and ignore historical aggregates.
+
+### How the scraper works (so you can debug or extend)
+
+1. Fetches `https://cricheroes.com/tournament/236267/hvc-premier-league/matches/past-matches` (any cricheroes URL works) and parses `"buildId":"<id>"` from the embedded `__NEXT_DATA__` script.
+2. For each tournament: hits `https://cricheroes.com/_next/data/<buildId>/tournament/<tid>/<any-slug>/matches/past-matches.json?tournamentId=<tid>&tournamentName=<any>&tabName=matches&innerTab=past-matches`. The `pageProps` blob contains `tournamentDetails`, `matchResponse` (list of matches), `teamResponse`, plus standings/leaderboards.
+3. For each match: hits `https://cricheroes.com/_next/data/<buildId>/scorecard/<mid>/x/x-vs-x/scorecard.json`. **Slugs are ignored** — only `<mid>` matters. `pageProps.scorecard` is a 2-element list (one entry per innings) with `inning`, `batting[]`, `bowling[]`, `extras`, `fall_of_wicket`, `teamName`. `pageProps.summaryData.data` has match-level metadata (toss, ground, winner, POM).
+4. Schema-shaped derivations the scraper performs:
+   - `slug` → `hvc-season-1..6` (clean override of CricHeroes' inconsistent names)
+   - `format` → `group_then_knockout` for all 6 (HVC pattern: 8 league + 3 qualifier + 1 final, ish)
+   - `stage` from `tournament_round_name` → `group` / `qualifier` / `semi` / `final` / `exhibition`
+   - `result_type` from `match_result` + `is_super_over` → `normal` / `tie` / `super_over` / `no_result` / `abandoned`
+   - `toss_decision` parsed from `"Toss: <Team> opt to (bat|bowl|field)"`, with field → bowl
+   - `team_players.role`: captain detected from `(c)` suffix in batter name; wicket_keeper detected from `†<Name>` in any dismissal text (e.g. `c †Sridhar b X`)
+   - `players.batting_style` → `right_hand` / `left_hand` from RHB/LHB
+   - `innings.total_legal_balls` from `overs_played` string (e.g. `5.5` → 35)
+   - `innings.extras_wides/no_balls/byes/leg_byes/penalty` summed from `extras.data[]` by `type_code` (WD/NB/B/LB/P)
+   - `innings.target` = innings 1 total + 1 (set only on innings 2)
+   - `teams.short_name` derived (3–4 letter abbrev, skipping leading `Team `/`The `), unique within a tournament
+
+### Re-running
+
+```bash
+python3 scripts/scrape_cricheroes.py
+```
+
+If you see a wall of 404s, CricHeroes redeployed and rotated `buildId`. The scraper auto-refreshes the buildId once on 404 and retries — usually transparent. The full 6-season run takes ~2 minutes (0.4s sleep between requests to be polite).
+
+### How to load these CSVs into Supabase — write this importer
+
+**No importer exists yet.** A future Claude (or human) needs to write one. Recommended path: a Node script using `@supabase/supabase-js` with the service_role key (RLS-bypassing), or a Python script using `psycopg`. Order matters because of FKs:
+
+1. **`tournaments.csv`** → insert all 6 rows. Capture `{cricheroes_tournament_id → tournaments.id}` map.
+   - Most fields map 1:1. `rules` defaults to `{}` — the HVC ruleset wasn't formalized until Season 6, so don't retroactively apply `HVC_RULES`. (Also moot: no balls to validate.)
+   - `status = 'completed'`, `format = 'group_then_knockout'`, `slug = 'hvc-season-1..6'` are already set in the CSV.
+
+2. **`teams.csv`** → resolve `cricheroes_tournament_id` via the map; insert; capture `{cricheroes_team_id → teams.id}` map.
+   - `short_name` is derived (deterministic, unique within a tournament). Verify against the live DB if Season 7 already created teams with overlapping short_names.
+
+3. **`players.csv`** → insert; capture `{cricheroes_player_id → players.id}` map.
+   - **Dedup against existing players.** If a player record already exists in the live DB (e.g. created for Season 7 before this import), match on `display_name` (case-insensitive) + `phone` if available. Prefer pointing `cricheroes_player_id → existing_uuid` over creating a duplicate. Manual review for ambiguous matches is fine — 69 historical players is small.
+   - `category` is empty for all (CricHeroes has no HVC 1/2/3). Set manually in the UI when promoting a player onto a Season 7 roster.
+   - `bowling_style` is empty (CricHeroes scorecard doesn't expose it). Fine to backfill manually later.
+
+4. **`team_players.csv`** → resolve via both maps; insert. `role` is `captain` / `wicket_keeper` / `player` (no `vice_captain` — not derivable from scorecard).
+
+5. **`matches.csv`** → resolve via maps for `cricheroes_team_a_id`, `cricheroes_team_b_id`, `cricheroes_toss_winner_id`, `cricheroes_winner_id`, `cricheroes_pom_player_id`. Insert. Capture `{cricheroes_match_id → matches.id}` map.
+   - `win_margin` is text (`"2 wickets"` / `"15 runs"`) — already what our schema expects.
+   - `match_number` is per-tournament chronological order (1..N).
+   - `current_innings_id` stays `NULL` (historical, never live).
+   - `status = 'completed'`, `result_type` already mapped to the schema enum.
+
+6. **`match_players.csv`** → resolve match_id + team_id + player_id; insert.
+
+7. **`innings.csv`** → resolve match_id + batting_team_id + bowling_team_id; insert. Aggregates (`total_runs`, `total_wickets`, `total_legal_balls`, extras split, `target`) are pre-computed.
+   - `is_complete = true` for all 142 rows.
+
+8. **Auxiliary CSVs (defer):** see "Auxiliary historical aggregates" above for the two paths forward.
+
+### Caveats for the importer + the future-Claude
+
+- **`recompute_innings()` trigger.** Our schema recomputes `innings` aggregates from `balls` rows on every insert/update/void. Importing historical innings with pre-filled aggregates and **no** balls will work, but if the trigger fires (e.g. an admin opens an edit form that touches the row), it will zero them out. Two ways to avoid this: (i) temporarily disable the trigger during the import + on the historical innings going forward (gate on `match.status='completed' AND scheduled_at < '2026-01-01'`?), or (ii) seed one stub `balls` row per innings that round-trips to the same aggregates (gross — don't).
+- **Same-name player collisions.** Two real people sharing a display name are rare in 69 historical players but possible. Eyeball before merging.
+- **One missing match.** Season 5 has 11 matches in the CSV instead of 12 (`12170963` is deleted on CricHeroes). Points table for Season 5 may be off by a few PTS. If anyone has an offline copy of that scorecard, seed it manually.
+- **Logos.** `tournaments.csv` and `teams.csv` carry `logo_url` pointing at `media.cricheroes.in`. Either rehost into our `tournament-logos`/`team-logos` Supabase buckets, or just store the cricheroes URL and accept that CricHeroes might rotate URLs eventually. Recommend rehosting (one-time `curl` + `supabase storage cp` per logo, ~50 files).
+
+### Why the scrape worked (technical context for future-Claude)
+
+- CricHeroes is a Next.js app. Their App Router uses `_next/data/<buildId>/...json` for ISR/SSG data fetches. These endpoints are public — no `Authorization` header, no `Cookie` required — because the same data renders on the public scorecard page.
+- The `buildId` is short-lived (rotates on every CricHeroes deploy). The scraper extracts it from any HTML page via `re.search(r'"buildId":"([^"]+)"', html)`.
+- The team/match slug segments in the URL are **decorative** — only the numeric IDs are validated. So `scorecard/<mid>/x/x-vs-x/scorecard.json` works fine without knowing real slugs. This simplification skips a slug-resolution step that would otherwise force matching team names character-perfect.
 
 ---
 
