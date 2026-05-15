@@ -1,7 +1,6 @@
 "use client";
 
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useCallback, useMemo, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 type TabId = "matches" | "table" | "stats" | "mvp" | "teams";
 
@@ -17,8 +16,14 @@ const TABS: { id: TabId; label: string }[] = [
  * Cricbuzz-style tab nav for the tournament detail page. Mirrors the
  * match-page MatchTabs component — all panels are server-rendered in
  * parallel and we toggle visibility on the client, so switching is
- * instant with no refetch. Active tab is stored in `?tab=...` so it
- * survives refresh / sharing.
+ * instant with no refetch.
+ *
+ * Active tab uses local state + window.history.replaceState to mirror
+ * to the URL. Earlier version used router.replace which (on
+ * force-dynamic routes) re-ran every server component on every tab
+ * click — felt sluggish on the match list / stats roll-ups. The mirror
+ * keeps the URL shareable and refresh-safe without a network roundtrip
+ * per click.
  */
 export function TournamentTabs({
   matches,
@@ -33,27 +38,24 @@ export function TournamentTabs({
   mvp: ReactNode;
   teams: ReactNode;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [active, setActive] = useState<TabId>(() => readTabFromURL());
 
-  const active: TabId = useMemo(() => {
-    const t = searchParams.get("tab");
-    if (t === "table" || t === "stats" || t === "mvp" || t === "teams")
-      return t;
-    return "matches";
-  }, [searchParams]);
+  const setTab = (id: TabId) => {
+    setActive(id);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (id === "matches") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", id);
+    window.history.replaceState({}, "", url.toString());
+  };
 
-  const setTab = useCallback(
-    (id: TabId) => {
-      const params = new URLSearchParams(searchParams);
-      if (id === "matches") params.delete("tab");
-      else params.set("tab", id);
-      const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    },
-    [pathname, router, searchParams],
-  );
+  // Keep state in sync if someone uses browser back/forward.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPop = () => setActive(readTabFromURL());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   const panels: Record<TabId, ReactNode> = {
     matches,
@@ -98,4 +100,11 @@ export function TournamentTabs({
       ))}
     </div>
   );
+}
+
+function readTabFromURL(): TabId {
+  if (typeof window === "undefined") return "matches";
+  const t = new URL(window.location.href).searchParams.get("tab");
+  if (t === "table" || t === "stats" || t === "mvp" || t === "teams") return t;
+  return "matches";
 }

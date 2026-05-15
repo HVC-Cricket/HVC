@@ -1,7 +1,6 @@
 "use client";
 
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useCallback, useMemo, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 type TabId = "scorecard" | "commentary" | "info";
 
@@ -17,8 +16,12 @@ const TABS: { id: TabId; label: string }[] = [
  * parallel during initial render) and we toggle visibility on the client,
  * so tab switching is instant with no refetch.
  *
- * Active tab is stored in the URL (`?tab=...`) so it survives refresh,
- * is shareable, and back/forward works.
+ * Active tab is stored in local state + mirrored to the URL via
+ * window.history.replaceState (NOT router.replace, which would trigger
+ * a full RSC refetch on every tab click for force-dynamic routes —
+ * that was making tab switching feel sluggish). The mirror lets a
+ * refresh keep the active tab and the URL stay shareable without
+ * costing us a network roundtrip per click.
  */
 export function MatchTabs({
   scorecard,
@@ -29,26 +32,26 @@ export function MatchTabs({
   commentary: ReactNode;
   info: ReactNode;
 }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [active, setActive] = useState<TabId>(() => readTabFromURL());
 
-  const active: TabId = useMemo(() => {
-    const t = searchParams.get("tab");
-    if (t === "commentary" || t === "info") return t;
-    return "scorecard";
-  }, [searchParams]);
+  const setTab = (id: TabId) => {
+    setActive(id);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (id === "scorecard") url.searchParams.delete("tab");
+    else url.searchParams.set("tab", id);
+    // history.replaceState updates the bar without notifying the
+    // Next.js router; no server roundtrip, no re-render.
+    window.history.replaceState({}, "", url.toString());
+  };
 
-  const setTab = useCallback(
-    (id: TabId) => {
-      const params = new URLSearchParams(searchParams);
-      if (id === "scorecard") params.delete("tab");
-      else params.set("tab", id);
-      const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    },
-    [pathname, router, searchParams],
-  );
+  // Keep state in sync if someone uses browser back/forward.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onPop = () => setActive(readTabFromURL());
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -89,4 +92,11 @@ export function MatchTabs({
       </div>
     </div>
   );
+}
+
+function readTabFromURL(): TabId {
+  if (typeof window === "undefined") return "scorecard";
+  const t = new URL(window.location.href).searchParams.get("tab");
+  if (t === "commentary" || t === "info") return t;
+  return "scorecard";
 }
