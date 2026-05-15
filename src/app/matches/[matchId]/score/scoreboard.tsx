@@ -528,36 +528,57 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
 
       {/* Top scoreboard */}
       <Card className={state.active.free_hit_pending ? "ring-2 ring-yellow-400" : undefined}>
-        <CardHeader>
-          <CardTitle className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="font-mono text-3xl">
-              <span className="uppercase">{battingTeam.short_name}</span>{" "}
-              <span className="text-muted-foreground">-</span>{" "}
+        <CardHeader className="space-y-1">
+          <div className="text-xs font-medium capitalize text-muted-foreground">
+            {battingTeam.name}
+          </div>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+            <CardTitle className="font-mono text-4xl font-bold leading-none">
               {displayRuns}/{displayWickets}
+            </CardTitle>
+            <span className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+              {Math.floor(displayLegalBalls / 6)}.{displayLegalBalls % 6}
+              {" / "}
+              {state.rules.overs_per_innings} OVERS
             </span>
-            <span className="text-base font-normal text-muted-foreground">
-              {displayOvers}{" "}
-              <span className="text-xs">(inn {innings.innings_number})</span>
-            </span>
-            {state.active.free_hit_pending && (
-              <span className="text-xs font-medium uppercase text-yellow-600">
-                Free hit
-              </span>
-            )}
-            {state.active.is_special_over && (
-              <span className="text-xs font-medium uppercase text-blue-600">
-                {state.active.is_special_over.toUpperCase()} over
-              </span>
-            )}
-            {state.active.last_man_mode && (
-              <span
-                className="rounded-full bg-orange-500/15 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-orange-700"
-                title="Only one live batter remains; strike doesn't rotate, non-striker slot is locked"
-              >
-                Last man standing
-              </span>
-            )}
-          </CardTitle>
+          </div>
+          {innings.target != null && (
+            <div className="text-xs text-muted-foreground">
+              Need{" "}
+              <span className="font-semibold text-foreground">
+                {Math.max(0, innings.target - displayRuns)}
+              </span>{" "}
+              run
+              {Math.max(0, innings.target - displayRuns) === 1 ? "" : "s"} to
+              win
+              <span className="mx-1.5 text-muted-foreground/60">·</span>
+              Target {innings.target}
+            </div>
+          )}
+          {(state.active.free_hit_pending ||
+            state.active.is_special_over ||
+            state.active.last_man_mode) && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {state.active.free_hit_pending && (
+                <span className="rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-medium uppercase text-yellow-600">
+                  Free hit
+                </span>
+              )}
+              {state.active.is_special_over && (
+                <span className="rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-medium uppercase text-blue-600">
+                  {state.active.is_special_over.toUpperCase()} over
+                </span>
+              )}
+              {state.active.last_man_mode && (
+                <span
+                  className="rounded-full bg-orange-500/15 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-orange-600"
+                  title="Only one live batter remains; strike doesn't rotate, non-striker slot is locked"
+                >
+                  Last man standing
+                </span>
+              )}
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -728,12 +749,12 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 </Button>
               ))}
               <Button
-                variant="secondary"
-                className="h-20 text-sm font-semibold uppercase tracking-wide active:scale-[0.97]"
+                variant="outline"
+                className="h-20 border-2 border-cyan-500/70 bg-transparent text-base font-semibold uppercase tracking-wide text-cyan-500 hover:bg-cyan-500/10 active:scale-[0.97] disabled:border-foreground/10 disabled:text-muted-foreground"
                 onClick={undo}
                 disabled={visibleBalls === 0}
               >
-                Undo
+                UNDO
               </Button>
               {[3, 4, 6].map((n) => (
                 <Button
@@ -746,11 +767,10 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 </Button>
               ))}
               <Button
-                variant="destructive"
-                className="h-20 text-base font-bold uppercase tracking-wide active:scale-[0.97]"
+                className="h-20 bg-red-600 text-lg font-bold uppercase tracking-wide text-red-50 hover:bg-red-600/90 active:scale-[0.97]"
                 onClick={() => setWicketOpen(true)}
               >
-                Out
+                OUT
               </Button>
             </div>
             {/* Extras: one button each for Wide / No-ball / Bye /
@@ -764,49 +784,52 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             >
               <Button
                 variant={extraPicker === "wide" ? "default" : "outline"}
-                className="h-11 active:scale-[0.97] active:bg-muted/60"
+                className="h-11 text-xs font-semibold uppercase tracking-wide active:scale-[0.97] active:bg-muted/60"
                 onClick={() =>
                   extraPicker === "wide"
                     ? closeExtraPicker()
                     : openExtraPicker("wide")
                 }
               >
-                Wide
+                WIDE
               </Button>
               <Button
                 variant={extraPicker === "no_ball" ? "default" : "outline"}
-                className="h-11 active:scale-[0.97] active:bg-muted/60"
+                className="h-11 text-xs font-semibold uppercase tracking-wide active:scale-[0.97] active:bg-muted/60"
                 onClick={() =>
                   extraPicker === "no_ball"
                     ? closeExtraPicker()
                     : openExtraPicker("no_ball")
                 }
               >
-                No-ball
+                NO BALL
               </Button>
               {state.rules.extras.byes && (
                 <Button
                   variant={extraPicker === "bye" ? "default" : "outline"}
-                  className="h-11 active:scale-[0.97] active:bg-muted/60"
+                  className="h-11 text-xs font-semibold uppercase tracking-wide active:scale-[0.97] active:bg-muted/60"
                   onClick={() =>
                     extraPicker === "bye"
                       ? closeExtraPicker()
                       : openExtraPicker("bye")
                   }
                 >
-                  Bye
+                  BYE
                 </Button>
               )}
               <Button
                 variant={extraPicker === "overthrow" ? "default" : "outline"}
-                className="h-11 active:scale-[0.97] active:bg-muted/60"
+                className="h-11 whitespace-normal text-xs font-semibold uppercase leading-tight tracking-wide active:scale-[0.97] active:bg-muted/60"
                 onClick={() =>
                   extraPicker === "overthrow"
                     ? closeExtraPicker()
                     : openExtraPicker("overthrow")
                 }
               >
-                Overthrow
+                <span className="flex flex-col leading-tight">
+                  <span>OVER</span>
+                  <span>THROW</span>
+                </span>
               </Button>
             </div>
 
@@ -1076,27 +1099,33 @@ function BatIcon({ dim }: { dim?: boolean }) {
 }
 
 function BallIcon() {
-  // Tennis ball — bright yellow with the classic curved white seam.
+  // Bowler's action — stick figure with the bowling arm extended over
+  // the head + a small ball in the hand. Tinted teal to match the bat
+  // icons' colour family.
   return (
     <svg
       viewBox="0 0 24 24"
       aria-hidden="true"
-      className="size-4 shrink-0"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-5 shrink-0 text-cyan-600 dark:text-cyan-400"
     >
-      <circle
-        cx="12"
-        cy="12"
-        r="9"
-        className="fill-yellow-400 stroke-yellow-600/60"
-        strokeWidth="0.5"
-      />
-      <path
-        d="M3.5 12 Q8 5, 12 12 T20.5 12"
-        stroke="white"
-        strokeWidth="0.9"
-        fill="none"
-        strokeLinecap="round"
-      />
+      {/* head */}
+      <circle cx="11" cy="4" r="1.8" fill="currentColor" stroke="none" />
+      {/* torso */}
+      <path d="M11 6.5 L11 14" />
+      {/* bowling arm — extended up-and-over */}
+      <path d="M11 8 L16 4" />
+      {/* ball in the bowling hand */}
+      <circle cx="17.2" cy="3.2" r="1.3" fill="currentColor" stroke="none" />
+      {/* trailing arm */}
+      <path d="M11 8 L7 11" />
+      {/* legs in stride */}
+      <path d="M11 14 L8 21" />
+      <path d="M11 14 L15 20" />
     </svg>
   );
 }

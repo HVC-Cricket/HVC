@@ -10,6 +10,16 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
+      // Surface toasts at the top centre of the viewport so they're
+      // immediately visible during scoring (the run grid takes the
+      // bottom half of the screen on phones).
+      position="top-center"
+      // richColors gives error / success / warning toasts coloured
+      // backgrounds — far more legible than the default near-neutral
+      // panels, especially in dark mode where a plain panel can blend
+      // into the score card behind it.
+      richColors
+      closeButton
       className="toaster group"
       icons={{
         success: (
@@ -38,7 +48,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          toast: "cn-toast shadow-xl ring-1 ring-foreground/10",
         },
       }}
       {...props}
