@@ -37,7 +37,14 @@ export type WicketDelivery = "legal" | "no_ball" | "wide" | "bye";
  *  - Fielder picker only shown for `caught` / `run_out` / `stumped`
  *    (c&b credits the bowler implicitly)
  */
+/**
+ * Controlled — caller owns the `open` state and renders the trigger
+ * (the OUT button is now part of the main scoring grid, not embedded
+ * here). This component renders the modal only.
+ */
 export function WicketButton({
+  open,
+  onOpenChange,
   onSubmit,
   allowed,
   onFreeHit,
@@ -48,6 +55,8 @@ export function WicketButton({
   nonStrikerId,
   bowlingXi,
 }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onSubmit: (
     wicket_type: WicketType,
     player_out_id: string | undefined,
@@ -65,7 +74,6 @@ export function WicketButton({
   nonStrikerId: string;
   bowlingXi: { id: string; display_name: string; category: 1 | 2 | 3 | null }[];
 }) {
-  const [open, setOpen] = useState(false);
   const [wicketType, setWicketType] = useState<WicketType>("bowled");
   // "" represents an unset value — used for run-out, where the scorer
   // must explicitly choose striker or non-striker. For all other
@@ -97,7 +105,7 @@ export function WicketButton({
   }, [wicketType]);
 
   const close = () => {
-    setOpen(false);
+    onOpenChange(false);
     setWicketType("bowled");
     setWhoOut("striker");
     setFielder("");
@@ -135,23 +143,15 @@ export function WicketButton({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  if (!open) return null;
   return (
-    <>
-      <Button
-        variant="destructive"
-        className="h-12"
-        onClick={() => setOpen(true)}
-      >
-        OUT
-      </Button>
-      {open && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Record wicket"
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
-          onClick={close}
-        >
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Record wicket"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4"
+      onClick={close}
+    >
           <div
             className="w-full max-w-md space-y-3 rounded-t-xl bg-background p-4 shadow-xl sm:rounded-xl"
             onClick={(e) => e.stopPropagation()}
@@ -325,8 +325,6 @@ export function WicketButton({
               </Button>
             </div>
           </div>
-        </div>
-      )}
-    </>
+    </div>
   );
 }

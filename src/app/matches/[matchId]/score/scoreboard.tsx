@@ -141,6 +141,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     "wide" | "no_ball" | "bye" | "overthrow" | null
   >(null);
   const [noBallByesPick, setNoBallByesPick] = useState(false);
+  const [wicketOpen, setWicketOpen] = useState(false);
   const openExtraPicker = (
     kind: "wide" | "no_ball" | "bye" | "overthrow",
   ) => {
@@ -504,6 +505,27 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
 
   return (
     <div className="space-y-4">
+      {/* Status pills — fixed at the top of the viewport so they don't
+          push the scoring layout down. Only render when something
+          actually needs surfacing (offline / pending saves). */}
+      {(isOffline || pendingCount > 0) && (
+        <div
+          aria-live="polite"
+          className="pointer-events-none fixed inset-x-0 top-2 z-50 flex justify-center gap-2 px-3"
+        >
+          {isOffline && (
+            <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-medium text-destructive shadow-sm backdrop-blur">
+              Offline · queuing
+            </span>
+          )}
+          {pendingCount > 0 && (
+            <span className="rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-medium text-yellow-700 shadow-sm backdrop-blur">
+              Saving {pendingCount} ball{pendingCount === 1 ? "" : "s"}…
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Top scoreboard */}
       <Card className={state.active.free_hit_pending ? "ring-2 ring-yellow-400" : undefined}>
         <CardHeader>
@@ -688,28 +710,14 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       {/* Ball entry */}
       {!isComplete && (
         <Card>
-          {(isOffline || pendingCount > 0) && (
-            <CardHeader>
-              <div className="flex items-center justify-end gap-2">
-                {isOffline && (
-                  <span className="rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-normal text-destructive">
-                    Offline · queuing
-                  </span>
-                )}
-                {pendingCount > 0 && (
-                  <span className="rounded-full bg-yellow-500/15 px-2 py-0.5 text-xs font-normal text-yellow-700">
-                    Saving {pendingCount} ball{pendingCount === 1 ? "" : "s"}…
-                  </span>
-                )}
-              </div>
-            </CardHeader>
-          )}
           <CardContent className="space-y-2">
-            {/* Primary action: runs off the bat. Bigger taps; one row on
-                desktop, two rows on phone. Active state gives haptic-y
-                press feedback for fast scoring. */}
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-              {[0, 1, 2, 3, 4, 6].map((n) => (
+            {/* Primary action grid. Two rows of four:
+                  Row 1: 0 / 1 / 2 / UNDO
+                  Row 2: 3 / 4 / 6 / OUT
+                Run buttons share the same large-tap styling; UNDO + OUT
+                are tinted differently so they're visually distinct. */}
+            <div className="grid grid-cols-4 gap-2">
+              {[0, 1, 2].map((n) => (
                 <Button
                   key={n}
                   variant="outline"
@@ -719,6 +727,31 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                   {n}
                 </Button>
               ))}
+              <Button
+                variant="secondary"
+                className="h-20 text-sm font-semibold uppercase tracking-wide active:scale-[0.97]"
+                onClick={undo}
+                disabled={visibleBalls === 0}
+              >
+                Undo
+              </Button>
+              {[3, 4, 6].map((n) => (
+                <Button
+                  key={n}
+                  variant="outline"
+                  className="h-20 text-3xl font-mono active:scale-[0.97] active:bg-muted/60"
+                  onClick={() => submit({ runs_off_bat: n })}
+                >
+                  {n}
+                </Button>
+              ))}
+              <Button
+                variant="destructive"
+                className="h-20 text-base font-bold uppercase tracking-wide active:scale-[0.97]"
+                onClick={() => setWicketOpen(true)}
+              >
+                Out
+              </Button>
             </div>
             {/* Extras: one button each for Wide / No-ball / Bye /
                 Overthrow. Tap opens an inline sub-picker. No-ball
@@ -885,10 +918,13 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
               </div>
             )}
 
-            {/* Wicket — its own row so the inline panel has space */}
-            <div className="grid grid-cols-1 gap-2">
-              <WicketButton
-                onSubmit={(wt, outId, fielderId, delivery, runs, noBallByes) => {
+            {/* Wicket modal — trigger is the OUT button in the run
+                grid above. This component renders the modal only when
+                `open` is true. */}
+            <WicketButton
+              open={wicketOpen}
+              onOpenChange={setWicketOpen}
+              onSubmit={(wt, outId, fielderId, delivery, runs, noBallByes) => {
                   const extra_type =
                     delivery === "no_ball"
                       ? "no_ball"
@@ -931,26 +967,17 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                     runs_off_bat,
                   });
                 }}
-                allowed={state.rules.allowed_wicket_types as WicketType[]}
-                onFreeHit={state.active.free_hit_pending}
-                freeHitDismissals={state.rules.free_hit.out_dismissals as WicketType[]}
-                striker={striker?.display_name}
-                nonStriker={nonStriker?.display_name}
-                strikerId={strikerId}
-                nonStrikerId={nonStrikerId}
-                bowlingXi={state.xi[innings.bowling_team_id] ?? []}
-              />
-            </div>
+              allowed={state.rules.allowed_wicket_types as WicketType[]}
+              onFreeHit={state.active.free_hit_pending}
+              freeHitDismissals={state.rules.free_hit.out_dismissals as WicketType[]}
+              striker={striker?.display_name}
+              nonStriker={nonStriker?.display_name}
+              strikerId={strikerId}
+              nonStrikerId={nonStrikerId}
+              bowlingXi={state.xi[innings.bowling_team_id] ?? []}
+            />
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
               <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={undo}
-                  disabled={visibleBalls === 0}
-                >
-                  Undo last ball
-                </Button>
                 <ConfirmButton
                   title="Undo last 3 balls?"
                   description={`${Math.min(3, visibleBalls)} ball${Math.min(3, visibleBalls) === 1 ? "" : "s"} will be voided. Innings totals recompute automatically.`}

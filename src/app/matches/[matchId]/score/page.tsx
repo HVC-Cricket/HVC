@@ -38,7 +38,7 @@ export default async function ScorePage(props: {
   const xisReady = xiACount >= 2 && xiBCount >= 2;
 
   return (
-    <main className="flex-1 p-6">
+    <main className="flex-1 p-3">
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="space-y-1">
           <p className="text-sm text-muted-foreground">
