@@ -64,18 +64,17 @@ export async function SiteNav() {
             )}
           </nav>
         </div>
-        {/* Row 2: nav links on phones only. Hidden when signed out so
-            the bar collapses to a single tidy row on the login screen. */}
-        {user && (
-          <nav className="mt-2 flex items-center gap-5 text-sm text-muted-foreground sm:hidden">
-            <Link href="/tournaments" className="hover:text-foreground">
-              Tournaments
-            </Link>
-            <Link href="/players" className="hover:text-foreground">
-              Players
-            </Link>
-          </nav>
-        )}
+        {/* Row 2: nav links on phones only. Always rendered so signed-
+            out spectators on mobile still have a way to reach the
+            tournament + player browse pages. */}
+        <nav className="mt-2 flex items-center gap-5 text-sm text-muted-foreground sm:hidden">
+          <Link href="/tournaments" className="hover:text-foreground">
+            Tournaments
+          </Link>
+          <Link href="/players" className="hover:text-foreground">
+            Players
+          </Link>
+        </nav>
       </div>
     </header>
   );

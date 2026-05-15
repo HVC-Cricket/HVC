@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getSessionContext, isOrganizerOrSuperAdmin } from "@/lib/auth";
+import { resolvePlayerPhoto } from "@/lib/players/photo";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +21,25 @@ export default async function PlayersPage() {
 
   const { data: players, error } = await supabase
     .from("players")
-    .select("id, display_name, category, batting_style, bowling_style, photo_url")
+    .select(
+      "id, display_name, category, batting_style, bowling_style, photo_url, linked_user_id",
+    )
     .order("display_name", { ascending: true });
+
+  // Batch-fetch linked auth-user avatars so players who only linked
+  // their account (no player photo uploaded) still show a face.
+  const linkedUserIds = (players ?? [])
+    .map((p) => p.linked_user_id)
+    .filter((id): id is string => !!id);
+  const avatarByUserId = new Map<string, string | null>();
+  if (linkedUserIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, avatar_url")
+      .in("id", linkedUserIds);
+    for (const pr of profiles ?? [])
+      avatarByUserId.set(pr.id, pr.avatar_url);
+  }
 
   return (
     <main className="flex-1 p-6">
@@ -64,17 +82,24 @@ export default async function PlayersPage() {
           <Card>
             <CardContent className="p-0">
               <ul className="divide-y divide-foreground/10">
-                {players.map((p) => (
+                {players.map((p) => {
+                  const photo = resolvePlayerPhoto({
+                    photo_url: p.photo_url,
+                    linked_avatar_url: p.linked_user_id
+                      ? (avatarByUserId.get(p.linked_user_id) ?? null)
+                      : null,
+                  });
+                  return (
                   <li key={p.id}>
                     <Link
                       href={`/players/${p.id}`}
                       className="flex items-center justify-between gap-3 p-4 text-sm hover:bg-muted/40"
                     >
                       <span className="flex items-center gap-3">
-                        {p.photo_url ? (
+                        {photo ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
-                            src={p.photo_url}
+                            src={photo}
                             alt=""
                             className="h-8 w-8 rounded-full border border-foreground/10 object-cover"
                           />
@@ -104,7 +129,8 @@ export default async function PlayersPage() {
                       </span>
                     </Link>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </CardContent>
           </Card>
