@@ -582,6 +582,9 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             <SlotPicker
               label="Striker"
+              hideLabel
+              leadingIcon={<BatIcon />}
+              nameClassName="text-cyan-600 dark:text-cyan-400"
               value={strikerId}
               options={battingXi}
               onChange={setStrikerId}
@@ -603,6 +606,8 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             />
             <SlotPicker
               label="Non-striker"
+              hideLabel
+              leadingIcon={<BatIcon dim />}
               value={nonStrikerId}
               options={battingXi}
               onChange={setNonStrikerId}
@@ -625,6 +630,9 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             <div className="col-span-2 sm:col-span-1">
               <SlotPicker
                 label="Bowler"
+                hideLabel
+                leadingIcon={<BallIcon />}
+                inlineStats
                 value={bowlerId}
                 options={bowlingXi}
                 onChange={setBowlerId}
@@ -994,6 +1002,46 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
  * anywhere on it opens the Radix menu, so it works consistently on
  * desktop, mobile, and DevTools mobile emulation.
  */
+function BatIcon({ dim }: { dim?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="currentColor"
+      className={
+        "size-4 shrink-0 " +
+        (dim
+          ? "text-muted-foreground/40"
+          : "text-cyan-600 dark:text-cyan-400")
+      }
+    >
+      {/* handle */}
+      <rect x="11" y="2" width="2" height="7" rx="0.5" />
+      {/* blade */}
+      <rect x="8.5" y="9" width="7" height="13" rx="2" />
+    </svg>
+  );
+}
+
+function BallIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      className="size-4 shrink-0"
+    >
+      <circle cx="12" cy="12" r="9" fill="currentColor" />
+      <path
+        d="M5 13 Q12 11.4, 19 13"
+        stroke="white"
+        strokeWidth="0.8"
+        fill="none"
+        opacity="0.7"
+      />
+    </svg>
+  );
+}
+
 function SlotPicker({
   label,
   value,
@@ -1004,6 +1052,10 @@ function SlotPicker({
   disabledIds,
   dismissedIds,
   footer,
+  hideLabel,
+  nameClassName,
+  leadingIcon,
+  inlineStats,
 }: {
   label: string;
   value: string;
@@ -1021,6 +1073,18 @@ function SlotPicker({
    *  Currently used by the bowler tile to surface the this-over pill
    *  strip. */
   footer?: ReactNode;
+  /** When true, the role label (Striker / Non-striker / Bowler) is
+   *  hidden — the player name + category badge identify the role. */
+  hideLabel?: boolean;
+  /** Extra Tailwind classes for the selected player's name. Used by
+   *  the striker tile to highlight in cyan. */
+  nameClassName?: string;
+  /** Icon rendered to the left of the player name. Striker /
+   *  non-striker tiles use a bat icon; bowler tile uses a ball. */
+  leadingIcon?: ReactNode;
+  /** When true, the stats line renders on the same row as the name
+   *  (right-aligned), instead of below it. */
+  inlineStats?: boolean;
 }) {
   const selected = options.find((p) => p.id === value);
   return (
@@ -1032,20 +1096,38 @@ function SlotPicker({
           className="block w-full rounded-md border border-foreground/10 bg-muted/30 px-3 py-2 text-left transition hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
         >
           <div className="flex items-center justify-between gap-2">
-            <span className="text-xs text-muted-foreground">{label}</span>
+            {!hideLabel && (
+              <span className="text-xs text-muted-foreground">{label}</span>
+            )}
             {selected?.category && (
-              <span className="rounded bg-foreground/10 px-1 font-mono text-[10px]">
+              <span
+                className={
+                  "rounded bg-foreground/10 px-1 font-mono text-[10px]" +
+                  (hideLabel ? " ml-auto" : "")
+                }
+              >
                 C{selected.category}
               </span>
             )}
           </div>
-          <div className="mt-0.5 flex items-center gap-1 font-medium">
-            <span className="truncate capitalize">
+          <div className="mt-0.5 flex items-center gap-1.5 font-medium">
+            {leadingIcon}
+            <span
+              className={
+                "truncate capitalize" +
+                (nameClassName ? " " + nameClassName : "")
+              }
+            >
               {selected?.display_name ?? "—"}
             </span>
             <span className="text-xs text-muted-foreground">▾</span>
+            {inlineStats && statsLine && (
+              <span className="ml-auto whitespace-nowrap font-mono text-[11px] text-muted-foreground">
+                {statsLine}
+              </span>
+            )}
           </div>
-          {statsLine && (
+          {!inlineStats && statsLine && (
             <div className="font-mono text-[11px] text-muted-foreground">
               {statsLine}
             </div>
@@ -1101,12 +1183,14 @@ function formatBatterStats(
     if (o.runs_off_bat === 6) sixes += 1;
   }
   if (bf === 0 && runs === 0) return null;
+  // Boundary counts (4s / 6s) are available in `fours` / `sixes`
+  // but intentionally omitted from the slot tile — too much detail
+  // for the live scoring surface. They still surface in the full
+  // scorecard.
+  void fours;
+  void sixes;
   const sr = bf > 0 ? ((runs / bf) * 100).toFixed(0) : "—";
-  const boundaries =
-    fours > 0 || sixes > 0
-      ? ` · ${fours}×4${sixes > 0 ? ` ${sixes}×6` : ""}`
-      : "";
-  return `${runs}(${bf}) · SR ${sr}${boundaries}`;
+  return `${runs}(${bf}) · SR ${sr}`;
 }
 
 /**
