@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+import { GoogleSignInButton } from "../google-sign-in-button";
 import { SignupForm } from "./signup-form";
 
 export default function SignupPage() {
@@ -20,7 +21,9 @@ export default function SignupPage() {
           Sign up to score matches or follow tournaments.
         </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        <GoogleSignInButton />
+        <OrDivider />
         <SignupForm />
       </CardContent>
       <CardFooter className="text-sm text-muted-foreground">
@@ -30,5 +33,15 @@ export default function SignupPage() {
         </Link>
       </CardFooter>
     </Card>
+  );
+}
+
+function OrDivider() {
+  return (
+    <div className="flex items-center gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+      <span className="h-px flex-1 bg-foreground/10" />
+      <span>or with email</span>
+      <span className="h-px flex-1 bg-foreground/10" />
+    </div>
   );
 }
