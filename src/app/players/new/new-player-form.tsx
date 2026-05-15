@@ -159,25 +159,42 @@ export function NewPlayerForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Linked user account (optional)</FormLabel>
-              <FormControl>
-                <Input
-                  type="email"
-                  placeholder="player@example.com"
-                  list="linkable-users"
-                  autoComplete="off"
-                  {...field}
-                />
-              </FormControl>
-              <datalist id="linkable-users">
-                {linkableUsers.map((u) => (
-                  <option key={u.id} value={u.email}>
-                    {u.display_name}
-                  </option>
-                ))}
-              </datalist>
+              <Select
+                value={field.value || "__none__"}
+                onValueChange={(v) =>
+                  field.onChange(v === "__none__" ? "" : v)
+                }
+              >
+                <FormControl>
+                  <SelectTrigger className="capitalize">
+                    <SelectValue placeholder="Not linked" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="__none__">
+                    <span className="text-muted-foreground">
+                      Not linked
+                    </span>
+                  </SelectItem>
+                  {linkableUsers.map((u) => (
+                    <SelectItem
+                      key={u.id}
+                      value={u.email}
+                      className="capitalize"
+                    >
+                      <span className="flex flex-col">
+                        <span>{u.display_name}</span>
+                        <span className="font-mono text-[10px] normal-case text-muted-foreground">
+                          {u.email}
+                        </span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormDescription>
                 If this player has signed up to the app (e.g. an organizer or
-                scorer who also plays), pick or type their email to link the
+                scorer who also plays), pick their account here to link the
                 records. {linkableUsers.length} registered user
                 {linkableUsers.length === 1 ? "" : "s"} available.
               </FormDescription>
