@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -317,7 +318,7 @@ export function EditPlayerForm({ player, canDelete, linkableUsers }: Props) {
             </FormItem>
           )}
         />
-        <div className="flex items-center justify-between gap-4 pt-2">
+        <div className="flex items-center justify-between gap-2 border-t border-foreground/10 pt-4">
           {canDelete ? (
             <ConfirmButton
               title={`Delete "${player.display_name}"?`}
@@ -332,16 +333,28 @@ export function EditPlayerForm({ player, canDelete, linkableUsers }: Props) {
                 disabled: deleting || form.formState.isSubmitting,
               }}
             >
-              {deleting ? "Deleting…" : "Delete player"}
+              {deleting ? "Deleting…" : "Delete"}
             </ConfirmButton>
           ) : (
-            <span className="text-xs text-muted-foreground">
-              Only super admins can delete players.
-            </span>
+            <span />
           )}
-          <Button type="submit" disabled={form.formState.isSubmitting || deleting}>
-            {form.formState.isSubmitting ? "Saving…" : "Save changes"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link href={`/players/${player.id}`} prefetch>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={deleting || form.formState.isSubmitting}
+              >
+                Cancel
+              </Button>
+            </Link>
+            <Button
+              type="submit"
+              disabled={form.formState.isSubmitting || deleting}
+            >
+              {form.formState.isSubmitting ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
         </div>
       </form>
     </Form>

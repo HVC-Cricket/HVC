@@ -12,6 +12,7 @@ import { getSessionContext, isOrganizerOrSuperAdmin } from "@/lib/auth";
 import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
 import { resolvePlayerPhoto } from "@/lib/players/photo";
 import { createClient } from "@/lib/supabase/server";
+import { getInitials } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -32,33 +33,36 @@ export default async function PlayersPage() {
   const avatarByUserId = await fetchLinkedAvatars(supabase, players ?? []);
 
   return (
-    <main className="flex-1 p-6">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">Players</h1>
+    <main className="flex-1 p-4 sm:p-6">
+      <div className="mx-auto max-w-5xl space-y-5">
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0 space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Players
+            </h1>
             <p className="text-sm text-muted-foreground">
-              Global registry. The same player can be on rosters across
-              tournaments — career stats follow them.
+              {players?.length
+                ? `${players.length} player${players.length === 1 ? "" : "s"} in the global registry.`
+                : "Global registry across all tournaments."}
             </p>
           </div>
           {canManagePlayers && (
-            <Link href="/players/new">
-              <Button>New player</Button>
+            <Link href="/players/new" prefetch>
+              <Button size="sm">New player</Button>
             </Link>
           )}
-        </div>
+        </header>
 
         {error && (
-          <p className="text-destructive text-sm">
+          <p className="text-sm text-destructive">
             Failed to load players: {error.message}
           </p>
         )}
 
         {players && players.length === 0 && (
-          <Card>
+          <Card className="border-dashed">
             <CardHeader>
-              <CardTitle>No players yet</CardTitle>
+              <CardTitle className="text-base">No players yet</CardTitle>
               <CardDescription>
                 {canManagePlayers
                   ? "Add the first one with the button above."
@@ -69,7 +73,7 @@ export default async function PlayersPage() {
         )}
 
         {players && players.length > 0 && (
-          <Card>
+          <Card className="overflow-hidden">
             <CardContent className="p-0">
               <ul className="divide-y divide-foreground/10">
                 {players.map((p) => {
@@ -79,46 +83,53 @@ export default async function PlayersPage() {
                       ? (avatarByUserId.get(p.linked_user_id) ?? null)
                       : null,
                   });
+                  const styleParts = [p.batting_style, p.bowling_style]
+                    .filter(Boolean)
+                    .map((s) => s!.replace(/_/g, " "));
+                  const styleText = styleParts.join(" · ");
                   return (
-                  <li key={p.id}>
-                    <Link
-                      href={`/players/${p.id}`}
-                      className="flex items-center justify-between gap-3 p-4 text-sm hover:bg-muted/40"
-                    >
-                      <span className="flex items-center gap-3">
+                    <li key={p.id}>
+                      <Link
+                        href={`/players/${p.id}`}
+                        prefetch
+                        className="group flex items-center gap-3 px-4 py-3 transition hover:bg-muted/30"
+                      >
                         {photo ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img
                             src={photo}
                             alt=""
-                            className="h-8 w-8 rounded-full border border-foreground/10 object-cover"
+                            className="size-11 shrink-0 rounded-full border border-foreground/10 object-cover"
                           />
                         ) : (
-                          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-muted text-[10px] text-muted-foreground">
-                            —
+                          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
+                            {getInitials(p.display_name)}
                           </span>
                         )}
-                        {p.category ? (
-                          <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-xs font-mono">
-                            C{p.category}
-                          </span>
-                        ) : (
-                          <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-xs text-destructive">
-                            no category
-                          </span>
-                        )}
-                        <span className="font-medium">{p.display_name}</span>
-                      </span>
-                      <span className="flex items-center gap-3">
-                        <span className="text-muted-foreground">
-                          {[p.batting_style, p.bowling_style]
-                            .filter(Boolean)
-                            .map((s) => s!.replace(/_/g, " "))
-                            .join(" · ") || "—"}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="truncate text-sm font-medium capitalize">
+                              {p.display_name}
+                            </span>
+                            {p.category ? (
+                              <span className="shrink-0 rounded-full border border-foreground/15 bg-muted px-1.5 py-px font-mono text-[10px] text-muted-foreground">
+                                C{p.category}
+                              </span>
+                            ) : (
+                              <span className="shrink-0 rounded-full border border-destructive/30 bg-destructive/10 px-1.5 py-px text-[9px] font-medium uppercase tracking-wide text-destructive">
+                                no cat
+                              </span>
+                            )}
+                          </div>
+                          <div className="truncate text-[11px] capitalize text-muted-foreground">
+                            {styleText || "—"}
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-xs text-muted-foreground transition group-hover:text-foreground">
+                          →
                         </span>
-                      </span>
-                    </Link>
-                  </li>
+                      </Link>
+                    </li>
                   );
                 })}
               </ul>

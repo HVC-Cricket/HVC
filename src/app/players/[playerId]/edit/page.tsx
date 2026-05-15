@@ -1,12 +1,8 @@
+import { ChevronLeft } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { requireOrganizerOrSuperAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -39,16 +35,26 @@ export default async function EditPlayerPage(props: {
   const { data: linkableUsers } = await supabase.rpc("list_users_for_linking");
 
   return (
-    <main className="flex-1 p-6">
-      <div className="mx-auto max-w-2xl">
+    <main className="flex-1 p-4 sm:p-6">
+      <div className="mx-auto max-w-2xl space-y-5">
+        <Link
+          href={`/players/${player.id}`}
+          prefetch
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
+        >
+          <ChevronLeft className="size-4" />
+          <span className="capitalize">{player.display_name}</span>
+        </Link>
+
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Edit player</h1>
+          <p className="text-sm text-muted-foreground">
+            Update profile, role, photo, or unlink the auth account.
+          </p>
+        </div>
+
         <Card>
-          <CardHeader>
-            <CardTitle>Edit player</CardTitle>
-            <CardDescription>
-              Editing <strong>{player.display_name}</strong>.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <EditPlayerForm
               player={{
                 id: player.id,

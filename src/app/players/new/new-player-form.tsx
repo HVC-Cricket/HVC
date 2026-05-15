@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -274,13 +275,16 @@ export function NewPlayerForm({
             )}
           />
         </div>
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={form.formState.isSubmitting}
-        >
-          {form.formState.isSubmitting ? "Creating…" : "Create player"}
-        </Button>
+        <div className="flex items-center justify-end gap-2 border-t border-foreground/10 pt-4">
+          <Link href={redirectTo ?? "/players"} prefetch>
+            <Button type="button" variant="ghost">
+              Cancel
+            </Button>
+          </Link>
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? "Creating…" : "Create player"}
+          </Button>
+        </div>
       </form>
     </Form>
   );
