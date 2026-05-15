@@ -12,31 +12,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getSessionContext, isTournamentOrganizer } from "@/lib/auth";
+import {
+  MATCH_STATUS_CLASSES,
+  MATCH_STATUS_LABEL,
+  type MatchStatus,
+} from "@/lib/constants/match";
 import { createClient } from "@/lib/supabase/server";
-
-type MatchStatus =
-  | "scheduled"
-  | "live"
-  | "innings_break"
-  | "completed"
-  | "abandoned";
-
-const MATCH_STATUS_LABEL: Record<MatchStatus, string> = {
-  scheduled: "Scheduled",
-  live: "Live",
-  innings_break: "Innings break",
-  completed: "Completed",
-  abandoned: "Abandoned",
-};
-const MATCH_STATUS_CLASSES: Record<MatchStatus, string> = {
-  scheduled: "border-foreground/15 bg-muted text-muted-foreground",
-  live: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  innings_break:
-    "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  completed:
-    "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  abandoned: "border-destructive/30 bg-destructive/10 text-destructive",
-};
 
 import { CommentaryFeed } from "./commentary-feed";
 import { FullScorecard } from "./full-scorecard";

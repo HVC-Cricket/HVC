@@ -12,6 +12,7 @@ import { requireTournamentAdmin } from "@/lib/auth";
 import { listMatchAuditEvents } from "@/lib/match-audit";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
+import { getInitials } from "@/lib/utils";
 
 import { ActivityLogHelp } from "./activity-log-help";
 
@@ -470,13 +471,6 @@ function describeBall(b: BallRow, players: Map<string, string>): string {
 }
 
 function ActorChip({ name, avatar }: { name: string; avatar: string | null }) {
-  const initials = name
-    .split(/\s+/)
-    .map((s) => s[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
   return (
     <span className="flex items-center gap-1.5 whitespace-nowrap">
       {avatar ? (
@@ -488,7 +482,7 @@ function ActorChip({ name, avatar }: { name: string; avatar: string | null }) {
         />
       ) : (
         <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[8px] font-semibold text-primary">
-          {initials || "?"}
+          {getInitials(name)}
         </span>
       )}
       <span className="capitalize">{name}</span>

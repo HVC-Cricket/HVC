@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getSessionContext, isOrganizerOrSuperAdmin } from "@/lib/auth";
+import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
 import { resolvePlayerPhoto } from "@/lib/players/photo";
 import { createClient } from "@/lib/supabase/server";
 
@@ -28,18 +29,7 @@ export default async function PlayersPage() {
 
   // Batch-fetch linked auth-user avatars so players who only linked
   // their account (no player photo uploaded) still show a face.
-  const linkedUserIds = (players ?? [])
-    .map((p) => p.linked_user_id)
-    .filter((id): id is string => !!id);
-  const avatarByUserId = new Map<string, string | null>();
-  if (linkedUserIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, avatar_url")
-      .in("id", linkedUserIds);
-    for (const pr of profiles ?? [])
-      avatarByUserId.set(pr.id, pr.avatar_url);
-  }
+  const avatarByUserId = await fetchLinkedAvatars(supabase, players ?? []);
 
   return (
     <main className="flex-1 p-6">
