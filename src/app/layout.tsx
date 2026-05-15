@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+import { SpeedInsights } from "@vercel/speed-insights/next";
+
 import { RegisterSW } from "@/components/register-sw";
 import { SiteNav } from "@/components/site-nav";
 import { SiteNavShell } from "@/components/site-nav-shell";
@@ -55,6 +57,7 @@ export default function RootLayout({
           <Toaster />
           <RegisterSW />
         </ThemeProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
