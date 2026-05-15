@@ -13,6 +13,7 @@ import {
   requireOrganizer,
 } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getInitials } from "@/lib/utils";
 
 import { AddAdminForm } from "./add-admin-form";
 import { RemoveAdminButton } from "./remove-admin-button";
@@ -149,13 +150,7 @@ function AdminList({
             {admins.map((a) => {
               const profile = profileById.get(a.user_id);
               const name = profile?.display_name ?? "(unknown user)";
-              const initials = name
-                .split(/\s+/)
-                .map((s) => s[0])
-                .filter(Boolean)
-                .slice(0, 2)
-                .join("")
-                .toUpperCase();
+              const initials = getInitials(name);
               return (
                 <li
                   key={a.id}
@@ -171,7 +166,7 @@ function AdminList({
                       />
                     ) : (
                       <span className="flex size-8 items-center justify-center rounded-full bg-primary/15 text-[10px] font-semibold text-primary">
-                        {initials || "?"}
+                        {initials}
                       </span>
                     )}
                     <span className="font-medium capitalize">{name}</span>

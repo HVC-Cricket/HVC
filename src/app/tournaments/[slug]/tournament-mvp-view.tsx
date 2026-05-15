@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getInitials } from "@/lib/utils";
 
 export type MvpEntry = {
   player_id: string;
@@ -165,13 +166,7 @@ function MvpRow({
             />
           ) : (
             <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-semibold uppercase text-primary">
-              {entry.name
-                .split(/\s+/)
-                .map((s) => s[0])
-                .filter(Boolean)
-                .slice(0, 2)
-                .join("")
-                .toUpperCase() || "?"}
+              {getInitials(entry.name)}
             </span>
           )}
           <div className="min-w-0 flex-1">

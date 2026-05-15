@@ -12,6 +12,18 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getSessionContext, isTournamentOrganizer } from "@/lib/auth";
+import {
+  MATCH_STATUS_CLASSES,
+  MATCH_STATUS_LABEL,
+  type MatchStatus,
+} from "@/lib/constants/match";
+import {
+  FORMAT_LABEL,
+  STATUS_CLASSES,
+  STATUS_LABEL,
+  type TournamentFormat,
+  type TournamentStatus,
+} from "@/lib/constants/tournament";
 import { createClient } from "@/lib/supabase/server";
 
 import { PointsTableSection } from "./points-table-section";
@@ -20,54 +32,6 @@ import { TournamentStats } from "./tournament-stats";
 import { TournamentTabs } from "./tournament-tabs";
 
 export const dynamic = "force-dynamic";
-
-type TournamentFormat = "league" | "knockout" | "group_then_knockout";
-type TournamentStatus = "draft" | "active" | "completed" | "archived";
-type MatchStatus =
-  | "scheduled"
-  | "live"
-  | "innings_break"
-  | "completed"
-  | "abandoned";
-
-const STATUS_LABEL: Record<TournamentStatus, string> = {
-  active: "Live",
-  draft: "Draft",
-  completed: "Completed",
-  archived: "Archived",
-};
-const STATUS_CLASSES: Record<TournamentStatus, string> = {
-  active:
-    "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  draft:
-    "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  completed:
-    "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  archived: "border-foreground/15 bg-muted text-muted-foreground",
-};
-const FORMAT_LABEL: Record<TournamentFormat, string> = {
-  league: "League",
-  knockout: "Knockout",
-  group_then_knockout: "Group → Knockout",
-};
-
-const MATCH_STATUS_LABEL: Record<MatchStatus, string> = {
-  scheduled: "Scheduled",
-  live: "Live",
-  innings_break: "Break",
-  completed: "Completed",
-  abandoned: "Abandoned",
-};
-const MATCH_STATUS_CLASSES: Record<MatchStatus, string> = {
-  scheduled: "border-foreground/15 bg-muted text-muted-foreground",
-  live: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  innings_break:
-    "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  completed:
-    "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  abandoned:
-    "border-destructive/30 bg-destructive/10 text-destructive",
-};
 
 export default async function TournamentDetailPage(props: {
   params: Promise<{ slug: string }>;

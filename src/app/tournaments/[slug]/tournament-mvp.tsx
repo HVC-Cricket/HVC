@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
 import { computeMatchMvp, type MvpBreakdown } from "@/lib/scoring/mvp";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
@@ -172,18 +173,7 @@ export async function TournamentMvp({
   // Avatar fallback: when a player has no photo_url but linked their
   // auth account, use that account's avatar so the MVP list shows
   // their face. Matches the same fallback used by player list / POTM.
-  const linkedUserIds = (players ?? [])
-    .map((p) => p.linked_user_id)
-    .filter((id): id is string => !!id);
-  const avatarByUserId = new Map<string, string | null>();
-  if (linkedUserIds.length > 0) {
-    const { data: linkedProfiles } = await supabase
-      .from("profiles")
-      .select("id, avatar_url")
-      .in("id", linkedUserIds);
-    for (const pr of linkedProfiles ?? [])
-      avatarByUserId.set(pr.id, pr.avatar_url);
-  }
+  const avatarByUserId = await fetchLinkedAvatars(supabase, players ?? []);
 
   const entries: MvpEntry[] = [...agg.values()]
     .map((a) => {

@@ -8,6 +8,7 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { getInitials } from "@/lib/utils";
 
 import { EditProfileForm } from "./edit-profile-form";
 
@@ -38,13 +39,7 @@ export function ProfileCard({
   joinedAt,
 }: Props) {
   const [editing, setEditing] = useState(false);
-  const initials = displayName
-    .split(/\s+/)
-    .map((s) => s[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  const initials = getInitials(displayName);
 
   return (
     <Card className="overflow-hidden">
@@ -59,7 +54,7 @@ export function ProfileCard({
             />
           ) : (
             <div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary/15 text-lg font-semibold text-primary">
-              {initials || "?"}
+              {initials}
             </div>
           )}
           <div className="min-w-0 flex-1">

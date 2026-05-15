@@ -10,6 +10,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getSessionContext } from "@/lib/auth";
+import {
+  FORMAT_LABEL,
+  STATUS_CLASSES,
+  STATUS_LABEL,
+  type TournamentFormat,
+  type TournamentStatus,
+} from "@/lib/constants/tournament";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -18,43 +25,19 @@ type TournamentRow = {
   id: string;
   name: string;
   slug: string;
-  format: "league" | "knockout" | "group_then_knockout";
-  status: "draft" | "active" | "completed" | "archived";
+  format: TournamentFormat;
+  status: TournamentStatus;
   venue: string | null;
   start_date: string | null;
   end_date: string | null;
   logo_url: string | null;
 };
 
-const STATUS_ORDER: Record<TournamentRow["status"], number> = {
+const STATUS_ORDER: Record<TournamentStatus, number> = {
   active: 0,
   draft: 1,
   completed: 2,
   archived: 3,
-};
-
-const STATUS_LABEL: Record<TournamentRow["status"], string> = {
-  active: "Live",
-  draft: "Draft",
-  completed: "Completed",
-  archived: "Archived",
-};
-
-const STATUS_CLASSES: Record<TournamentRow["status"], string> = {
-  active:
-    "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-  draft:
-    "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
-  completed:
-    "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  archived:
-    "border-foreground/15 bg-muted text-muted-foreground",
-};
-
-const FORMAT_LABEL: Record<TournamentRow["format"], string> = {
-  league: "League",
-  knockout: "Knockout",
-  group_then_knockout: "Group → Knockout",
 };
 
 export default async function TournamentsPage() {
