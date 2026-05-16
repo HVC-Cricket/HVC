@@ -33,6 +33,7 @@ import { type ScoreTask } from "@/lib/offline-queue";
 import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
 
 import { recordBall, voidLastBall, voidLastN } from "./actions";
+import { applyOptimisticRotation } from "./optimistic-rotation";
 import type { ScoreboardState } from "./state";
 import { type DrainOutcome, useOfflineQueue } from "./use-offline-queue";
 import { type WicketType, WicketButton } from "./wicket-button";
@@ -386,14 +387,52 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     // whole point of the fix: the score updates the instant the tap
     // lands, not after the server roundtrip.
     setOptimistic((q) => [...q, makeOptimistic(input)]);
+    // Predict strike rotation client-side so the slot tiles swap
+    // instantly. The reconciliation effect below still overwrites these
+    // with `state.active.*_id` once the server refresh lands — if the
+    // prediction matches (the 95% case), it's a no-op; if not (rare
+    // edge cases like dismissed-special-batter), the slot tile corrects
+    // itself on the next paint.
+    const next = applyOptimisticRotation({
+      strikerId,
+      nonStrikerId,
+      bowlerId,
+      legalBallsInOver: state.active.legal_balls_in_over,
+      ball: {
+        runs_off_bat: input.runs_off_bat,
+        extras: input.extras,
+        extra_type: input.extra_type as "wide" | "no_ball" | "bye" | null,
+        is_wicket: input.is_wicket,
+        player_out_id: (input as { player_out_id?: string | null }).player_out_id ?? null,
+      },
+      active: {
+        last_man_mode: state.active.last_man_mode,
+        is_special_over: state.active.is_special_over,
+      },
+    });
+    setStrikerId(next.strikerId);
+    setNonStrikerId(next.nonStrikerId);
+    setBowlerId(next.bowlerId);
     void enqueue("recordBall", input);
   };
 
   const undo = () => {
+    // Capture the "pre-ball" striker / non-striker / bowler from the
+    // ball we're undoing — who was on strike WHEN that ball was bowled.
+    // Setting these instantly reverts the rotation so the slot tiles
+    // jump back to the right people without waiting for the server.
+    let restoreStriker: string | null = null;
+    let restoreNonStriker: string | null = null;
+    let restoreBowler: string | null = null;
+
     // If there's an optimistic ball waiting, drop it immediately so the
     // UI follows the user's intent without lag. The queued recordBall +
     // upcoming voidLast still execute on the server and net to nothing.
     if (optimistic.length > 0) {
+      const last = optimistic[optimistic.length - 1];
+      restoreStriker = last.striker_id;
+      restoreNonStriker = last.non_striker_id;
+      restoreBowler = last.bowler_id;
       setOptimistic((q) => q.slice(0, -1));
     } else {
       // Pure server-side undo — capture the most recent confirmed ball
@@ -402,9 +441,16 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       const idx = state.balls.length - 1 - pendingUndos.length;
       const ball = idx >= 0 ? state.balls[idx] : undefined;
       if (ball) {
+        restoreStriker = ball.batter_id;
+        restoreNonStriker = ball.non_striker_id;
+        restoreBowler = ball.bowler_id;
         setPendingUndos((q) => [...q, makePendingUndo(ball)]);
       }
     }
+    if (restoreStriker !== null) setStrikerId(restoreStriker);
+    if (restoreNonStriker !== null) setNonStrikerId(restoreNonStriker);
+    if (restoreBowler !== null) setBowlerId(restoreBowler);
+
     void enqueue("voidLastBall", {
       matchId: state.match.id,
       inningsId: innings.id,
@@ -418,6 +464,30 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     }
     const fromOpt = Math.min(optimistic.length, count);
     const fromServer = count - fromOpt;
+    // The "earliest undone ball" holds the pre-rotation state. If any
+    // server balls are being undone, the earliest is the first server
+    // ball in the range — its batter/non_striker/bowler are who were on
+    // strike when it was bowled. Otherwise the earliest is the head of
+    // the optimistic slice being dropped.
+    let restoreStriker: string | null = null;
+    let restoreNonStriker: string | null = null;
+    let restoreBowler: string | null = null;
+    if (fromServer > 0) {
+      const earliest =
+        state.balls[state.balls.length - pendingUndos.length - fromServer];
+      if (earliest) {
+        restoreStriker = earliest.batter_id;
+        restoreNonStriker = earliest.non_striker_id;
+        restoreBowler = earliest.bowler_id;
+      }
+    } else if (fromOpt > 0) {
+      const earliest = optimistic[optimistic.length - fromOpt];
+      if (earliest) {
+        restoreStriker = earliest.striker_id;
+        restoreNonStriker = earliest.non_striker_id;
+        restoreBowler = earliest.bowler_id;
+      }
+    }
     if (fromOpt > 0) {
       setOptimistic((q) => q.slice(0, q.length - fromOpt));
     }
@@ -432,6 +502,9 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
         setPendingUndos((q) => [...q, ...additions]);
       }
     }
+    if (restoreStriker !== null) setStrikerId(restoreStriker);
+    if (restoreNonStriker !== null) setNonStrikerId(restoreNonStriker);
+    if (restoreBowler !== null) setBowlerId(restoreBowler);
     void enqueue("voidLastN", {
       matchId: state.match.id,
       inningsId: innings.id,
@@ -557,7 +630,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             </div>
           )}
           {(state.active.free_hit_pending ||
-            state.active.is_special_over ||
+            overCategory !== 2 ||
             state.active.last_man_mode) && (
             <div className="flex flex-wrap items-center gap-2 pt-1">
               {state.active.free_hit_pending && (
@@ -565,9 +638,14 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                   Free hit
                 </span>
               )}
-              {state.active.is_special_over && (
+              {/* Drive the badge from the CATEGORY dropdown (overCategory)
+                  rather than the engine's striker-derived
+                  `is_special_over`. The badge should reflect what the
+                  scorer has declared this over to be — a Cat 1 player
+                  batting in a Cat 2 over shouldn't flip the label. */}
+              {overCategory !== 2 && (
                 <span className="rounded-full bg-blue-500/15 px-2 py-0.5 text-xs font-medium uppercase text-blue-600">
-                  {state.active.is_special_over.toUpperCase()} over
+                  Cat{overCategory} over
                 </span>
               )}
               {state.active.last_man_mode && (

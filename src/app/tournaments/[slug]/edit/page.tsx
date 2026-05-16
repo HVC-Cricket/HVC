@@ -44,7 +44,6 @@ export default async function EditTournamentPage(props: {
             <CardTitle>Edit tournament</CardTitle>
             <CardDescription>
               Editing <strong className="capitalize">{tournament.name}</strong>.
-              Changing the slug breaks existing URLs.
             </CardDescription>
           </CardHeader>
           <CardContent>

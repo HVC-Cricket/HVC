@@ -44,7 +44,7 @@ export function ProfileCard({
   return (
     <Card className="overflow-hidden">
       <CardHeader className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
-        <div className="flex items-center gap-4">
+        <div className="flex items-start gap-4">
           {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -57,14 +57,14 @@ export function ProfileCard({
               {initials}
             </div>
           )}
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <h1 className="truncate text-xl font-semibold capitalize">
-                {displayName}
-              </h1>
+          <div className="min-w-0 flex-1 space-y-1">
+            <h1 className="break-words text-xl font-semibold capitalize leading-tight">
+              {displayName}
+            </h1>
+            <div>
               <span
                 className={
-                  "inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide " +
+                  "inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide " +
                   roleClasses
                 }
               >
@@ -80,10 +80,21 @@ export function ProfileCard({
               </div>
             )}
           </div>
+          {!editing && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="-mr-2 shrink-0"
+              onClick={() => setEditing(true)}
+            >
+              Edit
+            </Button>
+          )}
         </div>
       </CardHeader>
-      <CardContent className="pt-4">
-        {editing ? (
+      {editing && (
+        <CardContent className="pt-4">
           <EditProfileForm
             initial={{
               display_name: displayName,
@@ -91,17 +102,8 @@ export function ProfileCard({
             }}
             onCancel={() => setEditing(false)}
           />
-        ) : (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setEditing(true)}
-          >
-            Edit profile
-          </Button>
-        )}
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   );
 }

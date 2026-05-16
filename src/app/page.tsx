@@ -68,20 +68,27 @@ export default async function Home() {
   const now = new Date();
   const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-  // Three independent match queries in parallel.
+  // Three independent match queries in parallel, each embedding its
+  // related tournament + teams + innings via PostgREST nested selects.
+  // Was two sequential waves (matches first, then look-ups by ID);
+  // collapsing to one wave saves a full round-trip on every visit.
+  const matchSelect = `
+    id, tournament_id, team_a_id, team_b_id, status, started_at,
+    scheduled_at, match_number, overs_per_innings,
+    tournament:tournaments(id, slug, name),
+    team_a:teams!matches_team_a_id_fkey(id, name, short_name, logo_url),
+    team_b:teams!matches_team_b_id_fkey(id, name, short_name, logo_url),
+    innings(innings_number, batting_team_id, total_runs, total_wickets, total_legal_balls, target)
+  `;
   const [liveRes, upcomingRes, recentRes] = await Promise.all([
     supabase
       .from("matches")
-      .select(
-        "id, tournament_id, team_a_id, team_b_id, status, current_innings_id, started_at, match_number, overs_per_innings",
-      )
+      .select(matchSelect)
       .in("status", ["live", "innings_break"])
       .order("started_at", { ascending: false }),
     supabase
       .from("matches")
-      .select(
-        "id, tournament_id, team_a_id, team_b_id, scheduled_at, match_number",
-      )
+      .select(matchSelect)
       .eq("status", "scheduled")
       .gte("scheduled_at", now.toISOString())
       .lte("scheduled_at", next24h.toISOString())
@@ -89,119 +96,94 @@ export default async function Home() {
       .limit(5),
     supabase
       .from("matches")
-      .select(
-        "id, tournament_id, team_a_id, team_b_id, status, started_at, match_number",
-      )
+      .select(matchSelect)
       .eq("status", "completed")
       .order("started_at", { ascending: false })
       .limit(5),
   ]);
 
-  const liveRows = liveRes.data ?? [];
-  const upcomingRows = upcomingRes.data ?? [];
-  const recentRows = recentRes.data ?? [];
+  // Shape of an embedded row — PostgREST returns nested objects as
+  // single-object (one-to-one) or arrays (one-to-many).
+  type EmbeddedMatchRow = {
+    id: string;
+    tournament_id: string;
+    team_a_id: string;
+    team_b_id: string;
+    status: string;
+    started_at: string | null;
+    scheduled_at: string | null;
+    match_number: number;
+    overs_per_innings: number;
+    tournament: { id: string; slug: string; name: string } | null;
+    team_a: TeamView | null;
+    team_b: TeamView | null;
+    innings: Array<{
+      innings_number: number;
+      batting_team_id: string;
+      total_runs: number;
+      total_wickets: number;
+      total_legal_balls: number;
+      target: number | null;
+    }>;
+  };
 
-  const allRows = [...liveRows, ...upcomingRows, ...recentRows];
-  const tournamentIds = [...new Set(allRows.map((m) => m.tournament_id))];
-  const teamIds = [
-    ...new Set(allRows.flatMap((m) => [m.team_a_id, m.team_b_id])),
-  ];
-  const inningsMatchIds = [
-    ...new Set([...liveRows, ...recentRows].map((m) => m.id)),
-  ];
+  const toInningsScore = (
+    inn: EmbeddedMatchRow["innings"][number],
+  ): InningsScore => ({
+    innings_number: inn.innings_number,
+    batting_team_id: inn.batting_team_id,
+    runs: inn.total_runs,
+    wickets: inn.total_wickets,
+    overs: `${Math.floor(inn.total_legal_balls / 6)}.${inn.total_legal_balls % 6}`,
+    target: inn.target,
+    legal_balls: inn.total_legal_balls,
+  });
 
-  // Fetch shared deps in parallel — tournaments + teams + innings.
-  const [tournamentsRes, teamsRes, inningsRes] =
-    allRows.length > 0
-      ? await Promise.all([
-          supabase
-            .from("tournaments")
-            .select("id, slug, name")
-            .in("id", tournamentIds),
-          supabase
-            .from("teams")
-            .select("id, name, short_name, logo_url")
-            .in("id", teamIds),
-          inningsMatchIds.length > 0
-            ? supabase
-                .from("innings")
-                .select(
-                  "id, match_id, innings_number, batting_team_id, total_runs, total_wickets, total_legal_balls, target",
-                )
-                .in("match_id", inningsMatchIds)
-            : Promise.resolve({ data: [] }),
-        ])
-      : [{ data: [] }, { data: [] }, { data: [] }];
+  const hasDeps = (m: EmbeddedMatchRow) =>
+    m.tournament != null && m.team_a != null && m.team_b != null;
 
-  const tournamentById = new Map(
-    (tournamentsRes.data ?? []).map((t) => [t.id, t]),
-  );
-  const teamById = new Map(
-    (teamsRes.data ?? []).map((t) => [t.id, t as TeamView]),
-  );
-  const inningsByMatch = new Map<string, InningsScore[]>();
-  for (const inn of inningsRes.data ?? []) {
-    const list = inningsByMatch.get(inn.match_id) ?? [];
-    list.push({
-      innings_number: inn.innings_number,
-      batting_team_id: inn.batting_team_id,
-      runs: inn.total_runs,
-      wickets: inn.total_wickets,
-      overs: `${Math.floor(inn.total_legal_balls / 6)}.${inn.total_legal_balls % 6}`,
-      target: inn.target,
-      legal_balls: inn.total_legal_balls,
-    });
-    inningsByMatch.set(inn.match_id, list);
-  }
-
-  const hasDeps = (m: { tournament_id: string; team_a_id: string; team_b_id: string }) =>
-    tournamentById.has(m.tournament_id) &&
-    teamById.has(m.team_a_id) &&
-    teamById.has(m.team_b_id);
+  const liveRows = (liveRes.data as EmbeddedMatchRow[] | null) ?? [];
+  const upcomingRows = (upcomingRes.data as EmbeddedMatchRow[] | null) ?? [];
+  const recentRows = (recentRes.data as EmbeddedMatchRow[] | null) ?? [];
 
   const liveMatches: LiveMatchView[] = liveRows.filter(hasDeps).map((m) => {
-    const t = tournamentById.get(m.tournament_id)!;
-    const mInns = inningsByMatch.get(m.id) ?? [];
+    const inns = m.innings.map(toInningsScore);
     return {
       id: m.id,
       status: m.status as "live" | "innings_break",
-      tournament: { slug: t.slug, name: t.name },
+      tournament: { slug: m.tournament!.slug, name: m.tournament!.name },
       matchNumber: m.match_number,
       oversPerInnings: m.overs_per_innings,
-      teamA: teamById.get(m.team_a_id)!,
-      teamB: teamById.get(m.team_b_id)!,
-      innings1: mInns.find((i) => i.innings_number === 1) ?? null,
-      innings2: mInns.find((i) => i.innings_number === 2) ?? null,
+      teamA: m.team_a!,
+      teamB: m.team_b!,
+      innings1: inns.find((i) => i.innings_number === 1) ?? null,
+      innings2: inns.find((i) => i.innings_number === 2) ?? null,
     };
   });
 
   const upcomingMatches: UpcomingMatchView[] = upcomingRows
     .filter(hasDeps)
-    .map((m) => {
-      const t = tournamentById.get(m.tournament_id)!;
-      return {
-        id: m.id,
-        tournament: { slug: t.slug, name: t.name },
-        matchNumber: m.match_number,
-        scheduledAt: m.scheduled_at!,
-        teamA: teamById.get(m.team_a_id)!,
-        teamB: teamById.get(m.team_b_id)!,
-      };
-    });
+    .map((m) => ({
+      id: m.id,
+      tournament: { slug: m.tournament!.slug, name: m.tournament!.name },
+      matchNumber: m.match_number,
+      scheduledAt: m.scheduled_at!,
+      teamA: m.team_a!,
+      teamB: m.team_b!,
+    }));
 
   const recentMatches: RecentMatchView[] = recentRows
     .filter(hasDeps)
     .map((m) => {
-      const t = tournamentById.get(m.tournament_id)!;
-      const mInns = inningsByMatch.get(m.id) ?? [];
+      const inns = m.innings.map(toInningsScore);
       return {
         id: m.id,
-        tournament: { slug: t.slug, name: t.name },
+        tournament: { slug: m.tournament!.slug, name: m.tournament!.name },
         matchNumber: m.match_number,
-        teamA: teamById.get(m.team_a_id)!,
-        teamB: teamById.get(m.team_b_id)!,
-        innings1: mInns.find((i) => i.innings_number === 1) ?? null,
-        innings2: mInns.find((i) => i.innings_number === 2) ?? null,
+        teamA: m.team_a!,
+        teamB: m.team_b!,
+        innings1: inns.find((i) => i.innings_number === 1) ?? null,
+        innings2: inns.find((i) => i.innings_number === 2) ?? null,
       };
     });
 

@@ -203,7 +203,15 @@ function InningsCard({
             {completed && target != null && (
               <>
                 {" · "}
-                <span className="text-foreground">chased {target}</span>
+                {state.match.winner_id === innings.batting_team_id ? (
+                  <span className="text-foreground">chased {target}</span>
+                ) : state.match.result_type === "tie" ? (
+                  <span className="text-foreground">tied at {target - 1}</span>
+                ) : (
+                  <span className="text-foreground">
+                    fell {target - innings.total_runs} short of {target}
+                  </span>
+                )}
               </>
             )}
           </span>
@@ -226,9 +234,11 @@ function InningsCard({
           runsNeeded != null &&
           runsNeeded > 0 &&
           ballsRemaining > 0 && (
-            <div className="mt-3 grid grid-cols-3 gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-amber-900 dark:text-amber-200">
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-900 dark:text-amber-200">
               <ChaseStat label="Need" value={runsNeeded} />
+              <span aria-hidden className="text-amber-500/40">·</span>
               <ChaseStat label="Balls left" value={ballsRemaining} />
+              <span aria-hidden className="text-amber-500/40">·</span>
               <ChaseStat label="Req RR" value={reqRR ?? "—"} />
             </div>
           )}
@@ -433,13 +443,13 @@ function Stat({ k, v }: { k: string; v: string | number }) {
 
 function ChaseStat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="text-center">
-      <div className="text-[10px] uppercase tracking-wide opacity-80">
+    <div className="flex items-baseline gap-1">
+      <span className="text-[10px] font-medium uppercase tracking-wide opacity-70">
         {label}
-      </div>
-      <div className="font-mono text-lg font-semibold tabular-nums">
+      </span>
+      <span className="font-mono text-sm font-semibold tabular-nums">
         {value}
-      </div>
+      </span>
     </div>
   );
 }

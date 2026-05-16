@@ -11,7 +11,7 @@ export default function HomeLoading() {
         {/* Live now section */}
         <section className="space-y-3">
           <div className="flex items-center gap-2">
-            <span className="size-2.5 rounded-full bg-destructive/60" />
+            <span className="size-2.5 rounded-full bg-emerald-500/60" />
             <div className="h-3 w-20 animate-pulse rounded bg-muted" />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -36,7 +36,7 @@ export default function HomeLoading() {
 function LiveCardSkeleton() {
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border border-foreground/10 bg-background shadow-sm">
-      <div className="flex items-center justify-between gap-2 border-b border-foreground/5 bg-destructive/5 px-3 py-1.5">
+      <div className="flex items-center justify-between gap-2 border-b border-foreground/5 bg-emerald-500/5 px-3 py-1.5">
         <div className="h-3 w-12 animate-pulse rounded bg-muted" />
         <div className="h-3 w-24 animate-pulse rounded bg-muted" />
       </div>
@@ -44,7 +44,7 @@ function LiveCardSkeleton() {
         <TeamLineSkeleton />
         <TeamLineSkeleton />
       </div>
-      <div className="h-10 animate-pulse bg-destructive/40" />
+      <div className="h-10 animate-pulse bg-primary/40" />
     </div>
   );
 }

@@ -195,43 +195,53 @@ export default async function MePage() {
                 Super admin shortcuts
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              <Link href="/tournaments/new">
-                <Button size="sm">
+            <CardContent className="grid grid-cols-2 gap-2">
+              <Link href="/tournaments/new" prefetch className="contents">
+                <Button size="sm" className="w-full justify-start">
                   <Plus className="mr-1 size-3.5" />
                   New tournament
                 </Button>
               </Link>
-              <Link href="/tournaments">
-                <Button variant="ghost" size="sm">
+              <Link href="/players/new" prefetch className="contents">
+                <Button size="sm" className="w-full justify-start">
+                  <Plus className="mr-1 size-3.5" />
+                  New player
+                </Button>
+              </Link>
+              <Link href="/tournaments" prefetch className="contents">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start"
+                >
                   All tournaments
                 </Button>
               </Link>
-              <Link href="/players">
-                <Button variant="ghost" size="sm">
-                  Players
-                </Button>
-              </Link>
-              <Link href="/players/new">
-                <Button variant="ghost" size="sm">
-                  <Plus className="mr-1 size-3.5" />
-                  New player
+              <Link href="/players" prefetch className="contents">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start"
+                >
+                  All players
                 </Button>
               </Link>
             </CardContent>
           </Card>
         )}
 
-        <form action={signOut}>
-          <Button
-            type="submit"
-            variant="ghost"
-            size="sm"
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-          >
-            Sign out
-          </Button>
-        </form>
+        <div className="flex justify-end border-t border-foreground/10 pt-4">
+          <form action={signOut}>
+            <Button
+              type="submit"
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              Sign out
+            </Button>
+          </form>
+        </div>
       </div>
     </main>
   );

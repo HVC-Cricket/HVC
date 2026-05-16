@@ -27,49 +27,49 @@ export async function CommentaryFeed({ matchId }: { matchId: string }) {
     .single();
   if (!match) return null;
 
-  const { data: inningsRows } = await supabase
-    .from("innings")
-    .select("id, innings_number, batting_team_id")
-    .eq("match_id", matchId)
-    .order("innings_number", { ascending: true });
+  // innings + balls + teams + player-name source (match_players with
+  // players embedded) all run in parallel — was 4 sequential awaits.
+  // Balls are filtered through the innings!inner join so we don't need
+  // innings IDs upfront; players come from match_players so we don't
+  // wait on the balls result either.
+  type EmbeddedXIRow = {
+    player: { id: string; display_name: string } | null;
+  };
+  const [inningsRes, ballsRes, teamsRes, xiRes] = await Promise.all([
+    supabase
+      .from("innings")
+      .select("id, innings_number, batting_team_id")
+      .eq("match_id", matchId)
+      .order("innings_number", { ascending: true }),
+    supabase
+      .from("balls")
+      .select("*, innings!inner(match_id)")
+      .eq("innings.match_id", matchId)
+      .eq("is_voided", false)
+      .order("scored_at", { ascending: true }),
+    supabase
+      .from("teams")
+      .select("id, short_name")
+      .in("id", [match.team_a_id, match.team_b_id]),
+    supabase
+      .from("match_players")
+      .select("player:players(id, display_name)")
+      .eq("match_id", matchId),
+  ]);
+
+  const inningsRows = inningsRes.data;
   if (!inningsRows || inningsRows.length === 0) return null;
 
-  const inningsIds = inningsRows.map((i) => i.id);
-  const { data: ballRows } = await supabase
-    .from("balls")
-    .select("*")
-    .in("innings_id", inningsIds)
-    .eq("is_voided", false)
-    .order("scored_at", { ascending: true });
-  const balls = (ballRows ?? []) as BallRow[];
+  const balls = (ballsRes.data as BallRow[] | null) ?? [];
   if (balls.length === 0) return null;
 
-  // Player names for the narrative.
-  const playerIds = new Set<string>();
-  for (const b of balls) {
-    if (b.batter_id) playerIds.add(b.batter_id);
-    if (b.non_striker_id) playerIds.add(b.non_striker_id);
-    if (b.bowler_id) playerIds.add(b.bowler_id);
-    if (b.fielder_id) playerIds.add(b.fielder_id);
-    if (b.player_out_id) playerIds.add(b.player_out_id);
+  const playerNames = new Map<string, string>();
+  for (const r of (xiRes.data as EmbeddedXIRow[] | null) ?? []) {
+    if (r.player) playerNames.set(r.player.id, r.player.display_name);
   }
-  const { data: playerRows } = playerIds.size
-    ? await supabase
-        .from("players")
-        .select("id, display_name")
-        .in("id", Array.from(playerIds))
-    : { data: [] as { id: string; display_name: string }[] };
-  const playerNames = new Map<string, string>(
-    (playerRows ?? []).map((p) => [p.id, p.display_name]),
-  );
 
-  // Team short_names for the per-innings header.
-  const { data: teams } = await supabase
-    .from("teams")
-    .select("id, short_name")
-    .in("id", [match.team_a_id, match.team_b_id]);
   const teamShort = new Map(
-    (teams ?? []).map((t) => [t.id, t.short_name]),
+    (teamsRes.data ?? []).map((t) => [t.id, t.short_name]),
   );
 
   // Build commentary per innings (so we can group + show innings headers).

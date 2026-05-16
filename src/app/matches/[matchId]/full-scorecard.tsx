@@ -31,44 +31,59 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
     .single();
   if (!match) return null;
 
-  const { data: innings } = await supabase
-    .from("innings")
-    .select(
-      "id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls, extras_wides, extras_no_balls, extras_byes",
-    )
-    .eq("match_id", match.id)
-    .order("innings_number", { ascending: true });
+  // innings + teams + match_players (with players embedded) + balls all
+  // depend only on match.id, so run them in one parallel wave. Was 5
+  // sequential awaits previously; now one round-trip after match.
+  // Balls are filtered via the innings!inner join so we don't need the
+  // innings IDs ahead of time.
+  type EmbeddedXIRow = {
+    player_id: string;
+    team_id: string;
+    batting_order: number | null;
+    is_captain: boolean;
+    is_keeper: boolean;
+    is_substitute: boolean;
+    player: PlayerLite | null;
+  };
+  const [inningsRes, teamsRes, xiRes, ballsRes] = await Promise.all([
+    supabase
+      .from("innings")
+      .select(
+        "id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls, extras_wides, extras_no_balls, extras_byes",
+      )
+      .eq("match_id", match.id)
+      .order("innings_number", { ascending: true }),
+    supabase
+      .from("teams")
+      .select("id, name, short_name")
+      .in("id", [match.team_a_id, match.team_b_id]),
+    supabase
+      .from("match_players")
+      .select(
+        "player_id, team_id, batting_order, is_captain, is_keeper, is_substitute, player:players(id, display_name, category)",
+      )
+      .eq("match_id", match.id),
+    supabase
+      .from("balls")
+      .select("*, innings!inner(match_id)")
+      .eq("innings.match_id", match.id)
+      .eq("is_voided", false)
+      .order("scored_at", { ascending: true }),
+  ]);
+
+  const innings = inningsRes.data;
   if (!innings || innings.length === 0) return null;
 
-  const { data: teams } = await supabase
-    .from("teams")
-    .select("id, name, short_name")
-    .in("id", [match.team_a_id, match.team_b_id]);
-  const teamById = new Map((teams ?? []).map((t) => [t.id, t]));
+  const teamById = new Map((teamsRes.data ?? []).map((t) => [t.id, t]));
 
-  const { data: xi } = await supabase
-    .from("match_players")
-    .select("player_id, team_id, batting_order, is_captain, is_keeper, is_substitute")
-    .eq("match_id", match.id);
-  const playerIds = (xi ?? []).map((r) => r.player_id);
-  const { data: playerRows } = playerIds.length
-    ? await supabase
-        .from("players")
-        .select("id, display_name, category")
-        .in("id", playerIds)
-    : { data: [] as PlayerLite[] };
-  const playerById = new Map<string, PlayerLite>(
-    (playerRows ?? []).map((p) => [p.id, p]),
-  );
+  const xiRows = (xiRes.data as EmbeddedXIRow[] | null) ?? [];
+  const xi = xiRows.map(({ player: _player, ...rest }) => rest);
+  const playerById = new Map<string, PlayerLite>();
+  for (const r of xiRows) {
+    if (r.player) playerById.set(r.player.id, r.player);
+  }
 
-  const inningsIds = innings.map((i) => i.id);
-  const { data: ballsRows } = await supabase
-    .from("balls")
-    .select("*")
-    .in("innings_id", inningsIds)
-    .eq("is_voided", false)
-    .order("scored_at", { ascending: true });
-  const allBalls = (ballsRows ?? []) as BallRow[];
+  const allBalls = (ballsRes.data as BallRow[] | null) ?? [];
 
   const tabs = innings.map((i) => {
     const battingTeam = teamById.get(i.batting_team_id);

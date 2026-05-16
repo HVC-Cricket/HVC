@@ -86,6 +86,8 @@ export type ScoreboardState = {
 export async function loadScoreboardState(matchId: string): Promise<ScoreboardState> {
   const supabase = await createClient();
 
+  // Wave 1: load `match`. Everything else depends on its FKs (tournament,
+  // teams, innings) or its id (match_players, balls).
   const { data: match } = await supabase
     .from("matches")
     .select("*")
@@ -93,77 +95,102 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
     .single();
   if (!match) notFound();
 
-  const { data: tournament } = await supabase
-    .from("tournaments")
-    .select("id, slug, name, rules")
-    .eq("id", match.tournament_id)
-    .single();
-  if (!tournament) notFound();
+  // Wave 2: tournament + teams + match_players (with players embedded) +
+  // innings + balls — all five can run in parallel now that we have the
+  // match row. Previously this was 6 sequential awaits → 6 RTTs;
+  // collapsing them shaves ~5×RTT off every refresh of the score page,
+  // which is exactly the latency the scorer feels after each ball tap.
+  const ballsQuery = match.current_innings_id
+    ? supabase
+        .from("balls")
+        .select("*")
+        .eq("innings_id", match.current_innings_id)
+        .eq("is_voided", false)
+        .order("scored_at", { ascending: true })
+    : Promise.resolve({ data: [] as BallRow[] });
 
+  const [tournamentRes, teamsRes, xiRes, allInningsRes, ballsRes] =
+    await Promise.all([
+      supabase
+        .from("tournaments")
+        .select("id, slug, name, rules")
+        .eq("id", match.tournament_id)
+        .single(),
+      supabase
+        .from("teams")
+        .select("id, name, short_name")
+        .in("id", [match.team_a_id, match.team_b_id]),
+      // Embed `players` inline so we don't need a separate look-up
+      // query keyed by player_id afterwards.
+      supabase
+        .from("match_players")
+        .select(
+          "player_id, team_id, batting_order, is_substitute, player:players(id, display_name, category)",
+        )
+        .eq("match_id", match.id),
+      supabase
+        .from("innings")
+        .select(
+          "id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls, extras_wides, extras_no_balls, extras_byes, target, is_complete, initial_striker_id, initial_non_striker_id, initial_bowler_id",
+        )
+        .eq("match_id", match.id)
+        .order("innings_number", { ascending: true }),
+      ballsQuery,
+    ]);
+
+  const tournament = tournamentRes.data;
+  if (!tournament) notFound();
   const rules = getRuleSet(tournament.rules);
 
-  const { data: teams } = await supabase
-    .from("teams")
-    .select("id, name, short_name")
-    .in("id", [match.team_a_id, match.team_b_id]);
+  const teams = teamsRes.data;
   const teamA = teams?.find((t) => t.id === match.team_a_id);
   const teamB = teams?.find((t) => t.id === match.team_b_id);
   if (!teamA || !teamB) notFound();
 
-  // Playing XI for both teams + player metadata
-  const { data: xiRows } = await supabase
-    .from("match_players")
-    .select("player_id, team_id, batting_order, is_substitute")
-    .eq("match_id", match.id);
-  const xiPlayerIds = (xiRows ?? []).map((r) => r.player_id);
-  const { data: playerRows } = xiPlayerIds.length
-    ? await supabase
-        .from("players")
-        .select("id, display_name, category")
-        .in("id", xiPlayerIds)
-    : { data: [] as { id: string; display_name: string; category: 1 | 2 | 3 | null }[] };
-  const playerById = new Map(
-    (playerRows ?? []).map((p) => [p.id, p]),
-  );
+  type EmbeddedXIRow = {
+    player_id: string;
+    team_id: string;
+    batting_order: number | null;
+    is_substitute: boolean;
+    player: {
+      id: string;
+      display_name: string;
+      category: 1 | 2 | 3 | null;
+    } | null;
+  };
+  const xiRows = (xiRes.data as EmbeddedXIRow[] | null) ?? [];
+  // Re-derive the per-id player map from the embedded rows so the rest
+  // of the function (engine seed, dismissed look-ups) keeps working
+  // without restructuring.
+  const playerById = new Map<
+    string,
+    { id: string; display_name: string; category: 1 | 2 | 3 | null }
+  >();
+  for (const r of xiRows) {
+    if (r.player) playerById.set(r.player.id, r.player);
+  }
   const xi: Record<string, EnginePlayer[]> = {
     [teamA.id]: [],
     [teamB.id]: [],
   };
-  for (const r of xiRows ?? []) {
-    const p = playerById.get(r.player_id);
-    if (!p) continue;
+  for (const r of xiRows) {
+    if (!r.player) continue;
     xi[r.team_id]?.push({
-      id: p.id,
-      display_name: p.display_name,
-      category: p.category,
+      id: r.player.id,
+      display_name: r.player.display_name,
+      category: r.player.category,
       team_id: r.team_id,
     });
   }
 
-  // All innings for this match (so we can show innings-1 summary during break + final)
-  const { data: allInningsRows } = await supabase
-    .from("innings")
-    .select(
-      "id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls, extras_wides, extras_no_balls, extras_byes, target, is_complete, initial_striker_id, initial_non_striker_id, initial_bowler_id",
-    )
-    .eq("match_id", match.id)
-    .order("innings_number", { ascending: true });
-  const allInnings = (allInningsRows ?? []) as InningsSummary[];
+  const allInnings = (allInningsRes.data ?? []) as InningsSummary[];
 
   // Active innings (per matches.current_innings_id)
   let innings: ScoreboardState["innings"] = null;
-  let balls: BallRow[] = [];
+  const balls: BallRow[] = (ballsRes.data as BallRow[] | null) ?? [];
   if (match.current_innings_id) {
     innings =
       allInnings.find((i) => i.id === match.current_innings_id) ?? null;
-
-    const { data: ballRows } = await supabase
-      .from("balls")
-      .select("*")
-      .eq("innings_id", match.current_innings_id)
-      .eq("is_voided", false)
-      .order("scored_at", { ascending: true });
-    balls = ballRows ?? [];
   }
 
   // Replay the innings through the engine. We need this because the

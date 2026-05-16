@@ -127,22 +127,6 @@ export function EditTournamentForm({ tournament }: Props) {
             </FormItem>
           )}
         />
-        <FormField
-          control={form.control}
-          name="slug"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>URL slug</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormDescription>
-                Used in /tournaments/{`{slug}`}. Changing this breaks bookmarks.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         <div className="grid grid-cols-2 gap-4">
           <FormField
             control={form.control}
@@ -299,6 +283,38 @@ export function EditTournamentForm({ tournament }: Props) {
             </FormItem>
           )}
         />
+
+        {/* URL slug is rarely touched and risky to change — bury it in
+            an Advanced section so the main form stays focused on the
+            fields people actually edit. */}
+        <details className="group rounded-lg border border-foreground/10 bg-muted/20">
+          <summary className="cursor-pointer list-none px-3 py-2 text-sm font-medium text-muted-foreground transition hover:text-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="transition group-open:rotate-90">▸</span>
+              Advanced
+            </span>
+          </summary>
+          <div className="border-t border-foreground/10 p-3">
+            <FormField
+              control={form.control}
+              name="slug"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>URL slug</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormDescription>
+                    Used in /tournaments/{`{slug}`}. Changing this breaks
+                    existing links and bookmarks — leave it alone unless
+                    you really need to rename the URL.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </details>
 
         <div className="flex items-center justify-between gap-4 pt-2">
           <ConfirmButton
