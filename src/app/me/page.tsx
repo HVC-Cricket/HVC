@@ -32,8 +32,14 @@ export default async function MePage() {
   if (!user) redirect("/login");
 
   // Profile + linked player + tournament-admin rows in parallel.
+  // Profile column list pruned to only what the page reads — phone /
+  // updated_at etc. were being shipped unused.
   const [profileRes, linkedPlayerRes, adminRowsRes] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user.id).single(),
+    supabase
+      .from("profiles")
+      .select("display_name, avatar_url, is_super_admin, created_at")
+      .eq("id", user.id)
+      .single(),
     supabase
       .from("players")
       .select("id, display_name")
@@ -121,6 +127,7 @@ export default async function MePage() {
             {linkedPlayer ? (
               <Link
                 href={`/players/${linkedPlayer.id}`}
+                prefetch
                 className="group flex items-center justify-between gap-3 rounded-md border border-foreground/10 bg-background px-3 py-2.5 transition hover:border-foreground/25 hover:bg-muted/30"
               >
                 <div className="min-w-0">
@@ -158,6 +165,7 @@ export default async function MePage() {
                 <Link
                   key={e.tournament_id}
                   href={`/tournaments/${e.slug}`}
+                  prefetch
                   className="group flex items-center justify-between gap-3 rounded-md border border-foreground/10 bg-background px-3 py-2.5 transition hover:border-foreground/25 hover:bg-muted/30"
                 >
                   <span className="min-w-0 truncate text-sm font-medium capitalize">

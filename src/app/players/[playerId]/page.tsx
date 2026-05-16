@@ -339,6 +339,7 @@ export default async function PlayerDetailPage(props: {
                             {t ? (
                               <Link
                                 href={`/tournaments/${t.slug}`}
+                                prefetch
                                 className="capitalize hover:underline"
                               >
                                 {t.name}

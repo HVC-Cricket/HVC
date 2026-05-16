@@ -1,3 +1,4 @@
+import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -32,42 +33,56 @@ export default async function TeamDetailPage(props: {
     .single();
   if (!tournament) notFound();
 
-  const canManage = ctx
-    ? await isTournamentOrganizer(tournament.id, ctx)
-    : false;
-
-  const { data: team } = await supabase
-    .from("teams")
-    .select("id, name, short_name, logo_url")
-    .eq("id", teamId)
-    .eq("tournament_id", tournament.id)
-    .single();
+  // team / canManage / allPlayers / roster all depend only on
+  // tournament.id and teamId — fire them off together. Saves 3 sequential
+  // round-trips on the critical path (the previous version awaited each
+  // one in turn). allPlayers is needed for the "add to roster" picker.
+  const [teamRes, canManage, allPlayersRes, rosterRes] = await Promise.all([
+    supabase
+      .from("teams")
+      .select("id, name, short_name, logo_url")
+      .eq("id", teamId)
+      .eq("tournament_id", tournament.id)
+      .single(),
+    ctx ? isTournamentOrganizer(tournament.id, ctx) : Promise.resolve(false),
+    supabase
+      .from("players")
+      .select("id, display_name")
+      .order("display_name", { ascending: true }),
+    supabase
+      .from("team_players")
+      .select("id, role, player_id, created_at")
+      .eq("team_id", teamId)
+      .order("created_at", { ascending: true }),
+  ]);
+  const team = teamRes.data;
   if (!team) notFound();
+  const roster = rosterRes.data;
+  const allPlayers = allPlayersRes.data;
 
-  const { data: roster } = await supabase
-    .from("team_players")
-    .select("id, role, player_id, created_at")
-    .eq("team_id", team.id)
-    .order("created_at", { ascending: true });
-
+  // Roster players come from the same `players` table we just fetched
+  // wholesale for the picker — no extra query needed.
   const playerIds = (roster ?? []).map((r) => r.player_id);
-  const { data: rosterPlayers } = playerIds.length
-    ? await supabase.from("players").select("id, display_name").in("id", playerIds)
-    : { data: [] as { id: string; display_name: string }[] };
-
-  const playersById = new Map((rosterPlayers ?? []).map((p) => [p.id, p]));
-
-  const { data: allPlayers } = await supabase
-    .from("players")
-    .select("id, display_name")
-    .order("display_name", { ascending: true });
+  const playersById = new Map(
+    (allPlayers ?? [])
+      .filter((p) => playerIds.includes(p.id))
+      .map((p) => [p.id, p]),
+  );
 
   const onRosterIds = new Set(playerIds);
   const availablePlayers = (allPlayers ?? []).filter((p) => !onRosterIds.has(p.id));
 
   return (
-    <main className="flex-1 p-6">
-      <div className="mx-auto max-w-3xl space-y-6">
+    <main className="flex-1 p-4 sm:p-6">
+      <div className="mx-auto max-w-3xl space-y-5">
+        <Link
+          href={`/tournaments/${tournament.slug}`}
+          prefetch
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
+        >
+          <ChevronLeft className="size-4" />
+          <span className="capitalize">{tournament.name}</span>
+        </Link>
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-4">
             {team.logo_url && (
@@ -79,18 +94,18 @@ export default async function TeamDetailPage(props: {
               />
             )}
             <div className="space-y-1">
-              <p className="text-sm text-muted-foreground">
-                <Link href={`/tournaments/${tournament.slug}`} className="hover:underline">
-                  {tournament.name}
-                </Link>
+              <h1 className="text-2xl font-semibold capitalize">
+                {team.name}
+              </h1>
+              <p className="text-sm uppercase tracking-wide text-muted-foreground">
+                {team.short_name}
               </p>
-              <h1 className="text-2xl font-semibold">{team.name}</h1>
-              <p className="text-sm text-muted-foreground">{team.short_name}</p>
             </div>
           </div>
           {canManage && (
             <Link
               href={`/tournaments/${tournament.slug}/teams/${team.id}/edit`}
+              prefetch
             >
               <Button variant="ghost" size="sm">
                 Edit

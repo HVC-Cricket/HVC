@@ -244,6 +244,7 @@ export default async function TournamentDetailPage(props: {
                       <Link
                         key={m.id}
                         href={`/matches/${m.id}`}
+                        prefetch
                         className="group flex items-center justify-between gap-3 rounded-lg border border-foreground/10 bg-background p-3 transition hover:border-foreground/25 hover:bg-muted/30"
                       >
                         <div className="flex min-w-0 items-center gap-3">
@@ -368,6 +369,7 @@ export default async function TournamentDetailPage(props: {
                       <Link
                         key={team.id}
                         href={`/tournaments/${tournament.slug}/teams/${team.id}`}
+                        prefetch
                         className="group flex items-center gap-3 rounded-xl border border-foreground/10 bg-background p-3 transition hover:border-foreground/25 hover:bg-muted/30"
                       >
                         {team.logo_url ? (

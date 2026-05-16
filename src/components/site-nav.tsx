@@ -22,6 +22,7 @@ export async function SiteNav() {
         <div className="flex items-center justify-between gap-3">
           <Link
             href="/"
+            prefetch
             className="whitespace-nowrap text-base font-semibold sm:text-lg"
             title="HVC Tournament Scoring"
           >
@@ -29,10 +30,14 @@ export async function SiteNav() {
             <span className="hidden sm:inline">HVC Tournament Scoring</span>
           </Link>
           <nav className="hidden flex-1 items-center gap-4 px-6 text-sm text-muted-foreground sm:flex">
-            <Link href="/tournaments" className="hover:text-foreground">
+            <Link
+              href="/tournaments"
+              prefetch
+              className="hover:text-foreground"
+            >
               Tournaments
             </Link>
-            <Link href="/players" className="hover:text-foreground">
+            <Link href="/players" prefetch className="hover:text-foreground">
               Players
             </Link>
           </nav>
@@ -42,6 +47,7 @@ export async function SiteNav() {
               <>
                 <Link
                   href="/me"
+                  prefetch
                   className="text-muted-foreground hover:text-foreground"
                   title={displayName}
                   aria-label={displayName}
@@ -68,10 +74,10 @@ export async function SiteNav() {
             out spectators on mobile still have a way to reach the
             tournament + player browse pages. */}
         <nav className="mt-2 flex items-center gap-5 text-sm text-muted-foreground sm:hidden">
-          <Link href="/tournaments" className="hover:text-foreground">
+          <Link href="/tournaments" prefetch className="hover:text-foreground">
             Tournaments
           </Link>
-          <Link href="/players" className="hover:text-foreground">
+          <Link href="/players" prefetch className="hover:text-foreground">
             Players
           </Link>
         </nav>
