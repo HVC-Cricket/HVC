@@ -235,13 +235,30 @@ export async function addPlayerToTeam(
 
   if (error) {
     if (error.code === "23505") {
-      return { ok: false, error: "Player is already on this team" };
+      return { ok: false, error: friendlyRosterUniqueViolation(error.message) };
     }
     return { ok: false, error: error.message };
   }
 
   revalidatePath(`/tournaments/${parsed.data.tournamentSlug}/teams/${parsed.data.teamId}`);
   return { ok: true, data: undefined };
+}
+
+/**
+ * Translate Postgres 23505 (unique_violation) from team_players into
+ * actionable copy. Three constraints can fire:
+ *   - team_players unique (team_id, player_id) — player on team twice
+ *   - ux_team_players_one_captain — team already has a captain
+ *   - ux_team_players_one_vice_captain — team already has a vc
+ */
+function friendlyRosterUniqueViolation(message: string): string {
+  if (message.includes("ux_team_players_one_captain")) {
+    return "This team already has a captain. Demote the current captain to player first, then promote the new one.";
+  }
+  if (message.includes("ux_team_players_one_vice_captain")) {
+    return "This team already has a vice-captain. Demote the current vice-captain to player first, then promote the new one.";
+  }
+  return "Player is already on this team.";
 }
 
 const updateRosterRoleSchema = z.object({
@@ -301,7 +318,12 @@ export async function updateRosterRole(
     .eq("id", parsed.data.rosterId)
     .eq("team_id", parsed.data.teamId);
 
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    if (error.code === "23505") {
+      return { ok: false, error: friendlyRosterUniqueViolation(error.message) };
+    }
+    return { ok: false, error: error.message };
+  }
 
   revalidatePath(`/tournaments/${parsed.data.tournamentSlug}/teams/${parsed.data.teamId}`);
   return { ok: true, data: undefined };
