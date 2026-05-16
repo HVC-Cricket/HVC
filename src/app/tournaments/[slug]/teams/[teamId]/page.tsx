@@ -66,7 +66,13 @@ export default async function TeamDetailPage(props: {
         .order("created_at", { ascending: true }),
       supabase
         .from("team_admins")
-        .select("id, user_id, source, created_at, profile:profiles(id, display_name)")
+        // team_admins has TWO foreign keys to profiles (user_id and
+        // added_by). PostgREST refuses to auto-resolve which one to
+        // embed when the column name is ambiguous — name the FK
+        // explicitly via `!team_admins_user_id_fkey`.
+        .select(
+          "id, user_id, source, created_at, profile:profiles!team_admins_user_id_fkey(id, display_name)",
+        )
         .eq("team_id", teamId)
         .order("created_at", { ascending: true }),
     ]);
