@@ -172,6 +172,7 @@ export type Database = {
           user_id: string;
           added_by: string | null;
           created_at: string;
+          source: "manual" | "role";
         };
         Insert: {
           id?: string;
@@ -179,6 +180,7 @@ export type Database = {
           user_id: string;
           added_by?: string | null;
           created_at?: string;
+          source?: "manual" | "role";
         };
         Update: Partial<Database["public"]["Tables"]["team_admins"]["Insert"]>;
         Relationships: [];

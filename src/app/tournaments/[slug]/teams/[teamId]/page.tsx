@@ -67,7 +67,7 @@ export default async function TeamDetailPage(props: {
         .order("created_at", { ascending: true }),
       supabase
         .from("team_admins")
-        .select("id, user_id, created_at, profile:profiles(id, display_name)")
+        .select("id, user_id, source, created_at, profile:profiles(id, display_name)")
         .eq("team_id", teamId)
         .order("created_at", { ascending: true }),
     ]);
@@ -78,9 +78,20 @@ export default async function TeamDetailPage(props: {
   type TeamAdminRow = {
     id: string;
     user_id: string;
+    source: "manual" | "role";
     profile: { id: string; display_name: string } | null;
   };
   const teamAdmins = (teamAdminsRes.data as unknown as TeamAdminRow[] | null) ?? [];
+
+  // Captain / vice-captain are mandatory at the team level (DB enforces
+  // ≤1 of each via partial unique indexes; the UI nudges organizers to
+  // fill both). Match XI selection / match start may add harder gates
+  // later.
+  const hasCaptain = (roster ?? []).some((r) => r.role === "captain");
+  const hasViceCaptain = (roster ?? []).some((r) => r.role === "vice_captain");
+  const missingRoles: ("captain" | "vice_captain")[] = [];
+  if (!hasCaptain) missingRoles.push("captain");
+  if (!hasViceCaptain) missingRoles.push("vice_captain");
 
   // Roster players come from the same `players` table we just fetched
   // wholesale for the picker — no extra query needed.
@@ -135,6 +146,22 @@ export default async function TeamDetailPage(props: {
             </Link>
           )}
         </div>
+
+        {canManage && missingRoles.length > 0 && (roster?.length ?? 0) > 0 && (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
+            <strong className="font-semibold">Set up the team:</strong>{" "}
+            this team needs a{" "}
+            {missingRoles.map((r, i) => (
+              <span key={r}>
+                <strong>{r === "captain" ? "captain" : "vice-captain"}</strong>
+                {i < missingRoles.length - 1 ? " and a " : ""}
+              </span>
+            ))}
+            . Set the role from the squad below — and if that player is
+            linked to a user account, they automatically become a team
+            admin.
+          </div>
+        )}
 
         <Card>
           <CardHeader>
@@ -200,7 +227,9 @@ export default async function TeamDetailPage(props: {
             <CardContent className="space-y-3">
               {teamAdmins.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No team admins yet.
+                  No team admins yet. Captain + vice-captain auto-join
+                  once you set them (if their player is linked to a
+                  user account).
                 </p>
               ) : (
                 <ul className="divide-y divide-foreground/10 rounded-md border border-foreground/10">
@@ -209,14 +238,31 @@ export default async function TeamDetailPage(props: {
                       key={a.id}
                       className="flex items-center justify-between gap-3 p-3 text-sm"
                     >
-                      <span className="font-medium capitalize">
-                        {a.profile?.display_name ?? "(unknown user)"}
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate font-medium capitalize">
+                          {a.profile?.display_name ?? "(unknown user)"}
+                        </span>
+                        {a.source === "role" ? (
+                          <span className="shrink-0 rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide text-muted-foreground">
+                            auto · captain / vc
+                          </span>
+                        ) : (
+                          <span className="shrink-0 rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide text-muted-foreground">
+                            manual
+                          </span>
+                        )}
                       </span>
-                      <RemoveTeamAdminButton
-                        tournamentSlug={tournament.slug}
-                        teamId={team.id}
-                        teamAdminId={a.id}
-                      />
+                      {a.source === "manual" ? (
+                        <RemoveTeamAdminButton
+                          tournamentSlug={tournament.slug}
+                          teamId={team.id}
+                          teamAdminId={a.id}
+                        />
+                      ) : (
+                        <span className="shrink-0 text-[11px] text-muted-foreground">
+                          Demote in squad to remove
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>
