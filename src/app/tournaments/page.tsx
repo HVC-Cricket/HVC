@@ -113,7 +113,7 @@ export default async function TournamentsPage() {
             <p className="text-sm text-muted-foreground">
               {sorted.length === 0
                 ? "Nothing organised yet."
-                : `${sorted.length} tournament${sorted.length === 1 ? "" : "s"} organised in HVC Scoring.`}
+                : `${sorted.length} tournament${sorted.length === 1 ? "" : "s"} organised in HVC Heroes.`}
             </p>
           </div>
           {ctx?.profile?.is_super_admin && (

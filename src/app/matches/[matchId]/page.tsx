@@ -90,10 +90,14 @@ export default async function MatchDetailPage(props: {
         <Link
           href={`/tournaments/${tournament.slug}`}
           prefetch
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground transition hover:text-foreground"
+          className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1 text-base font-semibold capitalize leading-tight text-foreground transition hover:opacity-80 sm:text-xl"
         >
-          <ChevronLeft className="size-4" />
-          <span className="capitalize">{tournament.name}</span>
+          <ChevronLeft className="size-4 self-center text-muted-foreground sm:size-5" />
+          <span>{teamA?.name ?? "?"}</span>
+          <span className="text-xs font-normal text-muted-foreground sm:text-sm">
+            vs
+          </span>
+          <span>{teamB?.name ?? "?"}</span>
         </Link>
 
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -119,13 +123,6 @@ export default async function MatchDetailPage(props: {
                 {MATCH_STATUS_LABEL[ms]}
               </span>
             </div>
-            <h1 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xl font-semibold capitalize leading-tight sm:text-3xl">
-              <span>{teamA?.name ?? "?"}</span>
-              <span className="text-sm font-normal text-muted-foreground sm:text-base">
-                vs
-              </span>
-              <span>{teamB?.name ?? "?"}</span>
-            </h1>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {(ms === "live" || ms === "innings_break") && (

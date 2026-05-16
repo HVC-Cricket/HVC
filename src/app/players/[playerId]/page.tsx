@@ -262,7 +262,7 @@ export default async function PlayerDetailPage(props: {
           <CardHeader>
             <CardTitle className="text-base">Career</CardTitle>
             <CardDescription>
-              Aggregated across every HVC Scoring tournament.
+              Aggregated across every HVC Heroes tournament.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">

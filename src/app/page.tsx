@@ -213,7 +213,7 @@ export default async function Home() {
         {/* Hero */}
         <header className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 sm:p-7">
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            HVC Tournament Scoring
+            HVC Heroes
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Box-cricket — live ball-by-ball scoring &amp; spectator view.
@@ -300,7 +300,7 @@ export default async function Home() {
         )}
 
         <footer className="border-t border-foreground/10 pt-6 text-center text-xs text-muted-foreground">
-          <p>HVC Tournament Scoring · Box-cricket scoring app</p>
+          <p>HVC Heroes · Box-cricket scoring app</p>
         </footer>
       </div>
     </main>

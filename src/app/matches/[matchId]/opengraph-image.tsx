@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { createClient } from "@/lib/supabase/server";
 
-export const alt = "HVC Scoring — match";
+export const alt = "HVC Heroes — match";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 // Refresh every minute so live scores stay reasonably current in shares.
@@ -109,7 +109,7 @@ export default async function MatchOgImage(props: {
           }}
         >
           <div style={{ fontSize: 28, color: "#a1a1aa" }}>
-            {tournament?.name ?? "HVC Scoring"} ·{" "}
+            {tournament?.name ?? "HVC Heroes"} ·{" "}
             {match.stage.replace(/_/g, " ")}
           </div>
           <div
@@ -178,7 +178,7 @@ export default async function MatchOgImage(props: {
             fontSize: 22,
           }}
         >
-          <span>HVC Scoring</span>
+          <span>HVC Heroes</span>
           {match.status === "live" && (
             <span>follow live updates →</span>
           )}

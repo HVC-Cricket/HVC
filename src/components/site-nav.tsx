@@ -31,10 +31,9 @@ export async function SiteNav() {
           href="/"
           prefetch
           className="whitespace-nowrap text-base font-semibold sm:text-lg"
-          title="HVC Tournament Scoring"
+          title="HVC Heroes"
         >
-          <span className="sm:hidden">HVC Scoring</span>
-          <span className="hidden sm:inline">HVC Tournament Scoring</span>
+          HVC Heroes
         </Link>
         <div className="ml-auto">
           <ThemeToggle />

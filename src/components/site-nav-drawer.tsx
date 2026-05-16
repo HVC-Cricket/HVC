@@ -93,7 +93,7 @@ export function SiteNavDrawer({ user, signOutAction }: Props) {
                 onClick={() => setOpen(false)}
                 className="text-base font-semibold"
               >
-                HVC Tournament Scoring
+                HVC Heroes
               </Link>
               <Button
                 type="button"

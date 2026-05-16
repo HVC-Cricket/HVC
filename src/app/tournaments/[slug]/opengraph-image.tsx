@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { createClient } from "@/lib/supabase/server";
 
-export const alt = "HVC Scoring — tournament";
+export const alt = "HVC Heroes — tournament";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const revalidate = 300;

@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "HVC Scoring",
-    short_name: "HVC",
+    name: "HVC Heroes",
+    short_name: "HVC Heroes",
     description: "Live scoring + spectator view for HVC box-cricket tournaments",
     start_url: "/",
     display: "standalone",

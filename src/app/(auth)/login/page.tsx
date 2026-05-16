@@ -17,7 +17,7 @@ export default function LoginPage() {
     <Card>
       <CardHeader>
         <CardTitle>Sign in</CardTitle>
-        <CardDescription>Welcome back to HVC Scoring.</CardDescription>
+        <CardDescription>Welcome back to HVC Heroes.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <GoogleSignInButton />

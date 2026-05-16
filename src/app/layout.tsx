@@ -20,7 +20,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HVC Scoring",
+  title: "HVC Heroes",
   description: "Box-cricket tournament live scoring and spectator app",
 };
 
