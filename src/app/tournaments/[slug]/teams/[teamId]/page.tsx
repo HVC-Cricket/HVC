@@ -18,7 +18,6 @@ import {
 import { createClient } from "@/lib/supabase/server";
 
 import { AddRosterForm } from "./add-roster-form";
-import { AddTeamAdminForm } from "./add-team-admin-form";
 import { RemoveRosterButton } from "./remove-roster-button";
 import { RemoveTeamAdminButton } from "./remove-team-admin-button";
 import { RosterRoleSelect } from "./roster-role-select";
@@ -233,16 +232,15 @@ export default async function TeamDetailPage(props: {
               <CardTitle className="text-base">Team admins</CardTitle>
               <CardDescription>
                 Users who can edit this team&apos;s details and manage
-                its roster. They can&apos;t add a player who&apos;s
-                already on another team in this tournament.
+                its roster. Set a player as captain or vice-captain in
+                the squad above — if that player is linked to a user
+                account, they automatically gain admin access here.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent>
               {teamAdmins.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No team admins yet. Captain + vice-captain auto-join
-                  once you set them (if their player is linked to a
-                  user account).
+                  No team admins yet.
                 </p>
               ) : (
                 <ul className="divide-y divide-foreground/10 rounded-md border border-foreground/10">
@@ -255,15 +253,11 @@ export default async function TeamDetailPage(props: {
                         <span className="truncate font-medium capitalize">
                           {a.profile?.display_name ?? "(unknown user)"}
                         </span>
-                        {a.source === "role" ? (
-                          <span className="shrink-0 rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide text-muted-foreground">
-                            auto · captain / vc
-                          </span>
-                        ) : (
-                          <span className="shrink-0 rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide text-muted-foreground">
-                            manual
-                          </span>
-                        )}
+                        <span className="shrink-0 rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide text-muted-foreground">
+                          {a.source === "role"
+                            ? "captain / vc"
+                            : "manual"}
+                        </span>
                       </span>
                       {a.source === "manual" ? (
                         <RemoveTeamAdminButton
@@ -280,10 +274,6 @@ export default async function TeamDetailPage(props: {
                   ))}
                 </ul>
               )}
-              <AddTeamAdminForm
-                tournamentSlug={tournament.slug}
-                teamId={team.id}
-              />
             </CardContent>
           </Card>
         )}
