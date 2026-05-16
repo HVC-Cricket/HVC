@@ -27,6 +27,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 
 import { PointsTableSection } from "./points-table-section";
+import { TournamentChampion } from "./tournament-champion";
 import { TournamentMvp } from "./tournament-mvp";
 import { TournamentStats } from "./tournament-stats";
 import { TournamentTabs } from "./tournament-tabs";
@@ -210,6 +211,10 @@ export default async function TournamentDetailPage(props: {
             </div>
           )}
         </header>
+
+        <Suspense fallback={null}>
+          <TournamentChampion tournamentId={tournament.id} />
+        </Suspense>
 
         <TournamentTabs
           matches={
