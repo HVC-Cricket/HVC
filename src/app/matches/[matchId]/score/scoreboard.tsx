@@ -677,6 +677,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
               label="Non-striker"
               hideLabel
               leadingIcon={<BatIcon dim />}
+              disabled={state.active.last_man_mode}
               value={nonStrikerId}
               options={battingXi}
               onChange={setNonStrikerId}
@@ -1092,6 +1093,7 @@ function SlotPicker({
   nameClassName,
   leadingIcon,
   inlineStats,
+  disabled,
 }: {
   label: string;
   value: string;
@@ -1129,10 +1131,18 @@ function SlotPicker({
   /** When true, the stats line renders on the same row as the name
    *  (right-aligned), instead of below it. */
   inlineStats?: boolean;
+  /** When true, the whole picker is locked — the trigger button is
+   *  greyed out and the dropdown won't open. Used by the non-striker
+   *  tile in last-man-standing mode. */
+  disabled?: boolean;
 }) {
   const selected = options.find((p) => p.id === value);
   return (
-    <Select value={value || undefined} onValueChange={onChange}>
+    <Select
+      value={value || undefined}
+      onValueChange={onChange}
+      disabled={disabled}
+    >
       <SelectPrimitiveTrigger asChild>
         <button
           type="button"

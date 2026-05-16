@@ -6,7 +6,6 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { RegisterSW } from "@/components/register-sw";
 import { SiteNav } from "@/components/site-nav";
-import { SiteNavShell } from "@/components/site-nav-shell";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -50,9 +49,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <SiteNavShell>
-            <SiteNav />
-          </SiteNavShell>
+          <SiteNav />
           {children}
           <Toaster />
           <RegisterSW />

@@ -292,11 +292,21 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
       ) {
         striker_id = livePlayer.id;
       }
-      if (
-        non_striker_id &&
-        !engineState?.dismissed?.has(non_striker_id)
-      ) {
-        non_striker_id = null;
+      // The non-striker is now a locked "dummy" slot in last-man mode
+      // (the picker is disabled in the UI). If it currently points to
+      // the live batter, swap it for any dismissed batter — most
+      // recently dismissed first, since insertion order of the engine
+      // `dismissed` Set is preserved.
+      const needsDummy =
+        !non_striker_id ||
+        !engineState?.dismissed?.has(non_striker_id) ||
+        non_striker_id === striker_id;
+      if (needsDummy) {
+        const dismissedIds = Array.from(engineState?.dismissed ?? []);
+        // Walk most-recent-first so the dummy is the last batter who
+        // was actually out — natural cricket convention.
+        const dummy = dismissedIds.reverse().find((id) => id !== striker_id);
+        non_striker_id = dummy ?? null;
       }
     }
   } else if (innings) {
