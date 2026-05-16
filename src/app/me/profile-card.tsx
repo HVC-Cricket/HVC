@@ -21,6 +21,12 @@ type Props = {
    *  super admin badge looks different from a player badge. */
   roleClasses: string;
   joinedAt: string | null;
+  /** When the user is linked to a player, these surface inline with the
+   *  role badge / below the name so /me visually matches
+   *  /players/[id]. */
+  playerCategory?: number | null;
+  playerBattingStyle?: string | null;
+  playerBowlingStyle?: string | null;
 };
 
 /**
@@ -37,9 +43,17 @@ export function ProfileCard({
   roleLabel,
   roleClasses,
   joinedAt,
+  playerCategory,
+  playerBattingStyle,
+  playerBowlingStyle,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const initials = getInitials(displayName);
+
+  const styleParts = [playerBattingStyle, playerBowlingStyle]
+    .filter((s): s is string => Boolean(s))
+    .map((s) => s.replace(/_/g, " "));
+  const styleLine = styleParts.length > 0 ? styleParts.join(" · ") : null;
 
   return (
     <Card className="overflow-hidden">
@@ -61,7 +75,7 @@ export function ProfileCard({
             <h1 className="break-words text-xl font-semibold capitalize leading-tight">
               {displayName}
             </h1>
-            <div>
+            <div className="flex flex-wrap items-center gap-1.5">
               <span
                 className={
                   "inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide " +
@@ -70,7 +84,17 @@ export function ProfileCard({
               >
                 {roleLabel}
               </span>
+              {playerCategory && (
+                <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] font-mono">
+                  C{playerCategory}
+                </span>
+              )}
             </div>
+            {styleLine && (
+              <div className="text-xs capitalize text-muted-foreground">
+                {styleLine}
+              </div>
+            )}
             <div className="truncate text-sm text-muted-foreground">
               {email}
             </div>

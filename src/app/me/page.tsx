@@ -179,89 +179,76 @@ export default async function MePage() {
                 })
               : null
           }
+          playerCategory={linkedPlayer?.category ?? null}
+          playerBattingStyle={linkedPlayer?.batting_style ?? null}
+          playerBowlingStyle={linkedPlayer?.bowling_style ?? null}
         />
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <UserRound className="size-4 text-muted-foreground" />
-              Player profile
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {linkedPlayer && career ? (
-              <>
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base font-semibold capitalize">
-                      {linkedPlayer.display_name}
-                    </span>
-                    {linkedPlayer.category && (
-                      <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] font-mono">
-                        C{linkedPlayer.category}
-                      </span>
-                    )}
-                  </div>
-                  {(linkedPlayer.batting_style ||
-                    linkedPlayer.bowling_style) && (
-                    <span className="text-[11px] text-muted-foreground">
-                      {[linkedPlayer.batting_style, linkedPlayer.bowling_style]
-                        .filter(Boolean)
-                        .map((s) => s!.replace(/_/g, " "))
-                        .join(" · ")}
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <MeStat label="Matches" value={career.matches} />
-                  <MeStat label="Runs" value={career.runs} />
-                  <MeStat label="4s" value={career.fours} />
-                  <MeStat label="6s" value={career.sixes} />
-                  <MeStat
-                    label="SR"
-                    value={
-                      career.balls_faced > 0
-                        ? ((career.runs / career.balls_faced) * 100).toFixed(1)
-                        : "—"
-                    }
-                  />
-                  <MeStat label="Wickets" value={career.wickets} />
-                  <MeStat
-                    label="Overs bowled"
-                    value={`${Math.floor(career.legal_balls_bowled / 6)}.${career.legal_balls_bowled % 6}`}
-                  />
-                  <MeStat
-                    label="Econ"
-                    value={
-                      career.legal_balls_bowled > 0
-                        ? (
-                            (career.runs_conceded /
-                              career.legal_balls_bowled) *
-                            6
-                          ).toFixed(2)
-                        : "—"
-                    }
-                  />
-                </div>
-                <div className="flex justify-end">
-                  <Link
-                    href={`/players/${linkedPlayer.id}`}
-                    prefetch
-                    className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-                  >
-                    Per-tournament breakdown →
-                  </Link>
-                </div>
-              </>
-            ) : (
+        {linkedPlayer && career ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Career</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <MeStat label="Matches" value={career.matches} />
+                <MeStat label="Runs" value={career.runs} />
+                <MeStat label="4s" value={career.fours} />
+                <MeStat label="6s" value={career.sixes} />
+                <MeStat
+                  label="SR"
+                  value={
+                    career.balls_faced > 0
+                      ? ((career.runs / career.balls_faced) * 100).toFixed(1)
+                      : "—"
+                  }
+                />
+                <MeStat label="Wickets" value={career.wickets} />
+                <MeStat
+                  label="Overs bowled"
+                  value={`${Math.floor(career.legal_balls_bowled / 6)}.${career.legal_balls_bowled % 6}`}
+                />
+                <MeStat
+                  label="Econ"
+                  value={
+                    career.legal_balls_bowled > 0
+                      ? (
+                          (career.runs_conceded /
+                            career.legal_balls_bowled) *
+                          6
+                        ).toFixed(2)
+                      : "—"
+                  }
+                />
+              </div>
+              <div className="flex justify-end">
+                <Link
+                  href={`/players/${linkedPlayer.id}`}
+                  prefetch
+                  className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  Per-tournament breakdown →
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <UserRound className="size-4 text-muted-foreground" />
+                Player profile
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <p className="text-sm text-muted-foreground">
                 Not linked to a player profile yet. Ask a tournament admin
                 if you should be — they can link your account from the
                 player edit page.
               </p>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         {adminEntries.length > 0 && (
           <Card>
