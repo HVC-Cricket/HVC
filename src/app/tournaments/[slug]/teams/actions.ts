@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { requireOrganizer, requireUser } from "@/lib/auth";
+import {
+  canManageTeam,
+  requireOrganizer,
+  requireUser,
+} from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 import type { ActionResult } from "@/app/tournaments/actions";
@@ -85,7 +89,11 @@ export async function updateTeam(
     await requireUser();
     return { ok: false, error: "Tournament not found" };
   }
-  await requireOrganizer(tournament.id);
+  // Organizer OR team admin of this specific team can edit.
+  const ctx = await requireUser();
+  if (!(await canManageTeam(parsed.data.teamId, tournament.id, ctx))) {
+    return { ok: false, error: "Not authorized to edit this team" };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -165,9 +173,34 @@ export async function addPlayerToTeam(
     await requireUser();
     return { ok: false, error: "Tournament not found" };
   }
-  await requireOrganizer(tournament.id);
+  const ctx = await requireUser();
+  if (!(await canManageTeam(parsed.data.teamId, tournament.id, ctx))) {
+    return { ok: false, error: "Not authorized to manage this team's roster" };
+  }
 
   const supabase = await createClient();
+
+  // Cross-team-in-tournament guard: a player can be on at most one
+  // team per tournament. Enforced here for everyone (the rule the
+  // user asked for applies universally, not just to team admins —
+  // having the same player on two teams in one tournament makes the
+  // match XI picker, points table, and per-player stats ambiguous).
+  const { data: conflicts } = await supabase
+    .from("team_players")
+    .select("teams!inner(id, name, tournament_id)")
+    .eq("player_id", parsed.data.playerId)
+    .neq("team_id", parsed.data.teamId);
+  type RosterConflict = { teams: { tournament_id: string; name: string } };
+  const inSameTournament = (
+    (conflicts ?? []) as unknown as RosterConflict[]
+  ).find((r) => r.teams.tournament_id === tournament.id);
+  if (inSameTournament) {
+    return {
+      ok: false,
+      error: `Player is already on ${inSameTournament.teams.name} in this tournament. Remove them from there first.`,
+    };
+  }
+
   const { error } = await supabase.from("team_players").insert({
     team_id: parsed.data.teamId,
     player_id: parsed.data.playerId,
@@ -206,7 +239,10 @@ export async function updateRosterRole(
     await requireUser();
     return { ok: false, error: "Tournament not found" };
   }
-  await requireOrganizer(tournament.id);
+  const ctx = await requireUser();
+  if (!(await canManageTeam(parsed.data.teamId, tournament.id, ctx))) {
+    return { ok: false, error: "Not authorized to manage this team's roster" };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -241,7 +277,10 @@ export async function removePlayerFromTeam(
     await requireUser();
     return { ok: false, error: "Tournament not found" };
   }
-  await requireOrganizer(tournament.id);
+  const ctx = await requireUser();
+  if (!(await canManageTeam(parsed.data.teamId, tournament.id, ctx))) {
+    return { ok: false, error: "Not authorized to manage this team's roster" };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -253,6 +292,96 @@ export async function removePlayerFromTeam(
   if (error) {
     return { ok: false, error: error.message };
   }
+
+  revalidatePath(`/tournaments/${parsed.data.tournamentSlug}/teams/${parsed.data.teamId}`);
+  return { ok: true, data: undefined };
+}
+
+// =====================================================================
+// Team admins
+// =====================================================================
+
+const addTeamAdminSchema = z.object({
+  tournamentSlug: z.string().min(1),
+  teamId: z.string().uuid(),
+  email: z.string().email("Enter a valid email"),
+});
+
+export async function addTeamAdmin(
+  input: z.infer<typeof addTeamAdminSchema>,
+): Promise<ActionResult> {
+  const parsed = addTeamAdminSchema.safeParse(input);
+  if (!parsed.success) {
+    await requireUser();
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const tournament = await resolveTournamentBySlug(parsed.data.tournamentSlug);
+  if (!tournament) {
+    await requireUser();
+    return { ok: false, error: "Tournament not found" };
+  }
+  const ctx = await requireOrganizer(tournament.id);
+
+  const supabase = await createClient();
+  // Resolve email → user_id via the SECURITY DEFINER RPC.
+  const { data: userId, error: lookupErr } = await supabase.rpc(
+    "lookup_user_id_by_email",
+    { p_email: parsed.data.email },
+  );
+  if (lookupErr) return { ok: false, error: lookupErr.message };
+  if (!userId) {
+    return {
+      ok: false,
+      error: `No user with that email. They need to sign up first.`,
+    };
+  }
+
+  const { error } = await supabase.from("team_admins").insert({
+    team_id: parsed.data.teamId,
+    user_id: userId as unknown as string,
+    added_by: ctx.user.id,
+  });
+  if (error) {
+    if (error.code === "23505") {
+      return { ok: false, error: "That user is already a team admin." };
+    }
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath(`/tournaments/${parsed.data.tournamentSlug}/teams/${parsed.data.teamId}`);
+  return { ok: true, data: undefined };
+}
+
+const removeTeamAdminSchema = z.object({
+  tournamentSlug: z.string().min(1),
+  teamId: z.string().uuid(),
+  teamAdminId: z.string().uuid(),
+});
+
+export async function removeTeamAdmin(
+  input: z.infer<typeof removeTeamAdminSchema>,
+): Promise<ActionResult> {
+  const parsed = removeTeamAdminSchema.safeParse(input);
+  if (!parsed.success) {
+    await requireUser();
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const tournament = await resolveTournamentBySlug(parsed.data.tournamentSlug);
+  if (!tournament) {
+    await requireUser();
+    return { ok: false, error: "Tournament not found" };
+  }
+  await requireOrganizer(tournament.id);
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("team_admins")
+    .delete()
+    .eq("id", parsed.data.teamAdminId)
+    .eq("team_id", parsed.data.teamId);
+  if (error) return { ok: false, error: error.message };
 
   revalidatePath(`/tournaments/${parsed.data.tournamentSlug}/teams/${parsed.data.teamId}`);
   return { ok: true, data: undefined };

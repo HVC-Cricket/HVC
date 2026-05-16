@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { requireOrganizer } from "@/lib/auth";
+import { requireTeamManager } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 import { EditTeamForm } from "./edit-team-form";
@@ -24,7 +24,8 @@ export default async function EditTeamPage(props: {
     .single();
   if (!tournament) notFound();
 
-  await requireOrganizer(tournament.id);
+  // Organizer OR team admin of this specific team can reach this page.
+  await requireTeamManager(teamId, tournament.id);
 
   const { data: team } = await supabase
     .from("teams")

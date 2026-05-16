@@ -122,3 +122,43 @@ export async function requireOrganizerOrSuperAdmin(): Promise<SessionContext> {
   if (!(await isOrganizerOrSuperAdmin(ctx))) redirect("/");
   return ctx;
 }
+
+/** Mirror of the SQL `is_team_admin()` helper. */
+export async function isTeamAdmin(
+  teamId: string,
+  ctx: SessionContext,
+): Promise<boolean> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("team_admins")
+    .select("id")
+    .eq("team_id", teamId)
+    .eq("user_id", ctx.user.id)
+    .maybeSingle();
+  return !!data;
+}
+
+/**
+ * True if the user can manage the given team — covers super-admin,
+ * tournament organizer (for the team's tournament), and team admin
+ * (for that specific team). `tournamentId` must be the team's
+ * tournament_id; pass it explicitly so we don't re-fetch the team
+ * row at every check site.
+ */
+export async function canManageTeam(
+  teamId: string,
+  tournamentId: string,
+  ctx: SessionContext,
+): Promise<boolean> {
+  if (await isTournamentOrganizer(tournamentId, ctx)) return true;
+  return await isTeamAdmin(teamId, ctx);
+}
+
+export async function requireTeamManager(
+  teamId: string,
+  tournamentId: string,
+): Promise<SessionContext> {
+  const ctx = await requireUser();
+  if (!(await canManageTeam(teamId, tournamentId, ctx))) redirect("/");
+  return ctx;
+}
