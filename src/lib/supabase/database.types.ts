@@ -165,26 +165,6 @@ export type Database = {
         };
         Relationships: [];
       };
-      team_admins: {
-        Row: {
-          id: string;
-          team_id: string;
-          user_id: string;
-          added_by: string | null;
-          created_at: string;
-          source: "manual" | "role";
-        };
-        Insert: {
-          id?: string;
-          team_id: string;
-          user_id: string;
-          added_by?: string | null;
-          created_at?: string;
-          source?: "manual" | "role";
-        };
-        Update: Partial<Database["public"]["Tables"]["team_admins"]["Insert"]>;
-        Relationships: [];
-      };
       teams: {
         Row: {
           id: string;

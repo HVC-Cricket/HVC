@@ -19,7 +19,6 @@ import { createClient } from "@/lib/supabase/server";
 
 import { AddRosterForm } from "./add-roster-form";
 import { RemoveRosterButton } from "./remove-roster-button";
-import { RemoveTeamAdminButton } from "./remove-team-admin-button";
 import { RosterRoleSelect } from "./roster-role-select";
 
 export const dynamic = "force-dynamic";
@@ -38,10 +37,11 @@ export default async function TeamDetailPage(props: {
     .single();
   if (!tournament) notFound();
 
-  // canManage = organizer OR team admin for this team — can edit
-  // metadata + manage roster. canManageTeamAdmins = organizer only —
-  // assign / remove team admins (team admins can't promote others).
-  const [teamRes, canManage, canManageTeamAdmins, allPlayersRes, rosterRes, teamAdminsRes] =
+  // canManage = organizer OR captain/vc (linked) of this team — can
+  // edit metadata + manage roster. canChangeCaptaincy = organizer
+  // only — only they can promote/demote captains, since that's what
+  // grants team-admin access.
+  const [teamRes, canManage, canChangeCaptaincy, allPlayersRes, rosterRes] =
     await Promise.all([
       supabase
         .from("teams")
@@ -64,29 +64,11 @@ export default async function TeamDetailPage(props: {
         .select("id, role, player_id, created_at")
         .eq("team_id", teamId)
         .order("created_at", { ascending: true }),
-      supabase
-        .from("team_admins")
-        // team_admins has TWO foreign keys to profiles (user_id and
-        // added_by). PostgREST refuses to auto-resolve which one to
-        // embed when the column name is ambiguous — name the FK
-        // explicitly via `!team_admins_user_id_fkey`.
-        .select(
-          "id, user_id, source, created_at, profile:profiles!team_admins_user_id_fkey(id, display_name)",
-        )
-        .eq("team_id", teamId)
-        .order("created_at", { ascending: true }),
     ]);
   const team = teamRes.data;
   if (!team) notFound();
   const roster = rosterRes.data;
   const allPlayers = allPlayersRes.data;
-  type TeamAdminRow = {
-    id: string;
-    user_id: string;
-    source: "manual" | "role";
-    profile: { id: string; display_name: string } | null;
-  };
-  const teamAdmins = (teamAdminsRes.data as unknown as TeamAdminRow[] | null) ?? [];
 
   // Captain / vice-captain are mandatory at the team level (DB enforces
   // ≤1 of each via partial unique indexes; the UI nudges organizers to
@@ -201,19 +183,19 @@ export default async function TeamDetailPage(props: {
                               | "vice_captain"
                               | "wicket_keeper"
                               | "player"}
-                            canChangeCaptaincy={canManageTeamAdmins}
+                            canChangeCaptaincy={canChangeCaptaincy}
                           />
                           <RemoveRosterButton
                             tournamentSlug={tournament.slug}
                             teamId={team.id}
                             rosterId={r.id}
                             disabled={
-                              !canManageTeamAdmins &&
+                              !canChangeCaptaincy &&
                               (r.role === "captain" ||
                                 r.role === "vice_captain")
                             }
                             disabledTitle={
-                              !canManageTeamAdmins &&
+                              !canChangeCaptaincy &&
                               (r.role === "captain" ||
                                 r.role === "vice_captain")
                                 ? "Only the tournament organizer can remove the captain or vice-captain."
@@ -231,58 +213,6 @@ export default async function TeamDetailPage(props: {
             )}
           </CardContent>
         </Card>
-
-        {canManageTeamAdmins && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Team admins</CardTitle>
-              <CardDescription>
-                Users who can edit this team&apos;s details and manage
-                its roster. Set a player as captain or vice-captain in
-                the squad above — if that player is linked to a user
-                account, they automatically gain admin access here.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {teamAdmins.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No team admins yet.
-                </p>
-              ) : (
-                <ul className="divide-y divide-foreground/10 rounded-md border border-foreground/10">
-                  {teamAdmins.map((a) => (
-                    <li
-                      key={a.id}
-                      className="flex items-center justify-between gap-3 p-3 text-sm"
-                    >
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className="truncate font-medium capitalize">
-                          {a.profile?.display_name ?? "(unknown user)"}
-                        </span>
-                        <span className="shrink-0 rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wide text-muted-foreground">
-                          {a.source === "role"
-                            ? "captain / vc"
-                            : "manual"}
-                        </span>
-                      </span>
-                      {a.source === "manual" ? (
-                        <RemoveTeamAdminButton
-                          tournamentSlug={tournament.slug}
-                          teamId={team.id}
-                          teamAdminId={a.id}
-                        />
-                      ) : (
-                        <span className="shrink-0 text-[11px] text-muted-foreground">
-                          Demote in squad to remove
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardContent>
-          </Card>
-        )}
 
         {canManage && (
           <Card>
@@ -314,7 +244,7 @@ export default async function TeamDetailPage(props: {
                   tournamentSlug={tournament.slug}
                   teamId={team.id}
                   players={availablePlayers}
-                  canChangeCaptaincy={canManageTeamAdmins}
+                  canChangeCaptaincy={canChangeCaptaincy}
                 />
               )}
             </CardContent>

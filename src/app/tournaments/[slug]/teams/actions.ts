@@ -193,9 +193,9 @@ export async function addPlayerToTeam(
 
   // Captain / vice-captain role changes are organizer-only. A team
   // admin (not organizer) can't add a player as captain/vc because
-  // those roles auto-grant team-admin access — letting team admins
-  // hand that out (or swap captaincy) would let them effectively
-  // remove each other.
+  // those roles ARE team-admin access — letting team admins hand
+  // that out (or swap captaincy) would let them effectively remove
+  // each other.
   const isOrg = await isTournamentOrganizer(tournament.id, ctx);
   if (!isOrg && (parsed.data.role === "captain" || parsed.data.role === "vice_captain")) {
     return {
@@ -274,8 +274,9 @@ export async function updateRosterRole(
   const supabase = await createClient();
 
   // Look up the current role; team admins can't promote into OR demote
-  // out of captain / vice-captain — those changes auto-shuffle the
-  // team_admins table and would let team admins remove each other.
+  // out of captain / vice-captain — captain / vc IS the team-admin
+  // role, so letting them flip that would let team admins remove
+  // each other.
   if (!isOrg) {
     const { data: existing } = await supabase
       .from("team_players")
@@ -334,9 +335,9 @@ export async function removePlayerFromTeam(
   const isOrg = await isTournamentOrganizer(tournament.id, ctx);
   const supabase = await createClient();
 
-  // Removing the captain or vice-captain drops their auto team-admin
-  // grant via the role-sync trigger. Team admins can't do that to
-  // each other — only the organizer can.
+  // Removing the captain or vice-captain drops their team-admin
+  // access (since captain/vc IS the team-admin role). Team admins
+  // can't do that to each other — only the organizer can.
   if (!isOrg) {
     const { data: existing } = await supabase
       .from("team_players")
@@ -361,96 +362,6 @@ export async function removePlayerFromTeam(
   if (error) {
     return { ok: false, error: error.message };
   }
-
-  revalidatePath(`/tournaments/${parsed.data.tournamentSlug}/teams/${parsed.data.teamId}`);
-  return { ok: true, data: undefined };
-}
-
-// =====================================================================
-// Team admins
-// =====================================================================
-
-const addTeamAdminSchema = z.object({
-  tournamentSlug: z.string().min(1),
-  teamId: z.string().uuid(),
-  email: z.string().email("Enter a valid email"),
-});
-
-export async function addTeamAdmin(
-  input: z.infer<typeof addTeamAdminSchema>,
-): Promise<ActionResult> {
-  const parsed = addTeamAdminSchema.safeParse(input);
-  if (!parsed.success) {
-    await requireUser();
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
-
-  const tournament = await resolveTournamentBySlug(parsed.data.tournamentSlug);
-  if (!tournament) {
-    await requireUser();
-    return { ok: false, error: "Tournament not found" };
-  }
-  const ctx = await requireOrganizer(tournament.id);
-
-  const supabase = await createClient();
-  // Resolve email → user_id via the SECURITY DEFINER RPC.
-  const { data: userId, error: lookupErr } = await supabase.rpc(
-    "lookup_user_id_by_email",
-    { p_email: parsed.data.email },
-  );
-  if (lookupErr) return { ok: false, error: lookupErr.message };
-  if (!userId) {
-    return {
-      ok: false,
-      error: `No user with that email. They need to sign up first.`,
-    };
-  }
-
-  const { error } = await supabase.from("team_admins").insert({
-    team_id: parsed.data.teamId,
-    user_id: userId as unknown as string,
-    added_by: ctx.user.id,
-  });
-  if (error) {
-    if (error.code === "23505") {
-      return { ok: false, error: "That user is already a team admin." };
-    }
-    return { ok: false, error: error.message };
-  }
-
-  revalidatePath(`/tournaments/${parsed.data.tournamentSlug}/teams/${parsed.data.teamId}`);
-  return { ok: true, data: undefined };
-}
-
-const removeTeamAdminSchema = z.object({
-  tournamentSlug: z.string().min(1),
-  teamId: z.string().uuid(),
-  teamAdminId: z.string().uuid(),
-});
-
-export async function removeTeamAdmin(
-  input: z.infer<typeof removeTeamAdminSchema>,
-): Promise<ActionResult> {
-  const parsed = removeTeamAdminSchema.safeParse(input);
-  if (!parsed.success) {
-    await requireUser();
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
-
-  const tournament = await resolveTournamentBySlug(parsed.data.tournamentSlug);
-  if (!tournament) {
-    await requireUser();
-    return { ok: false, error: "Tournament not found" };
-  }
-  await requireOrganizer(tournament.id);
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("team_admins")
-    .delete()
-    .eq("id", parsed.data.teamAdminId)
-    .eq("team_id", parsed.data.teamId);
-  if (error) return { ok: false, error: error.message };
 
   revalidatePath(`/tournaments/${parsed.data.tournamentSlug}/teams/${parsed.data.teamId}`);
   return { ok: true, data: undefined };

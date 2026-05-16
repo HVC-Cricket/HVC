@@ -123,17 +123,25 @@ export async function requireOrganizerOrSuperAdmin(): Promise<SessionContext> {
   return ctx;
 }
 
-/** Mirror of the SQL `is_team_admin()` helper. */
+/**
+ * Mirror of the SQL `is_team_admin()` helper. Returns true when the
+ * user is captain or vice-captain of this team (via team_players +
+ * players.linked_user_id) — there's no separate team-admin role any
+ * more. Implemented as a query against team_players + players so
+ * the result tracks live state without an RPC round-trip.
+ */
 export async function isTeamAdmin(
   teamId: string,
   ctx: SessionContext,
 ): Promise<boolean> {
   const supabase = await createClient();
   const { data } = await supabase
-    .from("team_admins")
-    .select("id")
+    .from("team_players")
+    .select("id, players!inner(linked_user_id)")
     .eq("team_id", teamId)
-    .eq("user_id", ctx.user.id)
+    .in("role", ["captain", "vice_captain"])
+    .eq("players.linked_user_id", ctx.user.id)
+    .limit(1)
     .maybeSingle();
   return !!data;
 }
