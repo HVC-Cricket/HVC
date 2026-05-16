@@ -1,4 +1,4 @@
-import { Plus, Shield, Trophy, UserRound } from "lucide-react";
+import { Trophy, UserRound } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -42,7 +42,7 @@ export default async function MePage() {
       .single(),
     supabase
       .from("players")
-      .select("id, display_name")
+      .select("id, display_name, category, batting_style, bowling_style")
       .eq("linked_user_id", user.id)
       .maybeSingle(),
     supabase
@@ -53,6 +53,71 @@ export default async function MePage() {
   const profile = profileRes.data;
   const linkedPlayer = linkedPlayerRes.data;
   const adminRows = adminRowsRes.data ?? [];
+
+  // Career snapshot for the linked player — read from the
+  // historical-aware v_player_tournament_stats view (sums across both
+  // balls-derived and cricheroes-imported matches) + match_players for
+  // the distinct match count.
+  type PlayerCareer = {
+    matches: number;
+    runs: number;
+    balls_faced: number;
+    fours: number;
+    sixes: number;
+    wickets: number;
+    runs_conceded: number;
+    legal_balls_bowled: number;
+  };
+  let career: PlayerCareer | null = null;
+  if (linkedPlayer) {
+    type StatRow = {
+      runs: number | null;
+      balls_faced: number | null;
+      fours: number | null;
+      sixes: number | null;
+      wickets: number | null;
+      runs_conceded: number | null;
+      legal_balls_bowled: number | null;
+    };
+    const [statsRes, mpRes] = await Promise.all([
+      supabase
+        .from("v_player_tournament_stats" as never)
+        .select(
+          "runs, balls_faced, fours, sixes, wickets, runs_conceded, legal_balls_bowled",
+        )
+        .eq("player_id", linkedPlayer.id),
+      supabase
+        .from("match_players")
+        .select("match_id")
+        .eq("player_id", linkedPlayer.id),
+    ]);
+    const rows = (statsRes.data as unknown as StatRow[] | null) ?? [];
+    const matchSet = new Set<string>();
+    for (const r of mpRes.data ?? []) matchSet.add(r.match_id);
+    career = rows.reduce<PlayerCareer>(
+      (acc, r) => ({
+        matches: acc.matches,
+        runs: acc.runs + (r.runs ?? 0),
+        balls_faced: acc.balls_faced + (r.balls_faced ?? 0),
+        fours: acc.fours + (r.fours ?? 0),
+        sixes: acc.sixes + (r.sixes ?? 0),
+        wickets: acc.wickets + (r.wickets ?? 0),
+        runs_conceded: acc.runs_conceded + (r.runs_conceded ?? 0),
+        legal_balls_bowled:
+          acc.legal_balls_bowled + (r.legal_balls_bowled ?? 0),
+      }),
+      {
+        matches: matchSet.size,
+        runs: 0,
+        balls_faced: 0,
+        fours: 0,
+        sixes: 0,
+        wickets: 0,
+        runs_conceded: 0,
+        legal_balls_bowled: 0,
+      },
+    );
+  }
 
   // Resolve tournament names/slugs for the admin rows.
   const adminEntries: AdminEntry[] = [];
@@ -123,25 +188,71 @@ export default async function MePage() {
               Player profile
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            {linkedPlayer ? (
-              <Link
-                href={`/players/${linkedPlayer.id}`}
-                prefetch
-                className="group flex items-center justify-between gap-3 rounded-md border border-foreground/10 bg-background px-3 py-2.5 transition hover:border-foreground/25 hover:bg-muted/30"
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-medium capitalize">
-                    {linkedPlayer.display_name}
+          <CardContent className="space-y-4">
+            {linkedPlayer && career ? (
+              <>
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-semibold capitalize">
+                      {linkedPlayer.display_name}
+                    </span>
+                    {linkedPlayer.category && (
+                      <span className="rounded bg-foreground/10 px-1.5 py-0.5 text-[10px] font-mono">
+                        C{linkedPlayer.category}
+                      </span>
+                    )}
                   </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    Linked player record
-                  </div>
+                  {(linkedPlayer.batting_style ||
+                    linkedPlayer.bowling_style) && (
+                    <span className="text-[11px] text-muted-foreground">
+                      {[linkedPlayer.batting_style, linkedPlayer.bowling_style]
+                        .filter(Boolean)
+                        .map((s) => s!.replace(/_/g, " "))
+                        .join(" · ")}
+                    </span>
+                  )}
                 </div>
-                <span className="text-xs text-muted-foreground transition group-hover:text-foreground">
-                  View →
-                </span>
-              </Link>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <MeStat label="Matches" value={career.matches} />
+                  <MeStat label="Runs" value={career.runs} />
+                  <MeStat label="4s" value={career.fours} />
+                  <MeStat label="6s" value={career.sixes} />
+                  <MeStat
+                    label="SR"
+                    value={
+                      career.balls_faced > 0
+                        ? ((career.runs / career.balls_faced) * 100).toFixed(1)
+                        : "—"
+                    }
+                  />
+                  <MeStat label="Wickets" value={career.wickets} />
+                  <MeStat
+                    label="Overs bowled"
+                    value={`${Math.floor(career.legal_balls_bowled / 6)}.${career.legal_balls_bowled % 6}`}
+                  />
+                  <MeStat
+                    label="Econ"
+                    value={
+                      career.legal_balls_bowled > 0
+                        ? (
+                            (career.runs_conceded /
+                              career.legal_balls_bowled) *
+                            6
+                          ).toFixed(2)
+                        : "—"
+                    }
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <Link
+                    href={`/players/${linkedPlayer.id}`}
+                    prefetch
+                    className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    Per-tournament breakdown →
+                  </Link>
+                </div>
+              </>
             ) : (
               <p className="text-sm text-muted-foreground">
                 Not linked to a player profile yet. Ask a tournament admin
@@ -187,49 +298,6 @@ export default async function MePage() {
           </Card>
         )}
 
-        {isSuperAdmin && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Shield className="size-4 text-primary" />
-                Super admin shortcuts
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-2">
-              <Link href="/tournaments/new" prefetch className="contents">
-                <Button size="sm" className="w-full justify-start">
-                  <Plus className="mr-1 size-3.5" />
-                  New tournament
-                </Button>
-              </Link>
-              <Link href="/players/new" prefetch className="contents">
-                <Button size="sm" className="w-full justify-start">
-                  <Plus className="mr-1 size-3.5" />
-                  New player
-                </Button>
-              </Link>
-              <Link href="/tournaments" prefetch className="contents">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start"
-                >
-                  All tournaments
-                </Button>
-              </Link>
-              <Link href="/players" prefetch className="contents">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start"
-                >
-                  All players
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        )}
-
         <div className="flex justify-end border-t border-foreground/10 pt-4">
           <form action={signOut}>
             <Button
@@ -244,6 +312,25 @@ export default async function MePage() {
         </div>
       </div>
     </main>
+  );
+}
+
+function MeStat({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | string;
+}) {
+  return (
+    <div className="rounded-md border border-foreground/10 bg-background p-2">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      <div className="font-mono text-base font-semibold tabular-nums">
+        {value}
+      </div>
+    </div>
   );
 }
 
