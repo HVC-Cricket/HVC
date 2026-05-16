@@ -22,6 +22,7 @@ import { createTeam } from "../actions";
 const schema = z.object({
   name: z.string().min(2, "Team name must be at least 2 characters"),
   short_name: z.string().min(2).max(5, "Short name is 2–5 characters"),
+  openAfterCreate: z.boolean(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -29,7 +30,7 @@ type FormValues = z.infer<typeof schema>;
 export function NewTeamForm({ tournamentSlug }: { tournamentSlug: string }) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { name: "", short_name: "" },
+    defaultValues: { name: "", short_name: "", openAfterCreate: false },
   });
 
   const onSubmit = async (values: FormValues) => {
@@ -71,6 +72,25 @@ export function NewTeamForm({ tournamentSlug }: { tournamentSlug: string }) {
               </FormControl>
               <FormDescription>2–5 letters, shown on scorecards.</FormDescription>
               <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="openAfterCreate"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center gap-2 space-y-0">
+              <FormControl>
+                <input
+                  type="checkbox"
+                  className="size-4 rounded border-foreground/25 accent-primary"
+                  checked={field.value}
+                  onChange={(e) => field.onChange(e.target.checked)}
+                />
+              </FormControl>
+              <FormLabel className="cursor-pointer text-sm font-normal text-muted-foreground">
+                Open the team page after creating
+              </FormLabel>
             </FormItem>
           )}
         />

@@ -35,6 +35,10 @@ const createTeamSchema = z.object({
     .min(2, "Short name must be 2–5 characters")
     .max(5, "Short name must be 2–5 characters")
     .toUpperCase(),
+  /** When true, redirect to the new team page after create. When
+   *  false / omitted, redirect to the tournament page on its teams
+   *  tab. */
+  openAfterCreate: z.boolean().optional(),
 });
 
 export async function createTeam(
@@ -54,18 +58,26 @@ export async function createTeam(
   await requireOrganizer(tournament.id);
 
   const supabase = await createClient();
-  const { error } = await supabase.from("teams").insert({
-    tournament_id: tournament.id,
-    name: parsed.data.name,
-    short_name: parsed.data.short_name,
-  });
+  const { data, error } = await supabase
+    .from("teams")
+    .insert({
+      tournament_id: tournament.id,
+      name: parsed.data.name,
+      short_name: parsed.data.short_name,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
-    return { ok: false, error: error.message };
+  if (error || !data) {
+    return { ok: false, error: error?.message ?? "Could not create team" };
   }
 
   revalidatePath(`/tournaments/${tournament.slug}`);
-  redirect(`/tournaments/${tournament.slug}`);
+  if (parsed.data.openAfterCreate) {
+    redirect(`/tournaments/${tournament.slug}/teams/${data.id}`);
+  }
+  // Default: land back on the tournament page with the Teams tab open.
+  redirect(`/tournaments/${tournament.slug}?tab=teams`);
 }
 
 const updateTeamSchema = z.object({
