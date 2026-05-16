@@ -92,13 +92,28 @@ export default async function PlayerDetailPage(props: {
               )}
             </div>
           </div>
-          {canManagePlayers && (
-            <Link href={`/players/${player.id}/edit`}>
-              <Button variant="ghost" size="sm">
-                Edit
-              </Button>
-            </Link>
-          )}
+          {(() => {
+            // Admins (organizer/super-admin) get the full edit form.
+            // The linked user (viewing their own player profile) gets
+            // routed to /me, where they can edit name + photo via
+            // updateProfile — the avatar/display_name triggers sync
+            // those across to this player row automatically.
+            const isOwnLinkedPlayer =
+              ctx?.user.id != null && ctx.user.id === player.linked_user_id;
+            const editHref = canManagePlayers
+              ? `/players/${player.id}/edit`
+              : isOwnLinkedPlayer
+                ? "/me"
+                : null;
+            if (!editHref) return null;
+            return (
+              <Link href={editHref}>
+                <Button variant="ghost" size="sm">
+                  Edit
+                </Button>
+              </Link>
+            );
+          })()}
         </div>
 
         <PlayerCareerSection playerId={player.id} />
