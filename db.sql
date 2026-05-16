@@ -58,7 +58,7 @@ create table if not exists tournaments (
   name                        text not null,
   slug                        citext not null unique,
   description                 text,
-  format                      text not null check (format in ('league','knockout','group_then_knockout')),
+  format                      text not null check (format in ('league','knockout','group_then_knockout','round_robin_playoff_final')),
   default_overs_per_innings   int  not null default 6,
   default_players_per_side    int  not null default 6,
   start_date                  date,

@@ -11,7 +11,12 @@ import { createClient } from "@/lib/supabase/server";
 
 import type { Json } from "@/lib/supabase/database.types";
 
-const tournamentFormatValues = ["league", "knockout", "group_then_knockout"] as const;
+const tournamentFormatValues = [
+  "league",
+  "knockout",
+  "group_then_knockout",
+  "round_robin_playoff_final",
+] as const;
 const tournamentStatusValues = ["draft", "active", "completed", "archived"] as const;
 
 const baseTournamentFields = {

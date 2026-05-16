@@ -13,7 +13,11 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-type TournamentFormat = "league" | "knockout" | "group_then_knockout";
+type TournamentFormat =
+  | "league"
+  | "knockout"
+  | "group_then_knockout"
+  | "round_robin_playoff_final";
 type TournamentStatus = "draft" | "active" | "completed" | "archived";
 type TournamentAdminRole = "organizer" | "scorer";
 type TeamPlayerRole = "captain" | "vice_captain" | "wicket_keeper" | "player";

@@ -29,7 +29,12 @@ import { createTournament } from "../actions";
 
 const schema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  format: z.enum(["league", "knockout", "group_then_knockout"]),
+  format: z.enum([
+    "league",
+    "knockout",
+    "group_then_knockout",
+    "round_robin_playoff_final",
+  ]),
   default_overs_per_innings: z.coerce
     .number({ invalid_type_error: "Enter a number" })
     .int()
@@ -103,6 +108,9 @@ export function NewTournamentForm() {
                   <SelectItem value="knockout">Knockout</SelectItem>
                   <SelectItem value="group_then_knockout">
                     Group then knockout
+                  </SelectItem>
+                  <SelectItem value="round_robin_playoff_final">
+                    Round Robin → Playoff → Final
                   </SelectItem>
                 </SelectContent>
               </Select>

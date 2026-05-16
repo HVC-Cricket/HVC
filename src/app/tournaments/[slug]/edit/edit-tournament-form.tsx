@@ -36,7 +36,12 @@ const schema = z.object({
     .string()
     .min(2)
     .regex(/^[a-z0-9-]+$/, "Lowercase letters, digits, hyphens only"),
-  format: z.enum(["league", "knockout", "group_then_knockout"]),
+  format: z.enum([
+    "league",
+    "knockout",
+    "group_then_knockout",
+    "round_robin_playoff_final",
+  ]),
   status: z.enum(["draft", "active", "completed", "archived"]),
   default_overs_per_innings: z.coerce.number().int().positive().max(50),
   default_players_per_side: z.coerce.number().int().min(2).max(15),
@@ -54,7 +59,11 @@ type Props = {
     id: string;
     name: string;
     slug: string;
-    format: "league" | "knockout" | "group_then_knockout";
+    format:
+      | "league"
+      | "knockout"
+      | "group_then_knockout"
+      | "round_robin_playoff_final";
     status: "draft" | "active" | "completed" | "archived";
     default_overs_per_innings: number;
     default_players_per_side: number;
@@ -152,6 +161,9 @@ export function EditTournamentForm({ tournament }: Props) {
                     <SelectItem value="knockout">Knockout</SelectItem>
                     <SelectItem value="group_then_knockout">
                       Group then knockout
+                    </SelectItem>
+                    <SelectItem value="round_robin_playoff_final">
+                      Round Robin → Playoff → Final
                     </SelectItem>
                   </SelectContent>
                 </Select>

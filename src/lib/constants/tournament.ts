@@ -13,7 +13,8 @@ export type TournamentStatus =
 export type TournamentFormat =
   | "league"
   | "knockout"
-  | "group_then_knockout";
+  | "group_then_knockout"
+  | "round_robin_playoff_final";
 
 export const STATUS_LABEL: Record<TournamentStatus, string> = {
   active: "Live",
@@ -36,6 +37,7 @@ export const FORMAT_LABEL: Record<TournamentFormat, string> = {
   league: "League",
   knockout: "Knockout",
   group_then_knockout: "Group → Knockout",
+  round_robin_playoff_final: "Round Robin → Playoff → Final",
 };
 
 /**
