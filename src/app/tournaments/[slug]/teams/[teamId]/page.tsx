@@ -196,11 +196,24 @@ export default async function TeamDetailPage(props: {
                               | "vice_captain"
                               | "wicket_keeper"
                               | "player"}
+                            canChangeCaptaincy={canManageTeamAdmins}
                           />
                           <RemoveRosterButton
                             tournamentSlug={tournament.slug}
                             teamId={team.id}
                             rosterId={r.id}
+                            disabled={
+                              !canManageTeamAdmins &&
+                              (r.role === "captain" ||
+                                r.role === "vice_captain")
+                            }
+                            disabledTitle={
+                              !canManageTeamAdmins &&
+                              (r.role === "captain" ||
+                                r.role === "vice_captain")
+                                ? "Only the tournament organizer can remove the captain or vice-captain."
+                                : undefined
+                            }
                           />
                         </span>
                       )}
@@ -305,6 +318,7 @@ export default async function TeamDetailPage(props: {
                   tournamentSlug={tournament.slug}
                   teamId={team.id}
                   players={availablePlayers}
+                  canChangeCaptaincy={canManageTeamAdmins}
                 />
               )}
             </CardContent>

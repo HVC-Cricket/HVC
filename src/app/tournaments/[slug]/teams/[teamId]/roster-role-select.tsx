@@ -20,19 +20,27 @@ export function RosterRoleSelect({
   teamId,
   rosterId,
   initialRole,
+  canChangeCaptaincy,
 }: {
   tournamentSlug: string;
   teamId: string;
   rosterId: string;
   initialRole: Role;
+  /** When false (the caller is a team admin, not organizer), the
+   *  select is read-only on captain/vc rows and the captain/vc options
+   *  are hidden so non-captaincy rows can't be promoted into them. */
+  canChangeCaptaincy: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [value, setValue] = useState<Role>(initialRole);
+  const isCaptaincyRow =
+    initialRole === "captain" || initialRole === "vice_captain";
+  const locked = !canChangeCaptaincy && isCaptaincyRow;
 
   return (
     <Select
       value={value}
-      disabled={pending}
+      disabled={pending || locked}
       onValueChange={(v) => {
         const role = v as Role;
         setValue(role);
@@ -55,8 +63,10 @@ export function RosterRoleSelect({
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="player">Player</SelectItem>
-        <SelectItem value="captain">Captain</SelectItem>
-        <SelectItem value="vice_captain">Vice captain</SelectItem>
+        {canChangeCaptaincy && <SelectItem value="captain">Captain</SelectItem>}
+        {canChangeCaptaincy && (
+          <SelectItem value="vice_captain">Vice captain</SelectItem>
+        )}
         <SelectItem value="wicket_keeper">Wicket-keeper</SelectItem>
       </SelectContent>
     </Select>

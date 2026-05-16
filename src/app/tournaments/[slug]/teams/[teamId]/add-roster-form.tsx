@@ -35,9 +35,17 @@ type Props = {
   tournamentSlug: string;
   teamId: string;
   players: { id: string; display_name: string }[];
+  /** False when the caller is a team admin (not organizer) — they
+   *  can add players but not set them as captain / vice-captain. */
+  canChangeCaptaincy: boolean;
 };
 
-export function AddRosterForm({ tournamentSlug, teamId, players }: Props) {
+export function AddRosterForm({
+  tournamentSlug,
+  teamId,
+  players,
+  canChangeCaptaincy,
+}: Props) {
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { playerId: "", role: "player" },
@@ -105,8 +113,12 @@ export function AddRosterForm({ tournamentSlug, teamId, players }: Props) {
                 </FormControl>
                 <SelectContent>
                   <SelectItem value="player">Player</SelectItem>
-                  <SelectItem value="captain">Captain</SelectItem>
-                  <SelectItem value="vice_captain">Vice captain</SelectItem>
+                  {canChangeCaptaincy && (
+                    <SelectItem value="captain">Captain</SelectItem>
+                  )}
+                  {canChangeCaptaincy && (
+                    <SelectItem value="vice_captain">Vice captain</SelectItem>
+                  )}
                   <SelectItem value="wicket_keeper">
                     Wicket-keeper
                   </SelectItem>

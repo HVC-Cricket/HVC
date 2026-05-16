@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import {
   canManageTeam,
+  isTournamentOrganizer,
   requireOrganizer,
   requireUser,
 } from "@/lib/auth";
@@ -178,6 +179,19 @@ export async function addPlayerToTeam(
     return { ok: false, error: "Not authorized to manage this team's roster" };
   }
 
+  // Captain / vice-captain role changes are organizer-only. A team
+  // admin (not organizer) can't add a player as captain/vc because
+  // those roles auto-grant team-admin access — letting team admins
+  // hand that out (or swap captaincy) would let them effectively
+  // remove each other.
+  const isOrg = await isTournamentOrganizer(tournament.id, ctx);
+  if (!isOrg && (parsed.data.role === "captain" || parsed.data.role === "vice_captain")) {
+    return {
+      ok: false,
+      error: "Only the tournament organizer can set captain or vice-captain.",
+    };
+  }
+
   const supabase = await createClient();
 
   // Cross-team-in-tournament guard: a player can be on at most one
@@ -244,7 +258,30 @@ export async function updateRosterRole(
     return { ok: false, error: "Not authorized to manage this team's roster" };
   }
 
+  const isOrg = await isTournamentOrganizer(tournament.id, ctx);
   const supabase = await createClient();
+
+  // Look up the current role; team admins can't promote into OR demote
+  // out of captain / vice-captain — those changes auto-shuffle the
+  // team_admins table and would let team admins remove each other.
+  if (!isOrg) {
+    const { data: existing } = await supabase
+      .from("team_players")
+      .select("role")
+      .eq("id", parsed.data.rosterId)
+      .eq("team_id", parsed.data.teamId)
+      .maybeSingle();
+    const oldRole = existing?.role;
+    const captaincy = (r: string | null | undefined) =>
+      r === "captain" || r === "vice_captain";
+    if (captaincy(oldRole) || captaincy(parsed.data.role)) {
+      return {
+        ok: false,
+        error: "Only the tournament organizer can change captain or vice-captain.",
+      };
+    }
+  }
+
   const { error } = await supabase
     .from("team_players")
     .update({ role: parsed.data.role })
@@ -282,7 +319,27 @@ export async function removePlayerFromTeam(
     return { ok: false, error: "Not authorized to manage this team's roster" };
   }
 
+  const isOrg = await isTournamentOrganizer(tournament.id, ctx);
   const supabase = await createClient();
+
+  // Removing the captain or vice-captain drops their auto team-admin
+  // grant via the role-sync trigger. Team admins can't do that to
+  // each other — only the organizer can.
+  if (!isOrg) {
+    const { data: existing } = await supabase
+      .from("team_players")
+      .select("role")
+      .eq("id", parsed.data.rosterId)
+      .eq("team_id", parsed.data.teamId)
+      .maybeSingle();
+    if (existing?.role === "captain" || existing?.role === "vice_captain") {
+      return {
+        ok: false,
+        error: "Only the tournament organizer can remove the captain or vice-captain.",
+      };
+    }
+  }
+
   const { error } = await supabase
     .from("team_players")
     .delete()
