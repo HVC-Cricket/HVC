@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { signOut } from "@/app/(auth)/actions";
+import { PlayerCareerSection } from "@/components/player-career-section";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -53,71 +54,6 @@ export default async function MePage() {
   const profile = profileRes.data;
   const linkedPlayer = linkedPlayerRes.data;
   const adminRows = adminRowsRes.data ?? [];
-
-  // Career snapshot for the linked player — read from the
-  // historical-aware v_player_tournament_stats view (sums across both
-  // balls-derived and cricheroes-imported matches) + match_players for
-  // the distinct match count.
-  type PlayerCareer = {
-    matches: number;
-    runs: number;
-    balls_faced: number;
-    fours: number;
-    sixes: number;
-    wickets: number;
-    runs_conceded: number;
-    legal_balls_bowled: number;
-  };
-  let career: PlayerCareer | null = null;
-  if (linkedPlayer) {
-    type StatRow = {
-      runs: number | null;
-      balls_faced: number | null;
-      fours: number | null;
-      sixes: number | null;
-      wickets: number | null;
-      runs_conceded: number | null;
-      legal_balls_bowled: number | null;
-    };
-    const [statsRes, mpRes] = await Promise.all([
-      supabase
-        .from("v_player_tournament_stats" as never)
-        .select(
-          "runs, balls_faced, fours, sixes, wickets, runs_conceded, legal_balls_bowled",
-        )
-        .eq("player_id", linkedPlayer.id),
-      supabase
-        .from("match_players")
-        .select("match_id")
-        .eq("player_id", linkedPlayer.id),
-    ]);
-    const rows = (statsRes.data as unknown as StatRow[] | null) ?? [];
-    const matchSet = new Set<string>();
-    for (const r of mpRes.data ?? []) matchSet.add(r.match_id);
-    career = rows.reduce<PlayerCareer>(
-      (acc, r) => ({
-        matches: acc.matches,
-        runs: acc.runs + (r.runs ?? 0),
-        balls_faced: acc.balls_faced + (r.balls_faced ?? 0),
-        fours: acc.fours + (r.fours ?? 0),
-        sixes: acc.sixes + (r.sixes ?? 0),
-        wickets: acc.wickets + (r.wickets ?? 0),
-        runs_conceded: acc.runs_conceded + (r.runs_conceded ?? 0),
-        legal_balls_bowled:
-          acc.legal_balls_bowled + (r.legal_balls_bowled ?? 0),
-      }),
-      {
-        matches: matchSet.size,
-        runs: 0,
-        balls_faced: 0,
-        fours: 0,
-        sixes: 0,
-        wickets: 0,
-        runs_conceded: 0,
-        legal_balls_bowled: 0,
-      },
-    );
-  }
 
   // Resolve tournament names/slugs for the admin rows.
   const adminEntries: AdminEntry[] = [];
@@ -184,54 +120,8 @@ export default async function MePage() {
           playerBowlingStyle={linkedPlayer?.bowling_style ?? null}
         />
 
-        {linkedPlayer && career ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Career</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <MeStat label="Matches" value={career.matches} />
-                <MeStat label="Runs" value={career.runs} />
-                <MeStat label="4s" value={career.fours} />
-                <MeStat label="6s" value={career.sixes} />
-                <MeStat
-                  label="SR"
-                  value={
-                    career.balls_faced > 0
-                      ? ((career.runs / career.balls_faced) * 100).toFixed(1)
-                      : "—"
-                  }
-                />
-                <MeStat label="Wickets" value={career.wickets} />
-                <MeStat
-                  label="Overs bowled"
-                  value={`${Math.floor(career.legal_balls_bowled / 6)}.${career.legal_balls_bowled % 6}`}
-                />
-                <MeStat
-                  label="Econ"
-                  value={
-                    career.legal_balls_bowled > 0
-                      ? (
-                          (career.runs_conceded /
-                            career.legal_balls_bowled) *
-                          6
-                        ).toFixed(2)
-                      : "—"
-                  }
-                />
-              </div>
-              <div className="flex justify-end">
-                <Link
-                  href={`/players/${linkedPlayer.id}`}
-                  prefetch
-                  className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-                >
-                  Per-tournament breakdown →
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+        {linkedPlayer ? (
+          <PlayerCareerSection playerId={linkedPlayer.id} />
         ) : (
           <Card>
             <CardHeader>
@@ -299,25 +189,6 @@ export default async function MePage() {
         </div>
       </div>
     </main>
-  );
-}
-
-function MeStat({
-  label,
-  value,
-}: {
-  label: string;
-  value: number | string;
-}) {
-  return (
-    <div className="rounded-md border border-foreground/10 bg-background p-2">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-        {label}
-      </div>
-      <div className="font-mono text-base font-semibold tabular-nums">
-        {value}
-      </div>
-    </div>
   );
 }
 
