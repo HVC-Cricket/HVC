@@ -185,23 +185,21 @@ export default async function TeamDetailPage(props: {
                               | "player"}
                             canChangeCaptaincy={canChangeCaptaincy}
                           />
-                          <RemoveRosterButton
-                            tournamentSlug={tournament.slug}
-                            teamId={team.id}
-                            rosterId={r.id}
-                            disabled={
-                              !canChangeCaptaincy &&
-                              (r.role === "captain" ||
-                                r.role === "vice_captain")
-                            }
-                            disabledTitle={
-                              !canChangeCaptaincy &&
-                              (r.role === "captain" ||
-                                r.role === "vice_captain")
-                                ? "Only the tournament organizer can remove the captain or vice-captain."
-                                : undefined
-                            }
-                          />
+                          {/* Hide Remove entirely on captain/vc rows
+                              when the viewer can't change captaincy.
+                              Showing a disabled button just adds
+                              noise — the captain themselves can't
+                              de-captain themselves, so the action
+                              is never possible from their seat. */}
+                          {(canChangeCaptaincy ||
+                            (r.role !== "captain" &&
+                              r.role !== "vice_captain")) && (
+                            <RemoveRosterButton
+                              tournamentSlug={tournament.slug}
+                              teamId={team.id}
+                              rosterId={r.id}
+                            />
+                          )}
                         </span>
                       )}
                     </li>

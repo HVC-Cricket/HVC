@@ -36,6 +36,12 @@ export function RosterRoleSelect({
   const isCaptaincyRow =
     initialRole === "captain" || initialRole === "vice_captain";
   const locked = !canChangeCaptaincy && isCaptaincyRow;
+  // Captaincy options must render whenever the CURRENT row is
+  // captain/vc — otherwise <Select> has nothing to render for the
+  // value and the trigger shows blank. We still hide them when the
+  // row is a regular player and the viewer can't change captaincy
+  // (so a team admin can't promote anyone into captaincy).
+  const showCaptaincyOptions = canChangeCaptaincy || isCaptaincyRow;
 
   return (
     <Select
@@ -63,8 +69,10 @@ export function RosterRoleSelect({
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="player">Player</SelectItem>
-        {canChangeCaptaincy && <SelectItem value="captain">Captain</SelectItem>}
-        {canChangeCaptaincy && (
+        {showCaptaincyOptions && (
+          <SelectItem value="captain">Captain</SelectItem>
+        )}
+        {showCaptaincyOptions && (
           <SelectItem value="vice_captain">Vice captain</SelectItem>
         )}
         <SelectItem value="wicket_keeper">Wicket-keeper</SelectItem>
