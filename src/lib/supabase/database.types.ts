@@ -606,6 +606,116 @@ export type Database = {
         };
         Relationships: [];
       };
+      historical_match_batting: {
+        Row: {
+          id: string;
+          match_id: string;
+          innings_number: number;
+          batting_team_id: string;
+          player_id: string | null;
+          player_name: string;
+          batting_order: number | null;
+          is_captain: boolean;
+          runs: number;
+          balls_faced: number;
+          minutes: number | null;
+          fours: number;
+          sixes: number;
+          strike_rate: number | null;
+          batting_hand: string | null;
+          how_to_out: string | null;
+          is_out: boolean;
+        };
+        Insert: {
+          id?: string;
+          match_id: string;
+          innings_number: number;
+          batting_team_id: string;
+          player_id?: string | null;
+          player_name: string;
+          batting_order?: number | null;
+          is_captain?: boolean;
+          runs?: number;
+          balls_faced?: number;
+          minutes?: number | null;
+          fours?: number;
+          sixes?: number;
+          strike_rate?: number | null;
+          batting_hand?: string | null;
+          how_to_out?: string | null;
+          is_out?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["historical_match_batting"]["Insert"]>;
+        Relationships: [];
+      };
+      historical_match_bowling: {
+        Row: {
+          id: string;
+          match_id: string;
+          innings_number: number;
+          bowling_team_id: string;
+          player_id: string | null;
+          player_name: string;
+          bowling_order: number | null;
+          overs: number;
+          maidens: number;
+          runs: number;
+          wickets: number;
+          dots: number;
+          fours_conceded: number;
+          sixes_conceded: number;
+          wides: number;
+          noballs: number;
+          economy_rate: number | null;
+        };
+        Insert: {
+          id?: string;
+          match_id: string;
+          innings_number: number;
+          bowling_team_id: string;
+          player_id?: string | null;
+          player_name: string;
+          bowling_order?: number | null;
+          overs?: number;
+          maidens?: number;
+          runs?: number;
+          wickets?: number;
+          dots?: number;
+          fours_conceded?: number;
+          sixes_conceded?: number;
+          wides?: number;
+          noballs?: number;
+          economy_rate?: number | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["historical_match_bowling"]["Insert"]>;
+        Relationships: [];
+      };
+      historical_match_fall_of_wickets: {
+        Row: {
+          id: string;
+          match_id: string;
+          innings_number: number;
+          batting_team_id: string;
+          wicket_no: number;
+          run_at_fall: number;
+          over_at_fall: number | null;
+          dismiss_player_id: string | null;
+          dismiss_player_name: string | null;
+        };
+        Insert: {
+          id?: string;
+          match_id: string;
+          innings_number: number;
+          batting_team_id: string;
+          wicket_no: number;
+          run_at_fall: number;
+          over_at_fall?: number | null;
+          dismiss_player_id?: string | null;
+          dismiss_player_name?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["historical_match_fall_of_wickets"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

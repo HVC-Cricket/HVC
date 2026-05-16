@@ -134,6 +134,9 @@ async function main(): Promise<void> {
     // Order: child tables first.
     const tables = [
       "match_audit_events",
+      "historical_match_fall_of_wickets",
+      "historical_match_bowling",
+      "historical_match_batting",
       "balls",
       "innings",
       "match_players",
@@ -170,7 +173,7 @@ async function main(): Promise<void> {
 
   // ----- 1. tournaments -----
   const tournaments = readCsv("tournaments.csv");
-  console.log(`[1/7] tournaments  (${tournaments.length} rows)`);
+  console.log(`[1/10] tournaments  (${tournaments.length} rows)`);
   for (const t of tournaments) {
     const { data, error } = await supabase
       .from("tournaments")
@@ -199,7 +202,7 @@ async function main(): Promise<void> {
 
   // ----- 2. teams -----
   const teams = readCsv("teams.csv");
-  console.log(`[2/7] teams        (${teams.length} rows)`);
+  console.log(`[2/10] teams        (${teams.length} rows)`);
   for (const tm of teams) {
     const tournamentId = tournamentIds.get(tm.cricheroes_tournament_id);
     if (!tournamentId) { console.warn(`  ! orphan team ${tm.name}`); continue; }
@@ -223,7 +226,7 @@ async function main(): Promise<void> {
 
   // ----- 3. players (dedup by display_name, case-insensitive) -----
   const players = readCsv("players.csv");
-  console.log(`[3/7] players      (${players.length} rows)`);
+  console.log(`[3/10] players      (${players.length} rows)`);
   let playerNew = 0;
   let playerLinked = 0;
   for (const p of players) {
@@ -267,7 +270,7 @@ async function main(): Promise<void> {
   // tournament_id for any match — needed because cricheroes_team_id is reused
   // across tournaments and team UUIDs must be resolved per (tournament, team).
   const matches = readCsv("matches.csv");
-  console.log(`[4/7] matches      (${matches.length} rows)`);
+  console.log(`[4/10] matches      (${matches.length} rows)`);
   for (const m of matches) {
     const tournamentId = tournamentIds.get(m.cricheroes_tournament_id);
     const teamAId = teamIds.get(teamKey(m.cricheroes_tournament_id, m.cricheroes_team_a_id));
@@ -318,7 +321,7 @@ async function main(): Promise<void> {
 
   // ----- 5. match_players -----
   const matchPlayers = readCsv("match_players.csv");
-  console.log(`[5/7] match_players (${matchPlayers.length} rows)`);
+  console.log(`[5/10] match_players (${matchPlayers.length} rows)`);
   let mpCount = 0;
   let mpSkip = 0;
   for (const mp of matchPlayers) {
@@ -350,7 +353,7 @@ async function main(): Promise<void> {
 
   // ----- 6. innings -----
   const innings = readCsv("innings.csv");
-  console.log(`[6/7] innings      (${innings.length} rows)`);
+  console.log(`[6/10] innings      (${innings.length} rows)`);
   let inCount = 0;
   for (const ing of innings) {
     const matchId = matchIds.get(ing.cricheroes_match_id);
@@ -394,7 +397,7 @@ async function main(): Promise<void> {
   // across tournaments and the scraper deduped (team_id, player_id). The
   // truthful source is match_players: a player belongs to a team in a
   // tournament IFF they appeared in a match for that team in that tournament.
-  console.log(`[7/7] team_players (derived from match_players)`);
+  console.log(`[7/10] team_players (derived from match_players)`);
   // Read all match_players we just inserted and dedupe per (team, player).
   // Role precedence: captain > wicket_keeper > player.
   const { data: mpRows, error: mpRowsErr } = await supabase
@@ -432,14 +435,139 @@ async function main(): Promise<void> {
   }
   console.log(`      inserted: ${tpCount}\n`);
 
+  // ----- 8. historical_match_batting -----
+  // Per-batter per-innings aggregates for matches with no ball-by-ball
+  // (which is all the cricheroes-imported ones, since cricheroes doesn't
+  // expose complete ball data for these matches).
+  const histBatting = readCsv("historical_batting.csv");
+  console.log(`[8/10] historical_match_batting  (${histBatting.length} rows)`);
+  let hbCount = 0, hbSkip = 0;
+  for (const r of histBatting) {
+    const matchId = matchIds.get(r.cricheroes_match_id);
+    const tournamentRef = matchToTournament.get(r.cricheroes_match_id);
+    const battingTeamId = tournamentRef
+      ? teamIds.get(teamKey(tournamentRef, r.cricheroes_team_id))
+      : undefined;
+    const playerId = playerIds.get(r.cricheroes_player_id) ?? null;
+    if (!matchId || !battingTeamId) { hbSkip++; continue; }
+    const { error } = await supabase
+      .from("historical_match_batting")
+      .insert({
+        match_id: matchId,
+        innings_number: intOrNull(r.innings_number) ?? 0,
+        batting_team_id: battingTeamId,
+        player_id: playerId,
+        player_name: r.name,
+        batting_order: intOrNull(r.batting_order),
+        is_captain: bool(r.is_captain),
+        runs: intOrNull(r.runs) ?? 0,
+        balls_faced: intOrNull(r.balls) ?? 0,
+        minutes: intOrNull(r.minutes),
+        fours: intOrNull(r.fours) ?? 0,
+        sixes: intOrNull(r.sixes) ?? 0,
+        strike_rate: r.strike_rate ? Number(r.strike_rate) : null,
+        batting_hand: strOrNull(r.batting_hand),
+        how_to_out: strOrNull(r.how_to_out),
+        is_out: bool(r.is_out),
+      });
+    if (error) {
+      if (error.message.includes("duplicate")) { hbSkip++; continue; }
+      console.error(`  ! historical_batting (match ${r.cricheroes_match_id}, inn ${r.innings_number}): ${error.message}`);
+      process.exit(1);
+    }
+    hbCount++;
+  }
+  console.log(`       inserted: ${hbCount}, skipped: ${hbSkip}\n`);
+
+  // ----- 9. historical_match_bowling -----
+  // CSV has cricheroes_team_id = the BOWLING team (the team the bowlers
+  // belong to), not the batting team — already correct.
+  const histBowling = readCsv("historical_bowling.csv");
+  console.log(`[9/10] historical_match_bowling  (${histBowling.length} rows)`);
+  let hwCount = 0, hwSkip = 0;
+  for (const r of histBowling) {
+    const matchId = matchIds.get(r.cricheroes_match_id);
+    const tournamentRef = matchToTournament.get(r.cricheroes_match_id);
+    const bowlingTeamId = tournamentRef
+      ? teamIds.get(teamKey(tournamentRef, r.cricheroes_team_id))
+      : undefined;
+    const playerId = playerIds.get(r.cricheroes_player_id) ?? null;
+    if (!matchId || !bowlingTeamId) { hwSkip++; continue; }
+    const { error } = await supabase
+      .from("historical_match_bowling")
+      .insert({
+        match_id: matchId,
+        innings_number: intOrNull(r.innings_number) ?? 0,
+        bowling_team_id: bowlingTeamId,
+        player_id: playerId,
+        player_name: r.name,
+        bowling_order: intOrNull(r.bowling_order),
+        overs: r.overs ? Number(r.overs) : 0,
+        maidens: intOrNull(r.maidens) ?? 0,
+        runs: intOrNull(r.runs) ?? 0,
+        wickets: intOrNull(r.wickets) ?? 0,
+        dots: intOrNull(r.dots) ?? 0,
+        fours_conceded: intOrNull(r.fours_conceded) ?? 0,
+        sixes_conceded: intOrNull(r.sixes_conceded) ?? 0,
+        wides: intOrNull(r.wides) ?? 0,
+        noballs: intOrNull(r.noballs) ?? 0,
+        economy_rate: r.economy_rate ? Number(r.economy_rate) : null,
+      });
+    if (error) {
+      if (error.message.includes("duplicate")) { hwSkip++; continue; }
+      console.error(`  ! historical_bowling (match ${r.cricheroes_match_id}, inn ${r.innings_number}): ${error.message}`);
+      process.exit(1);
+    }
+    hwCount++;
+  }
+  console.log(`       inserted: ${hwCount}, skipped: ${hwSkip}\n`);
+
+  // ----- 10. historical_match_fall_of_wickets -----
+  const histFow = readCsv("fall_of_wickets.csv");
+  console.log(`[10/10] historical_match_fall_of_wickets  (${histFow.length} rows)`);
+  let hfCount = 0, hfSkip = 0;
+  for (const r of histFow) {
+    const matchId = matchIds.get(r.cricheroes_match_id);
+    const tournamentRef = matchToTournament.get(r.cricheroes_match_id);
+    const battingTeamId = tournamentRef
+      ? teamIds.get(teamKey(tournamentRef, r.cricheroes_batting_team_id))
+      : undefined;
+    const dismissPlayerId = r.cricheroes_dismiss_player_id
+      ? playerIds.get(r.cricheroes_dismiss_player_id) ?? null
+      : null;
+    if (!matchId || !battingTeamId) { hfSkip++; continue; }
+    const { error } = await supabase
+      .from("historical_match_fall_of_wickets")
+      .insert({
+        match_id: matchId,
+        innings_number: intOrNull(r.innings_number) ?? 0,
+        batting_team_id: battingTeamId,
+        wicket_no: intOrNull(r.wicket_no) ?? 0,
+        run_at_fall: intOrNull(r.run_at_fall) ?? 0,
+        over_at_fall: r.over_at_fall ? Number(r.over_at_fall) : null,
+        dismiss_player_id: dismissPlayerId,
+        dismiss_player_name: strOrNull(r.dismiss_player_name),
+      });
+    if (error) {
+      if (error.message.includes("duplicate")) { hfSkip++; continue; }
+      console.error(`  ! historical_fow (match ${r.cricheroes_match_id}, inn ${r.innings_number}, wkt ${r.wicket_no}): ${error.message}`);
+      process.exit(1);
+    }
+    hfCount++;
+  }
+  console.log(`        inserted: ${hfCount}, skipped: ${hfSkip}\n`);
+
   console.log("DONE");
-  console.log(`  tournaments:   ${tournamentIds.size}`);
-  console.log(`  teams:         ${teamIds.size}`);
-  console.log(`  players:       ${playerIds.size}  (${playerNew} new, ${playerLinked} linked-to-existing)`);
-  console.log(`  team_players:  ${tpCount}`);
-  console.log(`  matches:       ${matchIds.size}`);
-  console.log(`  match_players: ${mpCount}`);
-  console.log(`  innings:       ${inCount}`);
+  console.log(`  tournaments:                       ${tournamentIds.size}`);
+  console.log(`  teams:                             ${teamIds.size}`);
+  console.log(`  players:                           ${playerIds.size}  (${playerNew} new, ${playerLinked} linked-to-existing)`);
+  console.log(`  team_players:                      ${tpCount}`);
+  console.log(`  matches:                           ${matchIds.size}`);
+  console.log(`  match_players:                     ${mpCount}`);
+  console.log(`  innings:                           ${inCount}`);
+  console.log(`  historical_match_batting:          ${hbCount}`);
+  console.log(`  historical_match_bowling:          ${hwCount}`);
+  console.log(`  historical_match_fall_of_wickets:  ${hfCount}`);
 }
 
 main().catch(err => {

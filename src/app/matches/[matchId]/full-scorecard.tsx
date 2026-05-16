@@ -9,6 +9,7 @@ import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
 
+import { HistoricalScorecard } from "./historical-scorecard";
 import { ScorecardInningsTabs } from "./scorecard-innings-tabs";
 type PlayerLite = {
   id: string;
@@ -74,6 +75,15 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
   const innings = inningsRes.data;
   if (!innings || innings.length === 0) return null;
 
+  const allBalls = (ballsRes.data as BallRow[] | null) ?? [];
+
+  // Historical fallback: matches imported from CricHeroes have innings +
+  // teams but no `balls` rows (cricheroes doesn't expose complete
+  // ball-by-ball). Render from `historical_match_*` tables instead.
+  if (allBalls.length === 0) {
+    return <HistoricalScorecard matchId={matchId} />;
+  }
+
   const teamById = new Map((teamsRes.data ?? []).map((t) => [t.id, t]));
 
   const xiRows = (xiRes.data as EmbeddedXIRow[] | null) ?? [];
@@ -82,8 +92,6 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
   for (const r of xiRows) {
     if (r.player) playerById.set(r.player.id, r.player);
   }
-
-  const allBalls = (ballsRes.data as BallRow[] | null) ?? [];
 
   const tabs = innings.map((i) => {
     const battingTeam = teamById.get(i.batting_team_id);

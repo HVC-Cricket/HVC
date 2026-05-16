@@ -14,6 +14,8 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-16 — Two-environment split done.** Prod = `cxysyglwooqmzcfvtmyl` (now holds the 6 historical CricHeroes seasons; was wiped of test data first). Dev = `clqdimzthzcpurtwhtej` (empty schema, all migrations applied, 5 storage buckets ready). Two checked-out-but-gitignored env templates — `.env.dev` and `.env.prod` — hold both sets of creds; flip the active env by `cp .env.dev .env.local` (or `.env.prod`). Still pending: super-admin re-bootstrap on prod (was wiped — sign up + Management-API promote), `dev` branch creation, Vercel preview env-var scoping. See §15.
 
+**2026-05-16 (later) — Historical scorecard fallback.** Investigation confirmed cricheroes does not expose complete ball-by-ball for HVC seasons 1–6 (commentary feed misses real dismissals + wide/no-ball penalties). Shipped 3 new tables — `historical_match_batting/bowling/fall_of_wickets` (migration `20260516020000_*`) — populated by extending the importer. New `historical-scorecard.tsx` server component renders from these when `balls` is empty; `full-scorecard.tsx` auto-delegates. Spectator scorecards now render for historical matches. See §15 "Historical scorecard rendering".
+
 **Project directory:** `~/Desktop/projects/hvc-scoring/` (Pavan's machine; was `/home/sudharshan/projects/own/hvc-scoring/` for the prior author).
 **Files in repo today:**
 - `db.sql` — full schema; live DB matches this. The `prevent_self_promote()` trigger has been patched to allow direct-DB callers (Management API / dashboard SQL editor / service_role) to bootstrap the first super admin.
@@ -884,6 +886,16 @@ The project is mid-flight in splitting the single Supabase project (`cxysyglwooq
 ### Importer-bug note for future-Claude
 
 The first import run produced wrong cross-tournament team UUIDs because cricheroes **reuses `team_id` across tournaments** (e.g. "Hoysala Hunters" has `team_id=1597084` in all 5 seasons it appeared). Original importer keyed the `cricheroes_team_id → uuid` map by team_id alone, so 39 inserts collapsed to 19 map entries pointing at the latest-inserted UUID — and matches in older seasons resolved to the Season-6 team UUID. Fix shipped in `scripts/import_cricheroes.ts`: map is keyed by composite `"<cricheroes_tournament_id>:<cricheroes_team_id>"` and the importer maintains a `matchToTournament` side index so `match_players` + `innings` can resolve the correct per-tournament team UUID. `team_players` is now **derived from `match_players` after the fact** (one row per distinct `(team_uuid, player_uuid)` seen in match_players, role precedence captain > wicket_keeper > player) — the original `team_players.csv` was also broken by the same team_id collision.
+
+### Historical scorecard rendering (added later 2026-05-16)
+
+CricHeroes does **not** expose complete ball-by-ball for HVC matches. The `/api/v1/scorecard/v2/get-commentary/{matchId}` endpoint (headers `api-key: cr!CkH3r0s`, `device-type: web`, `udid: <any uuid>`) returns balls but they are systematically missing: real wicket dismissals (only retired-hurts come through) + the +1 penalty for wides/no-balls. Confirmed on S1 and S6 finals — commentary sums to 62/83 of the actual 85/102 runs. Not a scraper bug; cricheroes' own web UI shows the same incomplete data.
+
+Workaround shipped: three new tables — `historical_match_batting`, `historical_match_bowling`, `historical_match_fall_of_wickets` — hold the per-innings aggregates we DO get from cricheroes' scorecard JSON. Migration `20260516020000_historical_match_aggregates.sql`. Importer extended to load them from `data/cricheroes/csv/{historical_batting,historical_bowling,fall_of_wickets}.csv`. Spectator UI: `src/app/matches/[matchId]/full-scorecard.tsx` checks `balls.length === 0` and delegates to a new `historical-scorecard.tsx` component when true — same visual layout, sourced from the new tables.
+
+Final counts on prod after the extended import: `historical_match_batting=850`, `historical_match_bowling=776`, `historical_match_fall_of_wickets=477` (the CSV had 684 FoW rows but 207 were dupes — same wicket recorded multiple times in cricheroes' raw JSON; the importer's `unique (match_id, innings_number, wicket_no)` constraint deduped them cleanly).
+
+What still doesn't work for historical matches: commentary feed, Manhattan/worm charts, `/players/[id]` career stats (the view reads from `balls`). Acceptable trade-off — the user explicitly asked for "just final scorecard information to display".
 
 ### Storage delete gotcha
 
