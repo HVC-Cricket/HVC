@@ -26,7 +26,11 @@ export default async function PlayersPage() {
     .select(
       "id, display_name, category, batting_style, bowling_style, photo_url, linked_user_id",
     )
-    .order("display_name", { ascending: true });
+    .order("display_name", { ascending: true })
+    // Safety cap. HVC currently has <100 players but this stays
+    // bounded if a future tournament imports a large historical roster.
+    // Hit at ~10x current size; revisit if we approach.
+    .limit(1000);
 
   // Batch-fetch linked auth-user avatars so players who only linked
   // their account (no player photo uploaded) still show a face.

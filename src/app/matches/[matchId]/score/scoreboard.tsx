@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { ArrowLeftRight } from "lucide-react";
+import dynamic from "next/dynamic";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -36,7 +37,15 @@ import { recordBall, voidLastBall, voidLastN } from "./actions";
 import { applyOptimisticRotation } from "./optimistic-rotation";
 import type { ScoreboardState } from "./state";
 import { type DrainOutcome, useOfflineQueue } from "./use-offline-queue";
-import { type WicketType, WicketButton } from "./wicket-button";
+import { type WicketType } from "./wicket-button";
+
+// Wicket modal is only opened on tap → defer the ~330-line bundle
+// until the scorer actually needs it. The first paint of the
+// scoreboard ships less JS to parse/eval on slow mobile networks.
+const WicketButton = dynamic(
+  () => import("./wicket-button").then((m) => m.WicketButton),
+  { ssr: false },
+);
 
 type OptimisticBall = {
   /** Stable local id used as the React key in the recent-balls strip. */

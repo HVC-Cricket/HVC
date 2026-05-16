@@ -66,10 +66,15 @@ export async function TournamentStats({
   const inningsIds = innings.map((i) => i.id);
   const inningsById = new Map(innings.map((i) => [i.id, i]));
 
-  // 3. All balls (non-voided) across this tournament.
+  // 3. All balls (non-voided) across this tournament. Selecting only
+  // the 10 columns this leaderboard actually reads — was `select("*")`,
+  // which pulls all ~22 columns of balls. For a 20-match tournament
+  // (~3000 balls) the over-the-wire payload roughly halves.
   const { data: ballsRows } = await supabase
     .from("balls")
-    .select("*")
+    .select(
+      "innings_id, batter_id, non_striker_id, bowler_id, player_out_id, runs_off_bat, extras, extra_type, is_wicket, wicket_type",
+    )
     .in("innings_id", inningsIds)
     .eq("is_voided", false)
     .order("scored_at", { ascending: true });
