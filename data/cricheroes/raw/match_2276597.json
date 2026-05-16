@@ -1,0 +1,902 @@
+{
+  "pageProps": {
+    "tab": "scorecard",
+    "miniScorecard": {
+      "status": false
+    },
+    "scorecard": [
+      {
+        "bowling": [
+          {
+            "player_id": 809867,
+            "name": "Prabhav Pk",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 1,
+            "runs": 0,
+            "wickets": 0,
+            "0s": 6,
+            "4s": 0,
+            "6s": 0,
+            "wide": 0,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "0.00",
+            "type_code": "RLB",
+            "inning": 1
+          },
+          {
+            "player_id": 8445292,
+            "name": "Mahesh",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 9,
+            "wickets": 0,
+            "0s": 4,
+            "4s": 0,
+            "6s": 1,
+            "wide": 2,
+            "noball": 0,
+            "extra_type_run_wide": 2,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "9.00",
+            "type_code": "RM",
+            "inning": 1
+          },
+          {
+            "player_id": 8445414,
+            "name": "Tej",
+            "overs": 2,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 11,
+            "wickets": 0,
+            "0s": 6,
+            "4s": 0,
+            "6s": 1,
+            "wide": 0,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "5.50",
+            "type_code": "RM",
+            "inning": 1
+          },
+          {
+            "player_id": 809163,
+            "name": "Pranav Pk",
+            "overs": 2,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 13,
+            "wickets": 2,
+            "0s": 9,
+            "4s": 0,
+            "6s": 2,
+            "wide": 0,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "6.50",
+            "type_code": "RF",
+            "inning": 1
+          },
+          {
+            "player_id": 8469156,
+            "name": "Sridhar",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 5,
+            "wickets": 1,
+            "0s": 2,
+            "4s": 0,
+            "6s": 0,
+            "wide": 1,
+            "noball": 0,
+            "extra_type_run_wide": 1,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "5.00",
+            "type_code": "ROB",
+            "inning": 1
+          }
+        ],
+        "fall_of_wicket": {
+          "data": [
+            {
+              "run": 2,
+              "wicket": 1,
+              "over": 1.3,
+              "balls": 0,
+              "dismiss_player_name": "Sudharshan"
+            },
+            {
+              "run": 9,
+              "wicket": 1,
+              "over": 1.5,
+              "balls": 0,
+              "dismiss_player_name": "Pradyumna"
+            },
+            {
+              "run": 12,
+              "wicket": 2,
+              "over": 3.1,
+              "balls": 0,
+              "dismiss_player_name": "Paneendra Gautham"
+            },
+            {
+              "run": 23,
+              "wicket": 3,
+              "over": 4.5,
+              "balls": 0,
+              "dismiss_player_name": "Aniruddha Dv"
+            },
+            {
+              "run": 31,
+              "wicket": 4,
+              "over": 5.4,
+              "balls": 0,
+              "dismiss_player_name": "Srikanth T K"
+            },
+            {
+              "run": 32,
+              "wicket": 5,
+              "over": 6.2,
+              "balls": 0,
+              "dismiss_player_name": "Ravi Aniruddha"
+            }
+          ],
+          "summary": "2-1 (Sudharshan, 1.3 ov), 9-1 (Pradyumna, 1.5 ov), 12-2 (Paneendra Gautham, 3.1 ov), 23-3 (Aniruddha Dv, 4.5 ov), 31-4 (Srikanth T K, 5.4 ov), 32-5 (Ravi Aniruddha, 6.2 ov)"
+        },
+        "to_be_bat": [],
+        "extras": {
+          "data": [
+            {
+              "type_code": "WD",
+              "type": "Wide",
+              "extra_type_run": 3,
+              "extra_run": 0
+            },
+            {
+              "type_code": "B",
+              "type": "Bye",
+              "extra_type_run": 0,
+              "extra_run": 1
+            }
+          ],
+          "summary": "(wd 3, b 1)",
+          "total": 4
+        },
+        "batting": [
+          {
+            "batting_hand": "RHB",
+            "SR": "0.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 5,
+            "balls": 6,
+            "runs": 0,
+            "how_to_out": "not out",
+            "name": "Pradyumna",
+            "player_id": 8445356
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "0.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 3,
+            "balls": 3,
+            "runs": 0,
+            "how_to_out": "run out Tej",
+            "name": "Sudharshan",
+            "player_id": 6508655
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "112.50",
+            "6s": 1,
+            "4s": 0,
+            "minutes": 3,
+            "balls": 8,
+            "runs": 9,
+            "how_to_out": "c Prasanna b Pranav Pk",
+            "name": "Paneendra Gautham",
+            "player_id": 8445499
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "114.29",
+            "6s": 1,
+            "4s": 0,
+            "minutes": 5,
+            "balls": 7,
+            "runs": 8,
+            "how_to_out": "c \u2020Mahesh b Sridhar",
+            "name": "Aniruddha Dv",
+            "player_id": 4143096
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "44.44",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 5,
+            "balls": 9,
+            "runs": 4,
+            "how_to_out": "c \u2020Sridhar b Pranav Pk",
+            "name": "Ravi Aniruddha (c)",
+            "player_id": 4048334
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "160.00",
+            "6s": 1,
+            "4s": 0,
+            "minutes": 1,
+            "balls": 5,
+            "runs": 8,
+            "how_to_out": "run out \u2020 Mahesh",
+            "name": "Srikanth T K",
+            "player_id": 5994303
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "150.00",
+            "6s": 1,
+            "4s": 0,
+            "minutes": 2,
+            "balls": 4,
+            "runs": 6,
+            "how_to_out": "not out",
+            "name": "Shrivatsa Hatwar (wk)",
+            "player_id": 10046726
+          }
+        ],
+        "inning": {
+          "team_id": 1597091,
+          "inning": 1,
+          "inning_start_time": "2021-10-03T06:23:17.000Z",
+          "inning_end_time": "2021-10-03T06:37:29.000Z",
+          "is_declare": 0,
+          "is_forfeited": 0,
+          "is_followon": 0,
+          "is_allout": 0,
+          "total_run": 39,
+          "total_wicket": 5,
+          "total_extra": 4,
+          "overs_played": "7.0",
+          "balls_played": 0,
+          "revised_target": 0,
+          "revised_overs": 0,
+          "penalty_run": 0,
+          "lead_by": 0,
+          "trail_by": 0,
+          "summary": {
+            "score": "39/5",
+            "over": "(7.0 Ov)",
+            "ball": "(0 Ball)",
+            "rr": "5.57"
+          }
+        },
+        "team_id": 1597091,
+        "teamName": "Vijayanagara Royals"
+      },
+      {
+        "bowling": [
+          {
+            "player_id": 8445356,
+            "name": "Pradyumna",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 6,
+            "wickets": 0,
+            "0s": 3,
+            "4s": 1,
+            "6s": 0,
+            "wide": 0,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "6.00",
+            "type_code": "ROB",
+            "inning": 2
+          },
+          {
+            "player_id": 4143096,
+            "name": "Aniruddha Dv",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 9,
+            "wickets": 0,
+            "0s": 2,
+            "4s": 0,
+            "6s": 1,
+            "wide": 0,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "9.00",
+            "type_code": "RM",
+            "inning": 2
+          },
+          {
+            "player_id": 5994303,
+            "name": "Srikanth T K",
+            "overs": 2,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 11,
+            "wickets": 2,
+            "0s": 7,
+            "4s": 0,
+            "6s": 1,
+            "wide": 1,
+            "noball": 0,
+            "extra_type_run_wide": 1,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "5.50",
+            "type_code": "RF",
+            "inning": 2
+          },
+          {
+            "player_id": 4048334,
+            "name": "Ravi Aniruddha",
+            "overs": 2,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 10,
+            "wickets": 1,
+            "0s": 5,
+            "4s": 0,
+            "6s": 0,
+            "wide": 2,
+            "noball": 0,
+            "extra_type_run_wide": 2,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "5.00",
+            "type_code": "RLB",
+            "inning": 2
+          },
+          {
+            "player_id": 8445499,
+            "name": "Paneendra Gautham",
+            "overs": 1,
+            "balls": 0,
+            "maidens": 0,
+            "runs": 2,
+            "wickets": 1,
+            "0s": 4,
+            "4s": 0,
+            "6s": 0,
+            "wide": 0,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "2.00",
+            "type_code": "ROB",
+            "inning": 2
+          }
+        ],
+        "fall_of_wicket": {
+          "data": [
+            {
+              "run": 6,
+              "wicket": 1,
+              "over": 1,
+              "balls": 0,
+              "dismiss_player_name": "Prabhav Pk"
+            },
+            {
+              "run": 17,
+              "wicket": 2,
+              "over": 2.5,
+              "balls": 0,
+              "dismiss_player_name": "Prasanna"
+            },
+            {
+              "run": 20,
+              "wicket": 3,
+              "over": 4.1,
+              "balls": 0,
+              "dismiss_player_name": "Tej"
+            },
+            {
+              "run": 29,
+              "wicket": 4,
+              "over": 5.2,
+              "balls": 0,
+              "dismiss_player_name": "Srisha Badarayana H S"
+            },
+            {
+              "run": 37,
+              "wicket": 5,
+              "over": 6.4,
+              "balls": 0,
+              "dismiss_player_name": "Mahesh"
+            },
+            {
+              "run": 37,
+              "wicket": 6,
+              "over": 6.5,
+              "balls": 0,
+              "dismiss_player_name": "Sudhindhra"
+            },
+            {
+              "run": 38,
+              "wicket": 7,
+              "over": 7,
+              "balls": 0,
+              "dismiss_player_name": "Pranav Pk"
+            }
+          ],
+          "summary": "6-1 (Prabhav Pk, 1 ov), 17-2 (Prasanna, 2.5 ov), 20-3 (Tej, 4.1 ov), 29-4 (Srisha Badarayana H S, 5.2 ov), 37-5 (Mahesh, 6.4 ov), 37-6 (Sudhindhra, 6.5 ov), 38-7 (Pranav Pk, 7 ov)"
+        },
+        "to_be_bat": [],
+        "extras": {
+          "data": [
+            {
+              "type_code": "WD",
+              "type": "Wide",
+              "extra_type_run": 3,
+              "extra_run": 0
+            }
+          ],
+          "summary": "(wd 3)",
+          "total": 3
+        },
+        "batting": [
+          {
+            "batting_hand": "RHB",
+            "SR": "50.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 1,
+            "balls": 2,
+            "runs": 1,
+            "how_to_out": "retired out",
+            "name": "Prabhav Pk",
+            "player_id": 809867
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "66.67",
+            "6s": 0,
+            "4s": 1,
+            "minutes": 17,
+            "balls": 18,
+            "runs": 12,
+            "how_to_out": "run out Aniruddha Dv",
+            "name": "Pranav Pk",
+            "player_id": 809163
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "100.00",
+            "6s": 1,
+            "4s": 0,
+            "minutes": 2,
+            "balls": 9,
+            "runs": 9,
+            "how_to_out": "b Srikanth T K",
+            "name": "Prasanna (c)",
+            "player_id": 5922441
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "33.33",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 2,
+            "balls": 3,
+            "runs": 1,
+            "how_to_out": "c Paneendra Gautham b Srikanth T K",
+            "name": "Tej",
+            "player_id": 8445414
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "233.33",
+            "6s": 1,
+            "4s": 0,
+            "minutes": 3,
+            "balls": 3,
+            "runs": 7,
+            "how_to_out": "b Ravi Aniruddha",
+            "name": "Srisha Badarayana H S",
+            "player_id": 8444668
+          },
+          {
+            "batting_hand": "LHB",
+            "SR": "83.33",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 4,
+            "balls": 6,
+            "runs": 5,
+            "how_to_out": "run out Paneendra Gautham / \u2020 Shrivatsa Hatwar",
+            "name": "Mahesh (wk)",
+            "player_id": 8445292
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "0.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 1,
+            "balls": 1,
+            "runs": 0,
+            "how_to_out": "c Aniruddha Dv b Paneendra Gautham",
+            "name": "Sudhindhra",
+            "player_id": 8556544
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "0.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 1,
+            "balls": 0,
+            "runs": 0,
+            "how_to_out": "not out",
+            "name": "Sridhar (wk)",
+            "player_id": 8469156
+          }
+        ],
+        "inning": {
+          "team_id": 1597085,
+          "inning": 2,
+          "inning_start_time": "2021-10-03T06:38:26.000Z",
+          "inning_end_time": "2021-10-03T06:55:44.000Z",
+          "is_declare": 0,
+          "is_forfeited": 0,
+          "is_followon": 0,
+          "is_allout": 0,
+          "total_run": 38,
+          "total_wicket": 7,
+          "total_extra": 3,
+          "overs_played": "7.0",
+          "balls_played": 0,
+          "revised_target": 0,
+          "revised_overs": 0,
+          "penalty_run": 0,
+          "lead_by": 0,
+          "trail_by": 0,
+          "summary": {
+            "score": "38/7",
+            "over": "(7.0 Ov)",
+            "ball": "(0 Ball)",
+            "rr": "5.43"
+          }
+        },
+        "team_id": 1597085,
+        "teamName": "Chalukya Chakravarthis"
+      }
+    ],
+    "mvp": {
+      "data": {},
+      "link": "",
+      "error": ""
+    },
+    "summaryData": {
+      "status": true,
+      "data": {
+        "match_id": 2276597,
+        "match_type": "Limited Overs",
+        "is_super_over": 0,
+        "match_event_type": "",
+        "match_event": "",
+        "match_inning": 1,
+        "current_inning": 2,
+        "type": 3,
+        "ball_type": "TENNIS",
+        "status": "past",
+        "overs": 7,
+        "balls": 0,
+        "over_reduce": "",
+        "is_dl": 0,
+        "is_vjd": 0,
+        "ground_id": 170209,
+        "ground_name": "Pro Legacy Sports Academy",
+        "city_id": 1798,
+        "city_name": "Bengaluru (Bangalore)",
+        "start_datetime": "2021-10-03T06:23:17.000Z",
+        "win_by": "1 run",
+        "winning_team": "Vijayanagara Royals",
+        "match_result": "Resulted",
+        "tournament_id": "293657",
+        "tournament_name": "HVC PREMIER LEAGUE SEASON 2",
+        "tournament_category": "",
+        "tournament_round_id": "491866",
+        "tournament_round_name": "League Matches",
+        "association_name": "",
+        "association_logo": "https://media.cricheroes.in/default/default-association-logo.jpg",
+        "steaming_url": "",
+        "is_display_view": 1,
+        "is_ticker": 0,
+        "is_backend_match": 0,
+        "is_video_analyst": 0,
+        "is_in_review": 0,
+        "is_enable_tournament_streaming": 0,
+        "is_enable_match_streaming": 0,
+        "team_a": {
+          "id": 1597091,
+          "name": "Vijayanagara Royals",
+          "logo": "https://media.cricheroes.in/team_logo/1632742407133_WFLqkX4wweja.jpg",
+          "is_home_team": 0,
+          "summary": "39/5",
+          "innings": [
+            {
+              "team_id": 1597091,
+              "inning": 1,
+              "inning_start_time": "2021-10-03T06:23:17.000Z",
+              "inning_end_time": "2021-10-03T06:37:29.000Z",
+              "is_declare": 0,
+              "is_forfeited": 0,
+              "is_followon": 0,
+              "is_allout": 0,
+              "total_run": 39,
+              "total_wicket": 5,
+              "total_extra": 4,
+              "overs_played": "7.0",
+              "balls_played": 0,
+              "revised_target": 0,
+              "revised_overs": 0,
+              "penalty_run": 0,
+              "lead_by": 0,
+              "trail_by": 0,
+              "summary": {
+                "score": "39/5",
+                "over": "(7.0 Ov)",
+                "ball": "(0 Ball)",
+                "rr": "5.57"
+              }
+            }
+          ]
+        },
+        "team_b": {
+          "id": 1597085,
+          "name": "Chalukya Chakravarthis",
+          "logo": "https://media.cricheroes.in/team_logo/1633170565393_WUGyGdQkfoVX.jpg",
+          "is_home_team": 0,
+          "summary": "38/7",
+          "innings": [
+            {
+              "team_id": 1597085,
+              "inning": 2,
+              "inning_start_time": "2021-10-03T06:38:26.000Z",
+              "inning_end_time": "2021-10-03T06:55:44.000Z",
+              "is_declare": 0,
+              "is_forfeited": 0,
+              "is_followon": 0,
+              "is_allout": 0,
+              "total_run": 38,
+              "total_wicket": 7,
+              "total_extra": 3,
+              "overs_played": "7.0",
+              "balls_played": 0,
+              "revised_target": 0,
+              "revised_overs": 0,
+              "penalty_run": 0,
+              "lead_by": 0,
+              "trail_by": 0,
+              "summary": {
+                "score": "38/7",
+                "over": "(7.0 Ov)",
+                "ball": "(0 Ball)",
+                "rr": "5.43"
+              }
+            }
+          ]
+        },
+        "insight_statements": [
+          "<font color='#14212A' face='Source Sans Pro'>Which team has scored more boundaries? <b>Vijayanagara Royals</b> or <b>Chalukya Chakravarthis</b>?</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Which team faced more <b>dot balls</b>? Find out now!</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Did captains make the right choice of <b>bowling attack</b> in this match?</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Which bowler gave away the <b>highest runs</b> in an over?</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Which team gave more <b>extra runs</b>?</font>"
+        ],
+        "streaming_details": [],
+        "primary_video_seconds": 0,
+        "match_category_name": "",
+        "highlight_video": [],
+        "toss_details": "Toss: Vijayanagara Royals opt to bat",
+        "streaming_multiple_url": "",
+        "web_title_message": "Vijayanagara Royals 39/5 vs Chalukya Chakravarthis 38/7 at Pro Legacy Sports Academy, Bengaluru (Bangalore) Check full scoreboard at https://goo.gl/uN5sJH",
+        "short_url": ";",
+        "match_summary": {
+          "team_id": -1,
+          "summary": "Vijayanagara Royals won by 1 run",
+          "short_summary": "",
+          "full_summary": "",
+          "rrr": "0.00",
+          "target": "-"
+        },
+        "share_message": "Vijayanagara Royals 39/5(7.0) vs Chalukya Chakravarthis 38/7(7.0). Vijayanagara Royals won by 1 run Full Scorecard: https://cricheroes.in/scorecard/2276597/HVC-PREMIER-LEAGUE-SEASON-2/Vijayanagara-Royals-vs-Chalukya-Chakravarthis via CricHeroes App : https://crichero.es/apps",
+        "whatsapp_share_url": "whatsapp://send?text=Vijayanagara%20Royals%2039%2F5(7.0)%20vs%20Chalukya%20Chakravarthis%2038%2F7(7.0).%20Vijayanagara%20Royals%20won%20by%201%20run%20Full%20Scorecard%3A%20https%3A%2F%2Fcricheroes.in%2Fscorecard%2F2276597%2FHVC-PREMIER-LEAGUE-SEASON-2%2FVijayanagara-Royals-vs-Chalukya-Chakravarthis%20via%20CricHeroes%20App%20%3A%20https%3A%2F%2Fcrichero.es%2Fapps",
+        "best_performances": {
+          "batting": [
+            {
+              "team_id": 1597085,
+              "team_name": "Chalukya Chakravarthis",
+              "player_id": 809163,
+              "player_name": "Pranav Pk",
+              "runs": 12,
+              "balls": 18,
+              "4s": 1,
+              "6s": 0,
+              "strike_rate": "66.67",
+              "bonus_run": 0,
+              "is_out": 1,
+              "inning": 2,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1597091,
+              "team_name": "Vijayanagara Royals",
+              "player_id": 8445499,
+              "player_name": "Paneendra Gautham",
+              "runs": 9,
+              "balls": 8,
+              "4s": 0,
+              "6s": 1,
+              "strike_rate": "112.50",
+              "bonus_run": 0,
+              "is_out": 1,
+              "inning": 1,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1597085,
+              "team_name": "Chalukya Chakravarthis",
+              "player_id": 5922441,
+              "player_name": "Prasanna",
+              "runs": 9,
+              "balls": 9,
+              "4s": 0,
+              "6s": 1,
+              "strike_rate": "100.00",
+              "bonus_run": 0,
+              "is_out": 1,
+              "inning": 2,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            }
+          ],
+          "bowling": [
+            {
+              "team_id": 1597091,
+              "team_name": "Vijayanagara Royals",
+              "player_id": 5994303,
+              "player_name": "Srikanth T K",
+              "overs": "2.0",
+              "balls": 0,
+              "maidens": 0,
+              "0s": 7,
+              "runs": 11,
+              "wickets": 2,
+              "economy_rate": "5.50",
+              "inning": 2,
+              "bonus_run": 0,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1597085,
+              "team_name": "Chalukya Chakravarthis",
+              "player_id": 809163,
+              "player_name": "Pranav Pk",
+              "overs": "2.0",
+              "balls": 0,
+              "maidens": 0,
+              "0s": 9,
+              "runs": 13,
+              "wickets": 2,
+              "economy_rate": "6.50",
+              "inning": 1,
+              "bonus_run": 0,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1597091,
+              "team_name": "Vijayanagara Royals",
+              "player_id": 8445499,
+              "player_name": "Paneendra Gautham",
+              "overs": "1.0",
+              "balls": 0,
+              "maidens": 0,
+              "0s": 4,
+              "runs": 2,
+              "wickets": 1,
+              "economy_rate": "2.00",
+              "inning": 2,
+              "bonus_run": 0,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            }
+          ]
+        },
+        "player_of_the_match": {
+          "player_id": 5994303,
+          "player_name": "Srikanth T K",
+          "team_name": "Vijayanagara Royals",
+          "profile_photo": "https://media.cricheroes.in/user_profile/1679225838321_9uubzZuBRat0.jpg"
+        },
+        "match_official": [],
+        "match_notes": [
+          {
+            "team_id": 1597091,
+            "inning": 1,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Match started at 03 Oct, 11:53 AM."
+          },
+          {
+            "team_id": 1597091,
+            "inning": 1,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Innings Break: Vijayanagara Royals - 39/5 in 7 overs (Shrivatsa Hatwar 6, Pradyumna 0)"
+          },
+          {
+            "team_id": 1597091,
+            "inning": 1,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Innings Ended at 03 Oct, 12:07 PM"
+          },
+          {
+            "team_id": 1597085,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Innings Started at 03 Oct, 12:08 PM"
+          },
+          {
+            "team_id": 1597085,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "End of Day: Chalukya Chakravarthis - 38/7 in 7 overs (Sridhar 0)"
+          },
+          {
+            "team_id": 1597085,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Match ended at 03 Oct, 12:25 PM."
+          }
+        ],
+        "scorer_notes": [],
+        "match_close_of_play": [],
+        "tiny_share_url": ""
+      }
+    },
+    "teamSquad": {
+      "status": false
+    },
+    "upcomingResponse": {
+      "status": false
+    },
+    "key": "/scorecard/2276597/x/x-vs-x/scorecard",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
+  },
+  "__N_SSP": true
+}

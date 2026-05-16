@@ -61,7 +61,7 @@
         "upcoming_matches_count": 0,
         "past_matches_count": 25,
         "is_display_view": 1,
-        "total_views": 4579,
+        "total_views": 4604,
         "match_count": 25,
         "is_smart_NRR_calculator_enable": 0,
         "allow_live_match_edit": 0,
@@ -80,15 +80,6 @@
         "is_enable_last_batter_batting_rule": 0,
         "is_enable_home_away": 0,
         "ticker_user_data": [],
-        "grounds": [
-          {
-            "ground_id": 170209,
-            "ground_name": "Pro Legacy Sports Academy",
-            "city_id": 1798,
-            "city_name": "Bengaluru (Bangalore)"
-          }
-        ],
-        "tags": [],
         "scorers": [
           {
             "user_id": 8445414,
@@ -170,7 +161,7 @@
             "name": "Pavan Gautham",
             "mobile": "7259691900",
             "profile_photo": "https://media.cricheroes.in/user_profile/1633168249295_Vlo0uy5oipn9.jpg",
-            "is_player_pro": 0,
+            "is_player_pro": 1,
             "country_id": "1",
             "country_code": "+91",
             "organizer_name": "Pavan Kashyap",
@@ -242,6 +233,15 @@
           }
         ],
         "user_is_tournament_scores": 0,
+        "grounds": [
+          {
+            "ground_id": 170209,
+            "ground_name": "Pro Legacy Sports Academy",
+            "city_id": 1798,
+            "city_name": "Bengaluru (Bangalore)"
+          }
+        ],
+        "tags": [],
         "teams": [
           {
             "team_id": 1597085,
@@ -424,7 +424,7 @@
     "matchResponse": {
       "status": true,
       "page": {
-        "next": "/match/get-tournament-matches/3/-1/-1?tournamentid=577076&status=3&pagesize=12&pageno=2&datetime=1778871762450"
+        "next": "/match/get-tournament-matches/3/-1/-1?tournamentid=577076&status=3&pagesize=12&pageno=2&datetime=1778953271590"
       },
       "data": [
         {

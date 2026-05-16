@@ -73,10 +73,65 @@ EXTRA_TYPE_TO_COL = {
 _current_build_id: list[str] = [""]
 
 
-def http_get(url: str) -> bytes:
-    req = Request(url, headers={"User-Agent": UA, "Accept": "*/*"})
+def http_get(url: str, extra_headers: dict[str, str] | None = None) -> bytes:
+    headers = {"User-Agent": UA, "Accept": "*/*"}
+    if extra_headers:
+        headers.update(extra_headers)
+    req = Request(url, headers=headers)
     with urlopen(req, timeout=30) as r:
         return r.read()
+
+
+# Headers required by api.cricheroes.in. Anonymous, but the API insists on
+# non-empty api-key + udid + device-type — the values don't actually have to
+# match a real session.
+API_HEADERS = {
+    "api-key": "cr!CkH3r0s",
+    "device-type": "web",
+    "udid": "hvc-scraper-stable-id",
+}
+API_BASE = "https://api.cricheroes.in/api/v1"
+
+
+def fetch_tournament_matches(tid: int) -> list[dict[str, Any]]:
+    """Paginate /match/get-tournament-matches and return every completed match.
+
+    Cricheroes pages by (pageno, datetime) — the `datetime` cursor is minted on
+    page 1 and must be passed back on subsequent pages, otherwise the API
+    silently re-serves page 1 regardless of `pageno`. The previous scrape
+    captured only the first 12 matches per tournament for this reason.
+    """
+    all_matches: list[dict[str, Any]] = []
+    page = 1
+    datetime_cursor: str | None = None
+    while True:
+        qs = urlencode({
+            "tournamentid": tid,
+            "status": 3,           # completed matches only
+            "pagesize": 12,
+            "pageno": page,
+            **({"datetime": datetime_cursor} if datetime_cursor else {}),
+        })
+        url = f"{API_BASE}/match/get-tournament-matches/3/-1/-1?{qs}"
+        body = json.loads(http_get(url, extra_headers=API_HEADERS))
+        chunk = body.get("data") or []
+        if not isinstance(chunk, list) or not chunk:
+            break
+        all_matches.extend(chunk)
+        # Mint the datetime cursor from the first page's `next` URL — it's
+        # the same value for every subsequent page in this tournament.
+        nxt = (body.get("page") or {}).get("next") or ""
+        if datetime_cursor is None:
+            m = re.search(r"datetime=(\d+)", nxt)
+            if not m:
+                break  # API didn't give us a cursor — single-page tournament
+            datetime_cursor = m.group(1)
+        # End condition: API stops returning a next link, or returns a short page.
+        if not nxt or len(chunk) < 12:
+            break
+        page += 1
+        time.sleep(SLEEP_BETWEEN_REQUESTS)
+    return all_matches
 
 
 def extract_build_id() -> str:
@@ -305,9 +360,9 @@ def main() -> None:
 
         pp = tour["pageProps"]
         td = safe(pp, "tournamentDetails", "data", default={})
-        matches = safe(pp, "matchResponse", "data", default=[])
-        if not isinstance(matches, list):
-            matches = []
+        # Don't trust matchResponse.data — it's only page 1 (12 matches).
+        # Paginate the underlying API directly to get every completed match.
+        matches = fetch_tournament_matches(tid)
 
         # Default overs from the first match (HVC is 6 for all seasons)
         default_overs = matches[0].get("overs", 6) if matches else 6

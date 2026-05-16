@@ -61,7 +61,7 @@
         "upcoming_matches_count": 0,
         "past_matches_count": 18,
         "is_display_view": 1,
-        "total_views": 958,
+        "total_views": 964,
         "match_count": 18,
         "is_smart_NRR_calculator_enable": 0,
         "allow_live_match_edit": 0,
@@ -80,14 +80,69 @@
         "is_enable_last_batter_batting_rule": 0,
         "is_enable_home_away": 0,
         "ticker_user_data": [],
-        "grounds": [
+        "scorers": [
           {
-            "ground_id": 170209,
-            "ground_name": "Pro Legacy Sports Academy",
-            "city_id": 1798,
-            "city_name": "Bengaluru (Bangalore)"
+            "user_id": 5922441,
+            "name": "Prasanna",
+            "mobile": "7022927743",
+            "profile_photo": "https://media.cricheroes.in/user_profile/1713615160142_QXAfjVq0PX32.jpeg",
+            "is_player_pro": 0,
+            "country_id": "1",
+            "country_code": "+91",
+            "organizer_name": "Pranav PK",
+            "tournament_official_id": 1364506,
+            "tournament_name": "HVC Premier League",
+            "email": "glnprasanna1@yahoo.com",
+            "is_primary_login": 0,
+            "city_id": 1798
+          },
+          {
+            "user_id": 809163,
+            "name": "Pranav PK",
+            "mobile": "9845507743",
+            "profile_photo": "https://media.cricheroes.in/user_profile/1556274355881_JZZTJLThro45.jpg",
+            "is_player_pro": 0,
+            "country_id": "1",
+            "country_code": "+91",
+            "organizer_name": "Pranav PK",
+            "tournament_official_id": 1364507,
+            "tournament_name": "HVC Premier League",
+            "email": "glnprasanna79@gmail.com",
+            "is_primary_login": 0,
+            "city_id": 1798
+          },
+          {
+            "user_id": 8129644,
+            "name": "Pavan Kashyap",
+            "mobile": "9535611554",
+            "profile_photo": "https://media.cricheroes.in/user_profile/1676284525397_6kRvYByZeOPM.jpg",
+            "is_player_pro": 0,
+            "country_id": "1",
+            "country_code": "+91",
+            "organizer_name": "Pranav PK",
+            "tournament_official_id": 1364509,
+            "tournament_name": "HVC Premier League",
+            "email": "pavankashyap83@gmail.com",
+            "is_primary_login": 0,
+            "city_id": 1798
+          },
+          {
+            "user_id": 8444682,
+            "name": "Pavan Gautham",
+            "mobile": "7259691900",
+            "profile_photo": "https://media.cricheroes.in/user_profile/1633168249295_Vlo0uy5oipn9.jpg",
+            "is_player_pro": 1,
+            "country_id": "1",
+            "country_code": "+91",
+            "organizer_name": "Pranav PK",
+            "tournament_official_id": 1364508,
+            "tournament_name": "HVC Premier League",
+            "email": "pavan.gautham17@gmail.com",
+            "is_primary_login": 0,
+            "city_id": 1798
           }
         ],
+        "user_is_tournament_scores": 0,
         "teams": [
           {
             "team_id": 1251263,
@@ -157,69 +212,14 @@
           }
         ],
         "tags": [],
-        "scorers": [
+        "grounds": [
           {
-            "user_id": 5922441,
-            "name": "Prasanna",
-            "mobile": "7022927743",
-            "profile_photo": "https://media.cricheroes.in/user_profile/1713615160142_QXAfjVq0PX32.jpeg",
-            "is_player_pro": 0,
-            "country_id": "1",
-            "country_code": "+91",
-            "organizer_name": "Pranav PK",
-            "tournament_official_id": 1364506,
-            "tournament_name": "HVC Premier League",
-            "email": "glnprasanna1@yahoo.com",
-            "is_primary_login": 0,
-            "city_id": 1798
-          },
-          {
-            "user_id": 809163,
-            "name": "Pranav PK",
-            "mobile": "9845507743",
-            "profile_photo": "https://media.cricheroes.in/user_profile/1556274355881_JZZTJLThro45.jpg",
-            "is_player_pro": 0,
-            "country_id": "1",
-            "country_code": "+91",
-            "organizer_name": "Pranav PK",
-            "tournament_official_id": 1364507,
-            "tournament_name": "HVC Premier League",
-            "email": "glnprasanna79@gmail.com",
-            "is_primary_login": 0,
-            "city_id": 1798
-          },
-          {
-            "user_id": 8129644,
-            "name": "Pavan Kashyap",
-            "mobile": "9535611554",
-            "profile_photo": "https://media.cricheroes.in/user_profile/1676284525397_6kRvYByZeOPM.jpg",
-            "is_player_pro": 0,
-            "country_id": "1",
-            "country_code": "+91",
-            "organizer_name": "Pranav PK",
-            "tournament_official_id": 1364509,
-            "tournament_name": "HVC Premier League",
-            "email": "pavankashyap83@gmail.com",
-            "is_primary_login": 0,
-            "city_id": 1798
-          },
-          {
-            "user_id": 8444682,
-            "name": "Pavan Gautham",
-            "mobile": "7259691900",
-            "profile_photo": "https://media.cricheroes.in/user_profile/1633168249295_Vlo0uy5oipn9.jpg",
-            "is_player_pro": 0,
-            "country_id": "1",
-            "country_code": "+91",
-            "organizer_name": "Pranav PK",
-            "tournament_official_id": 1364508,
-            "tournament_name": "HVC Premier League",
-            "email": "pavan.gautham17@gmail.com",
-            "is_primary_login": 0,
-            "city_id": 1798
+            "ground_id": 170209,
+            "ground_name": "Pro Legacy Sports Academy",
+            "city_id": 1798,
+            "city_name": "Bengaluru (Bangalore)"
           }
         ],
-        "user_is_tournament_scores": 0,
         "share_url": "https://cricheroes.in/tournament/236267/HVC-Premier-League",
         "organizer_profile": {
           "tournament_organizer_id": 103860,
@@ -323,7 +323,7 @@
     "matchResponse": {
       "status": true,
       "page": {
-        "next": "/match/get-tournament-matches/3/-1/-1?tournamentid=236267&status=3&pagesize=12&pageno=2&datetime=1778871735570"
+        "next": "/match/get-tournament-matches/3/-1/-1?tournamentid=236267&status=3&pagesize=12&pageno=2&datetime=1778953229000"
       },
       "data": [
         {

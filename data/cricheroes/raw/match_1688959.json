@@ -1,0 +1,830 @@
+{
+  "pageProps": {
+    "tab": "scorecard",
+    "miniScorecard": {
+      "status": false
+    },
+    "scorecard": [
+      {
+        "bowling": [
+          {
+            "player_id": 8445356,
+            "name": "Pradyumna",
+            "overs": 1,
+            "balls": null,
+            "maidens": 0,
+            "runs": 6,
+            "wickets": 0,
+            "0s": 2,
+            "4s": 0,
+            "6s": 0,
+            "wide": 0,
+            "noball": 1,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "6.00",
+            "type_code": "ROB",
+            "inning": 1
+          },
+          {
+            "player_id": 8445342,
+            "name": "Guruprasad Ramachandrachar",
+            "overs": 1,
+            "balls": null,
+            "maidens": 0,
+            "runs": 19,
+            "wickets": 1,
+            "0s": 2,
+            "4s": 0,
+            "6s": 3,
+            "wide": 0,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "19.00",
+            "type_code": "SLA",
+            "inning": 1
+          },
+          {
+            "player_id": 4416809,
+            "name": "Bharath Foundry",
+            "overs": 2,
+            "balls": null,
+            "maidens": 0,
+            "runs": 13,
+            "wickets": 1,
+            "0s": 5,
+            "4s": 1,
+            "6s": 0,
+            "wide": 1,
+            "noball": 1,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "6.50",
+            "type_code": "RM",
+            "inning": 1
+          },
+          {
+            "player_id": 8445368,
+            "name": "Jeethu",
+            "overs": 1,
+            "balls": null,
+            "maidens": 0,
+            "runs": 8,
+            "wickets": 0,
+            "0s": 2,
+            "4s": 1,
+            "6s": 0,
+            "wide": 1,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "8.00",
+            "type_code": "RF",
+            "inning": 1
+          },
+          {
+            "player_id": 8467573,
+            "name": "Ajith",
+            "overs": 1,
+            "balls": null,
+            "maidens": 0,
+            "runs": 3,
+            "wickets": 0,
+            "0s": 4,
+            "4s": 0,
+            "6s": 0,
+            "wide": 1,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "3.00",
+            "type_code": "ROB",
+            "inning": 1
+          }
+        ],
+        "fall_of_wicket": {
+          "data": [
+            {
+              "run": 24,
+              "wicket": 1,
+              "over": 1.5,
+              "balls": null,
+              "dismiss_player_name": "Prabhanjan"
+            },
+            {
+              "run": 27,
+              "wicket": 1,
+              "over": 2.1,
+              "balls": null,
+              "dismiss_player_name": "Srinidhi Ns"
+            },
+            {
+              "run": 30,
+              "wicket": 2,
+              "over": 2.5,
+              "balls": null,
+              "dismiss_player_name": "Badri (5a)"
+            },
+            {
+              "run": 47,
+              "wicket": 3,
+              "over": 5.2,
+              "balls": null,
+              "dismiss_player_name": "K S Akshay Kaushik"
+            }
+          ],
+          "summary": "24-1 (Prabhanjan, 1.5 ov), 27-1 (Srinidhi Ns, 2.1 ov), 30-2 (Badri (5a), 2.5 ov), 47-3 (K S Akshay Kaushik, 5.2 ov)"
+        },
+        "to_be_bat": [],
+        "extras": {
+          "data": [
+            {
+              "type_code": "NB",
+              "type": "No Ball",
+              "extra_type_run": 2,
+              "extra_run": 0
+            },
+            {
+              "type_code": "WD",
+              "type": "Wide",
+              "extra_type_run": 3,
+              "extra_run": 0
+            }
+          ],
+          "summary": "(nb 2, wd 3)",
+          "total": 5
+        },
+        "batting": [
+          {
+            "batting_hand": "RHB",
+            "SR": "133.33",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 4,
+            "balls": 3,
+            "runs": 4,
+            "how_to_out": "retired hurt",
+            "name": "Srinidhi Ns",
+            "player_id": 8556484
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "211.11",
+            "6s": 3,
+            "4s": 0,
+            "minutes": 3,
+            "balls": 9,
+            "runs": 19,
+            "how_to_out": "b Guruprasad Ramachandrachar",
+            "name": "Prabhanjan",
+            "player_id": 8556507
+          },
+          {
+            "batting_hand": "LHB",
+            "SR": "107.14",
+            "6s": 0,
+            "4s": 2,
+            "minutes": 8,
+            "balls": 14,
+            "runs": 15,
+            "how_to_out": "run out Pradyumna / Ajith",
+            "name": "K S Akshay Kaushik",
+            "player_id": 8445318
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "50.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 1,
+            "balls": 2,
+            "runs": 1,
+            "how_to_out": "c Krishna Mys b Bharath Foundry",
+            "name": "Badri (5a)",
+            "player_id": 1224122
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "55.56",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 6,
+            "balls": 9,
+            "runs": 5,
+            "how_to_out": "not out",
+            "name": "Prasad K S (c)",
+            "player_id": 8445462
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "0.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 1,
+            "balls": 1,
+            "runs": 0,
+            "how_to_out": "not out",
+            "name": "Sudharshan",
+            "player_id": 6508655
+          }
+        ],
+        "inning": {
+          "team_id": 1251256,
+          "inning": 1,
+          "inning_start_time": "2021-04-11T06:16:11.000Z",
+          "inning_end_time": "2021-04-11T06:29:18.000Z",
+          "is_declare": 0,
+          "is_forfeited": 0,
+          "is_followon": 0,
+          "is_allout": 0,
+          "total_run": 49,
+          "total_wicket": 3,
+          "total_extra": 5,
+          "overs_played": "6.0",
+          "balls_played": 0,
+          "revised_target": 0,
+          "revised_overs": 0,
+          "penalty_run": 0,
+          "lead_by": 0,
+          "trail_by": 0,
+          "summary": {
+            "score": "49/3",
+            "over": "(6.0 Ov)",
+            "ball": "(0 Ball)",
+            "rr": "8.17"
+          }
+        },
+        "team_id": 1251256,
+        "teamName": "Team Raghuttama Thirtharu"
+      },
+      {
+        "bowling": [
+          {
+            "player_id": 8556484,
+            "name": "Srinidhi Ns",
+            "overs": 1,
+            "balls": null,
+            "maidens": 0,
+            "runs": 4,
+            "wickets": 0,
+            "0s": 3,
+            "4s": 0,
+            "6s": 0,
+            "wide": 0,
+            "noball": 1,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "4.00",
+            "type_code": "ROB",
+            "inning": 2
+          },
+          {
+            "player_id": 1224122,
+            "name": "Badri (5a)",
+            "overs": 2,
+            "balls": null,
+            "maidens": 0,
+            "runs": 18,
+            "wickets": 0,
+            "0s": 6,
+            "4s": 0,
+            "6s": 2,
+            "wide": 1,
+            "noball": 1,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "9.00",
+            "type_code": "RF",
+            "inning": 2
+          },
+          {
+            "player_id": 8556507,
+            "name": "Prabhanjan",
+            "overs": 1,
+            "balls": null,
+            "maidens": 0,
+            "runs": 7,
+            "wickets": 0,
+            "0s": 2,
+            "4s": 1,
+            "6s": 0,
+            "wide": 0,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "7.00",
+            "type_code": "ROB",
+            "inning": 2
+          },
+          {
+            "player_id": 8445318,
+            "name": "K S Akshay Kaushik",
+            "overs": 1,
+            "balls": null,
+            "maidens": 0,
+            "runs": 14,
+            "wickets": 0,
+            "0s": 2,
+            "4s": 0,
+            "6s": 1,
+            "wide": 1,
+            "noball": 2,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "14.00",
+            "type_code": "ROB",
+            "inning": 2
+          },
+          {
+            "player_id": 8445462,
+            "name": "Prasad K S",
+            "overs": 0.4,
+            "balls": null,
+            "maidens": 0,
+            "runs": 8,
+            "wickets": 0,
+            "0s": 2,
+            "4s": 0,
+            "6s": 1,
+            "wide": 1,
+            "noball": 0,
+            "extra_type_run_wide": 0,
+            "extra_type_run_noball": 0,
+            "extra_run": 0,
+            "economy_rate": "12.00",
+            "type_code": "ROB",
+            "inning": 2
+          }
+        ],
+        "fall_of_wicket": {
+          "data": [
+            {
+              "run": 4,
+              "wicket": 1,
+              "over": 1,
+              "balls": null,
+              "dismiss_player_name": "Krishna Mys"
+            },
+            {
+              "run": 6,
+              "wicket": 1,
+              "over": 1.3,
+              "balls": null,
+              "dismiss_player_name": "Pradyumna"
+            },
+            {
+              "run": 9,
+              "wicket": 1,
+              "over": 2.4,
+              "balls": null,
+              "dismiss_player_name": "Jeethu"
+            }
+          ],
+          "summary": "4-1 (Krishna Mys, 1 ov), 6-1 (Pradyumna, 1.3 ov), 9-1 (Jeethu, 2.4 ov)"
+        },
+        "to_be_bat": [
+          {
+            "player_id": 8467573,
+            "name": "Ajith"
+          }
+        ],
+        "extras": {
+          "data": [
+            {
+              "type_code": "NB",
+              "type": "No Ball",
+              "extra_type_run": 4,
+              "extra_run": 0
+            },
+            {
+              "type_code": "WD",
+              "type": "Wide",
+              "extra_type_run": 3,
+              "extra_run": 0
+            }
+          ],
+          "summary": "(nb 4, wd 3)",
+          "total": 7
+        },
+        "batting": [
+          {
+            "batting_hand": "RHB",
+            "SR": "33.33",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 3,
+            "balls": 6,
+            "runs": 2,
+            "how_to_out": "retired hurt",
+            "name": "Pradyumna",
+            "player_id": 8445356
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "100.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 2,
+            "balls": 1,
+            "runs": 1,
+            "how_to_out": "retired hurt",
+            "name": "Krishna Mys",
+            "player_id": 8469155
+          },
+          {
+            "batting_hand": "RHB",
+            "SR": "175.00",
+            "6s": 4,
+            "4s": 1,
+            "minutes": 9,
+            "balls": 20,
+            "runs": 35,
+            "how_to_out": "not out",
+            "name": "Bharath Foundry",
+            "player_id": 4416809
+          },
+          {
+            "batting_hand": "LHB",
+            "SR": "33.33",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 1,
+            "balls": 6,
+            "runs": 2,
+            "how_to_out": "run out Badri (5a)",
+            "name": "Jeethu",
+            "player_id": 8445368
+          },
+          {
+            "batting_hand": "LHB",
+            "SR": "80.00",
+            "6s": 0,
+            "4s": 0,
+            "minutes": 6,
+            "balls": 5,
+            "runs": 4,
+            "how_to_out": "not out",
+            "name": "Guruprasad Ramachandrachar (c)",
+            "player_id": 8445342
+          }
+        ],
+        "inning": {
+          "team_id": 1251253,
+          "inning": 2,
+          "inning_start_time": "2021-04-11T06:30:04.000Z",
+          "inning_end_time": "2021-04-11T06:42:03.000Z",
+          "is_declare": 0,
+          "is_forfeited": 0,
+          "is_followon": 0,
+          "is_allout": 0,
+          "total_run": 51,
+          "total_wicket": 1,
+          "total_extra": 7,
+          "overs_played": "5.4",
+          "balls_played": 0,
+          "revised_target": 0,
+          "revised_overs": 0,
+          "penalty_run": 0,
+          "lead_by": 0,
+          "trail_by": 0,
+          "summary": {
+            "score": "51/1",
+            "over": "(5.4 Ov)",
+            "ball": "(0 Ball)",
+            "rr": "9.00"
+          }
+        },
+        "team_id": 1251253,
+        "teamName": "Team Vadiraja Thirtharu"
+      }
+    ],
+    "mvp": {
+      "data": {},
+      "link": "",
+      "error": ""
+    },
+    "summaryData": {
+      "status": true,
+      "data": {
+        "match_id": 1688959,
+        "match_type": "Limited Overs",
+        "is_super_over": 0,
+        "match_event_type": "",
+        "match_event": "",
+        "match_inning": 1,
+        "current_inning": 2,
+        "type": 3,
+        "ball_type": "TENNIS",
+        "status": "past",
+        "overs": 6,
+        "balls": null,
+        "over_reduce": "",
+        "is_dl": 0,
+        "is_vjd": 0,
+        "ground_id": 170209,
+        "ground_name": "Pro Legacy Sports Academy",
+        "city_id": 1798,
+        "city_name": "Bengaluru (Bangalore)",
+        "start_datetime": "2021-04-11T06:16:11.000Z",
+        "win_by": "4 wickets",
+        "winning_team": "Team Vadiraja Thirtharu",
+        "match_result": "Resulted",
+        "tournament_id": "236267",
+        "tournament_name": "HVC Premier League",
+        "tournament_category": "",
+        "tournament_round_id": "387740",
+        "tournament_round_name": "League Matches",
+        "association_name": "",
+        "association_logo": "https://media.cricheroes.in/default/default-association-logo.jpg",
+        "steaming_url": "",
+        "is_display_view": 1,
+        "is_ticker": 0,
+        "is_backend_match": 0,
+        "is_video_analyst": 0,
+        "is_in_review": 0,
+        "is_enable_tournament_streaming": 0,
+        "is_enable_match_streaming": 0,
+        "team_a": {
+          "id": 1251256,
+          "name": "Team Raghuttama Thirtharu",
+          "logo": "https://media.cricheroes.in/default/teamintital/TR.png",
+          "is_home_team": 0,
+          "summary": "49/3",
+          "innings": [
+            {
+              "team_id": 1251256,
+              "inning": 1,
+              "inning_start_time": "2021-04-11T06:16:11.000Z",
+              "inning_end_time": "2021-04-11T06:29:18.000Z",
+              "is_declare": 0,
+              "is_forfeited": 0,
+              "is_followon": 0,
+              "is_allout": 0,
+              "total_run": 49,
+              "total_wicket": 3,
+              "total_extra": 5,
+              "overs_played": "6.0",
+              "balls_played": 0,
+              "revised_target": 0,
+              "revised_overs": 0,
+              "penalty_run": 0,
+              "lead_by": 0,
+              "trail_by": 0,
+              "summary": {
+                "score": "49/3",
+                "over": "(6.0 Ov)",
+                "ball": "(0 Ball)",
+                "rr": "8.17"
+              }
+            }
+          ]
+        },
+        "team_b": {
+          "id": 1251253,
+          "name": "Team Vadiraja Thirtharu",
+          "logo": "https://media.cricheroes.in/default/teamintital/TV.png",
+          "is_home_team": 0,
+          "summary": "51/1",
+          "innings": [
+            {
+              "team_id": 1251253,
+              "inning": 2,
+              "inning_start_time": "2021-04-11T06:30:04.000Z",
+              "inning_end_time": "2021-04-11T06:42:03.000Z",
+              "is_declare": 0,
+              "is_forfeited": 0,
+              "is_followon": 0,
+              "is_allout": 0,
+              "total_run": 51,
+              "total_wicket": 1,
+              "total_extra": 7,
+              "overs_played": "5.4",
+              "balls_played": 0,
+              "revised_target": 0,
+              "revised_overs": 0,
+              "penalty_run": 0,
+              "lead_by": 0,
+              "trail_by": 0,
+              "summary": {
+                "score": "51/1",
+                "over": "(5.4 Ov)",
+                "ball": "(0 Ball)",
+                "rr": "9.00"
+              }
+            }
+          ]
+        },
+        "insight_statements": [
+          "<font color='#14212A' face='Source Sans Pro'>Which team has scored more boundaries? <b>Team Raghuttama Thirtharu</b> or <b>Team Vadiraja Thirtharu</b>?</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Which team faced more <b>dot balls</b>? Find out now!</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Did captains make the right choice of <b>bowling attack</b> in this match?</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Which bowler gave away the <b>highest runs</b> in an over?</font>",
+          "<font color='#14212A' face='Source Sans Pro'>Which team gave more <b>extra runs</b>?</font>"
+        ],
+        "streaming_details": [],
+        "primary_video_seconds": 0,
+        "match_category_name": "",
+        "highlight_video": [],
+        "toss_details": "Toss: Team Raghuttama Thirtharu opt to bat",
+        "streaming_multiple_url": "",
+        "web_title_message": "Team Raghuttama Thirtharu 49/3 vs Team Vadiraja Thirtharu 51/1 at Pro Legacy Sports Academy, Bengaluru (Bangalore) Check full scoreboard at https://goo.gl/uN5sJH",
+        "short_url": ";",
+        "match_summary": {
+          "team_id": -1,
+          "summary": "Team Vadiraja Thirtharu won by 4 wickets",
+          "short_summary": "",
+          "full_summary": "",
+          "rrr": "0.00",
+          "target": "-"
+        },
+        "share_message": "Team Raghuttama Thirtharu 49/3(6.0) vs Team Vadiraja Thirtharu 51/1(5.4). Team Vadiraja Thirtharu won by 4 wickets Full Scorecard: https://cricheroes.in/scorecard/1688959/HVC-Premier-League/Team-Raghuttama-Thirtharu-vs-Team-Vadiraja-Thirtharu via CricHeroes App : https://crichero.es/apps",
+        "whatsapp_share_url": "whatsapp://send?text=Team%20Raghuttama%20Thirtharu%2049%2F3(6.0)%20vs%20Team%20Vadiraja%20Thirtharu%2051%2F1(5.4).%20Team%20Vadiraja%20Thirtharu%20won%20by%204%20wickets%20Full%20Scorecard%3A%20https%3A%2F%2Fcricheroes.in%2Fscorecard%2F1688959%2FHVC-Premier-League%2FTeam-Raghuttama-Thirtharu-vs-Team-Vadiraja-Thirtharu%20via%20CricHeroes%20App%20%3A%20https%3A%2F%2Fcrichero.es%2Fapps",
+        "best_performances": {
+          "batting": [
+            {
+              "team_id": 1251253,
+              "team_name": "Team Vadiraja Thirtharu",
+              "player_id": 4416809,
+              "player_name": "Bharath Foundry",
+              "runs": 35,
+              "balls": 20,
+              "4s": 1,
+              "6s": 4,
+              "strike_rate": "175.00",
+              "bonus_run": 0,
+              "is_out": 0,
+              "inning": 2,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1251256,
+              "team_name": "Team Raghuttama Thirtharu",
+              "player_id": 8556507,
+              "player_name": "Prabhanjan",
+              "runs": 19,
+              "balls": 9,
+              "4s": 0,
+              "6s": 3,
+              "strike_rate": "211.11",
+              "bonus_run": 0,
+              "is_out": 1,
+              "inning": 1,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1251256,
+              "team_name": "Team Raghuttama Thirtharu",
+              "player_id": 8445318,
+              "player_name": "K S Akshay Kaushik",
+              "runs": 15,
+              "balls": 14,
+              "4s": 2,
+              "6s": 0,
+              "strike_rate": "107.14",
+              "bonus_run": 0,
+              "is_out": 1,
+              "inning": 1,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            }
+          ],
+          "bowling": [
+            {
+              "team_id": 1251253,
+              "team_name": "Team Vadiraja Thirtharu",
+              "player_id": 4416809,
+              "player_name": "Bharath Foundry",
+              "overs": "2.0",
+              "balls": 0,
+              "maidens": 0,
+              "0s": 5,
+              "runs": 13,
+              "wickets": 1,
+              "economy_rate": "6.50",
+              "inning": 1,
+              "bonus_run": 0,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1251253,
+              "team_name": "Team Vadiraja Thirtharu",
+              "player_id": 8445342,
+              "player_name": "Guruprasad Ramachandrachar",
+              "overs": "1.0",
+              "balls": 0,
+              "maidens": 0,
+              "0s": 2,
+              "runs": 19,
+              "wickets": 1,
+              "economy_rate": "19.00",
+              "inning": 1,
+              "bonus_run": 0,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            },
+            {
+              "team_id": 1251253,
+              "team_name": "Team Vadiraja Thirtharu",
+              "player_id": 8467573,
+              "player_name": "Ajith",
+              "overs": "1.0",
+              "balls": 0,
+              "maidens": 0,
+              "0s": 4,
+              "runs": 3,
+              "wickets": 0,
+              "economy_rate": "3.00",
+              "inning": 1,
+              "bonus_run": 0,
+              "is_impact_player_in": 0,
+              "is_impact_player_out": 0
+            }
+          ]
+        },
+        "player_of_the_match": {
+          "player_id": 4416809,
+          "player_name": "Bharath Foundry",
+          "team_name": "Team Vadiraja Thirtharu",
+          "profile_photo": "https://media.cricheroes.in/user_profile/1632988560011_ITewZEUJu4Wm.jpeg"
+        },
+        "match_official": [],
+        "match_notes": [
+          {
+            "team_id": 1251256,
+            "inning": 1,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Match started at 11 Apr, 11:46 am."
+          },
+          {
+            "team_id": 1251256,
+            "inning": 1,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Innings Break: Team Raghuttama Thirtharu - 49/3 in 6 overs (Prasad K S 5, Sudharshan 0)"
+          },
+          {
+            "team_id": 1251256,
+            "inning": 1,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Innings Ended at 11 Apr, 11:59 am"
+          },
+          {
+            "team_id": 1251253,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Innings Started at 11 Apr, 12:00 pm"
+          },
+          {
+            "team_id": 1251253,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Team Vadiraja Thirtharu: 51 runs in 5.4 overs, Extras 7"
+          },
+          {
+            "team_id": 1251253,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "End of Day: Team Vadiraja Thirtharu - 51/1 in 5.4 overs (Guruprasad Ramachandrachar 4, Bharath Foundry 35)"
+          },
+          {
+            "team_id": 1251253,
+            "inning": 2,
+            "day": 1,
+            "is_scorer_note": 0,
+            "note": "Match ended at 11 Apr, 12:12 pm."
+          }
+        ],
+        "scorer_notes": [],
+        "match_close_of_play": [],
+        "tiny_share_url": ""
+      }
+    },
+    "teamSquad": {
+      "status": false
+    },
+    "upcomingResponse": {
+      "status": false
+    },
+    "key": "/scorecard/1688959/x/x-vs-x/scorecard",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Safari/537.36"
+  },
+  "__N_SSP": true
+}

@@ -1,4 +1,71 @@
 cricheroes_match_id,innings_number,cricheroes_team_id,batting_order,cricheroes_player_id,name,is_captain,runs,balls,minutes,fours,sixes,strike_rate,batting_hand,how_to_out,is_out
+1688938,1,1251247,1,5387685,Aprameya Guruprasad,0,1,2,3,0,0,50.00,RHB,run out Aniruddha Dv,1
+1688938,1,1251247,2,8444682,Pavan Gautham,0,31,20,13,0,4,155.00,RHB,not out,0
+1688938,1,1251247,3,8445292,Mahesh,0,11,11,8,0,0,100.00,LHB,not out,0
+1688938,1,1251247,4,8129644,Pavan Kashyap,1,3,4,2,0,0,75.00,RHB,run out Sridhar,1
+1688938,2,1251263,1,809867,Prabhav PK,0,9,7,6,0,1,128.57,RHB,run out Pavan Gautham,1
+1688938,2,1251263,2,8469156,Sridhar,0,1,5,4,0,0,20.00,RHB,c&b Aprameya Guruprasad,1
+1688938,2,1251263,3,8445499,Paneendra Gautham,0,1,3,3,0,0,33.33,RHB,c Pavan Kashyap b Mahesh,1
+1688938,2,1251263,4,8445343,Anantha Madhava,0,10,8,6,1,0,125.00,RHB,not out,0
+1688938,2,1251263,5,4143096,Aniruddha Dv,0,18,12,4,0,2,150.00,RHB,not out,0
+1688938,2,1251263,6,4048334,Ravi Aniruddha,1,3,3,1,0,0,100.00,RHB,run out Sandeep / Pavan Kashyap,1
+1688948,1,1251252,1,8578931,Srihari,0,39,18,17,1,4,216.67,LHB,not out,0
+1688948,1,1251252,2,8444550,Bharadwaj Srivatsa,1,3,6,6,0,0,50.00,RHB,c Pranav PK b Madhusudhan K S,1
+1688948,1,1251252,3,5994303,Srikanth T K,0,21,10,8,0,3,210.00,RHB,run out Tej,1
+1688948,1,1251252,4,8846097,Vishnunandan,0,0,2,1,0,0,0.00,LHB,b Prasanna,1
+1688948,1,1251252,5,7662592,Vittala,0,2,2,1,0,0,100.00,RHB,not out,0
+1688948,2,1251242,1,8445376,Amith,0,3,7,4,0,0,42.86,RHB,run out Shreenidhi Prakash,1
+1688948,2,1251242,2,809163,Pranav PK,0,3,7,7,0,0,42.86,RHB,c Shreenidhi Prakash b Vishnunandan,1
+1688948,2,1251242,3,8445420,Madhusudhan K S,0,4,10,5,0,0,40.00,RHB,c Vishnunandan b Shreenidhi Prakash,1
+1688948,2,1251242,4,5922441,Prasanna,1,4,5,6,0,0,80.00,RHB,not out,0
+1688948,2,1251242,5,8444668,Srisha Badarayana H S,0,7,7,3,0,1,100.00,RHB,c Srikanth T K b Bharadwaj Srivatsa,1
+1688948,2,1251242,6,8445414,Tej,0,0,1,1,0,0,0.00,RHB,not out,0
+1688959,1,1251256,1,8556484,Srinidhi Ns,0,4,3,4,0,0,133.33,RHB,retired hurt,1
+1688959,1,1251256,2,8556507,Prabhanjan,0,19,9,3,0,3,211.11,RHB,b Guruprasad Ramachandrachar,1
+1688959,1,1251256,3,8445318,K S Akshay Kaushik,0,15,14,8,2,0,107.14,LHB,run out Pradyumna / Ajith,1
+1688959,1,1251256,4,1224122,Badri (5a),0,1,2,1,0,0,50.00,RHB,c Krishna Mys b Bharath Foundry,1
+1688959,1,1251256,5,8445462,Prasad K S,1,5,9,6,0,0,55.56,RHB,not out,0
+1688959,1,1251256,6,6508655,Sudharshan,0,0,1,1,0,0,0.00,RHB,not out,0
+1688959,2,1251253,1,8445356,Pradyumna,0,2,6,3,0,0,33.33,RHB,retired hurt,1
+1688959,2,1251253,2,8469155,Krishna Mys,0,1,1,2,0,0,100.00,RHB,retired hurt,1
+1688959,2,1251253,3,4416809,Bharath Foundry,0,35,20,9,1,4,175.00,RHB,not out,0
+1688959,2,1251253,4,8445368,Jeethu,0,2,6,1,0,0,33.33,LHB,run out Badri (5a),1
+1688959,2,1251253,5,8445342,Guruprasad Ramachandrachar,1,4,5,6,0,0,80.00,LHB,not out,0
+1688965,1,1251242,1,8445376,Amith,0,7,7,3,1,0,100.00,RHB,retired hurt,1
+1688965,1,1251242,2,8445414,Tej,0,35,15,15,1,4,233.33,RHB,not out,0
+1688965,1,1251242,3,809163,Pranav PK,0,8,11,6,1,0,72.73,RHB,c †Aprameya Guruprasad b Pavan Gautham,1
+1688965,1,1251242,4,5922441,Prasanna,1,0,3,2,0,0,0.00,RHB,c&b Pavan Kashyap,1
+1688965,1,1251242,5,8445420,Madhusudhan K S,0,0,1,1,0,0,0.00,RHB,c Mahesh b Pavan Kashyap,1
+1688965,1,1251242,6,8453971,Srikanth Krishnamurthy,0,6,1,2,0,1,600.00,RHB,not out,0
+1688965,2,1251247,1,8450899,Sandeep,0,10,7,7,1,0,142.86,LHB,retired hurt,1
+1688965,2,1251247,2,8129644,Pavan Kashyap,1,9,6,7,0,1,150.00,RHB,c Srikanth Krishnamurthy b Tej,1
+1688965,2,1251247,3,8445292,Mahesh,0,13,9,7,0,1,144.44,LHB,run out Prasanna,1
+1688965,2,1251247,4,8444682,Pavan Gautham,0,10,10,3,0,1,100.00,RHB,b Tej,1
+1688965,2,1251247,5,5387685,Aprameya Guruprasad,0,4,5,4,0,0,80.00,RHB,not out,0
+1688965,2,1251247,6,4048300,Vadiraj,0,1,1,1,0,0,100.00,RHB,not out,0
+1688970,1,1251263,1,809867,Prabhav PK,0,3,10,3,0,0,30.00,RHB,retired hurt,1
+1688970,1,1251263,2,8445343,Anantha Madhava,0,5,5,7,0,0,100.00,RHB,retired hurt,1
+1688970,1,1251263,3,4048334,Ravi Aniruddha,1,21,14,5,2,1,150.00,RHB,run out Pradyumna,1
+1688970,1,1251263,4,8445499,Paneendra Gautham,0,15,7,5,0,2,214.29,RHB,run out Pradyumna,1
+1688970,1,1251263,5,4143096,Aniruddha Dv,0,1,1,3,0,0,100.00,RHB,not out,0
+1688970,2,1251253,1,8445356,Pradyumna,0,3,12,5,0,0,25.00,RHB,not out,0
+1688970,2,1251253,2,8469155,Krishna Mys,0,8,8,12,1,0,100.00,RHB,c Aniruddha Dv b Ravi Aniruddha,1
+1688970,2,1251253,3,4416809,BHARATH G S AGASTHYA,0,12,6,1,0,1,200.00,RHB,c †Sridhar b Ravi Aniruddha,1
+1688970,2,1251253,4,8445342,Guruprasad Ramachandrachar,1,7,5,4,1,0,140.00,LHB,run out Paneendra Gautham,1
+1688970,2,1251253,5,8445368,Jeethu,0,0,0,1,0,0,0.00,LHB,run out Sridhar,1
+1688970,2,1251253,6,8467573,Ajith,0,13,6,2,0,2,216.67,RHB,not out,0
+1688978,1,1251256,1,8556484,Srinidhi NS,0,7,5,6,0,1,140.00,RHB,c Shreenidhi Prakash b Vittala,1
+1688978,1,1251256,2,8556507,Prabhanjan,0,7,3,5,0,1,233.33,RHB,c Bharadwaj Srivatsa b Srihari,1
+1688978,1,1251256,3,1224122,Badriprasad,0,17,17,14,1,1,100.00,RHB,c †Bharadwaj Srivatsa b Vishnunandan,1
+1688978,1,1251256,4,6508655,Sudharshan,0,2,3,1,0,0,66.67,RHB,run out Vittala,1
+1688978,1,1251256,5,8445462,Prasad K S,1,8,7,3,0,1,114.29,RHB,retired hurt,1
+1688978,1,1251256,6,8445318,K S AKSHAY KAUSHIK,0,4,5,8,0,0,80.00,RHB,not out,0
+1688978,2,1251252,1,8578931,Srihari,0,7,11,4,0,0,63.64,LHB,not out,0
+1688978,2,1251252,2,8444550,Bharadwaj Srivatsa,1,3,4,4,0,0,75.00,RHB,run out Srinidhi NS / K S AKSHAY KAUSHIK,1
+1688978,2,1251252,3,8444531,Shreenidhi Prakash,0,12,10,7,0,1,120.00,RHB,run out Sudharshan,1
+1688978,2,1251252,4,5994303,Srikanth T K,0,0,1,1,0,0,0.00,RHB,c Prabhanjan b K S AKSHAY KAUSHIK,1
+1688978,2,1251252,5,7662592,Vittala,0,6,9,7,0,0,66.67,RHB,st †Prasad K S b Badriprasad,1
+1688978,2,1251252,6,8846097,Vishnunandan,0,0,1,1,0,0,0.00,LHB,run out Badriprasad,1
 1690015,1,1251247,1,5387685,Aprameya Guruprasad,0,4,7,4,0,0,57.14,RHB,c BHARATH G S AGASTHYA b Ajith,1
 1690015,1,1251247,2,8444682,Pavan Gautham,0,38,20,11,0,5,190.00,RHB,b BHARATH G S AGASTHYA,1
 1690015,1,1251247,3,8129644,Pavan Kashyap,1,18,10,7,0,2,180.00,RHB,not out,0
@@ -117,6 +184,92 @@ cricheroes_match_id,innings_number,cricheroes_team_id,batting_order,cricheroes_p
 1817785,2,1251263,4,8445499,Paneendra Gautham,0,22,11,10,0,3,200.00,RHB,not out,0
 1817785,2,1251263,5,4048334,Ravi Aniruddha,1,1,3,1,0,0,33.33,RHB,c BHARATH G S AGASTHYA b Ajith,1
 1817785,2,1251263,6,8469156,Sridhar,0,0,0,1,0,0,0.00,RHB,not out,0
+2273279,1,1597084,1,5387685,Aprameya Guruprasad,0,3,7,4,0,0,42.86,RHB,retired,1
+2273279,1,1597084,2,10047098,Aditya Hatwar,0,0,3,5,0,0,0.00,RHB,c †Sridhar b Mahesh,1
+2273279,1,1597084,3,8444682,Pavan Gautham,0,15,12,9,0,2,125.00,RHB,run out Tej,1
+2273279,1,1597084,4,8129644,Pavan Kashyap,1,15,6,3,0,2,250.00,RHB,b Tej,1
+2273279,1,1597084,5,8814171,Pavan Raghavendra,0,30,14,6,1,4,214.29,RHB,not out,0
+2273279,1,1597084,6,10052031,Yashu  (wk),0,0,1,1,0,0,0.00,RHB,b Tej,1
+2273279,1,1597084,7,10052056,Pavan Bharadwaj,0,0,2,2,0,0,0.00,RHB,not out,0
+2273279,2,1597085,1,809867,Prabhav PK,0,2,6,1,0,0,33.33,RHB,retired,1
+2273279,2,1597085,2,809163,Pranav PK,0,7,6,4,0,1,116.67,RHB,b Pavan Gautham,1
+2273279,2,1597085,3,8445414,Tej,0,39,23,14,0,6,169.57,RHB,not out,0
+2273279,2,1597085,4,5922441,Prasanna,1,2,7,9,0,0,28.57,RHB,run out Pavan Gautham / Yashu,1
+2273279,2,1597085,5,8445292,Mahesh,0,0,1,1,0,0,0.00,LHB,c †Yashu b Pavan Kashyap,1
+2273279,2,1597085,6,8444668,Srisha Badarayana H S,0,0,1,1,0,0,0.00,RHB,b Pavan Kashyap,1
+2273279,2,1597085,7,8556544,Sudhindhra,0,0,0,1,0,0,0.00,RHB,not out,0
+2273286,1,1597087,1,8578931,Srihari,0,3,7,5,0,0,42.86,LHB,retired hurt,1
+2273286,1,1597087,2,8445420,Madhusudhan K S,0,17,9,10,0,2,188.89,RHB,retired hurt,1
+2273286,1,1597087,3,8452770,Ashrith Kashyap,0,13,4,1,0,2,325.00,RHB,c †Srikanth Krishnamurthy b Badriprasad,1
+2273286,1,1597087,4,8444550,Bharadwaj Srivatsa,1,29,15,9,0,3,193.33,RHB,st †Srikanth Krishnamurthy b Badriprasad,1
+2273286,1,1597087,5,8445343,Anantha Madhava,0,21,8,6,0,3,262.50,RHB,not out,0
+2273286,1,1597087,6,10031492,Mady,0,1,1,1,0,0,100.00,RHB,run out Badriprasad,1
+2273286,1,1597087,7,8846097,Vishnunandan,0,0,0,1,0,0,0.00,LHB,not out,0
+2273286,2,1597088,1,8556484,Srinidhi NS,0,14,6,3,0,2,233.33,RHB,retired out,1
+2273286,2,1597088,2,7662592,Vittala,0,31,16,17,1,3,193.75,RHB,not out,0
+2273286,2,1597088,3,8445318,K S AKSHAY KAUSHIK,0,49,21,14,1,6,233.33,RHB,not out,0
+2276322,1,1597091,1,8445356,Pradyumna,0,7,6,1,0,1,116.67,RHB,retired out,1
+2276322,1,1597091,2,4143096,Aniruddha Dv,0,28,17,8,0,4,164.71,RHB,c †Guruprasad Ramachandrachar b Bharath G S Agasthya,1
+2276322,1,1597091,3,5994303,Srikanth T K,0,0,2,1,0,0,0.00,RHB,c Shreenidhi Prakash b Bharath G S Agasthya,1
+2276322,1,1597091,4,10046726,Shrivatsa Hatwar,0,3,7,5,0,0,42.86,RHB,retired hurt,1
+2276322,1,1597091,5,4048334,Ravi Aniruddha,1,0,0,2,0,0,0.00,RHB,run out Bharath G S Agasthya,1
+2276322,1,1597091,6,8445499,Paneendra Gautham,0,26,11,4,0,4,236.36,RHB,not out,0
+2276322,1,1597091,7,6508655,Sudharshan,0,1,1,2,0,0,100.00,RHB,run out † Guruprasad Ramachandrachar,1
+2276322,2,1597090,1,8445309,Sandeep,0,1,6,2,0,0,16.67,,retired out,1
+2276322,2,1597090,2,10031570,Sridhar Ramchandrachar,0,3,6,5,0,0,50.00,,retired hurt,1
+2276322,2,1597090,3,8444531,Shreenidhi Prakash,0,1,5,2,0,0,20.00,RHB,b Aniruddha Dv,1
+2276322,2,1597090,4,8445368,Jeethu,0,9,5,4,0,1,180.00,LHB,c Paneendra Gautham b Ravi Aniruddha,1
+2276322,2,1597090,5,4416809,Bharath G S Agasthya,0,36,18,6,1,5,200.00,RHB,not out,0
+2276322,2,1597090,6,8445342,Guruprasad Ramachandrachar (c & wk),0,2,2,3,0,0,100.00,LHB,not out,0
+2276324,1,1597088,1,8556484,Srinidhi NS,0,30,7,2,0,5,428.57,RHB,retired hurt,1
+2276324,1,1597088,2,7662592,Vittala,0,12,13,10,0,1,92.31,RHB,b Pavan Kashyap,1
+2276324,1,1597088,3,8445318,K S AKSHAY KAUSHIK,0,29,21,10,0,4,138.10,RHB,not out,0
+2276324,1,1597088,4,1224122,Badriprasad,0,2,4,2,0,0,50.00,RHB,run out Ajith P,1
+2276324,1,1597088,5,8453971,Srikanth Krishnamurthy,0,0,0,1,0,0,0.00,RHB,not out,0
+2276324,2,1597084,1,5387685,Aprameya Guruprasad,0,9,7,4,0,1,128.57,RHB,retired hurt,1
+2276324,2,1597084,2,10052031,Yashu,0,1,3,7,0,0,33.33,RHB,retired hurt,1
+2276324,2,1597084,3,8444682,Pavan Gautham,0,38,21,12,1,5,180.95,RHB,not out,0
+2276324,2,1597084,4,8814171,Pavan Raghavendra,0,0,1,1,0,0,0.00,RHB,c Vittala b K S AKSHAY KAUSHIK,1
+2276324,2,1597084,5,8129644,Pavan Kashyap,1,26,12,9,1,3,216.67,RHB,not out,0
+2276597,1,1597091,1,8445356,Pradyumna,0,0,6,5,0,0,0.00,RHB,not out,0
+2276597,1,1597091,2,6508655,Sudharshan,0,0,3,3,0,0,0.00,RHB,run out Tej,1
+2276597,1,1597091,3,8445499,Paneendra Gautham,0,9,8,3,0,1,112.50,RHB,c Prasanna b Pranav Pk,1
+2276597,1,1597091,4,4143096,Aniruddha Dv,0,8,7,5,0,1,114.29,RHB,c †Mahesh b Sridhar,1
+2276597,1,1597091,5,4048334,Ravi Aniruddha,1,4,9,5,0,0,44.44,RHB,c †Sridhar b Pranav Pk,1
+2276597,1,1597091,6,5994303,Srikanth T K,0,8,5,1,0,1,160.00,RHB,run out † Mahesh,1
+2276597,1,1597091,7,10046726,Shrivatsa Hatwar (wk),0,6,4,2,0,1,150.00,RHB,not out,0
+2276597,2,1597085,1,809867,Prabhav Pk,0,1,2,1,0,0,50.00,RHB,retired out,1
+2276597,2,1597085,2,809163,Pranav Pk,0,12,18,17,1,0,66.67,RHB,run out Aniruddha Dv,1
+2276597,2,1597085,3,5922441,Prasanna,1,9,9,2,0,1,100.00,RHB,b Srikanth T K,1
+2276597,2,1597085,4,8445414,Tej,0,1,3,2,0,0,33.33,RHB,c Paneendra Gautham b Srikanth T K,1
+2276597,2,1597085,5,8444668,Srisha Badarayana H S,0,7,3,3,0,1,233.33,RHB,b Ravi Aniruddha,1
+2276597,2,1597085,6,8445292,Mahesh (wk),0,5,6,4,0,0,83.33,LHB,run out Paneendra Gautham / † Shrivatsa Hatwar,1
+2276597,2,1597085,7,8556544,Sudhindhra,0,0,1,1,0,0,0.00,RHB,c Aniruddha Dv b Paneendra Gautham,1
+2276597,2,1597085,8,8469156,Sridhar (wk),0,0,0,1,0,0,0.00,RHB,not out,0
+2276601,1,1597090,1,8445309,Sandeep,0,7,6,2,0,1,116.67,,c Vishnunandan b Srihari,1
+2276601,1,1597090,2,8445342,Guruprasad Ramachandrachar,1,5,3,4,1,0,166.67,LHB,run out Madhusudhan K S / Srihari,1
+2276601,1,1597090,3,8445368,Jeethu,0,28,21,19,2,2,133.33,LHB,c Madhusudhan K S b Anantha Madhava,1
+2276601,1,1597090,4,4416809,BHARATH G S AGASTHYA,0,2,6,4,0,0,33.33,RHB,run out Srihari / Madhusudhan K S,1
+2276601,1,1597090,5,10031570,Sridhar Ramchandrachar,0,1,5,6,0,0,20.00,LHB,b Vishnunandan,1
+2276601,1,1597090,6,8444531,Shreenidhi Prakash,0,4,5,7,0,0,80.00,RHB,c Madhusudhan K S b Anantha Madhava,1
+2276601,1,1597090,7,8469155,Krishna Mys,0,0,1,2,0,0,0.00,RHB,not out,0
+2276601,2,1597087,1,8578931,Srihari,0,2,7,1,0,0,28.57,LHB,retired out,1
+2276601,2,1597087,2,10031492,Mady,0,16,10,13,0,2,160.00,RHB,not out,0
+2276601,2,1597087,3,8452770,Ashrith Kashyap,0,6,2,1,0,1,300.00,RHB,b BHARATH G S AGASTHYA,1
+2276601,2,1597087,4,8444550,Bharadwaj Srivatsa,1,31,18,7,2,3,172.22,RHB,b Jeethu,1
+2276601,2,1597087,5,8445343,Anantha Madhava,0,8,3,2,0,1,266.67,RHB,not out,0
+2278723,1,1597084,1,5387685,Aprameya Guruprasad,0,16,6,2,2,1,266.67,RHB,retired hurt,1
+2278723,1,1597084,2,10052056,Pavan Bharadwaj,0,0,3,3,0,0,0.00,RHB,b Srikanth T K,1
+2278723,1,1597084,3,8444682,Pavan Gautham,0,27,11,10,1,3,245.45,RHB,not out,0
+2278723,1,1597084,4,10047098,Aditya Hatwar,0,2,6,3,0,0,33.33,RHB,retired hurt,1
+2278723,1,1597084,5,8814171,Pavan Raghavendra,0,0,1,1,0,0,0.00,RHB,c †Shrivatsa Hatwar b Ravi Aniruddha,1
+2278723,1,1597084,6,8129644,Pavan Kashyap,1,30,13,5,1,4,230.77,RHB,c †Shrivatsa Hatwar b Paneendra Gautham,1
+2278723,1,1597084,7,8670699,Ajith P,0,1,2,1,0,0,50.00,RHB,not out,0
+2278723,2,1597091,1,8445356,Pradyumna,0,7,6,2,0,1,116.67,RHB,retired out,1
+2278723,2,1597091,2,8445499,Paneendra Gautham,0,20,9,7,0,3,222.22,RHB,c Pavan Raghavendra b Pavan Gautham,1
+2278723,2,1597091,3,4143096,Aniruddha Dv,0,7,11,4,0,1,63.64,RHB,retired hurt,1
+2278723,2,1597091,4,5994303,Srikanth T K,0,15,10,6,0,2,150.00,RHB,not out,0
+2278723,2,1597091,5,4048334,Ravi Aniruddha,1,13,7,5,1,1,185.71,RHB,not out,0
 2278728,1,1597088,1,8556484,Srinidhi NS,0,10,10,3,0,1,100.00,RHB,c Shreenidhi Prakash b Jeethu,1
 2278728,1,1597088,2,7662592,Vittala,0,2,6,8,0,0,33.33,RHB,b Jeethu,1
 2278728,1,1597088,3,8445318,K S AKSHAY KAUSHIK,0,18,16,16,0,2,112.50,RHB,not out,0
@@ -262,6 +415,91 @@ cricheroes_match_id,innings_number,cricheroes_team_id,batting_order,cricheroes_p
 2379201,2,1597087,6,8445420,Madhusudhan K S,0,15,16,21,1,1,93.75,RHB,not out,0
 2379201,2,1597087,7,8846097,Vishnunandan,0,13,9,19,1,1,144.44,LHB,run out Pranav PK,1
 2379201,2,1597087,8,10052159,Praveena,0,0,1,1,0,0,0.00,RHB,not out,0
+3903620,1,1597085,1,809867,Prabhav PK,0,0,6,7,0,0,0.00,RHB,retired hurt,1
+3903620,1,1597085,2,8445292,Mahesh,0,7,4,11,0,1,175.00,LHB,c Mady b Ashrith Kashyap,1
+3903620,1,1597085,3,8556544,Sudhindhra  (wk),0,7,6,2,0,1,116.67,RHB,retired out,1
+3903620,1,1597085,4,8445414,Tej,0,49,19,10,2,6,257.89,RHB,not out,0
+3903620,1,1597085,5,5922441,Prasanna,1,7,6,3,0,1,116.67,RHB,run out Anantha Madhava / Mady,1
+3903620,1,1597085,6,809163,Pranav PK,0,2,2,5,0,0,100.00,RHB,not out,0
+3903620,2,1597087,1,8578931,Srihari,0,1,4,2,0,0,25.00,LHB,c Tej b Prabhav PK,1
+3903620,2,1597087,2,8846097,Vishnunandan,0,2,4,5,0,0,50.00,LHB,retired,1
+3903620,2,1597087,3,8445420,Madhusudhan K S  (wk),0,1,4,3,0,0,25.00,RHB,b Sudhindhra,1
+3903620,2,1597087,4,10031492,Mady,0,15,11,11,2,0,136.36,RHB,not out,0
+3903620,2,1597087,5,8445343,Anantha Madhava,0,12,6,5,1,1,200.00,RHB,retired,1
+3903620,2,1597087,6,8452770,Ashrith Kashyap,0,47,10,5,1,7,470.00,RHB,not out,0
+3903638,1,1597088,1,8556484,Srinidhi NS,0,3,6,2,0,0,50.00,RHB,retired out,1
+3903638,1,1597088,2,8453971,Srikanth Krishnamurthy,0,0,0,4,0,0,0.00,RHB,retired hurt,1
+3903638,1,1597088,3,8445462,Prasad K S  (c & wk),0,2,6,1,0,0,33.33,RHB,retired hurt,1
+3903638,1,1597088,4,1224122,Badriprasad,0,2,6,3,0,0,33.33,RHB,b Srikanth T K,1
+3903638,1,1597088,5,7662592,Vittala,0,19,16,8,2,1,118.75,RHB,run out Paneendra Gautham,1
+3903638,1,1597088,6,8445318,K S AKSHAY KAUSHIK,0,1,8,4,0,0,12.50,RHB,c †Shrivatsa Hatwar b Paneendra Gautham,1
+3903638,1,1597088,7,10052245,Amith  (wk),0,0,1,1,0,0,0.00,RHB,not out,0
+3903638,2,1597091,1,8445356,Pradyumna,0,7,6,1,1,0,116.67,RHB,retired out,1
+3903638,2,1597091,2,4143096,Aniruddha Dv,0,11,11,9,0,1,100.00,RHB,not out,0
+3903638,2,1597091,3,10046726,Shrivatsa Hatwar  (wk),0,8,6,1,0,1,133.33,RHB,retired hurt,1
+3903638,2,1597091,4,8445499,Paneendra Gautham,0,3,8,5,0,0,37.50,RHB,not out,0
+3903627,1,1597084,1,5387685,Aprameya Guruprasad,0,16,10,11,1,1,160.00,RHB,not out,0
+3903627,1,1597084,2,8670699,Ajith P,0,0,0,1,0,0,0.00,RHB,run out Sridhar Ramchandrachar,1
+3903627,1,1597084,3,10047098,Aditya Hatwar,0,6,8,6,1,0,75.00,RHB,c Sridhar Ramchandrachar b BHARATH G S AGASTHYA,1
+3903627,1,1597084,4,8129644,Pavan Kashyap,1,15,10,7,0,2,150.00,RHB,b Jeethu,1
+3903627,1,1597084,5,8444682,Pavan Gautham,0,12,6,4,0,2,200.00,RHB,b Guruprasad Ramachandrachar,1
+3903627,1,1597084,6,8814171,Pavan Raghavendra,0,9,4,7,0,1,225.00,RHB,run out Guruprasad Ramachandrachar,1
+3903627,1,1597084,7,10052031,Yashu  (wk),0,2,8,7,0,0,25.00,RHB,run out Sridhar Ramchandrachar / Shreenidhi Prakash,1
+3903627,2,1597090,1,8445309,Sandeep,0,2,6,1,0,0,33.33,,b Aprameya Guruprasad,1
+3903627,2,1597090,2,8445342,Guruprasad Ramachandrachar,1,6,1,8,0,1,600.00,LHB,retired out,1
+3903627,2,1597090,3,10031570,Sridhar Ramchandrachar,0,8,5,5,0,1,160.00,LHB,run out Pavan Kashyap,1
+3903627,2,1597090,4,4416809,BHARATH G S AGASTHYA,0,23,19,6,1,3,121.05,RHB,c Pavan Kashyap b Pavan Raghavendra,1
+3903627,2,1597090,5,8444531,Shreenidhi Prakash,0,6,8,12,1,0,75.00,RHB,run out Pavan Gautham / Pavan Raghavendra,1
+3903627,2,1597090,6,8445368,Jeethu,0,1,3,4,0,0,33.33,LHB,c Pavan Raghavendra b Ajith P,1
+3903627,2,1597090,7,10052264,Srikrishna,0,0,0,2,0,0,0.00,RHB,not out,0
+3903665,1,1597091,1,8445356,Pradyumna,0,4,8,4,0,0,50.00,RHB,retired out,1
+3903665,1,1597091,2,4143096,Aniruddha Dv,0,21,10,14,0,3,210.00,RHB,b Tej,1
+3903665,1,1597091,3,10046726,Shrivatsa Hatwar,0,13,6,4,0,2,216.67,RHB,retired hurt,1
+3903665,1,1597091,4,8445499,Paneendra Gautham,0,2,5,3,0,0,40.00,RHB,b Tej,1
+3903665,1,1597091,5,5994303,Srikanth T K,0,20,8,5,0,3,250.00,RHB,not out,0
+3903665,1,1597091,6,4048334,Ravi Aniruddha,0,10,6,3,0,1,166.67,RHB,not out,0
+3903665,2,1597085,1,809867,Prabhav PK,0,11,8,3,1,1,137.50,RHB,retired hurt,1
+3903665,2,1597085,2,809163,Pranav PK,0,8,6,12,0,1,133.33,RHB,c Srikanth T K b Paneendra Gautham,1
+3903665,2,1597085,3,8556544,Sudhindhra,0,1,5,2,0,0,20.00,RHB,run out Aniruddha Dv / Shrivatsa Hatwar,1
+3903665,2,1597085,4,8445414,Tej,0,60,16,6,3,8,375.00,RHB,not out,0
+3903665,2,1597085,5,8445292,Mahesh,0,1,2,1,0,0,50.00,LHB,not out,0
+3903658,1,1597084,1,5387685,Aprameya Guruprasad,0,12,6,2,1,1,200.00,RHB,retired out,1
+3903658,1,1597084,2,8670699,Ajith P,0,0,0,5,0,0,0.00,RHB,not out,0
+3903658,1,1597084,3,10052031,Yashu,0,9,6,2,0,1,150.00,RHB,retired hurt,1
+3903658,1,1597084,4,8444682,Pavan Gautham,0,20,18,8,0,3,111.11,RHB,c Vishnunandan b Anantha Madhava,1
+3903658,1,1597084,5,8129644,Pavan Kashyap,1,13,11,11,1,1,118.18,RHB,not out,0
+3903658,1,1597084,6,8814171,Pavan Raghavendra,0,1,3,2,0,0,33.33,RHB,run out Madhusudhan K S / Ashrith Kashyap,1
+3903658,2,1597087,1,8578931,Srihari,0,2,6,1,0,0,33.33,LHB,retired out,1
+3903658,2,1597087,2,8846097,Vishnunandan,0,6,5,7,0,1,120.00,LHB,not out,0
+3903658,2,1597087,3,8445420,Madhusudhan K S,0,1,1,2,0,0,100.00,RHB,retired out,1
+3903658,2,1597087,4,8444550,Bharadwaj Srivatsa,1,0,2,4,0,0,0.00,RHB,c Pavan Gautham b Pavan Raghavendra,1
+3903658,2,1597087,5,8452770,Ashrith Kashyap,0,28,15,12,0,4,186.67,RHB,run out Pavan Kashyap,1
+3903658,2,1597087,6,8445343,Anantha Madhava,0,3,7,4,0,0,42.86,RHB,b Ajith P,1
+3903658,2,1597087,7,10031492,Mady,0,13,5,5,0,2,260.00,RHB,not out,0
+3903671,1,1597088,1,8556484,Srinidhi NS,0,10,6,2,0,1,166.67,RHB,retired out,1
+3903671,1,1597088,2,8453971,Srikanth Krishnamurthy,0,0,2,6,0,0,0.00,RHB,retired hurt,1
+3903671,1,1597088,3,8445462,Prasad K S,1,7,4,3,0,1,175.00,RHB,retired out,1
+3903671,1,1597088,4,8445318,K S AKSHAY KAUSHIK,0,44,20,10,1,6,220.00,RHB,c Guruprasad Ramachandrachar b Shreenidhi Prakash,1
+3903671,1,1597088,5,7662592,Vittala,0,9,9,9,1,0,100.00,RHB,not out,0
+3903671,1,1597088,6,1224122,Badriprasad,0,1,2,4,0,0,50.00,RHB,not out,0
+3903671,2,1597090,1,8445309,Sandeep,0,7,7,2,0,1,100.00,,retired hurt,1
+3903671,2,1597090,2,8444531,Shreenidhi Prakash,0,28,13,21,1,3,215.38,RHB,not out,0
+3903671,2,1597090,3,10031570,Sridhar Ramchandrachar,0,7,5,2,0,1,140.00,LHB,retired out,1
+3903671,2,1597090,4,8445342,Guruprasad Ramachandrachar,1,26,15,18,0,4,173.33,LHB,not out,0
+3903671,2,1597090,5,8445368,Jeethu,0,0,1,1,0,0,0.00,LHB,b Badriprasad,1
+3903671,2,1597090,6,4416809,BHARATH G S AGASTHYA,0,0,2,1,0,0,0.00,RHB,c K S AKSHAY KAUSHIK b Badriprasad,1
+3903689,1,1597084,1,5387685,Aprameya Guruprasad,0,19,6,11,1,2,316.67,RHB,retired hurt,1
+3903689,1,1597084,2,8670699,Ajith P,0,6,7,23,1,0,85.71,RHB,retired hurt,1
+3903689,1,1597084,3,10052031,Yashu,0,1,5,1,0,0,20.00,RHB,run out Tej,1
+3903689,1,1597084,4,8444682,Pavan Gautham,0,27,10,6,0,4,270.00,RHB,c Prabhav PK b Tej,1
+3903689,1,1597084,5,8814171,Pavan Raghavendra,0,6,7,7,0,0,85.71,RHB,not out,0
+3903689,1,1597084,6,8129644,Pavan Kashyap,1,24,5,1,0,4,480.00,RHB,c Pranav PK b Tej,1
+3903689,1,1597084,7,10047098,Aditya Hatwar,0,1,2,1,0,0,50.00,RHB,not out,0
+3903689,2,1597085,1,809867,Prabhav PK,0,5,6,2,0,0,83.33,RHB,retired hurt,1
+3903689,2,1597085,2,809163,Pranav PK,0,23,9,27,0,3,255.56,RHB,run out Aditya Hatwar / Pavan Kashyap,1
+3903689,2,1597085,3,8556544,Sudhindhra,0,10,6,3,1,1,166.67,RHB,retired hurt,1
+3903689,2,1597085,4,8445414,Tej,0,38,21,22,2,4,180.95,RHB,not out,0
+3903689,2,1597085,5,5922441,Prasanna,1,0,0,1,0,0,0.00,RHB,not out,0
 3903839,1,1597087,1,8578931,Srihari,0,2,3,3,0,0,66.67,LHB,retired out,1
 3903839,1,1597087,2,8846097,Vishnunandan,0,1,3,6,0,0,33.33,LHB,retired hurt,1
 3903839,1,1597087,3,8445420,Madhusudhan K S  (wk),0,0,6,2,0,0,0.00,RHB,retired out,1
@@ -413,6 +651,176 @@ cricheroes_match_id,innings_number,cricheroes_team_id,batting_order,cricheroes_p
 4010588,2,1597087,3,8445420,Madhusudhan K S,0,5,6,2,1,0,83.33,RHB,retired out,1
 4010588,2,1597087,4,8452770,Ashrith Kashyap,0,61,13,11,1,9,469.23,RHB,not out,0
 4010588,2,1597087,5,10031492,Mady,0,11,7,11,0,1,157.14,RHB,not out,0
+6946993,1,1597090,1,8445420,Madhusudhan K S,0,7,6,1,0,1,116.67,RHB,retired hurt,1
+6946993,1,1597090,2,8445499,Paneendra Gautham,0,0,0,5,0,0,0.00,RHB,retired hurt,1
+6946993,1,1597090,3,10052264,Srikrishna,0,2,6,2,0,0,33.33,RHB,retired hurt,1
+6946993,1,1597090,4,8445368,Jeethu,0,55,20,10,1,8,275.00,LHB,not out,0
+6946993,1,1597090,5,8445292,Mahesh,0,6,11,6,1,0,54.55,LHB,retired hurt,1
+6946993,1,1597090,6,1224122,Badriprasad,0,6,2,3,0,1,300.00,RHB,not out,0
+6946993,2,1597087,1,8578931,Srihari,0,15,6,4,0,2,250.00,LHB,retired hurt,1
+6946993,2,1597087,2,7662592,Vittala,0,0,0,6,0,0,0.00,RHB,retired hurt,1
+6946993,2,1597087,3,10031570,Sridhar Ramchandrachar,0,13,6,3,0,2,216.67,LHB,retired hurt,1
+6946993,2,1597087,4,809163,Pranav PK,0,14,13,6,1,1,107.69,RHB,b Paneendra Gautham,1
+6946993,2,1597087,5,8444550,Bharadwaj Srivatsa,1,31,11,9,1,4,281.82,RHB,not out,0
+6946993,2,1597087,6,8452770,Ashrith Kashyap,0,7,2,3,0,1,350.00,RHB,not out,0
+6947000,1,1597088,1,8445356,Pradyumna,0,15,7,4,0,2,214.29,RHB,retired hurt,1
+6947000,1,1597088,2,6508655,Sudharshan,0,0,1,5,0,0,0.00,RHB,retired hurt,1
+6947000,1,1597088,3,19421271,Krishnamurthy,0,8,10,7,1,0,80.00,RHB,retired hurt,1
+6947000,1,1597088,4,8444531,Shreenidhi Prakash,0,28,12,12,3,2,233.33,RHB,retired hurt,1
+6947000,1,1597088,5,8445318,K S AKSHAY KAUSHIK,0,24,10,6,1,3,240.00,RHB,not out,0
+6947000,1,1597088,6,8445462,Prasad K S,1,5,6,2,0,0,83.33,RHB,not out,0
+6947000,2,1597091,1,20546462,Hrishikesha,0,0,6,1,0,0,0.00,RHB,retired hurt,1
+6947000,2,1597091,2,4143096,Aniruddha Dv,0,27,11,20,1,3,245.45,RHB,not out,0
+6947000,2,1597091,3,4048300,Vadiraj,0,9,6,2,0,1,150.00,RHB,retired hurt,1
+6947000,2,1597091,4,8445343,Anantha Madhava,0,21,10,8,0,3,210.00,RHB,run out Krishnamurthy,1
+6947000,2,1597091,5,4048334,Ravi Aniruddha,1,2,10,6,0,0,20.00,RHB,not out,0
+6947011,1,388115,1,8450899,Sandeep,0,3,6,2,0,0,50.00,LHB,retired out,1
+6947011,1,388115,2,8670699,Ajith P  (wk),0,0,0,5,0,0,0.00,RHB,retired hurt,1
+6947011,1,388115,3,10052159,Praveena,1,3,6,2,0,0,50.00,RHB,retired out,1
+6947011,1,388115,4,4416809,BHARATH G S AGASTHYA,0,24,9,6,1,3,266.67,RHB,c Amith P b Pavan Kashyap,1
+6947011,1,388115,5,8444682,Pavan Gautham,0,26,11,12,0,4,236.36,RHB,not out,0
+6947011,1,388115,6,8556507,Prabhanjan,0,5,9,4,1,0,55.56,RHB,retired hurt,1
+6947011,1,388115,7,10052031,Yashu,0,1,1,1,0,0,100.00,RHB,not out,0
+6947011,2,1597084,1,3542117,Amith P,0,4,6,2,0,0,66.67,RHB,retired hurt,1
+6947011,2,1597084,2,8453971,Srikanth Krishnamurthy,0,0,0,2,0,0,0.00,RHB,run out Ajith P,1
+6947011,2,1597084,3,10046726,Shrivatsa Hatwar,0,13,6,2,0,2,216.67,RHB,retired hurt,1
+6947011,2,1597084,4,8814171,Pavan Raghavendra,0,26,11,9,0,4,236.36,RHB,not out,0
+6947011,2,1597084,5,10031492,Mady,0,9,8,5,0,1,112.50,RHB,c †Ajith P b BHARATH G S AGASTHYA,1
+6947011,2,1597084,6,8129644,Pavan Kashyap,1,18,5,1,0,3,360.00,RHB,not out,0
+6947023,1,1597085,1,809867,Prabhav PK,0,3,6,3,0,0,50.00,RHB,retired hurt,1
+6947023,1,1597085,2,8556484,Srinidhi NS,0,0,0,2,0,0,0.00,RHB,run out Srihari,1
+6947023,1,1597085,3,5922441,Prasanna,1,4,6,9,0,0,66.67,RHB,not out,0
+6947023,1,1597085,4,8556544,Sudhindhra  (wk),0,4,7,4,0,0,57.14,RHB,c Vittala b Bharadwaj Srivatsa,1
+6947023,1,1597085,5,8445414,Tej,0,9,8,7,0,1,112.50,RHB,c Pranav PK b Ashrith Kashyap,1
+6947023,1,1597085,6,8846097,Vishnunandan,0,17,12,9,1,1,141.67,LHB,b Bharadwaj Srivatsa,1
+6947023,1,1597085,7,5994303,Srikanth T K,0,6,3,1,0,1,200.00,RHB,c Ashrith Kashyap b Pranav PK,1
+6947023,2,1597087,1,8578931,Srihari,0,1,3,2,0,0,33.33,LHB,retired hurt,1
+6947023,2,1597087,2,7662592,Vittala,0,1,5,4,0,0,20.00,RHB,retired hurt,1
+6947023,2,1597087,3,10031570,Sridhar Ramchandrachar,0,1,4,1,0,0,25.00,LHB,c Tej b Sudhindhra,1
+6947023,2,1597087,4,8444550,Bharadwaj Srivatsa,1,1,6,2,0,0,16.67,RHB,c Srinidhi NS b Prasanna,1
+6947023,2,1597087,5,809163,Pranav PK,0,20,13,12,1,2,153.85,RHB,not out,0
+6947023,2,1597087,6,8452770,Ashrith Kashyap,0,12,4,1,0,2,300.00,RHB,st †Sudhindhra b Prasanna,1
+6947023,2,1597087,7,10047098,Aditya Hatwar,0,9,9,9,0,1,100.00,RHB,not out,0
+6947039,1,388115,1,8450899,Sandeep,0,2,3,7,0,0,66.67,LHB,retired out,1
+6947039,1,388115,2,8670699,Ajith P,0,0,3,6,0,0,0.00,RHB,run out Madhusudhan K S,1
+6947039,1,388115,3,4416809,BHARATH G S AGASTHYA,0,26,15,13,0,4,173.33,RHB,run out Paneendra Gautham,1
+6947039,1,388115,4,10052159,Praveena,1,12,13,8,0,1,92.31,RHB,not out,0
+6947039,1,388115,5,8444682,Pavan Gautham,0,0,5,1,0,0,0.00,RHB,c †Guruprasad Ramachandrachar b Jeethu,1
+6947039,1,388115,6,10052031,Yashu,0,0,2,2,0,0,0.00,RHB,c Jeethu b Guruprasad Ramachandrachar,1
+6947039,1,388115,7,8556507,Prabhanjan,0,0,1,1,0,0,0.00,RHB,b Guruprasad Ramachandrachar,1
+6947039,2,1597090,1,10052264,Srikrishna,0,2,6,2,0,0,33.33,RHB,retired hurt,1
+6947039,2,1597090,2,8445499,Paneendra Gautham,0,4,1,6,1,0,400.00,RHB,retired hurt,1
+6947039,2,1597090,3,8445420,Madhusudhan K S,0,8,5,3,0,1,160.00,RHB,retired out,1
+6947039,2,1597090,4,8445292,Mahesh,0,5,5,3,1,0,100.00,LHB,run out Ajith P / BHARATH G S AGASTHYA,1
+6947039,2,1597090,5,1224122,Badriprasad,0,20,9,5,1,2,222.22,RHB,not out,0
+6947039,2,1597090,6,8445342,Guruprasad Ramachandrachar  (c & wk),0,0,0,1,0,0,0.00,LHB,not out,0
+6947120,1,1597084,1,3542117,Amith P,0,3,7,7,0,0,42.86,RHB,retired hurt,1
+6947120,1,1597084,2,8453971,Srikanth Krishnamurthy,0,0,0,6,0,0,0.00,RHB,run out Pradyumna,1
+6947120,1,1597084,3,19048034,Balaji,0,0,0,5,0,0,0.00,RHB,retired hurt,1
+6947120,1,1597084,4,10046726,Shrivatsa Hatwar,0,7,7,4,1,0,100.00,RHB,retired hurt,1
+6947120,1,1597084,5,10031492,Mady,0,54,16,11,1,8,337.50,RHB,not out,0
+6947120,1,1597084,6,8814171,Pavan Raghavendra,0,23,11,9,2,2,209.09,RHB,retired hurt,1
+6947120,1,1597084,7,8129644,Pavan Kashyap,1,7,4,2,0,1,175.00,RHB,not out,0
+6947120,2,1597088,1,8445356,Pradyumna,0,1,6,2,0,0,16.67,RHB,retired out,1
+6947120,2,1597088,2,6508655,Sudharshan,0,0,0,4,0,0,0.00,RHB,run out Pavan Kashyap,1
+6947120,2,1597088,3,8445462,Prasad K S,1,19,20,14,0,2,95.00,RHB,run out Srikanth Krishnamurthy,1
+6947120,2,1597088,4,8444531,Shreenidhi Prakash,0,7,3,5,0,1,233.33,RHB,b Mady,1
+6947120,2,1597088,5,8445318,K S AKSHAY KAUSHIK,0,1,4,8,0,0,25.00,RHB,c&b Pavan Kashyap,1
+6947120,2,1597088,6,19421271,Krishnamurthy,0,1,3,3,0,0,33.33,RHB,c Pavan Raghavendra b Srikanth Krishnamurthy,1
+6947120,2,1597088,7,8469156,Sridhar,0,1,8,10,0,0,12.50,RHB,not out,0
+6947131,1,1597091,1,20546462,Hrishikesha,0,2,6,3,0,0,33.33,RHB,retired hurt,1
+6947131,1,1597091,2,4143096,Aniruddha Dv,0,0,1,6,0,0,0.00,RHB,c Srikanth T K b Prasanna,1
+6947131,1,1597091,3,4048300,Vadiraj,0,2,6,2,0,0,33.33,RHB,retired hurt,1
+6947131,1,1597091,4,8445343,Anantha Madhava,0,15,13,12,2,0,115.38,RHB,not out,0
+6947131,1,1597091,5,5387685,Aprameya Guruprasad,0,12,3,1,0,2,400.00,RHB,c Vishnunandan b Prasanna,1
+6947131,1,1597091,6,8444668,Srisha Badarayana H S,0,16,10,5,2,1,160.00,RHB,not out,0
+6947131,1,1597091,7,4048334,Ravi Aniruddha,1,2,3,4,0,0,66.67,RHB,run out Vishnunandan,1
+6947131,2,1597085,1,809867,Prabhav PK,0,13,6,3,0,2,216.67,RHB,retired hurt,1
+6947131,2,1597085,2,8556484,Srinidhi NS,0,2,2,8,0,0,100.00,RHB,not out,0
+6947131,2,1597085,3,8556544,Sudhindhra,0,9,6,2,0,1,150.00,RHB,retired hurt,1
+6947131,2,1597085,4,8445414,Tej,0,34,9,3,1,5,377.78,RHB,not out,0
+6947131,2,1597085,5,8846097,Vishnunandan,0,0,1,1,0,0,0.00,LHB,b Ravi Aniruddha,1
+6947146,1,388115,1,8450899,Sandeep,0,4,6,6,0,0,66.67,LHB,retired,1
+6947146,1,388115,2,8670699,Ajith P,0,0,2,10,0,0,0.00,RHB,not out,0
+6947146,1,388115,3,10052159,Praveena,1,8,5,1,0,1,160.00,RHB,retired,1
+6947146,1,388115,4,8556507,Prabhanjan,0,1,5,3,0,0,20.00,RHB,b Aditya Hatwar,1
+6947146,1,388115,5,4416809,BHARATH G S AGASTHYA,0,23,18,12,2,2,127.78,RHB,c Ashrith Kashyap b Pranav PK,1
+6947146,1,388115,6,8444682,Pavan Gautham,0,14,7,6,0,2,200.00,RHB,run out Aditya Hatwar / Ashrith Kashyap,1
+6947146,2,1597087,1,8578931,Srihari,0,5,6,2,1,0,83.33,LHB,retired,1
+6947146,2,1597087,2,809163,Pranav PK,0,18,11,7,1,2,163.64,RHB,not out,0
+6947146,2,1597087,3,7662592,Vittala,0,0,0,4,0,0,0.00,RHB,retired,1
+6947146,2,1597087,4,10031570,Sridhar Ramchandrachar,0,10,6,2,1,1,166.67,LHB,retired,1
+6947146,2,1597087,5,8452770,Ashrith Kashyap,0,2,6,3,0,0,33.33,RHB,c&b Ajith P,1
+6947146,2,1597087,6,8444550,Bharadwaj Srivatsa,1,8,6,6,0,1,133.33,RHB,c Prabhanjan b BHARATH G S AGASTHYA,1
+6947146,2,1597087,7,10047098,Aditya Hatwar,0,8,4,3,0,1,200.00,RHB,not out,0
+6947151,1,1597088,1,8445356,Pradyumna,0,13,5,6,0,2,260.00,RHB,not out,0
+6947151,1,1597088,2,6508655,Sudharshan,0,2,5,9,0,0,40.00,RHB,run out Mahesh,1
+6947151,1,1597088,3,8445462,Prasad K S,1,4,8,4,0,0,50.00,RHB,c Guruprasad Ramachandrachar b Paneendra Gautham,1
+6947151,1,1597088,4,19421271,Krishnamurthy,0,9,6,6,0,1,150.00,RHB,c Badriprasad b Paneendra Gautham,1
+6947151,1,1597088,5,8445318,K S AKSHAY KAUSHIK,0,26,10,5,0,4,260.00,RHB,c Jeethu b Paneendra Gautham,1
+6947151,1,1597088,6,8444531,Shreenidhi Prakash,0,1,3,3,0,0,33.33,RHB,b Badriprasad,1
+6947151,1,1597088,7,8469156,Sridhar,0,2,5,4,0,0,40.00,RHB,not out,0
+6947151,2,1597090,1,10052264,Srikrishna,0,0,6,1,0,0,0.00,RHB,retired hurt,1
+6947151,2,1597090,2,8445499,Paneendra Gautham,0,20,9,17,0,3,222.22,RHB,b Sudharshan,1
+6947151,2,1597090,3,8445420,Madhusudhan K S,0,3,6,8,0,0,50.00,RHB,retired hurt,1
+6947151,2,1597090,4,8445368,Jeethu,0,0,1,1,0,0,0.00,LHB,c Krishnamurthy b K S AKSHAY KAUSHIK,1
+6947151,2,1597090,5,1224122,Badriprasad,0,22,14,20,0,3,157.14,RHB,not out,0
+6947151,2,1597090,6,8445342,Guruprasad Ramachandrachar,1,2,6,8,0,0,33.33,LHB,run out K S AKSHAY KAUSHIK,1
+6947151,2,1597090,7,8445292,Mahesh,0,7,2,4,0,1,350.00,LHB,not out,0
+6947151,3,1597090,1,8445368,Jeethu,0,4,3,0,0,0,133.33,,not out,0
+6947151,3,1597090,2,1224122,Badriprasad,0,0,1,0,0,0,0.00,,b K S Akshay Kaushik,1
+6947151,3,1597090,3,8445499,Paneendra Gautham,0,1,2,0,0,0,50.00,,not out,0
+6947151,4,1597088,1,8444531,Shreenidhi Prakash,0,14,4,0,0,2,350.00,,not out,0
+6947151,4,1597088,2,8445318,K S Akshay Kaushik,0,1,1,0,0,0,100.00,,not out,0
+6947176,1,1597084,1,3542117,Amith P,0,7,6,2,0,1,116.67,RHB,retired,1
+6947176,1,1597084,2,19048034,Balaji,0,0,0,8,0,0,0.00,RHB,not out,0
+6947176,1,1597084,3,10046726,Shrivatsa Hatwar,0,2,7,3,0,0,28.57,RHB,retired,1
+6947176,1,1597084,4,10031492,Mady,0,6,3,1,0,1,200.00,RHB,c †Vittala b Aditya Hatwar,1
+6947176,1,1597084,5,8814171,Pavan Raghavendra,0,20,14,15,1,2,142.86,RHB,not out,0
+6947176,1,1597084,6,8453971,Srikanth Krishnamurthy,0,3,5,4,0,0,60.00,RHB,c&b Vittala,1
+6947176,1,1597084,7,8129644,Pavan Kashyap,1,23,11,7,1,3,209.09,RHB,run out Vittala,1
+6947176,2,1597087,1,8578931,Srihari,0,6,6,2,1,0,100.00,LHB,retired hurt,1
+6947176,2,1597087,2,7662592,Vittala  (wk),0,1,1,5,0,0,100.00,RHB,retired hurt,1
+6947176,2,1597087,3,10031570,Sridhar Ramchandrachar,0,8,6,2,0,1,133.33,LHB,retired,1
+6947176,2,1597087,4,8444550,Bharadwaj Srivatsa,1,10,9,13,0,1,111.11,RHB,b Pavan Raghavendra,1
+6947176,2,1597087,5,8452770,Ashrith Kashyap,0,23,14,8,1,3,164.29,RHB,run out Pavan Kashyap / Mady,1
+6947176,2,1597087,6,809163,Pranav PK,0,14,7,32,0,2,200.00,RHB,not out,0
+6947176,2,1597087,7,10047098,Aditya Hatwar,0,1,1,26,0,0,100.00,RHB,not out,0
+6947162,1,1597090,1,10052264,Srikrishna,0,4,6,3,0,0,66.67,RHB,retired out,1
+6947162,1,1597090,2,8445499,Paneendra Gautham,0,8,8,17,1,0,100.00,RHB,not out,0
+6947162,1,1597090,3,8445420,Madhusudhan K S,0,12,6,1,0,2,200.00,RHB,retired out,1
+6947162,1,1597090,4,8445368,Jeethu,0,48,23,12,3,5,208.70,LHB,run out Sudhindhra / Srikanth T K,1
+6947162,2,1597085,1,809867,Prabhav PK,0,7,6,4,0,1,116.67,RHB,retired out,1
+6947162,2,1597085,2,8556484,Srinidhi NS,0,0,1,8,0,0,0.00,RHB,c †Guruprasad Ramachandrachar b Jeethu,1
+6947162,2,1597085,3,8556544,Sudhindhra,0,14,7,3,1,1,200.00,RHB,retired hurt,1
+6947162,2,1597085,4,8445414,Tej,0,14,6,5,0,2,233.33,RHB,c Badriprasad b Guruprasad Ramachandrachar,1
+6947162,2,1597085,5,8846097,Vishnunandan,0,12,11,12,2,0,109.09,LHB,not out,0
+6947162,2,1597085,6,5994303,Srikanth T K,0,27,9,8,0,4,300.00,RHB,not out,0
+6947190,1,1597091,1,20546462,Hrishikesha,0,0,6,2,0,0,0.00,RHB,retired,1
+6947190,1,1597091,2,4048334,Ravi Aniruddha,1,5,6,8,1,0,83.33,RHB,c †BHARATH G S AGASTHYA b Ajith P,1
+6947190,1,1597091,3,4048300,Vadiraj,0,2,6,3,0,0,33.33,RHB,retired,1
+6947190,1,1597091,4,5387685,Aprameya Guruprasad  (wk),0,0,1,8,0,0,0.00,RHB,run out Yashu / Ajith P,1
+6947190,1,1597091,5,8445343,Anantha Madhava,0,4,3,4,1,0,133.33,RHB,b BHARATH G S AGASTHYA,1
+6947190,1,1597091,6,4143096,Aniruddha Dv,0,31,19,6,3,3,163.16,RHB,run out † BHARATH G S AGASTHYA / † BHARATH G S AGASTHYA,1
+6947190,1,1597091,7,8444668,Srisha Badarayana H S,0,2,6,6,0,0,33.33,RHB,not out,0
+6947190,2,388115,1,8450899,Sandeep,0,1,7,3,0,0,14.29,LHB,retired,1
+6947190,2,388115,2,8670699,Ajith P,0,0,2,6,0,0,0.00,RHB,c †Aprameya Guruprasad b Anantha Madhava,1
+6947190,2,388115,3,10052159,Praveena,1,2,6,2,0,0,33.33,RHB,retired,1
+6947190,2,388115,4,8444682,Pavan Gautham,0,25,19,14,0,3,131.58,RHB,not out,0
+6947190,2,388115,5,4416809,BHARATH G S AGASTHYA  (wk),0,0,2,3,0,0,0.00,RHB,c †Aprameya Guruprasad b Anantha Madhava,1
+6947190,2,388115,6,8556507,Prabhanjan,0,8,4,2,2,0,200.00,RHB,b Aniruddha Dv,1
+6947190,2,388115,7,10052031,Yashu,0,8,5,7,0,1,160.00,RHB,not out,0
+6947199,1,1597084,1,3542117,Amith P,0,7,6,2,0,1,116.67,RHB,retired out,1
+6947199,1,1597084,2,19048034,Balaji,0,1,4,12,0,0,25.00,RHB,c Prabhav PK b Srikanth T K,1
+6947199,1,1597084,3,10046726,Shrivatsa Hatwar,0,12,6,3,1,1,200.00,RHB,retired hurt,1
+6947199,1,1597084,4,10031492,Mady,0,0,1,1,0,0,0.00,RHB,c Vishnunandan b Tej,1
+6947199,1,1597084,5,8814171,Pavan Raghavendra,0,1,7,5,0,0,14.29,RHB,run out Srikanth T K / Tej,1
+6947199,1,1597084,6,8129644,Pavan Kashyap,1,15,19,10,0,2,78.95,RHB,not out,0
+6947199,2,1597085,1,809867,Prabhav PK,0,0,6,2,0,0,0.00,RHB,retired out,1
+6947199,2,1597085,2,8556484,Srinidhi NS,0,26,7,9,2,3,371.43,RHB,not out,0
+6947199,2,1597085,3,8556544,Sudhindhra,0,8,6,4,0,1,133.33,RHB,retired hurt,1
+6947199,2,1597085,4,8445414,Tej,0,4,1,2,1,0,400.00,RHB,retired hurt,1
+6947199,2,1597085,5,5922441,Prasanna,1,0,3,1,0,0,0.00,RHB,not out,0
 6947210,1,1597088,1,8445356,Pradyumna,0,1,6,2,0,0,16.67,RHB,retired,1
 6947210,1,1597088,2,6508655,Sudharshan,0,0,0,4,0,0,0.00,RHB,retired,1
 6947210,1,1597088,3,8445462,Prasad K S,1,1,6,1,0,0,16.67,RHB,retired,1
@@ -564,6 +972,186 @@ cricheroes_match_id,innings_number,cricheroes_team_id,batting_order,cricheroes_p
 7512871,2,1597087,5,809163,Pranav PK,0,0,3,1,0,0,0.00,RHB,b Tej,1
 7512871,2,1597087,6,8444550,Bharadwaj Srivatsa,1,1,3,1,0,0,33.33,RHB,c Srinidhi NS b Prasanna,1
 7512871,2,1597087,7,7662592,Vittala,0,8,5,9,0,1,160.00,RHB,not out,0
+10814546,1,6767130,1,8578931,Srihari,0,8,6,2,0,1,133.33,LHB,retired out,1
+10814546,1,6767130,2,7662592,Vittala  (wk),0,0,0,8,0,0,0.00,RHB,retired hurt,1
+10814546,1,6767130,3,29631844,Sridhar Dixit,0,7,7,4,1,0,100.00,LHB,retired hurt,1
+10814546,1,6767130,4,809163,Pranav PK,0,14,13,9,0,2,107.69,RHB,run out Madhusudhan K S,1
+10814546,1,6767130,5,8452770,Ashrith Kashyap,0,22,16,8,0,3,137.50,RHB,not out,0
+10814546,1,6767130,6,8444550,Bharadwaj Srivatsa,1,1,2,1,0,0,50.00,RHB,not out,0
+10814546,2,6767134,1,10052264,Srikrishna,0,1,6,3,0,0,16.67,RHB,st †Vittala b Srihari,1
+10814546,2,6767134,2,1224122,Badriprasad,0,4,5,8,1,0,80.00,RHB,b Vittala,1
+10814546,2,6767134,3,8445420,Madhusudhan K S,0,8,6,2,0,1,133.33,RHB,retired hurt,1
+10814546,2,6767134,4,8445499,Paneendra Gautham,0,9,6,8,2,0,150.00,RHB,b Ashrith Kashyap,1
+10814546,2,6767134,5,8445368,Jeethu,0,10,3,1,1,1,333.33,LHB,run out Pranav PK,1
+10814546,2,6767134,6,8445342,Guruprasad Ramachandrachar,1,10,7,3,1,1,142.86,LHB,not out,0
+10814546,2,6767134,7,8445292,Mahesh,0,10,2,1,1,1,500.00,LHB,not out,0
+10814552,1,6733389,1,24597937,Pradhdhyumna Kashyap HP  (wk),0,18,6,5,1,2,300.00,RHB,run out Ravi Aniruddha,1
+10814552,1,6733389,2,6508655,Sudharshan,0,0,0,4,0,0,0.00,RHB,retired hurt,1
+10814552,1,6733389,3,8445462,Prasad K S,1,4,6,1,0,0,66.67,RHB,retired hurt,1
+10814552,1,6733389,4,8444531,Shreenidhi Prakash,0,26,13,10,0,4,200.00,RHB,not out,0
+10814552,1,6733389,5,8445318,K S AKSHAY KAUSHIK,0,41,18,9,1,5,227.78,RHB,not out,0
+10814552,2,6767132,1,29631917,Hrishikesha,0,2,6,2,0,0,33.33,RHB,retired out,1
+10814552,2,6767132,2,4143096,Aniruddha Dv,0,14,5,13,0,2,280.00,RHB,run out Sudharshan,1
+10814552,2,6767132,3,4048300,Vadiraj,0,1,6,2,0,0,16.67,RHB,retired out,1
+10814552,2,6767132,4,10339400,Aprameya Guruprasad,0,0,1,1,0,0,0.00,RHB,c †Pradhdhyumna Kashyap HP b Shreenidhi Prakash,1
+10814552,2,6767132,5,8445343,Anantha Madhava,0,39,17,9,2,5,229.41,RHB,c †Pradhdhyumna Kashyap HP b Sudharshan,1
+10814552,2,6767132,6,4048334,Ravi Aniruddha,1,0,1,1,0,0,0.00,RHB,c †Pradhdhyumna Kashyap HP b Shreenidhi Prakash,1
+10814552,2,6767132,7,8444668,Srisha Badarayana H S,0,0,0,1,0,0,0.00,RHB,run out K S AKSHAY KAUSHIK,1
+10814569,1,1597084,1,3542117,Amith P,0,18,6,3,0,3,300.00,RHB,retired hurt,1
+10814569,1,1597084,2,8453971,Srikanth Krishnamurthy,0,0,3,9,0,0,0.00,RHB,not out,0
+10814569,1,1597084,3,10046726,Shrivatsa Hatwar,0,8,6,3,0,1,133.33,RHB,retired hurt,1
+10814569,1,1597084,4,8129644,Pavan Kashyap,1,0,2,1,0,0,0.00,RHB,b BHARATH G S AGASTHYA,1
+10814569,1,1597084,5,10031492,Mady,0,35,14,9,1,5,250.00,RHB,b Pavan Gautham,1
+10814569,1,1597084,6,8814171,Pavan Raghavendra,0,8,11,5,0,1,72.73,RHB,c Praveena b Ajith P,1
+10814569,2,388115,1,8450899,Sandeep,0,21,7,1,2,2,300.00,LHB,retired hurt,1
+10814569,2,388115,2,8670699,Ajith P,0,0,0,4,0,0,0.00,RHB,retired hurt,1
+10814569,2,388115,3,10052159,Praveena,1,10,6,2,0,1,166.67,RHB,retired out,1
+10814569,2,388115,4,8444682,Pavan Gautham,0,28,16,8,1,3,175.00,RHB,not out,0
+10814569,2,388115,5,29632164,Raghunandan,0,7,4,4,0,1,175.00,RHB,b Pavan Kashyap,1
+10814569,2,388115,6,4416809,BHARATH G S AGASTHYA,0,6,5,2,0,1,120.00,RHB,b Mady,1
+10814569,2,388115,7,10052031,Yashu,0,0,0,1,0,0,0.00,RHB,not out,0
+10814594,1,6767128,1,10075428,Prabhav  Krishna,0,2,6,2,0,0,33.33,RHB,retired out,1
+10814594,1,6767128,2,8556484,Srinidhi NS,0,1,3,8,0,0,33.33,RHB,c Aditya Hatwar b Pranav PK,1
+10814594,1,6767128,3,8556544,Sudhindhra,0,9,7,3,0,1,128.57,RHB,retired hurt,1
+10814594,1,6767128,4,8445414,Tej,0,10,13,9,0,1,76.92,RHB,run out Pranav PK,1
+10814594,1,6767128,5,5994303,Srikanth T K,0,36,18,10,0,5,200.00,RHB,not out,0
+10814594,1,6767128,6,5922441,Prasanna,1,1,2,3,0,0,50.00,RHB,not out,0
+10814594,2,6767130,1,8578931,Srihari,0,1,4,2,0,0,25.00,LHB,retired out,1
+10814594,2,6767130,2,10047098,Aditya Hatwar,0,21,16,14,0,3,131.25,RHB,retired hurt,1
+10814594,2,6767130,3,29631844,Sridhar Dixit,0,1,6,3,0,0,16.67,LHB,retired hurt,1
+10814594,2,6767130,4,809163,Pranav PK,0,8,8,8,0,1,100.00,RHB,b Tej,1
+10814594,2,6767130,5,8444550,Bharadwaj Srivatsa,1,7,3,3,0,1,233.33,RHB,c Vishnunandan b Tej,1
+10814594,2,6767130,6,8452770,Ashrith Kashyap,0,0,1,1,0,0,0.00,RHB,c&b Tej,1
+10814594,2,6767130,7,7662592,Vittala,0,2,4,5,0,0,50.00,RHB,run out Sudhindhra / Vishnunandan,1
+10814609,1,6733389,1,24597937,Pradhdhyumna Kashyap HP,0,11,6,4,0,1,183.33,RHB,retired out,1
+10814609,1,6733389,2,6508655,Sudharshan,0,1,2,13,0,0,50.00,RHB,not out,0
+10814609,1,6733389,3,8445462,Prasad K S,1,4,5,4,0,0,80.00,RHB,retired hurt,1
+10814609,1,6733389,4,8444531,Shreenidhi Prakash,0,34,18,9,2,4,188.89,RHB,c Jeethu b Paneendra Gautham,1
+10814609,1,6733389,5,8445318,K S AKSHAY KAUSHIK,0,0,1,1,0,0,0.00,RHB,c&b Jeethu,1
+10814609,1,6733389,6,29631807,Krishnamoorthy,0,0,1,1,0,0,0.00,RHB,b Jeethu,1
+10814609,1,6733389,7,8469156,Sridhar,0,6,10,8,1,0,60.00,RHB,not out,0
+10814609,2,6767134,1,10052264,Srikrishna,0,3,7,5,0,0,42.86,RHB,retired hurt,1
+10814609,2,6767134,2,8445499,Paneendra Gautham,0,35,16,13,0,5,218.75,RHB,not out,0
+10814609,2,6767134,3,1224122,Badriprasad,0,29,9,8,4,2,322.22,RHB,not out,0
+10814627,1,6767132,1,29631917,Hrishikesha,0,2,6,2,0,0,33.33,RHB,retired out,1
+10814627,1,6767132,2,4048334,Ravi Aniruddha,1,6,5,7,0,1,120.00,RHB,c †Srikanth Krishnamurthy b Pavan Kashyap,1
+10814627,1,6767132,3,4048300,Vadiraj,0,2,6,2,0,0,33.33,RHB,retired out,1
+10814627,1,6767132,4,10339400,Aprameya Guruprasad,0,0,4,1,0,0,0.00,RHB,st †Srikanth Krishnamurthy b Pavan Raghavendra,1
+10814627,1,6767132,5,8444668,Srisha Badarayana H S,0,0,3,3,0,0,0.00,RHB,c Amith P b Mady,1
+10814627,1,6767132,6,8445343,Anantha Madhava,0,1,4,1,0,0,25.00,RHB,run out Pavan Raghavendra,1
+10814627,1,6767132,7,4143096,Aniruddha Dv,0,11,12,5,1,1,91.67,RHB,c †Pavan Kashyap b Srikanth Krishnamurthy,1
+10814627,2,1597084,1,3542117,Amith P,0,16,6,1,1,2,266.67,RHB,retired hurt,1
+10814627,2,1597084,2,8453971,Srikanth Krishnamurthy  (wk),0,0,0,2,0,0,0.00,RHB,not out,0
+10814627,2,1597084,3,10046726,Shrivatsa Hatwar,0,11,3,1,1,1,366.67,RHB,not out,0
+10814632,1,6767130,1,8578931,Srihari,0,12,6,2,1,1,200.00,LHB,retired out,1
+10814632,1,6767130,2,10047098,Aditya Hatwar,0,11,9,11,2,0,122.22,RHB,c †Ajith P b BHARATH G S AGASTHYA,1
+10814632,1,6767130,3,29631844,Sridhar Dixit,0,13,6,2,0,2,216.67,LHB,retired hurt,1
+10814632,1,6767130,4,7662592,Vittala,0,1,3,5,0,0,33.33,RHB,not out,0
+10814632,1,6767130,5,809163,Pranav PK,0,17,6,1,1,2,283.33,RHB,c †Ajith P b BHARATH G S AGASTHYA,1
+10814632,1,6767130,6,8452770,Ashrith Kashyap,0,14,12,5,0,2,116.67,RHB,c †Pavan Gautham b Ajith P,1
+10814632,1,6767130,7,8444550,Bharadwaj Srivatsa,1,3,3,4,0,0,100.00,RHB,run out Praveena / † Raghunandan,1
+10814632,2,388115,1,8450899,Sandeep,0,11,6,1,0,1,183.33,LHB,retired hurt,1
+10814632,2,388115,2,8670699,Ajith P  (wk),0,0,0,3,0,0,0.00,RHB,retired hurt,1
+10814632,2,388115,3,10052159,Praveena,1,2,6,1,0,0,33.33,RHB,retired hurt,1
+10814632,2,388115,4,8444682,Pavan Gautham  (wk),0,21,14,8,0,3,150.00,RHB,c Sridhar Dixit b Ashrith Kashyap,1
+10814632,2,388115,5,29632164,Raghunandan  (wk),0,11,10,12,0,1,110.00,RHB,not out,0
+10814632,2,388115,6,4416809,BHARATH G S AGASTHYA,0,28,7,3,1,4,400.00,RHB,not out,0
+10818534,1,6733389,1,24597937,Pradhdhyumna Kashyap HP  (wk),0,10,5,7,0,1,200.00,RHB,retired,1
+10818534,1,6733389,2,29631807,Krishnamoorthy,0,7,3,3,0,1,233.33,RHB,retired,1
+10818534,1,6733389,3,8445462,Prasad K S,1,4,5,3,0,0,80.00,RHB,st †Prabhav  Krishna b Sudhindhra,1
+10818534,1,6733389,4,8444531,Shreenidhi Prakash,0,14,7,4,2,1,200.00,RHB,c Srikanth T K b Prasanna,1
+10818534,1,6733389,5,6508655,Sudharshan,0,16,18,13,0,2,88.89,RHB,b Srinidhi NS,1
+10818534,1,6733389,6,8445318,K S AKSHAY KAUSHIK,0,0,1,1,0,0,0.00,RHB,c Tej b Prasanna,1
+10818534,1,6733389,7,8469156,Sridhar,0,2,3,3,0,0,66.67,RHB,run out Vishnunandan,1
+10818534,2,6767128,1,10075428,Prabhav  Krishna  (wk),0,6,4,4,1,0,150.00,RHB,not out,0
+10818534,2,6767128,2,8846097,Vishnunandan,0,1,7,10,0,0,14.29,LHB,st †Pradhdhyumna Kashyap HP b Krishnamoorthy,1
+10818534,2,6767128,3,8556544,Sudhindhra,0,1,7,3,0,0,14.29,RHB,retired out,1
+10818534,2,6767128,4,8556484,Srinidhi NS,0,1,3,4,0,0,33.33,RHB,c K S AKSHAY KAUSHIK b Sudharshan,1
+10818534,2,6767128,5,8445414,Tej,0,10,6,2,1,1,166.67,RHB,c Pradhdhyumna Kashyap HP b Shreenidhi Prakash,1
+10818534,2,6767128,6,5994303,Srikanth T K,0,17,8,9,2,1,212.50,RHB,c Shreenidhi Prakash b Krishnamoorthy,1
+10818534,2,6767128,7,5922441,Prasanna,1,9,10,10,0,1,90.00,RHB,not out,0
+10818554,1,6767132,1,29631917,Hrishikesha,0,2,6,3,0,0,33.33,RHB,retired out,1
+10818554,1,6767132,2,4143096,Aniruddha Dv,0,6,5,7,0,1,120.00,RHB,run out Aditya Hatwar / Ashrith Kashyap,1
+10818554,1,6767132,3,4048300,Vadiraj,0,1,6,1,0,0,16.67,RHB,retired out,1
+10818554,1,6767132,4,8445343,Anantha Madhava,0,0,2,1,0,0,0.00,RHB,run out Srihari / Ashrith Kashyap,1
+10818554,1,6767132,5,10339400,Aprameya Guruprasad,0,16,11,5,1,2,145.45,RHB,b Vittala,1
+10818554,1,6767132,6,4048334,Ravi Aniruddha,1,7,8,5,0,1,87.50,RHB,c Vittala b Ashrith Kashyap,1
+10818554,1,6767132,7,8444668,Srisha Badarayana H S,0,0,2,1,0,0,0.00,RHB,b Pranav PK,1
+10818554,2,6767130,1,8578931,Srihari,0,18,6,6,0,3,300.00,LHB,retired hurt,1
+10818554,2,6767130,2,809163,Pranav PK,0,12,5,7,0,2,240.00,RHB,b Srisha Badarayana H S,1
+10818554,2,6767130,3,29631844,Sridhar Dixit,0,7,6,1,0,1,116.67,LHB,retired out,1
+10818554,2,6767130,4,10047098,Aditya Hatwar,0,0,0,1,0,0,0.00,RHB,not out,0
+10818554,2,6767130,5,8444550,Bharadwaj Srivatsa,1,0,0,1,0,0,0.00,RHB,not out,0
+10818574,1,1597084,1,3542117,Amith P,0,10,6,2,1,1,166.67,RHB,retired hurt,1
+10818574,1,1597084,2,14211268,Pramit,0,23,12,12,1,3,191.67,RHB,retired hurt,1
+10818574,1,1597084,3,10046726,Shrivatsa Hatwar,0,16,6,2,1,2,266.67,RHB,retired out,1
+10818574,1,1597084,4,10031492,Mady,0,26,9,12,0,4,288.89,RHB,not out,0
+10818574,1,1597084,5,8129644,Pavan Kashyap,1,6,9,4,1,0,66.67,RHB,run out Vishnunandan,1
+10818574,2,6767128,1,10075428,Prabhav  Krishna,0,2,6,4,0,0,33.33,RHB,retired out,1
+10818574,2,6767128,2,8846097,Vishnunandan,0,1,5,10,0,0,20.00,LHB,run out Pavan Raghavendra,1
+10818574,2,6767128,3,8556544,Sudhindhra,0,18,6,3,1,2,300.00,RHB,not out,0
+10818574,2,6767128,4,8556484,Srinidhi NS,0,7,6,3,0,1,116.67,RHB,run out Shrivatsa Hatwar / Pramit,1
+10818574,2,6767128,5,8445414,Tej,0,1,5,3,0,0,20.00,RHB,c Pavan Raghavendra b Pramit,1
+10818574,2,6767128,6,5994303,Srikanth T K,0,7,11,7,0,1,63.64,RHB,run out Pavan Raghavendra / Pavan Kashyap,1
+10818574,2,6767128,7,5922441,Prasanna,1,6,3,1,0,1,200.00,RHB,c Pramit b Pavan Kashyap,1
+10869116,1,3881115,1,8450899,Sandeep,0,4,6,2,0,0,66.67,LHB,retired,1
+10869116,1,3881115,2,8670699,Ajith P,0,5,5,7,1,0,100.00,RHB,not out,0
+10869116,1,3881115,3,10052159,Praveena,1,5,6,2,0,0,83.33,RHB,retired,1
+10869116,1,3881115,4,29632164,Raghunandan,0,9,10,4,0,1,90.00,RHB,c Paneendra Gautham b Badriprasad,1
+10869116,1,3881115,5,8444682,Pavan Gautham,0,0,1,1,0,0,0.00,RHB,run out Badriprasad / Jeethu,1
+10869116,1,3881115,6,19645071,Achuth,0,21,8,7,0,3,262.50,RHB,c Badriprasad b Jeethu,1
+10869116,1,3881115,7,10052031,Yashu,0,26,7,6,0,4,371.43,RHB,c †Madhusudhan K S b Guruprasad Ramachandrachar,1
+10869116,2,6767134,1,10117071,Anantha,0,7,6,3,0,1,116.67,RHB,b Sandeep,1
+10869116,2,6767134,2,8445499,Paneendra Gautham,0,9,9,14,0,1,100.00,RHB,not out,0
+10869116,2,6767134,3,8445420,Madhusudhan K S  (wk),0,19,7,3,0,3,271.43,RHB,retired,1
+10869116,2,6767134,4,8445292,Mahesh,0,15,8,7,0,2,187.50,LHB,run out Yashu / Raghunandan,1
+10869116,2,6767134,5,8445368,Jeethu,0,14,6,4,0,2,233.33,LHB,c Yashu b Ajith P,1
+10869116,2,6767134,6,1224122,Badriprasad,0,0,2,1,0,0,0.00,RHB,b Pavan Gautham,1
+10869116,2,6767134,7,8445342,Guruprasad Ramachandrachar,1,3,6,3,0,0,50.00,LHB,not out,0
+10869116,3,6767134,1,8445368,Jeethu,0,11,5,0,1,1,220.00,,not out,0
+10869116,3,6767134,2,1224122,Badriprasad,0,1,1,0,0,0,100.00,,not out,0
+10869116,4,3881115,1,8444682,Pavan Gautham,0,1,2,0,0,0,50.00,,run out Guruprasad Ramachandrachar,1
+10869116,4,3881115,2,19645071,Achuth,0,9,4,0,2,0,225.00,,not out,0
+10869121,1,6733389,1,24597937,Pradhdhyumna Kashyap HP,0,13,8,5,1,1,162.50,RHB,retired out,1
+10869121,1,6733389,2,6508655,Sudharshan,0,0,1,9,0,0,0.00,RHB,b Pavan Kashyap,1
+10869121,1,6733389,3,8445462,Prasad K S,1,6,8,3,1,0,75.00,RHB,b Pavan Kashyap,1
+10869121,1,6733389,4,8444531,Shreenidhi Prakash,0,0,4,1,0,0,0.00,RHB,c Pavan Kashyap b Mady,1
+10869121,1,6733389,5,29631807,Krishnamoorthy,0,1,6,6,0,0,16.67,RHB,c Mady b Pavan Kashyap,1
+10869121,1,6733389,6,8469156,Sridhar,0,0,2,1,0,0,0.00,RHB,b Mady,1
+10869121,1,6733389,7,8445318,K S AKSHAY KAUSHIK,0,10,15,8,2,0,66.67,RHB,not out,0
+10869121,2,1597084,1,3542117,Amith P,0,8,6,2,0,1,133.33,RHB,retired out,1
+10869121,2,1597084,2,14211268,Pramit,0,18,4,10,0,3,450.00,RHB,not out,0
+10869121,2,1597084,3,10046726,Shrivatsa Hatwar,0,7,7,2,0,1,100.00,RHB,retired out,1
+10869121,2,1597084,4,10031492,Mady,0,0,1,1,0,0,0.00,RHB,c K S AKSHAY KAUSHIK b Shreenidhi Prakash,1
+10869121,2,1597084,5,8814171,Pavan Raghavendra,0,6,5,1,0,1,120.00,RHB,c Sridhar b Shreenidhi Prakash,1
+10869121,2,1597084,6,8129644,Pavan Kashyap,1,0,0,1,0,0,0.00,RHB,not out,0
+10869129,1,6767128,1,10075428,Prabhav  Krishna  (wk),0,1,6,2,0,0,16.67,RHB,retired out,1
+10869129,1,6767128,2,8846097,Vishnunandan,0,2,2,14,0,0,100.00,LHB,not out,0
+10869129,1,6767128,3,8556544,Sudhindhra,0,6,5,1,0,1,120.00,RHB,retired out,1
+10869129,1,6767128,4,5994303,Srikanth T K,0,56,22,11,3,7,254.55,RHB,not out,0
+10869129,1,6767128,5,5922441,Prasanna,1,1,3,2,0,0,33.33,RHB,b BHARATH G S AGASTHYA,1
+10869129,1,6767128,6,8445414,Tej,0,0,1,1,0,0,0.00,RHB,c&b BHARATH G S AGASTHYA,1
+10869129,1,6767128,7,8556484,Srinidhi NS,0,1,3,3,0,0,33.33,RHB,run out Ajith P,1
+10869129,2,3881115,1,8450899,Sandeep,0,17,7,7,0,2,242.86,LHB,run out Vishnunandan,1
+10869129,2,3881115,2,8670699,Ajith P,0,0,2,13,0,0,0.00,RHB,not out,0
+10869129,2,3881115,3,10052159,Praveena,1,3,7,2,0,0,42.86,RHB,run out Srikanth T K,1
+10869129,2,3881115,4,8444682,Pavan Gautham,0,1,3,2,0,0,33.33,RHB,b Vishnunandan,1
+10869129,2,3881115,5,10052031,Yashu,0,16,10,6,0,2,160.00,RHB,c&b Tej,1
+10869129,2,3881115,6,4416809,BHARATH G S AGASTHYA,0,14,8,9,0,2,175.00,RHB,c Srikanth T K b Vishnunandan,1
+10869129,2,3881115,7,29632164,Raghunandan,0,7,6,4,0,1,116.67,RHB,c †Prabhav  Krishna b Srikanth T K,1
+10869135,1,6767134,1,10117071,Anantha,0,4,5,1,0,0,80.00,RHB,c Ravi Aniruddha b Hrishikesha,1
+10869135,1,6767134,2,8445499,Paneendra Gautham,0,0,1,5,0,0,0.00,RHB,run out Anantha Madhava / Vadiraj,1
+10869135,1,6767134,3,8445420,Madhusudhan K S,0,2,6,4,0,0,33.33,RHB,retired out,1
+10869135,1,6767134,4,8445292,Mahesh,0,12,10,8,1,1,120.00,LHB,c Ravi Aniruddha b Aprameya Guruprasad,1
+10869135,1,6767134,5,1224122,Badriprasad,0,3,5,5,0,0,60.00,RHB,run out Vadiraj / Srisha Badarayana H S,1
+10869135,1,6767134,6,8445342,Guruprasad Ramachandrachar,1,3,6,3,0,0,50.00,LHB,c Srisha Badarayana H S b Aprameya Guruprasad,1
+10869135,1,6767134,7,8445368,Jeethu,0,14,11,5,0,2,127.27,LHB,b Ravi Aniruddha,1
+10869135,2,6767132,1,29631917,Hrishikesha,0,2,6,1,0,0,33.33,RHB,retired out,1
+10869135,2,6767132,2,10339400,Aprameya Guruprasad,0,11,4,5,1,1,275.00,RHB,b Jeethu,1
+10869135,2,6767132,3,4048300,Vadiraj,0,8,6,2,0,1,133.33,RHB,retired out,1
+10869135,2,6767132,4,4048334,Ravi Aniruddha,1,1,5,6,0,0,20.00,RHB,not out,0
+10869135,2,6767132,5,8445343,Anantha Madhava,0,7,5,2,0,1,140.00,RHB,c Jeethu b Badriprasad,1
+10869135,2,6767132,6,4143096,Aniruddha Dv,0,19,7,2,0,3,271.43,RHB,not out,0
 10869150,1,6733389,1,24597937,Pradhdhyumna Kashyap HP,0,7,6,2,0,1,116.67,RHB,c Pavan Gautham b Sandeep,1
 10869150,1,6733389,2,6508655,Sudharshan,0,0,0,5,0,0,0.00,RHB,retired,1
 10869150,1,6733389,3,8445462,Prasad K S,1,0,6,2,0,0,0.00,RHB,c Raghunandan b Praveena,1
@@ -707,6 +1295,170 @@ cricheroes_match_id,innings_number,cricheroes_team_id,batting_order,cricheroes_p
 12174087,2,1597084,4,8814171,Pavan Raghavendra,0,6,10,6,0,1,60.00,RHB,c †Vittala b Ashrith Kashyap,1
 12174087,2,1597084,5,10031492,Mady,0,33,14,9,0,5,235.71,RHB,not out,0
 12174087,2,1597084,6,8129644,Pavan Kashyap,1,7,5,3,0,1,140.00,RHB,not out,0
+16991638,1,6767128,1,10075428,Prabhav  Krishna,0,2,6,3,0,0,33.33,RHB,b Anantha,1
+16991638,1,6767128,2,8846097,Vishnunandan,0,0,0,6,0,0,0.00,LHB,run out Mahesh,1
+16991638,1,6767128,3,8556544,Sudhindhra,0,13,10,8,0,2,130.00,RHB,not out,0
+16991638,1,6767128,4,8445414,Tej,0,0,1,1,0,0,0.00,RHB,c Jeethu b Guruprasad Ramachandrachar,1
+16991638,1,6767128,5,5922441,Prasanna,1,0,4,3,0,0,0.00,RHB,st †Madhusudhan K S b Badriprasad,1
+16991638,1,6767128,6,5994303,Srikanth T K,0,70,23,9,2,10,304.35,RHB,not out,0
+16991638,2,6767134,1,10117071,Anantha,0,2,7,7,0,0,28.57,RHB,run out Tej,1
+16991638,2,6767134,2,8445499,Paneendra Gautham,0,40,17,15,0,6,235.29,RHB,not out,0
+16991638,2,6767134,3,8445420,Madhusudhan K S  (wk),0,14,6,2,0,2,233.33,RHB,retired out,1
+16991638,2,6767134,4,1224122,Badriprasad,0,0,2,2,0,0,0.00,RHB,c Prasanna b Tej,1
+16991638,2,6767134,5,8445292,Mahesh,0,6,6,2,0,1,100.00,LHB,run out Tej,1
+16991638,2,6767134,6,8445368,Jeethu,0,0,5,2,0,0,0.00,LHB,c Vishnunandan b Tej,1
+16991638,2,6767134,7,8445342,Guruprasad Ramachandrachar,1,0,1,1,0,0,0.00,LHB,c&b Tej,1
+16991700,1,6767130,1,8578931,Srihari,0,8,4,4,0,1,200.00,LHB,retired out,1
+16991700,1,6767130,2,10047098,Aditya Hatwar,0,0,2,6,0,0,0.00,RHB,retired hurt,1
+16991700,1,6767130,3,29631844,Sridhar Dixit,0,1,6,2,0,0,16.67,LHB,retired hurt,1
+16991700,1,6767130,4,809163,Pranav PK,0,2,4,2,0,0,50.00,RHB,c †Srikanth Krishnamurthy b Mady,1
+16991700,1,6767130,5,8452770,Ashrith Kashyap,0,20,18,12,1,1,111.11,RHB,not out,0
+16991700,1,6767130,6,8444550,Bharadwaj Srivatsa,1,2,2,4,0,0,100.00,RHB,run out Mady,1
+16991700,1,6767130,7,7662592,Vittala,0,0,6,5,0,0,0.00,RHB,not out,0
+16991700,2,1597084,1,3542117,Amith P,0,4,6,17,1,0,66.67,RHB,retired hurt,1
+16991700,2,1597084,2,8453971,Srikanth Krishnamurthy  (wk),0,0,0,1,0,0,0.00,RHB,run out Aditya Hatwar / Vittala,1
+16991700,2,1597084,3,15348376,Pavan DP,0,6,9,25,0,0,66.67,RHB,not out,0
+16991700,2,1597084,4,19048034,Balaji,0,12,7,1,0,2,171.43,RHB,retired hurt,1
+16991700,2,1597084,5,10031492,Mady,0,14,9,8,1,1,155.56,RHB,not out,0
+16991723,1,3881115,1,8450899,Sandeep,0,13,6,3,1,1,216.67,LHB,retired hurt,1
+16991723,1,3881115,2,8670699,Ajith P,0,0,0,5,0,0,0.00,RHB,retired hurt,1
+16991723,1,3881115,3,10052159,Praveena,1,3,6,2,0,0,50.00,RHB,retired out,1
+16991723,1,3881115,4,8444682,Pavan Gautham,0,32,17,12,1,4,188.24,RHB,not out,0
+16991723,1,3881115,5,10052031,Yashu,0,8,8,9,0,1,100.00,RHB,not out,0
+16991723,1,3881115,6,4416809,BHARATH G S AGASTHYA,0,12,4,1,0,2,300.00,RHB,c Jeethu b Guruprasad Ramachandrachar,1
+16991723,1,3881115,7,29632164,Raghunandan,0,0,3,2,0,0,0.00,RHB,b Jeethu,1
+16991723,2,6767134,1,10117071,Anantha,0,3,6,2,0,0,50.00,RHB,retired out,1
+16991723,2,6767134,2,1224122,Badriprasad,0,0,0,6,0,0,0.00,RHB,retired hurt,1
+16991723,2,6767134,3,8445420,Madhusudhan K S,0,5,6,2,0,0,83.33,RHB,retired out,1
+16991723,2,6767134,4,8445292,Mahesh,0,9,8,5,0,1,112.50,LHB,retired hurt,1
+16991723,2,6767134,5,8445499,Paneendra Gautham,0,10,6,12,0,1,166.67,RHB,not out,0
+16991723,2,6767134,6,8445368,Jeethu,0,41,12,6,1,6,341.67,LHB,not out,0
+16991757,1,6767128,1,10075428,Prabhav  Krishna,0,3,4,5,0,0,75.00,RHB,retired out,1
+16991757,1,6767128,2,8846097,Vishnunandan,0,0,2,7,0,0,0.00,LHB,retired hurt,1
+16991757,1,6767128,3,8556544,Sudhindhra,0,8,6,2,0,1,133.33,RHB,retired hurt,1
+16991757,1,6767128,4,8445414,Tej,0,47,15,10,0,7,313.33,RHB,not out,0
+16991757,1,6767128,5,8556484,Srinidhi NS,0,4,6,4,0,0,66.67,RHB,retired hurt,1
+16991757,1,6767128,6,5994303,Srikanth T K,0,31,9,5,1,4,344.44,RHB,not out,0
+16991757,2,6733389,1,24597937,Pradhdhyumna Kashyap HP,0,2,6,3,0,0,33.33,RHB,retired hurt,1
+16991757,2,6733389,2,8469156,Sridhar,0,1,1,6,0,0,100.00,RHB,not out,0
+16991757,2,6733389,3,8445462,Prasad K S,1,1,6,1,0,0,16.67,RHB,retired hurt,1
+16991757,2,6733389,4,8444531,Shreenidhi Prakash,0,15,15,10,0,2,100.00,RHB,not out,0
+16991757,2,6733389,5,29631807,Krishnamoorthy,0,13,7,6,0,2,185.71,RHB,c Sudhindhra b Tej,1
+16991757,2,6733389,6,8445318,K S AKSHAY KAUSHIK,0,2,7,3,0,0,28.57,RHB,run out Tej,1
+16991791,1,6767132,1,29631917,Hrishikesha,0,1,6,4,0,0,16.67,RHB,retired out,1
+16991791,1,6767132,2,10339400,Aprameya Guruprasad,0,4,8,16,0,0,50.00,RHB,not out,0
+16991791,1,6767132,3,4048300,Vadiraj,0,2,6,3,0,0,33.33,RHB,retired hurt,1
+16991791,1,6767132,4,8445343,Anantha Madhava,0,23,15,7,0,3,153.33,RHB,c Mady b Balaji,1
+16991791,1,6767132,5,4143096,Aniruddha Dv,0,0,2,1,0,0,0.00,RHB,c Pavan Kashyap b Mady,1
+16991791,1,6767132,6,4048334,Ravi Aniruddha,1,1,4,1,0,0,25.00,RHB,c Pavan DP b Pavan Kashyap,1
+16991791,1,6767132,7,8444668,Srisha Badarayana H S,0,1,3,1,0,0,33.33,RHB,not out,0
+16991791,2,1597084,1,3542117,Amith P,0,7,6,4,0,1,116.67,RHB,retired hurt,1
+16991791,2,1597084,2,8453971,Srikanth Krishnamurthy,0,7,3,9,0,1,233.33,RHB,not out,0
+16991791,2,1597084,3,10046726,Shrivatsa Hatwar,0,13,6,1,0,2,216.67,RHB,retired out,1
+16991791,2,1597084,4,8129644,Pavan Kashyap,1,11,7,1,1,1,157.14,RHB,c Aniruddha Dv b Anantha Madhava,1
+16991791,2,1597084,5,10031492,Mady,0,1,3,2,0,0,33.33,RHB,not out,0
+16991823,1,6767128,1,10075428,Prabhav  Krishna,0,9,7,4,1,0,128.57,RHB,retired hurt,1
+16991823,1,6767128,2,8846097,Vishnunandan,0,0,0,7,0,0,0.00,LHB,retired hurt,1
+16991823,1,6767128,3,8556544,Sudhindhra,0,9,6,2,0,1,150.00,RHB,retired hurt,1
+16991823,1,6767128,4,8556484,Srinidhi NS,0,6,5,1,0,1,120.00,RHB,run out (sub) Ajith P,1
+16991823,1,6767128,5,8445414,Tej,0,33,11,9,0,5,300.00,RHB,not out,0
+16991823,1,6767128,6,5994303,Srikanth T K,0,46,14,8,2,6,328.57,RHB,not out,0
+16991823,2,3881115,1,8450899,Sandeep,0,2,5,3,0,0,40.00,LHB,retired out,1
+16991823,2,3881115,2,29578223,Ajith P,0,1,2,6,0,0,50.00,RHB,retired hurt,1
+16991823,2,3881115,3,10052159,Praveena,1,5,5,2,0,0,100.00,RHB,retired hurt,1
+16991823,2,3881115,4,8444682,Pavan Gautham,0,1,6,1,0,0,16.67,RHB,run out Tej,1
+16991823,2,3881115,5,4416809,BHARATH G S AGASTHYA,0,8,5,3,2,0,160.00,RHB,b Prasanna,1
+16991823,2,3881115,6,10052031,Yashu,0,4,9,6,0,0,44.44,RHB,not out,0
+16991823,2,3881115,7,29632164,Raghunandan,0,26,10,4,0,4,260.00,RHB,not out,0
+16991869,1,6767130,1,809163,Pranav PK,0,9,15,7,0,1,60.00,RHB,st †Pradhdhyumna Kashyap HP b Shreenidhi Prakash,1
+16991869,1,6767130,2,10047098,Aditya Hatwar,0,1,5,8,0,0,20.00,RHB,c Pradhdhyumna Kashyap HP b Sudharshan,1
+16991869,1,6767130,3,8452770,Ashrith Kashyap,0,5,4,7,1,0,125.00,RHB,c Shreenidhi Prakash b Sudharshan,1
+16991869,1,6767130,4,7662592,Vittala,0,6,5,3,0,1,120.00,RHB,c K S AKSHAY KAUSHIK b Shreenidhi Prakash,1
+16991869,1,6767130,5,8444550,Bharadwaj Srivatsa,1,18,9,4,0,3,200.00,RHB,c †Pradhdhyumna Kashyap HP b Sridhar,1
+16991869,1,6767130,6,29631844,Sridhar Dixit,0,0,0,3,0,0,0.00,LHB,not out,0
+16991869,1,6767130,7,8578931,Srihari,0,0,0,1,0,0,0.00,LHB,retired out,1
+16991869,2,6733389,1,24597937,Pradhdhyumna Kashyap HP  (wk),0,28,6,1,1,4,466.67,RHB,retired out,1
+16991869,2,6733389,2,8469156,Sridhar,0,0,0,4,0,0,0.00,RHB,retired hurt,1
+16991869,2,6733389,3,8445462,Prasad K S,1,4,6,2,1,0,66.67,RHB,retired hurt,1
+16991869,2,6733389,4,29631807,Krishnamoorthy,0,1,2,1,0,0,50.00,RHB,not out,0
+16991869,2,6733389,5,8445318,K S AKSHAY KAUSHIK,0,12,3,1,0,2,400.00,RHB,not out,0
+16991898,1,6767128,1,10075428,Prabhav  Krishna,0,9,6,3,1,0,150.00,RHB,retired out,1
+16991898,1,6767128,2,8846097,Vishnunandan,0,12,4,18,1,1,300.00,LHB,run out Aniruddha Dv,1
+16991898,1,6767128,3,8556544,Sudhindhra,0,3,4,2,0,0,75.00,RHB,not out,0
+16991898,1,6767128,4,5922441,Prasanna,1,7,4,2,0,1,175.00,RHB,c †Srisha Badarayana H S b Anantha Madhava,1
+16991898,1,6767128,5,8556484,Srinidhi NS,0,0,3,1,0,0,0.00,RHB,b Aprameya Guruprasad,1
+16991898,1,6767128,6,5994303,Srikanth T K,0,54,14,9,2,7,385.71,RHB,not out,0
+16991898,1,6767128,7,8445414,Tej  (wk),0,11,10,5,0,1,110.00,RHB,c Anantha Madhava b Aprameya Guruprasad,1
+16991898,2,6767132,1,29631917,Hrishikesha,0,9,9,1,0,1,100.00,RHB,not out,0
+16991898,2,6767132,2,10339400,Aprameya Guruprasad,0,10,5,8,1,0,200.00,RHB,b Srinidhi NS,1
+16991898,2,6767132,3,4048300,Vadiraj,0,9,11,3,0,1,81.82,RHB,not out,0
+16991898,2,6767132,4,8445343,Anantha Madhava,0,0,2,1,0,0,0.00,RHB,run out Vishnunandan,1
+16991898,2,6767132,5,4143096,Aniruddha Dv,0,2,8,11,0,0,25.00,RHB,run out Prasanna,1
+16991898,2,6767132,6,4048334,Ravi Aniruddha,1,1,3,1,0,0,33.33,RHB,st †Tej b Srikanth T K,1
+16991898,2,6767132,7,8444668,Srisha Badarayana H S  (wk),0,2,9,4,0,0,22.22,RHB,run out Prasanna,1
+17092539,1,6767130,1,29631844,Sridhar Dixit,0,4,6,5,0,0,66.67,LHB,retired out,1
+17092539,1,6767130,2,7662592,Vittala,0,0,0,4,0,0,0.00,RHB,retired hurt,1
+17092539,1,6767130,3,8452770,Ashrith Kashyap,0,48,25,14,0,7,192.00,RHB,run out BHARATH G S AGASTHYA,1
+17092539,1,6767130,4,8444550,Bharadwaj Srivatsa  (c & wk),0,7,3,10,0,1,233.33,RHB,run out Raghunandan / BHARATH G S AGASTHYA,1
+17092539,1,6767130,5,809163,Pranav PK,0,14,4,6,0,2,350.00,RHB,not out,0
+17092539,2,3881115,1,10052159,Praveena,1,3,6,3,0,0,50.00,RHB,retired hurt,1
+17092539,2,3881115,2,8450899,Sandeep,0,0,0,3,0,0,0.00,LHB,retired hurt,1
+17092539,2,3881115,3,8444682,Pavan Gautham,0,0,1,1,0,0,0.00,RHB,b Pranav PK,1
+17092539,2,3881115,4,4416809,BHARATH G S AGASTHYA,0,21,11,7,2,2,190.91,RHB,c †Bharadwaj Srivatsa b Ashrith Kashyap,1
+17092539,2,3881115,5,10052031,Yashu,0,23,14,12,1,3,164.29,RHB,not out,0
+17092539,2,3881115,6,29632164,Raghunandan,0,6,5,3,0,1,120.00,RHB,b Pranav PK,1
+17092539,2,3881115,7,8670699,Ajith P,0,0,0,1,0,0,0.00,RHB,not out,0
+17092546,1,6767132,1,29631917,Hrishikesha,0,0,11,2,0,0,0.00,RHB,not out,0
+17092546,1,6767132,2,10339400,Aprameya Guruprasad,0,0,0,1,0,0,0.00,RHB,run out Sudharshan,1
+17092546,1,6767132,3,8445343,Anantha Madhava,0,0,1,1,0,0,0.00,RHB,c †Pradhdhyumna Kashyap HP b Shreenidhi Prakash,1
+17092546,1,6767132,4,4048334,Ravi Aniruddha,1,19,7,9,0,3,271.43,RHB,c †Pradhdhyumna Kashyap HP b Shreenidhi Prakash,1
+17092546,1,6767132,5,8444668,Srisha Badarayana H S,0,0,3,1,0,0,0.00,RHB,b Shreenidhi Prakash,1
+17092546,1,6767132,6,4143096,Aniruddha Dv,0,22,10,15,1,3,220.00,RHB,c Shreenidhi Prakash b Pradhdhyumna Kashyap HP,1
+17092546,1,6767132,7,4048300,Vadiraj,0,1,13,10,0,0,7.69,RHB,run out Sudharshan,1
+17092546,2,6733389,1,24597937,Pradhdhyumna Kashyap HP  (wk),0,18,6,2,0,3,300.00,RHB,retired hurt,1
+17092546,2,6733389,2,8469156,Sridhar,0,1,1,6,0,0,100.00,RHB,not out,0
+17092546,2,6733389,3,8445462,Prasad K S,1,6,6,2,0,1,100.00,RHB,retired out,1
+17092546,2,6733389,4,8444531,Shreenidhi Prakash,0,13,4,1,0,2,325.00,RHB,c Aniruddha Dv b Ravi Aniruddha,1
+17092546,2,6733389,5,8445318,K S AKSHAY KAUSHIK,0,8,5,1,0,1,160.00,RHB,not out,0
+17092557,1,1597084,1,3542117,Amith P,0,16,6,9,1,2,266.67,RHB,retired out,1
+17092557,1,1597084,2,8453971,Srikanth Krishnamurthy  (wk),0,1,5,19,0,0,20.00,RHB,run out Guruprasad Ramachandrachar,1
+17092557,1,1597084,3,10046726,Shrivatsa Hatwar,0,5,6,2,0,0,83.33,RHB,retired out,1
+17092557,1,1597084,4,10031492,Mady,0,6,9,4,1,0,66.67,RHB,run out Badriprasad,1
+17092557,1,1597084,5,8129644,Pavan Kashyap,1,24,10,4,0,4,240.00,RHB,c&b Paneendra Gautham,1
+17092557,1,1597084,6,15348376,Pavan DP,0,0,1,2,0,0,0.00,RHB,c Guruprasad Ramachandrachar b Paneendra Gautham,1
+17092557,1,1597084,7,19048034,Balaji,0,0,0,1,0,0,0.00,RHB,not out,0
+17092557,2,6767134,1,10052264,Srikrishna,0,2,6,3,0,0,33.33,RHB,not out,0
+17092557,2,6767134,2,1224122,Badriprasad,0,1,7,9,0,0,14.29,RHB,c Pavan DP b Balaji,1
+17092557,2,6767134,3,8445420,Madhusudhan K S,0,9,7,3,0,1,128.57,RHB,retired out,1
+17092557,2,6767134,4,8445292,Mahesh,0,13,12,7,1,1,108.33,LHB,st †Srikanth Krishnamurthy b Balaji,1
+17092557,2,6767134,5,8445499,Paneendra Gautham,0,2,9,13,0,0,22.22,RHB,b Mady,1
+17092557,2,6767134,6,8445368,Jeethu,0,0,1,1,0,0,0.00,LHB,c Pavan Kashyap b Mady,1
+17092557,2,6767134,7,8445342,Guruprasad Ramachandrachar,1,1,2,1,0,0,50.00,LHB,run out Mady,1
+17092570,1,6767132,1,29631917,Hrishikesha,0,1,7,9,0,0,14.29,RHB,not out,0
+17092570,1,6767132,2,4143096,Aniruddha Dv,0,0,0,2,0,0,0.00,RHB,run out Raghunandan,1
+17092570,1,6767132,3,8444668,Srisha Badarayana H S,0,0,1,4,0,0,0.00,RHB,c Raghunandan b Pavan Gautham,1
+17092570,1,6767132,4,4048300,Vadiraj,0,2,7,2,0,0,28.57,RHB,retired out,1
+17092570,1,6767132,5,8445343,Anantha Madhava,0,0,3,1,0,0,0.00,RHB,run out Yashu,1
+17092570,1,6767132,6,10339400,Aprameya Guruprasad,0,7,12,6,0,1,58.33,RHB,c Pavan Gautham b BHARATH G S AGASTHYA,1
+17092570,1,6767132,7,4048334,Ravi Aniruddha,1,8,12,9,0,1,66.67,RHB,c †Ajith P b Raghunandan,1
+17092570,2,3881115,1,8450899,Sandeep,0,7,6,2,1,0,116.67,LHB,retired out,1
+17092570,2,3881115,2,8670699,Ajith P  (wk),0,0,0,4,0,0,0.00,RHB,retired hurt,1
+17092570,2,3881115,3,10052159,Praveena,1,9,6,2,0,1,150.00,RHB,retired hurt,1
+17092570,2,3881115,4,4416809,BHARATH G S AGASTHYA,0,14,8,2,2,1,175.00,RHB,not out,0
+17092570,2,3881115,5,8444682,Pavan Gautham,0,0,1,2,0,0,0.00,RHB,not out,0
+17092587,1,6767134,1,8445420,Madhusudhan K S  (wk),0,13,8,3,1,1,162.50,RHB,retired hurt,1
+17092587,1,6767134,2,8445342,Guruprasad Ramachandrachar,1,0,0,5,0,0,0.00,LHB,not out,0
+17092587,1,6767134,3,8445292,Mahesh,0,22,13,8,0,3,169.23,LHB,run out Bharadwaj Srivatsa,1
+17092587,1,6767134,4,8445368,Jeethu,0,0,2,4,0,0,0.00,LHB,c Pranav PK b Vittala,1
+17092587,1,6767134,5,8445499,Paneendra Gautham,0,23,11,9,0,3,209.09,RHB,run out Bharadwaj Srivatsa,1
+17092587,1,6767134,6,1224122,Badriprasad,0,10,5,4,1,1,200.00,RHB,b Aditya Hatwar,1
+17092587,2,6767130,1,29631844,Sridhar Dixit,0,0,6,1,0,0,0.00,LHB,c Mahesh b Madhusudhan K S,1
+17092587,2,6767130,2,7662592,Vittala,0,13,13,11,1,1,100.00,RHB,not out,0
+17092587,2,6767130,3,8444550,Bharadwaj Srivatsa,1,0,2,2,0,0,0.00,RHB,run out Guruprasad Ramachandrachar,1
+17092587,2,6767130,4,809163,Pranav PK,0,11,4,6,1,1,275.00,RHB,run out Jeethu / Guruprasad Ramachandrachar,1
+17092587,2,6767130,5,8452770,Ashrith Kashyap,0,30,9,3,0,5,333.33,RHB,c †Madhusudhan K S b Jeethu,1
+17092587,2,6767130,6,10047098,Aditya Hatwar,0,0,3,3,0,0,0.00,RHB,b Guruprasad Ramachandrachar,1
+17092587,2,6767130,7,8578931,Srihari,0,0,0,5,0,0,0.00,LHB,not out,0
 17092597,1,6733389,1,24597937,Pradhdhyumna Kashyap HP,0,9,6,3,0,1,150.00,RHB,retired out,1
 17092597,1,6733389,2,8469156,Sridhar,0,0,1,7,0,0,0.00,RHB,run out Pavan Kashyap,1
 17092597,1,6733389,3,8445462,Prasad K S,1,3,6,3,0,0,50.00,RHB,retired out,1

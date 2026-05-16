@@ -61,7 +61,7 @@
         "upcoming_matches_count": 0,
         "past_matches_count": 19,
         "is_display_view": 1,
-        "total_views": 2894,
+        "total_views": 2895,
         "match_count": 19,
         "is_smart_NRR_calculator_enable": 0,
         "allow_live_match_edit": 0,
@@ -156,6 +156,7 @@
             "city_name": "Bengaluru (Bangalore)"
           }
         ],
+        "tags": [],
         "scorers": [
           {
             "user_id": 8445414,
@@ -237,7 +238,7 @@
             "name": "Pavan Gautham",
             "mobile": "7259691900",
             "profile_photo": "https://media.cricheroes.in/user_profile/1633168249295_Vlo0uy5oipn9.jpg",
-            "is_player_pro": 0,
+            "is_player_pro": 1,
             "country_id": "1",
             "country_code": "+91",
             "organizer_name": "Paneendra Gautham",
@@ -324,7 +325,6 @@
           }
         ],
         "user_is_tournament_scores": 0,
-        "tags": [],
         "share_url": "https://cricheroes.in/tournament/443660/HVC-Premier-League---Season-3",
         "organizer_profile": {
           "tournament_organizer_id": 136738,
@@ -428,7 +428,7 @@
     "matchResponse": {
       "status": true,
       "page": {
-        "next": "/match/get-tournament-matches/3/-1/-1?tournamentid=443660&status=3&pagesize=12&pageno=2&datetime=1778871753364"
+        "next": "/match/get-tournament-matches/3/-1/-1?tournamentid=443660&status=3&pagesize=12&pageno=2&datetime=1778953257240"
       },
       "data": [
         {

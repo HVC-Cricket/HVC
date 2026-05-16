@@ -61,7 +61,7 @@
         "upcoming_matches_count": 0,
         "past_matches_count": 19,
         "is_display_view": 1,
-        "total_views": 2533,
+        "total_views": 2534,
         "match_count": 19,
         "is_smart_NRR_calculator_enable": 0,
         "allow_live_match_edit": 0,
@@ -80,92 +80,6 @@
         "is_enable_last_batter_batting_rule": 0,
         "is_enable_home_away": 0,
         "ticker_user_data": [],
-        "grounds": [
-          {
-            "ground_id": 170209,
-            "ground_name": "Pro Legacy Sports Academy",
-            "city_id": 1798,
-            "city_name": "Bengaluru (Bangalore)"
-          }
-        ],
-        "tags": [
-          {
-            "tag_id": 31203,
-            "tag_name": "hvc"
-          },
-          {
-            "tag_id": 31203,
-            "tag_name": "hvc"
-          }
-        ],
-        "teams": [
-          {
-            "team_id": 1597085,
-            "team_name": "Chalukya Chakravarthis",
-            "city_id": 1798,
-            "city_name": "Bengaluru (Bangalore)",
-            "is_creator_team_admin": 1,
-            "captain_id": 5922441,
-            "created_by": 8445499,
-            "logo": "https://media.cricheroes.in/team_logo/1633170565393_WUGyGdQkfoVX.jpg",
-            "is_verified": 0
-          },
-          {
-            "team_id": 1597084,
-            "team_name": "Hoysala Hunters",
-            "city_id": 1798,
-            "city_name": "Bengaluru (Bangalore)",
-            "is_creator_team_admin": 1,
-            "captain_id": 8129644,
-            "created_by": 8445499,
-            "logo": "https://media.cricheroes.in/team_logo/1633170619184_rLTXrTl8Anvu.jpg",
-            "is_verified": 0
-          },
-          {
-            "team_id": 1597088,
-            "team_name": "Kadamba Yodharu",
-            "city_id": 1798,
-            "city_name": "Bengaluru (Bangalore)",
-            "is_creator_team_admin": 1,
-            "captain_id": 8445462,
-            "created_by": 8445499,
-            "logo": "https://media.cricheroes.in/team_logo/1633170656881_MYuQN81shMlw.jpg",
-            "is_verified": 0
-          },
-          {
-            "team_id": 1597087,
-            "team_name": "Rashtrakuta Ranadheeras",
-            "city_id": 1798,
-            "city_name": "Bengaluru (Bangalore)",
-            "is_creator_team_admin": 1,
-            "captain_id": 8444550,
-            "created_by": 8445499,
-            "logo": "https://media.cricheroes.in/team_logo/1633170341529_WIh27UDlFcMc.jpg",
-            "is_verified": 0
-          },
-          {
-            "team_id": 1597091,
-            "team_name": "Vijayanagara Royals",
-            "city_id": 1798,
-            "city_name": "Bengaluru (Bangalore)",
-            "is_creator_team_admin": 1,
-            "captain_id": 4048334,
-            "created_by": 8445499,
-            "logo": "https://media.cricheroes.in/team_logo/1632742407133_WFLqkX4wweja.jpg",
-            "is_verified": 0
-          },
-          {
-            "team_id": 1597090,
-            "team_name": "Wodeyars The Kings",
-            "city_id": 1798,
-            "city_name": "Bengaluru (Bangalore)",
-            "is_creator_team_admin": 1,
-            "captain_id": 8445342,
-            "created_by": 8445499,
-            "logo": "https://media.cricheroes.in/team_logo/1633170695811_IPVQNkH7jQaq.jpg",
-            "is_verified": 0
-          }
-        ],
         "scorers": [
           {
             "user_id": 8445414,
@@ -307,7 +221,7 @@
             "name": "Pavan Gautham",
             "mobile": "7259691900",
             "profile_photo": "https://media.cricheroes.in/user_profile/1633168249295_Vlo0uy5oipn9.jpg",
-            "is_player_pro": 0,
+            "is_player_pro": 1,
             "country_id": "1",
             "country_code": "+91",
             "organizer_name": "Paneendra Gautham",
@@ -454,6 +368,92 @@
           }
         ],
         "user_is_tournament_scores": 0,
+        "teams": [
+          {
+            "team_id": 1597085,
+            "team_name": "Chalukya Chakravarthis",
+            "city_id": 1798,
+            "city_name": "Bengaluru (Bangalore)",
+            "is_creator_team_admin": 1,
+            "captain_id": 5922441,
+            "created_by": 8445499,
+            "logo": "https://media.cricheroes.in/team_logo/1633170565393_WUGyGdQkfoVX.jpg",
+            "is_verified": 0
+          },
+          {
+            "team_id": 1597084,
+            "team_name": "Hoysala Hunters",
+            "city_id": 1798,
+            "city_name": "Bengaluru (Bangalore)",
+            "is_creator_team_admin": 1,
+            "captain_id": 8129644,
+            "created_by": 8445499,
+            "logo": "https://media.cricheroes.in/team_logo/1633170619184_rLTXrTl8Anvu.jpg",
+            "is_verified": 0
+          },
+          {
+            "team_id": 1597088,
+            "team_name": "Kadamba Yodharu",
+            "city_id": 1798,
+            "city_name": "Bengaluru (Bangalore)",
+            "is_creator_team_admin": 1,
+            "captain_id": 8445462,
+            "created_by": 8445499,
+            "logo": "https://media.cricheroes.in/team_logo/1633170656881_MYuQN81shMlw.jpg",
+            "is_verified": 0
+          },
+          {
+            "team_id": 1597087,
+            "team_name": "Rashtrakuta Ranadheeras",
+            "city_id": 1798,
+            "city_name": "Bengaluru (Bangalore)",
+            "is_creator_team_admin": 1,
+            "captain_id": 8444550,
+            "created_by": 8445499,
+            "logo": "https://media.cricheroes.in/team_logo/1633170341529_WIh27UDlFcMc.jpg",
+            "is_verified": 0
+          },
+          {
+            "team_id": 1597091,
+            "team_name": "Vijayanagara Royals",
+            "city_id": 1798,
+            "city_name": "Bengaluru (Bangalore)",
+            "is_creator_team_admin": 1,
+            "captain_id": 4048334,
+            "created_by": 8445499,
+            "logo": "https://media.cricheroes.in/team_logo/1632742407133_WFLqkX4wweja.jpg",
+            "is_verified": 0
+          },
+          {
+            "team_id": 1597090,
+            "team_name": "Wodeyars The Kings",
+            "city_id": 1798,
+            "city_name": "Bengaluru (Bangalore)",
+            "is_creator_team_admin": 1,
+            "captain_id": 8445342,
+            "created_by": 8445499,
+            "logo": "https://media.cricheroes.in/team_logo/1633170695811_IPVQNkH7jQaq.jpg",
+            "is_verified": 0
+          }
+        ],
+        "grounds": [
+          {
+            "ground_id": 170209,
+            "ground_name": "Pro Legacy Sports Academy",
+            "city_id": 1798,
+            "city_name": "Bengaluru (Bangalore)"
+          }
+        ],
+        "tags": [
+          {
+            "tag_id": 31203,
+            "tag_name": "hvc"
+          },
+          {
+            "tag_id": 31203,
+            "tag_name": "hvc"
+          }
+        ],
         "share_url": "https://cricheroes.in/tournament/293657/HVC-PREMIER-LEAGUE-SEASON-2",
         "organizer_profile": {
           "tournament_organizer_id": 136738,
@@ -557,7 +557,7 @@
     "matchResponse": {
       "status": true,
       "page": {
-        "next": "/match/get-tournament-matches/3/-1/-1?tournamentid=293657&status=3&pagesize=12&pageno=2&datetime=1778871744098"
+        "next": "/match/get-tournament-matches/3/-1/-1?tournamentid=293657&status=3&pagesize=12&pageno=2&datetime=1778953242350"
       },
       "data": [
         {
