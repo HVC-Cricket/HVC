@@ -76,6 +76,7 @@ export default async function PlayerDetailPage(props: {
     { data: matchRows },
     { data: ballsAsBatter },
     { data: ballsAsNonStriker },
+    { data: historicalBattingRows },
   ] = await Promise.all([
     supabase
       .from("v_player_tournament_stats" as never)
@@ -100,6 +101,12 @@ export default async function PlayerDetailPage(props: {
       .select("innings_id")
       .eq("non_striker_id", playerId)
       .eq("is_voided", false),
+    // Historical innings the player batted in (cricheroes-imported
+    // matches, no balls). One row per (match, innings, player).
+    supabase
+      .from("historical_match_batting")
+      .select("match_id, innings_number, matches!inner(tournament_id)")
+      .eq("player_id", playerId),
   ]);
   const stats = (rows as unknown as StatRow[] | null) ?? [];
 
@@ -129,6 +136,20 @@ export default async function PlayerDetailPage(props: {
   for (const r of ballsAsBatter ?? []) battedInningsIds.add(r.innings_id);
   for (const r of ballsAsNonStriker ?? [])
     battedInningsIds.add(r.innings_id);
+
+  // Historical innings (cricheroes-imported matches): one row per
+  // (match, innings, player) in historical_match_batting. Key by
+  // "match_id:innings_number" because innings.id is not relevant for
+  // those rows.
+  type HistBattingRow = {
+    match_id: string;
+    innings_number: number;
+    matches: { tournament_id: string };
+  };
+  const historicalInningsKeys = new Set<string>();
+  for (const r of (historicalBattingRows ?? []) as unknown as HistBattingRow[]) {
+    historicalInningsKeys.add(`${r.match_id}:${r.innings_number}`);
+  }
 
   // Innings → tournament index + tournament-name lookup are independent
   // (one depends on battedInningsIds, the other on stats); fire them
@@ -164,7 +185,21 @@ export default async function PlayerDetailPage(props: {
     }
     s.add(r.id);
   }
-  const inningsBatted = battedInningsIds.size;
+  // Fold historical innings into the per-tournament breakdown.
+  // The keys here are "match_id:innings_number" strings — different
+  // namespace from innings.id but Set semantics still give correct
+  // distinct counts.
+  for (const r of (historicalBattingRows ?? []) as unknown as HistBattingRow[]) {
+    const tid = r.matches.tournament_id;
+    if (!tid) continue;
+    let s = inningsByTournament.get(tid);
+    if (!s) {
+      s = new Set();
+      inningsByTournament.set(tid, s);
+    }
+    s.add(`${r.match_id}:${r.innings_number}`);
+  }
+  const inningsBatted = battedInningsIds.size + historicalInningsKeys.size;
 
   const tournamentById = new Map(
     (tournamentsRes.data ?? []).map((t) => [t.id, t]),
