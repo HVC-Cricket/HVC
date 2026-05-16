@@ -211,7 +211,7 @@ export async function addPlayerToTeam(
   if (inSameTournament) {
     return {
       ok: false,
-      error: `Player is already on ${inSameTournament.teams.name} in this tournament. Remove them from there first.`,
+      error: `Player is already on another team in this tournament — "${inSameTournament.teams.name}". Remove them from there first.`,
     };
   }
 
