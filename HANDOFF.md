@@ -16,6 +16,8 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-16 (later) — Historical scorecard fallback.** Investigation confirmed cricheroes does not expose complete ball-by-ball for HVC seasons 1–6 (commentary feed misses real dismissals + wide/no-ball penalties). Shipped 3 new tables — `historical_match_batting/bowling/fall_of_wickets` (migration `20260516020000_*`) — populated by extending the importer. New `historical-scorecard.tsx` server component renders from these when `balls` is empty; `full-scorecard.tsx` auto-delegates. Spectator scorecards now render for historical matches. See §15 "Historical scorecard rendering".
 
+**2026-05-16 (evening) — Spectator UI polish + identity sync.** Tournament home now leads with a Champion + Runner-up + Player-of-the-Tournament hero (only on completed tournaments). Homepage dropped its "no matches live" empty state — always populated now with a linked-user profile strip + past-tournaments grid. `/me` and `/players/[id]` share a new `PlayerCareerSection` server component so the linked user sees the same Career + By-tournament card on both pages (no more 8-vs-9-stat divergence). Two new triggers (`20260516040000_sync_avatar_photo` + `20260516050000_sync_display_name`) keep `profiles.avatar_url ↔ players.photo_url` and `profiles.display_name ↔ players.display_name` in sync for linked accounts — bidirectional, recursion-safe, with one-shot backfill. Match-list rows show full team names with "Team " prefix stripped + 20 cricheroes team logos backfilled to full URLs. `/players` list routes the signed-in user's own row to `/me` instead of `/players/[id]`. See §16.
+
 **Project directory:** `~/Desktop/projects/hvc-scoring/` (Pavan's machine; was `/home/sudharshan/projects/own/hvc-scoring/` for the prior author).
 **Files in repo today:**
 - `db.sql` — full schema; live DB matches this. The `prevent_self_promote()` trigger has been patched to allow direct-DB callers (Management API / dashboard SQL editor / service_role) to bootstrap the first super admin.
@@ -312,6 +314,9 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 | 2026-05-15 | **Scoreboard slot-tile polish: icons + cyan striker + inline bowler stats** | Role identification on the slot tiles now relies on icon + colour rather than a textual label. (1) The "Striker" / "Non-striker" / "Bowler" labels are gone. (2) Small inline-SVG **bat icon** before each batter name — `text-cyan-600 dark:text-cyan-400` for the striker, `text-muted-foreground/40` for the non-striker (dim = "not on strike"). (3) Striker's player name uses the same cyan colour so the pair is visually unmistakable; non-striker stays in default foreground. (4) **Ball icon** (circle + faint seam SVG) before the bowler name. (5) The bowler's stats (`0/4 (0.3) · econ 12.0`) are now inlined on the same row as the name, right-aligned via `ml-auto`. (6) Batter stats line dropped the `1×4 6×6` boundary count — too much detail for the live tile, still surfaces in the full scorecard. `SlotPicker` gained `leadingIcon` + `inlineStats` props. |
 | 2026-05-16 | **Reverse: scrape CricHeroes for Seasons 1–6 (overrides 2026-05-06 "drop" decision).** | Season 7 launches with continuity expectations — career stats, head-to-head, team rosters. Found that CricHeroes' Next.js `_next/data/<buildId>/.../*.json` endpoints are public (no auth, no ToS-violating session hijack). 71/72 matches across 6 seasons saved as schema-shaped CSVs plus raw JSON dumps. One match (`12170963`, Season 5 group stage) is genuinely deleted on CricHeroes' side. Ball-by-ball is NOT exposed — only innings/batting/bowling aggregates. Scraper: `scripts/scrape_cricheroes.py`. CSVs: `data/cricheroes/csv/`. See §14 for the import pipeline. |
 | 2026-05-16 | **Split into prod + dev Supabase environments** (planned; mid-flight) | Current single project is double-duty for testing + the public spectator surface — with Season 7 approaching, real testing needs isolation. Existing project (`cxysyglwooqmzcfvtmyl`) becomes prod tied to `main`; new project becomes dev tied to a new `dev` branch + Vercel previews. Code-side changes done (importer, `gen:types:dev`/`gen:types:prod`, `tsx` dep, esbuild build allowlist). Dashboard provisioning + Vercel env-var scoping + `dev` branch creation pending user. **Prod wipe gated on coworker's pending pushes landing on `main` + dev validation.** See §15 + plan file `/home/sudharshan/.claude/plans/swift-zooming-piglet.md`. |
+| 2026-05-16 | **profiles ↔ players identity sync via DB triggers** | Linked users had photo + display_name fields on both sides that were independent — editing one didn't reflect on the other, so /me looked stale after uploading on /players/[id]/edit and vice versa. Two AFTER UPDATE triggers per column (avatar/photo + display_name) now mirror writes; `is distinct from` guards keep cross-propagation from recursing. Backfill rule: profile.display_name wins where both are set and different; the longer/non-null side wins for photo. Migrations `20260516040000_sync_avatar_photo.sql` + `20260516050000_sync_display_name.sql`. See §16. |
+| 2026-05-16 | **Unified profile UI: /me and /players/[id] render the same career section** | Linked users were seeing different stat shapes on /me (8 stats, 4×2 grid) vs /players/[id] (9 stats including Innings + full per-tournament table). Felt like two different identities for the same person. Extracted both into `src/components/player-career-section.tsx` — server component owns all queries + rendering. Both pages mount it. Career numbers + per-tournament table are byte-identical between the two routes; only the headers differ (auth-specific bits like super-admin badge / email / joined date stay on /me; "linked to" stays on /players/[id]). Dropped ~460 lines of duplicated query + render code in the process. |
+| 2026-05-16 | **Homepage redesign: champion hero on tournament pages, past-tournaments grid on the homepage** | Now that 6 historical seasons of data live on prod, the empty "No matches live" CTA was wasting the page. Homepage now always shows Live (if any) → personal profile strip (if signed-in + linked) → upcoming → recent → past-tournaments grid. Tournament pages gained a `TournamentChampion` hero on completed tournaments with champion crest + final scoreline + runner-up + Player-of-the-Tournament (POM count primary, total-runs tie-break across both balls + historical_match_batting). See §16. |
 
 ---
 
@@ -942,6 +947,116 @@ Note: `list("")` only returns immediate children (which are user-uuid folders fo
 - **`gen:types:dev`** is the default day-to-day type regeneration. Run after a dev migration applies. `gen:types:prod` only after a prod migration applies + only if dev/prod schema drifted (shouldn't happen if you follow the propagation order).
 - **`supabase link` is per-checkout** — the link state lives in `supabase/.temp/linked-project.json` (git-ignored). Always confirm which project you're linked to before `db push`. **If `db push --linked` ever reports unapplied migrations on prod you don't recognize, STOP — coworker has unpushed changes.**
 - **Free-tier pause:** dev pauses after 7 days idle. Either tolerate the cold start or schedule a weekly `curl` against the dev URL.
+
+---
+
+## 16. Spectator UI polish + identity sync (2026-05-16 evening)
+
+Once the 6 historical seasons were on prod and Pavan/Sudarshan started clicking around, several feel-broken-when-linked issues surfaced. This section documents what shipped to fix them. All changes are live on both prod and dev.
+
+### Tournament home: champion hero
+
+`src/app/tournaments/[slug]/tournament-champion.tsx` (server component) renders above the existing tabs strip when `tournament.status = 'completed'`. Returns null otherwise.
+
+- **Champion** — winning team's logo + name + win margin ("won by 4 wickets"). Sourced from the match where `stage='final'` and `winner_id` is set.
+- **Runner-up** — surfaced inline with both teams' final scorelines (`52/2 (6.1)` vs `50/5 (7.0)`).
+- **Player of the Tournament** — count of `matches.player_of_match_id` per player; ties broken by total runs queried from BOTH `balls` and `historical_match_batting` so works for both eras.
+
+On the 6 historical seasons: 4 have a clear POTM by POM count; 2 (S1 + S2) resolve via the run tie-break.
+
+### Homepage rebuild
+
+The "No matches live right now — Browse tournaments" empty Card was wasting the screen. Replaced with two always-on server components plus the existing live/upcoming/recent sections:
+
+- `src/app/home-my-profile.tsx` — 1-row strip only renders for signed-in users with a linked player. Avatar + name + category + career snapshot (matches/runs/wickets). Click-through to `/me`.
+- `src/app/home-past-tournaments.tsx` — grid of 6 most-recent completed tournaments. Each tile: tournament logo + name + dates + 🏆 + champion crest. Click-through to the tournament page (where the new champion hero renders).
+
+Render order on the homepage:
+1. Hero
+2. Live now (if any)
+3. Your profile strip (if linked)
+4. Up next (24h window)
+5. Recent results (last 5)
+6. Past tournaments grid (always when completed tournaments exist)
+7. Footer
+
+### `/me` restructure
+
+Dropped the "Super admin shortcuts" card — the nav + context buttons on the actual entity pages already cover those flows; `/me` is for "who am I + what's my cricket record", not a control panel.
+
+`ProfileCard` now takes optional `playerCategory` + `playerBattingStyle` + `playerBowlingStyle` so the linked user's full identity shows in one header (instead of being split across two cards). The body of the page below is the shared `PlayerCareerSection` (see below).
+
+### Shared `PlayerCareerSection` component
+
+`src/components/player-career-section.tsx` (server component, takes `playerId`). Owns:
+
+- The 9-stat Career card (Matches / Innings / Runs / 4s / 6s / SR / Wickets / Overs bowled / Econ — `v_player_tournament_stats` is historical-aware via migration `20260516030000`)
+- The By-tournament table (sticky-left tournament column on mobile)
+- All data fetching (innings count combining `balls` + `historical_match_batting`)
+
+Both `/me` and `/players/[id]` mount this directly:
+
+```
+/players/[id] → header + <PlayerCareerSection /> + nothing else
+/me           → ProfileCard + <PlayerCareerSection /> (when linked)
+```
+
+Two pages, one component. Net of ~460 lines of duplicated query + render code deleted across the original two pages. Any future career-stat change lands in one place.
+
+### Identity sync triggers
+
+Two pairs of `AFTER UPDATE` triggers keep linked-user identity consistent:
+
+- **Photo/Avatar**: `20260516040000_sync_avatar_photo.sql` — `profiles.avatar_url ↔ players.photo_url`.
+- **Display name**: `20260516050000_sync_display_name.sql` — `profiles.display_name ↔ players.display_name`.
+
+Same pattern on both: when one side updates, the other follows. `is distinct from` guards on both ends prevent infinite recursion — when trigger A fires and writes to the other side, the other side's UPDATE fires trigger B which sees `NEW = target value already` and the WHERE clause's `is distinct from` is false, so the inner update is a no-op.
+
+Backfill on apply:
+- Photo: any side has a value while the other is null → copy the non-null side across.
+- Display name: same null-side copy. **Plus**: if both are set and different, `profile.display_name` wins (auth identity is canonical). User can rename either side after and the trigger keeps them in sync.
+
+This is why uploading a photo on `/players/[id]/edit` now shows up immediately on `/me`, and renaming on either side reflects on the other.
+
+### Match-list visual polish
+
+`src/app/tournaments/[slug]/page.tsx` — `TeamMini`:
+
+- Was showing the 3-letter `short_name` in mono uppercase (`VAD / BRA / HOY`). Now shows the team's full `name` with "Team " prefix stripped (`Vadiraja Thirtharu / Brahmanya Thirtharu / Hoysala Hunters`). Truncates with ellipsis + a tooltip with the full name.
+- Logo URLs were stored as bare cricheroes filenames on the 20 teams that had them; backfilled on prod with the full `https://media.cricheroes.in/team_logo/<filename>` URL via a one-shot SQL update + the importer fixed for future runs.
+
+### Routing tweaks for linked users
+
+- `/players` list: clicking a row that belongs to the signed-in user lands on `/me` instead of `/players/[id]`. Every other row still goes to `/players/[id]`. (`src/app/players/page.tsx`.)
+- `/players/[id]` Edit button: for the linked user (non-admin), routes to `/me`. Admins still get the full `/players/[id]/edit` form. Anon viewers + non-linked users see no Edit button.
+
+### New migrations applied (this session, both prod + dev)
+
+```
+20260516020000_historical_match_aggregates       # tables for old-season stats
+20260516030000_extend_v_player_tournament_stats  # historical-aware view
+20260516040000_sync_avatar_photo                 # photo sync triggers
+20260516050000_sync_display_name                 # name sync triggers
+```
+
+### New / changed files in `src/`
+
+```
+src/components/player-career-section.tsx          (new — shared between /me + /players/[id])
+src/app/home-my-profile.tsx                       (new — homepage personal strip)
+src/app/home-past-tournaments.tsx                 (new — homepage tournament grid)
+src/app/tournaments/[slug]/tournament-champion.tsx (new — champion hero card)
+src/app/matches/[matchId]/historical-scorecard.tsx (new — earlier today; fallback scorecard)
+src/app/me/page.tsx                                (rewritten — uses PlayerCareerSection)
+src/app/me/profile-card.tsx                       (extended — accepts player metadata)
+src/app/players/[playerId]/page.tsx                (slimmed — uses PlayerCareerSection)
+src/app/players/page.tsx                          (own row → /me)
+src/app/tournaments/[slug]/page.tsx               (TeamMini: full names; +champion hero mount)
+src/app/page.tsx                                  (homepage redesign)
+src/app/matches/[matchId]/full-scorecard.tsx      (delegates to historical when balls empty)
+src/lib/supabase/database.types.ts                (3 new tables typed)
+scripts/import_cricheroes.ts                     (loads historical aggregates; logo URL fix)
+```
 
 ---
 
