@@ -43,7 +43,7 @@ export default async function NewPlayerPage(props: {
           <h1 className="text-2xl font-semibold tracking-tight">New player</h1>
           <p className="text-sm text-muted-foreground">
             Add a player to the global registry. They can then be picked
-            for any tournament&apos;s team roster.
+            for any tournament&apos;s team squad.
           </p>
         </div>
 

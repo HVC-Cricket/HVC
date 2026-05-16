@@ -100,9 +100,9 @@ export default async function PickXIPage(props: {
         {rosterRows.length === 0 ? (
           <Card>
             <CardHeader>
-              <CardTitle>No roster</CardTitle>
+              <CardTitle>No squad</CardTitle>
               <CardDescription>
-                Add players to the team roster first.
+                Add players to the team squad first.
               </CardDescription>
             </CardHeader>
           </Card>

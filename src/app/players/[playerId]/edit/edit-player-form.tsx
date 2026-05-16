@@ -322,7 +322,7 @@ export function EditPlayerForm({ player, canDelete, linkableUsers }: Props) {
           {canDelete ? (
             <ConfirmButton
               title={`Delete "${player.display_name}"?`}
-              description="This only works if they're not on any roster or in any match."
+              description="This only works if they're not on any squad or in any match."
               confirmLabel="Delete player"
               destructive
               onConfirm={onDelete}

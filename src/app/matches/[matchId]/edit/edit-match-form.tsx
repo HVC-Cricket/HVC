@@ -280,7 +280,7 @@ export function EditMatchForm({ match, teams }: Props) {
         <div className="flex items-center justify-between gap-4 pt-2">
           <ConfirmButton
             title="Delete this match?"
-            description="Innings, balls, and roster entries are removed via cascade. This cannot be undone."
+            description="Innings, balls, and squad entries are removed via cascade. This cannot be undone."
             confirmLabel="Delete match"
             destructive
             onConfirm={onDelete}

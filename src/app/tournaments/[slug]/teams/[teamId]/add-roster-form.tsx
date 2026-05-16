@@ -117,7 +117,7 @@ export function AddRosterForm({ tournamentSlug, teamId, players }: Props) {
           )}
         />
         <Button type="submit" size="sm" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Adding…" : "Add to roster"}
+          {form.formState.isSubmitting ? "Adding…" : "Add to squad"}
         </Button>
       </form>
     </Form>

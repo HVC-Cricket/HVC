@@ -127,7 +127,7 @@ export function EditTeamForm({ tournamentSlug, team }: Props) {
         <div className="flex items-center justify-between gap-4 pt-2">
           <ConfirmButton
             title={`Delete "${team.name}"?`}
-            description="Roster entries are removed automatically. Matches involving this team would need to be reassigned."
+            description="Squad entries are removed automatically. Matches involving this team would need to be reassigned."
             confirmLabel="Delete team"
             destructive
             onConfirm={onDelete}

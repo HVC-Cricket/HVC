@@ -182,7 +182,7 @@ export async function deletePlayer(
       return {
         ok: false,
         error:
-          "This player is on a team roster or has match history. Remove them from rosters first.",
+          "This player is on a team squad or has match history. Remove them from squads first.",
       };
     }
     return { ok: false, error: error.message };

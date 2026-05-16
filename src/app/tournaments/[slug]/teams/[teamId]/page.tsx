@@ -116,7 +116,7 @@ export default async function TeamDetailPage(props: {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Roster</CardTitle>
+            <CardTitle className="text-base">Squad</CardTitle>
             <CardDescription>
               {roster?.length ?? 0} player{(roster?.length ?? 0) === 1 ? "" : "s"} on this team
             </CardDescription>
