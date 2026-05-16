@@ -24,15 +24,17 @@ export default async function EditPlayerPage(props: {
     .single();
   if (!player) notFound();
 
-  let linkedEmail: string | null = null;
-  if (player.linked_user_id) {
-    const { data } = await supabase.rpc("lookup_email_by_user_id", {
-      p_user_id: player.linked_user_id,
-    });
-    linkedEmail = data ?? null;
-  }
-
-  const { data: linkableUsers } = await supabase.rpc("list_users_for_linking");
+  // Both RPCs depend only on data already in hand — parallelise.
+  const [linkedEmailRes, linkableUsersRes] = await Promise.all([
+    player.linked_user_id
+      ? supabase.rpc("lookup_email_by_user_id", {
+          p_user_id: player.linked_user_id,
+        })
+      : Promise.resolve({ data: null }),
+    supabase.rpc("list_users_for_linking"),
+  ]);
+  const linkedEmail = (linkedEmailRes.data as string | null) ?? null;
+  const linkableUsers = linkableUsersRes.data;
 
   return (
     <main className="flex-1 p-4 sm:p-6">

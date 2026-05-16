@@ -130,38 +130,44 @@ export default async function PlayerDetailPage(props: {
   for (const r of ballsAsNonStriker ?? [])
     battedInningsIds.add(r.innings_id);
 
-  // Map those innings → tournaments via match_id. We fetch the
-  // innings row's match_id flat (no embedded join — that was returning
-  // an unexpected shape), then look up the tournament in the index
-  // already built above.
+  // Innings → tournament index + tournament-name lookup are independent
+  // (one depends on battedInningsIds, the other on stats); fire them
+  // in parallel instead of in series.
+  const tournamentIds = Array.from(new Set(stats.map((s) => s.tournament_id)));
+  const [inningsRowsRes, tournamentsRes] = await Promise.all([
+    battedInningsIds.size > 0
+      ? supabase
+          .from("innings")
+          .select("id, match_id")
+          .in("id", [...battedInningsIds])
+      : Promise.resolve({
+          data: [] as { id: string; match_id: string }[],
+        }),
+    tournamentIds.length > 0
+      ? supabase
+          .from("tournaments")
+          .select("id, slug, name")
+          .in("id", tournamentIds)
+      : Promise.resolve({
+          data: [] as { id: string; slug: string; name: string }[],
+        }),
+  ]);
+
   const inningsByTournament = new Map<string, Set<string>>();
-  if (battedInningsIds.size > 0) {
-    const { data: inningsRows } = await supabase
-      .from("innings")
-      .select("id, match_id")
-      .in("id", [...battedInningsIds]);
-    for (const r of inningsRows ?? []) {
-      const tid = tournamentByMatch.get(r.match_id);
-      if (!tid) continue;
-      let s = inningsByTournament.get(tid);
-      if (!s) {
-        s = new Set();
-        inningsByTournament.set(tid, s);
-      }
-      s.add(r.id);
+  for (const r of inningsRowsRes.data ?? []) {
+    const tid = tournamentByMatch.get(r.match_id);
+    if (!tid) continue;
+    let s = inningsByTournament.get(tid);
+    if (!s) {
+      s = new Set();
+      inningsByTournament.set(tid, s);
     }
+    s.add(r.id);
   }
   const inningsBatted = battedInningsIds.size;
 
-  const tournamentIds = Array.from(new Set(stats.map((s) => s.tournament_id)));
-  const { data: tournaments } = tournamentIds.length
-    ? await supabase
-        .from("tournaments")
-        .select("id, slug, name")
-        .in("id", tournamentIds)
-    : { data: [] as { id: string; slug: string; name: string }[] };
   const tournamentById = new Map(
-    (tournaments ?? []).map((t) => [t.id, t]),
+    (tournamentsRes.data ?? []).map((t) => [t.id, t]),
   );
 
   // Career totals across all tournaments where the player has any record.

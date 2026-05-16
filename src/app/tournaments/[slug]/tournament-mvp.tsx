@@ -37,38 +37,36 @@ export async function TournamentMvp({
 
   const matchIds = matches.map((m) => m.id);
 
-  const [{ data: xi }, { data: ballsRows }] = await Promise.all([
-    supabase
-      .from("match_players")
-      .select("match_id, team_id, player_id, is_substitute")
-      .in("match_id", matchIds),
-    supabase
-      .from("balls")
-      .select("*")
-      .in(
-        "innings_id",
-        // Resolve innings IDs separately to keep this query cheap.
-        (
-          await supabase
-            .from("innings")
-            .select("id")
-            .in("match_id", matchIds)
-        ).data?.map((i) => i.id) ?? [],
-      )
-      .eq("is_voided", false)
-      .order("scored_at", { ascending: true }),
-  ]);
+  // xi + balls + innings(id,match_id) all depend only on matchIds.
+  // Previously the balls query awaited an innings lookup inline INSIDE
+  // the Promise.all array — which synchronously blocked the parallel
+  // fan-out, and a second innings fetch ran afterwards just to bucket
+  // balls by match. Now: one parallel wave with the innings filter
+  // expressed as an `innings!inner(match_id)` join, plus a single
+  // innings(id,match_id) fetch for the bucketing map.
+  const [{ data: xi }, { data: ballsRows }, { data: inningsRows }] =
+    await Promise.all([
+      supabase
+        .from("match_players")
+        .select("match_id, team_id, player_id, is_substitute")
+        .in("match_id", matchIds),
+      supabase
+        .from("balls")
+        .select("*, innings!inner(match_id)")
+        .in("innings.match_id", matchIds)
+        .eq("is_voided", false)
+        .order("scored_at", { ascending: true }),
+      supabase
+        .from("innings")
+        .select("id, match_id")
+        .in("match_id", matchIds),
+    ]);
 
   const allBalls = (ballsRows ?? []) as BallRow[];
   const ballsByMatch = new Map<string, BallRow[]>();
   if (allBalls.length > 0) {
-    // Need the innings_id → match_id mapping to bucket balls per match.
-    const inningsRes = await supabase
-      .from("innings")
-      .select("id, match_id")
-      .in("match_id", matchIds);
     const matchByInnings = new Map(
-      (inningsRes.data ?? []).map((i) => [i.id, i.match_id]),
+      (inningsRows ?? []).map((i) => [i.id, i.match_id]),
     );
     for (const b of allBalls) {
       const mid = matchByInnings.get(b.innings_id);

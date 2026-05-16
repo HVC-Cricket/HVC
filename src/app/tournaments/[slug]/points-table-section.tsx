@@ -72,11 +72,25 @@ export async function PointsTableSection({
   const teamById = new Map(teams.map((t) => [t.id, t]));
 
   // ---- Compute NRR per team ----
-  const { data: matches } = await supabase
-    .from("matches")
-    .select("id, status, result_type, players_per_side, overs_per_innings")
-    .eq("tournament_id", tournamentId)
-    .eq("status", "completed");
+  // matches + innings can be fetched in parallel by filtering innings
+  // through the tournament via an `innings!inner(matches!inner(...))`
+  // chain — saves the matches → matchIds → innings waterfall.
+  const [matchesRes, inningsRes] = await Promise.all([
+    supabase
+      .from("matches")
+      .select("id, status, result_type, players_per_side, overs_per_innings")
+      .eq("tournament_id", tournamentId)
+      .eq("status", "completed"),
+    supabase
+      .from("innings")
+      .select(
+        "match_id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls, matches!inner(tournament_id, status)",
+      )
+      .eq("matches.tournament_id", tournamentId)
+      .eq("matches.status", "completed")
+      .lte("innings_number", 2),
+  ]);
+  const matches = matchesRes.data;
   const decidedMatches = (matches ?? []).filter(
     (m) =>
       m.result_type !== "no_result" && m.result_type !== "abandoned",
@@ -84,14 +98,13 @@ export async function PointsTableSection({
 
   const nrrByTeam = new Map<string, number>();
   if (decidedMatches.length > 0) {
-    const matchIds = decidedMatches.map((m) => m.id);
-    const { data: inningsRows } = await supabase
-      .from("innings")
-      .select(
-        "match_id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls",
-      )
-      .in("match_id", matchIds)
-      .lte("innings_number", 2);
+    const decidedIds = new Set(decidedMatches.map((m) => m.id));
+    // The single inner-joined fetch above pulled innings for every
+    // completed match; filter to just the decided ones (excluding
+    // no_result / abandoned) since NRR is only computed for those.
+    const inningsRows = (inningsRes.data ?? []).filter((i) =>
+      decidedIds.has(i.match_id),
+    );
     const innings = (inningsRows ?? []) as InningsForNRR[];
 
     const matchById = new Map(decidedMatches.map((m) => [m.id, m]));
