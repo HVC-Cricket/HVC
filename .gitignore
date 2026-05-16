@@ -30,10 +30,12 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files — ignore .env, .env.local, .env.development.local, etc.
+# env files — ignore .env, .env.local, .env.development.local, .env.dev, .env.prod
 # (template files like .env.local.example are kept committed.)
 .env
 .env*.local
+.env.dev
+.env.prod
 
 # vercel
 .vercel

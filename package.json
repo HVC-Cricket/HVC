@@ -9,7 +9,10 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "gen:types": "supabase gen types typescript --project-id cxysyglwooqmzcfvtmyl --schema public > src/lib/supabase/database.types.ts"
+    "gen:types": "echo 'Use gen:types:dev (default day-to-day) or gen:types:prod (after migration deployed to prod).' && exit 1",
+    "gen:types:dev": "[ -n \"$DEV_PROJECT_REF\" ] && supabase gen types typescript --project-id \"$DEV_PROJECT_REF\" --schema public > src/lib/supabase/database.types.ts || (echo 'Set DEV_PROJECT_REF env var to the dev Supabase project ref.' && exit 1)",
+    "gen:types:prod": "supabase gen types typescript --project-id cxysyglwooqmzcfvtmyl --schema public > src/lib/supabase/database.types.ts",
+    "seed:cricheroes": "tsx scripts/import_cricheroes.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
@@ -47,12 +50,17 @@
     "eslint-config-next": "16.2.5",
     "supabase": "^2.98.2",
     "tailwindcss": "^4",
+    "tsx": "^4.20.6",
     "typescript": "^5",
     "vitest": "^4.1.5"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "supabase"
+      "esbuild",
+      "msw",
+      "sharp",
+      "supabase",
+      "unrs-resolver"
     ]
   }
 }

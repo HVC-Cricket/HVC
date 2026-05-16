@@ -120,12 +120,32 @@ See HANDOFF.md §8 / §9 for the full breakdown, and §9b for the Supabase CLI m
 ```bash
 pnpm dev                          # localhost:3000
 pnpm exec tsc --noEmit            # typecheck
-pnpm gen:types                    # regenerate src/lib/supabase/database.types.ts (needs supabase login + link)
 
-# Run admin SQL against the live DB:
+# Type generation — pick the env you just migrated:
+DEV_PROJECT_REF=clqdimzthzcpurtwhtej pnpm gen:types:dev    # day-to-day after dev migration
+pnpm gen:types:prod                              # only after prod migration
+
+# Run admin SQL against the LINKED DB — check link first!
 pnpm exec supabase db query --linked "select count(*) from tournaments;"
 pnpm exec supabase db query --linked --file path/to/script.sql
+
+# Seed dev with the 6 historical CricHeroes seasons (data/cricheroes/csv/):
+# Safety guard refuses to run against prod.
+pnpm run seed:cricheroes              # insert
+pnpm run seed:cricheroes -- --reset   # clear target tables first
 ```
+
+**Two-environment topology** (as of 2026-05-16): `cxysyglwooqmzcfvtmyl` = **prod** (`main` branch, seeded with CricHeroes Seasons 1–6); `clqdimzthzcpurtwhtej` = **dev** (`dev` branch, empty). See HANDOFF §15 for the provisioning record + migration-propagation workflow (dev-first → main merge → manual prod apply).
+
+**Switching local `.env.local` between envs.** Two checked-out-but-gitignored template files hold both sets of creds:
+
+```bash
+cp .env.dev  .env.local      # work against dev
+cp .env.prod .env.local      # work against prod (only when actually testing prod)
+pnpm exec supabase link --project-ref <ref>   # re-link CLI to match
+```
+
+Default day-to-day: `.env.dev` → `.env.local`. **`supabase link` state is per-checkout** (`supabase/.temp/linked-project.json`, git-ignored) — always confirm what you're linked to before `db push`.
 
 If `pnpm dev` errors with "Another next dev server is already running":
 ```bash

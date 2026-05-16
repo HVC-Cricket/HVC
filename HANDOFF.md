@@ -10,7 +10,9 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **Status as of 2026-05-16:** Phases 0–3 done, Phase 4 done through 4d part 3a (super over flow). Phase 5 done through part 2 (live + completed scorecards, points table, player career page) plus dynamic OG. Phase 6 has PWA + service worker + IndexedDB durable write queue + per-match web push notifications + Manhattan/worm charts + optimistic UI on scoring (record + undo) + scorecard parity pass (fall of wickets, partnerships, did-not-bat, bowler dots/maidens) + auto Player-of-the-Match formula with admin override + a major scoring-page UX overhaul (merged slot tiles, engine-replay rotation, bowler-rule enforcement, modal wicket form). 2026-05-12 layered on: a scoreboard-level Category dropdown (Cat 1 / Cat 2 / Cat 3), Cat-1-must-face-Cat-1 enforcement at innings starts, wicket modal Delivery select, `balls_ball_in_over_range = 0..6`, engine slot-sync during replay. **2026-05-13** layered on: a mobile header fix (Tournaments / Players links now visible at all widths), a wicket-on-extra display fix (`1wd+W` etc), a two-tier refactor pass that extracted shared scoring helpers (`stats.ts`, `replay.ts`) plus split `scoreboard.tsx` / `actions.ts` into smaller siblings (`wicket-button.tsx`, `record-ball-helpers.ts`, `use-offline-queue.ts`), and a **multi-scorer lock with permission-based takeover** (`primary_scorer_id` / `pending_scorer_request_id` columns on matches; only one admin records at a time; second admin files a Request → current holder Allows / Denies; auto-expires after 2 min of no heartbeat). Same day also brought UX + rule additions: default over Category remapped (over 2 → Cat 3, over 3+ → Cat 2); Cat 1/3 **repeat-dismissal rule** (`balls.counts_for_innings_total` — bowler credited each time, team total only on the first dismissal); wicket modal **Runs picker + "Runs are byes" toggle** for the no-ball-byes-wicket case; main panel collapsed to single Wide/No-ball/Bye/Overthrow buttons with inline 0–6 pickers; engine fix to **rotate strike on non-legal odd-run deliveries**; mobile slot tiles split 2/1 (striker + non-striker on row 1, bowler on row 2); "This over" pills moved inside the Bowler tile, "Previous over" panel at the bottom of the page; global site nav hidden on mobile when on the score route; "Record ball" header dropped; **previous-over bowler disabled** in the bowler picker; **last-man-standing rule** (HVC: lone batter keeps batting until dismissed, strike doesn't rotate, non-striker slot locked, orange badge in the header); manual **⇄ Swap** button for striker / non-striker; `pnpm-workspace.yaml` `onlyBuiltDependencies` malformed-string fixed. **2026-05-14** polished the last-man UX: striker is now **auto-picked** as the lone live batter when the rule kicks in; non-striker slot is **cleared** instead of held when it would conflict with the live batter, then accepts any dismissed batter as the dummy via a relaxed picker. Same day: wicket modal **Player out** dropdown now defaults to "Striker" for every dismissal except **run-out**, which clears the field and forces an explicit pick (with a Save-blocking toast if left empty). **2026-05-15** polished the slot tiles themselves: textual labels removed; **bat icon** before each batter (cyan for striker, dim for non-striker); **ball icon** before the bowler; bowler stats inlined onto the same row as the name; `1×4 6×6` boundary count dropped from the batter stats line. Player-registry writes hardened on 2026-05-09: only super-admins and tournament organizers can create/edit players (was: any signed-in user). Dead `updateTournamentStatus` action removed; status changes flow through the gated `updateTournament` action. Two super admins bootstrapped (`pavan.gautham17@gmail.com`, `sudarshan61kv@gmail.com`).
 
-**2026-05-16 — Historical data scraped.** Reversing the original "don't migrate CricHeroes" decision, all 6 prior HVC seasons (2021–2025) were scraped from CricHeroes' public `_next/data/*.json` endpoints. Schema-shaped CSVs ready to import live under `data/cricheroes/csv/`; the scraper is `scripts/scrape_cricheroes.py`. **No importer written yet** — see §14 for the import pipeline a future Claude (or human) needs to write.
+**2026-05-16 — Historical data scraped + importer written.** Reversing the original "don't migrate CricHeroes" decision, all 6 prior HVC seasons (2021–2025) were scraped from CricHeroes' public `_next/data/*.json` endpoints. Schema-shaped CSVs live under `data/cricheroes/csv/`; the scraper is `scripts/scrape_cricheroes.py`; the importer is `scripts/import_cricheroes.ts` (run via `pnpm run seed:cricheroes`). See §14.
+
+**2026-05-16 — Two-environment split done.** Prod = `cxysyglwooqmzcfvtmyl` (now holds the 6 historical CricHeroes seasons; was wiped of test data first). Dev = `clqdimzthzcpurtwhtej` (empty schema, all migrations applied, 5 storage buckets ready). Two checked-out-but-gitignored env templates — `.env.dev` and `.env.prod` — hold both sets of creds; flip the active env by `cp .env.dev .env.local` (or `.env.prod`). Still pending: super-admin re-bootstrap on prod (was wiped — sign up + Management-API promote), `dev` branch creation, Vercel preview env-var scoping. See §15.
 
 **Project directory:** `~/Desktop/projects/hvc-scoring/` (Pavan's machine; was `/home/sudharshan/projects/own/hvc-scoring/` for the prior author).
 **Files in repo today:**
@@ -307,6 +309,7 @@ All 11 tables have RLS enabled. Helper functions (SECURITY DEFINER to avoid recu
 | 2026-05-14 | **Wicket modal: Player out auto-defaults from wicket type** | "Player out" used to always default to "Striker", which was fine for bowled / caught / stumped / etc. but a quiet trap for run-outs (the scorer could miss the dropdown and accidentally record the striker as out when the non-striker was the one run out). Modal now defaults to "Striker" for every dismissal type **except** `run_out`, which clears the field and shows a "Select…" placeholder — forcing an explicit pick. A `useEffect` on the wicket-type select drives the reset. Save wicket is blocked with a toast (`"Pick who's out — striker or non-striker"`) when the field is empty. `close()` also resets Type back to bowled and Player out back to striker, so the next open starts clean. |
 | 2026-05-15 | **Scoreboard slot-tile polish: icons + cyan striker + inline bowler stats** | Role identification on the slot tiles now relies on icon + colour rather than a textual label. (1) The "Striker" / "Non-striker" / "Bowler" labels are gone. (2) Small inline-SVG **bat icon** before each batter name — `text-cyan-600 dark:text-cyan-400` for the striker, `text-muted-foreground/40` for the non-striker (dim = "not on strike"). (3) Striker's player name uses the same cyan colour so the pair is visually unmistakable; non-striker stays in default foreground. (4) **Ball icon** (circle + faint seam SVG) before the bowler name. (5) The bowler's stats (`0/4 (0.3) · econ 12.0`) are now inlined on the same row as the name, right-aligned via `ml-auto`. (6) Batter stats line dropped the `1×4 6×6` boundary count — too much detail for the live tile, still surfaces in the full scorecard. `SlotPicker` gained `leadingIcon` + `inlineStats` props. |
 | 2026-05-16 | **Reverse: scrape CricHeroes for Seasons 1–6 (overrides 2026-05-06 "drop" decision).** | Season 7 launches with continuity expectations — career stats, head-to-head, team rosters. Found that CricHeroes' Next.js `_next/data/<buildId>/.../*.json` endpoints are public (no auth, no ToS-violating session hijack). 71/72 matches across 6 seasons saved as schema-shaped CSVs plus raw JSON dumps. One match (`12170963`, Season 5 group stage) is genuinely deleted on CricHeroes' side. Ball-by-ball is NOT exposed — only innings/batting/bowling aggregates. Scraper: `scripts/scrape_cricheroes.py`. CSVs: `data/cricheroes/csv/`. See §14 for the import pipeline. |
+| 2026-05-16 | **Split into prod + dev Supabase environments** (planned; mid-flight) | Current single project is double-duty for testing + the public spectator surface — with Season 7 approaching, real testing needs isolation. Existing project (`cxysyglwooqmzcfvtmyl`) becomes prod tied to `main`; new project becomes dev tied to a new `dev` branch + Vercel previews. Code-side changes done (importer, `gen:types:dev`/`gen:types:prod`, `tsx` dep, esbuild build allowlist). Dashboard provisioning + Vercel env-var scoping + `dev` branch creation pending user. **Prod wipe gated on coworker's pending pushes landing on `main` + dev validation.** See §15 + plan file `/home/sudharshan/.claude/plans/swift-zooming-piglet.md`. |
 
 ---
 
@@ -820,36 +823,25 @@ python3 scripts/scrape_cricheroes.py
 
 If you see a wall of 404s, CricHeroes redeployed and rotated `buildId`. The scraper auto-refreshes the buildId once on 404 and retries — usually transparent. The full 6-season run takes ~2 minutes (0.4s sleep between requests to be polite).
 
-### How to load these CSVs into Supabase — write this importer
+### How to load these CSVs into Supabase
 
-**No importer exists yet.** A future Claude (or human) needs to write one. Recommended path: a Node script using `@supabase/supabase-js` with the service_role key (RLS-bypassing), or a Python script using `psycopg`. Order matters because of FKs:
+**Importer ships as `scripts/import_cricheroes.ts`.** Run with:
 
-1. **`tournaments.csv`** → insert all 6 rows. Capture `{cricheroes_tournament_id → tournaments.id}` map.
-   - Most fields map 1:1. `rules` defaults to `{}` — the HVC ruleset wasn't formalized until Season 6, so don't retroactively apply `HVC_RULES`. (Also moot: no balls to validate.)
-   - `status = 'completed'`, `format = 'group_then_knockout'`, `slug = 'hvc-season-1..6'` are already set in the CSV.
+```bash
+pnpm run seed:cricheroes              # insert; bails on conflict
+pnpm run seed:cricheroes -- --reset   # clear target tables then insert
+```
 
-2. **`teams.csv`** → resolve `cricheroes_tournament_id` via the map; insert; capture `{cricheroes_team_id → teams.id}` map.
-   - `short_name` is derived (deterministic, unique within a tournament). Verify against the live DB if Season 7 already created teams with overlapping short_names.
+**Safety guard:** the script refuses to run if `NEXT_PUBLIC_SUPABASE_URL` points at the prod project (`cxysyglwooqmzcfvtmyl`). Service-role bypasses RLS — running against prod would flatten data. To use against dev, switch `.env.local` to the dev project before running.
 
-3. **`players.csv`** → insert; capture `{cricheroes_player_id → players.id}` map.
-   - **Dedup against existing players.** If a player record already exists in the live DB (e.g. created for Season 7 before this import), match on `display_name` (case-insensitive) + `phone` if available. Prefer pointing `cricheroes_player_id → existing_uuid` over creating a duplicate. Manual review for ambiguous matches is fine — 69 historical players is small.
-   - `category` is empty for all (CricHeroes has no HVC 1/2/3). Set manually in the UI when promoting a player onto a Season 7 roster.
-   - `bowling_style` is empty (CricHeroes scorecard doesn't expose it). Fine to backfill manually later.
+**What it does** (order matches HANDOFF §14 plan):
 
-4. **`team_players.csv`** → resolve via both maps; insert. `role` is `captain` / `wicket_keeper` / `player` (no `vice_captain` — not derivable from scorecard).
-
-5. **`matches.csv`** → resolve via maps for `cricheroes_team_a_id`, `cricheroes_team_b_id`, `cricheroes_toss_winner_id`, `cricheroes_winner_id`, `cricheroes_pom_player_id`. Insert. Capture `{cricheroes_match_id → matches.id}` map.
-   - `win_margin` is text (`"2 wickets"` / `"15 runs"`) — already what our schema expects.
-   - `match_number` is per-tournament chronological order (1..N).
-   - `current_innings_id` stays `NULL` (historical, never live).
-   - `status = 'completed'`, `result_type` already mapped to the schema enum.
-
-6. **`match_players.csv`** → resolve match_id + team_id + player_id; insert.
-
-7. **`innings.csv`** → resolve match_id + batting_team_id + bowling_team_id; insert. Aggregates (`total_runs`, `total_wickets`, `total_legal_balls`, extras split, `target`) are pre-computed.
-   - `is_complete = true` for all 142 rows.
-
-8. **Auxiliary CSVs (defer):** see "Auxiliary historical aggregates" above for the two paths forward.
+1. Loads `.env.local` (no `dotenv` dep — small inline parser). Builds a service-role Supabase client.
+2. If `--reset`: deletes rows from `match_audit_events`, `balls`, `innings`, `match_players`, `team_players`, `matches`, `players`, `teams`, `tournaments` (reverse-FK order).
+3. Inserts in FK order with in-memory `Map<cricheroes_id, uuid>` between phases: tournaments → teams → players → team_players → matches → match_players → innings.
+4. **Player dedup:** for each row in `players.csv`, looks up an existing player by case-insensitive `display_name`. If found, points the cricheroes id at the existing UUID (no duplicate row). Useful when Season 7 has already created some players before the import runs.
+5. Skips the auxiliary CSVs (`historical_batting`, `historical_bowling`, `fall_of_wickets`) — no DB target yet.
+6. Logs counts per phase. Expected on a clean dev run: tournaments=6, teams=39, players=69, team_players=164, matches=71, match_players=925, innings=142.
 
 ### Caveats for the importer + the future-Claude
 
@@ -863,6 +855,81 @@ If you see a wall of 404s, CricHeroes redeployed and rotated `buildId`. The scra
 - CricHeroes is a Next.js app. Their App Router uses `_next/data/<buildId>/...json` for ISR/SSG data fetches. These endpoints are public — no `Authorization` header, no `Cookie` required — because the same data renders on the public scorecard page.
 - The `buildId` is short-lived (rotates on every CricHeroes deploy). The scraper extracts it from any HTML page via `re.search(r'"buildId":"([^"]+)"', html)`.
 - The team/match slug segments in the URL are **decorative** — only the numeric IDs are validated. So `scorecard/<mid>/x/x-vs-x/scorecard.json` works fine without knowing real slugs. This simplification skips a slug-resolution step that would otherwise force matching team names character-perfect.
+
+---
+
+## 15. Two-environment split — prod + dev (planned 2026-05-16)
+
+The project is mid-flight in splitting the single Supabase project (`cxysyglwooqmzcfvtmyl`) into two environments. The existing project will become **prod** (tied to `main`); a new project will be **dev** (tied to a new `dev` git branch + Vercel preview deploys). Full plan + rationale lives at `/home/sudharshan/.claude/plans/swift-zooming-piglet.md`. Status:
+
+### Done so far (code-only changes)
+
+- **CricHeroes importer** at `scripts/import_cricheroes.ts` (Phase B of the plan). Idempotent with `--reset`; refuses to run against prod via hostname guard.
+- **`package.json` scripts split:**
+  - `gen:types` (no-arg) — prints a helpful error directing to one of the variants.
+  - `gen:types:dev` — uses `$DEV_PROJECT_REF` env var.
+  - `gen:types:prod` — hardcoded to the prod ref (cxysyglwooqmzcfvtmyl).
+  - `seed:cricheroes` — runs the importer via tsx.
+- **`tsx` added** to devDependencies (and `esbuild` whitelisted in `pnpm-workspace.yaml` `onlyBuiltDependencies` so the postinstall doesn't break `pnpm exec`).
+
+### Done — provisioning + seeding (executed 2026-05-16)
+
+1. **Dev Supabase project created**: `clqdimzthzcpurtwhtej` (Mumbai / ap-south-1, free tier, same org as prod).
+2. **Schema applied to dev**: `db.sql` then `pnpm exec supabase db push --linked` — all 11 migrations applied. 5 storage buckets created (`tournament-logos`, `team-logos`, `player-photos`, `match-banners`, `user-avatars`).
+3. **Fresh VAPID pair generated for dev** (separate from prod).
+4. **Prod wiped** (was 7 users / 2 tournaments / 23 matches / 215 balls of "Test 2" data). SQL: truncate all 13 public data tables + delete auth.users + remove storage objects via API (raw SQL deletes blocked by the `storage.protect_delete()` trigger — Storage API works).
+5. **CricHeroes historical data loaded into clean prod** via `ALLOW_PROD_IMPORT=1 pnpm run seed:cricheroes`. Final counts: tournaments=6, teams=39, players=64 (5 case-only cricheroes-side duplicates merged), team_players=275, matches=71, match_players=925, innings=142.
+6. **Env templates** `.env.dev` and `.env.prod` checked out locally (gitignored) — copy whichever to `.env.local` before working.
+
+### Importer-bug note for future-Claude
+
+The first import run produced wrong cross-tournament team UUIDs because cricheroes **reuses `team_id` across tournaments** (e.g. "Hoysala Hunters" has `team_id=1597084` in all 5 seasons it appeared). Original importer keyed the `cricheroes_team_id → uuid` map by team_id alone, so 39 inserts collapsed to 19 map entries pointing at the latest-inserted UUID — and matches in older seasons resolved to the Season-6 team UUID. Fix shipped in `scripts/import_cricheroes.ts`: map is keyed by composite `"<cricheroes_tournament_id>:<cricheroes_team_id>"` and the importer maintains a `matchToTournament` side index so `match_players` + `innings` can resolve the correct per-tournament team UUID. `team_players` is now **derived from `match_players` after the fact** (one row per distinct `(team_uuid, player_uuid)` seen in match_players, role precedence captain > wicket_keeper > player) — the original `team_players.csv` was also broken by the same team_id collision.
+
+### Storage delete gotcha
+
+`delete from storage.objects` raises `42501: Direct deletion from storage tables is not allowed. Use the Storage API instead.` (Supabase has a `storage.protect_delete()` trigger guarding against orphans.) The wipe path uses the Storage JS API instead:
+
+```js
+const { data: folders } = await supabase.storage.from(bucket).list("", { limit: 1000 });
+for (const folder of folders) {
+  const { data: files } = await supabase.storage.from(bucket).list(folder.name, { limit: 1000 });
+  await supabase.storage.from(bucket).remove(files.map(f => folder.name + "/" + f.name));
+}
+```
+
+Note: `list("")` only returns immediate children (which are user-uuid folders for most uploads), so the recursion is required.
+
+### Still pending — your action
+
+1. **Sign up + super-admin promote on prod** (was wiped — both maintainers gone). Sign up via the live site, then:
+   ```sql
+   update public.profiles set is_super_admin = true
+   where id = (select id from auth.users where email = '<your email>');
+   ```
+2. **Create + push the `dev` branch**:
+   ```bash
+   git checkout main && git pull
+   git checkout -b dev
+   git push -u origin dev
+   ```
+3. **Add Vercel env-var overrides scoped to the `dev` branch** (Project → Settings → Environment Variables, scope = Preview, branch = `dev`):
+   - `NEXT_PUBLIC_SUPABASE_URL` → `https://clqdimzthzcpurtwhtej.supabase.co`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` → see `.env.dev`
+   - `SUPABASE_SERVICE_ROLE_KEY` → see `.env.dev`
+   - `NEXT_PUBLIC_VAPID_PUBLIC_KEY` → see `.env.dev`
+   - `VAPID_PRIVATE_KEY` → see `.env.dev`
+   - `VAPID_SUBJECT` inherits from Production (no override needed)
+
+### Day-to-day workflow
+
+- **Switch local env**: `cp .env.dev .env.local` (default) or `cp .env.prod .env.local` (when actually testing prod). Both template files are gitignored.
+- **Migrations propagate dev-first:**
+  1. Author migration → `pnpm exec supabase link --project-ref clqdimzthzcpurtwhtej && pnpm exec supabase db push --linked` against dev.
+  2. PR lands on `dev` branch. Vercel preview validates.
+  3. PR `dev → main`. After merge, manually apply to prod from a clean `main` checkout: `pnpm exec supabase link --project-ref cxysyglwooqmzcfvtmyl && pnpm exec supabase db push --linked`. No auto-apply — intentional gate.
+- **`gen:types:dev`** is the default day-to-day type regeneration. Run after a dev migration applies. `gen:types:prod` only after a prod migration applies + only if dev/prod schema drifted (shouldn't happen if you follow the propagation order).
+- **`supabase link` is per-checkout** — the link state lives in `supabase/.temp/linked-project.json` (git-ignored). Always confirm which project you're linked to before `db push`. **If `db push --linked` ever reports unapplied migrations on prod you don't recognize, STOP — coworker has unpushed changes.**
+- **Free-tier pause:** dev pauses after 7 days idle. Either tolerate the cold start or schedule a weekly `curl` against the dev URL.
 
 ---
 
