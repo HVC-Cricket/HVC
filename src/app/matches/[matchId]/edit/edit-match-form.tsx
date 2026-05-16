@@ -25,6 +25,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { MATCH_STAGE_LABEL, stagesForFormat } from "@/lib/constants/match";
+import type { TournamentFormat } from "@/lib/constants/tournament";
 
 import {
   deleteMatch,
@@ -33,7 +35,17 @@ import {
 
 const schema = z
   .object({
-    stage: z.enum(["group", "qualifier", "quarter", "semi", "final", "exhibition"]),
+    stage: z.enum([
+      "group",
+      "qualifier",
+      "qualifier_1",
+      "eliminator",
+      "qualifier_2",
+      "quarter",
+      "semi",
+      "final",
+      "exhibition",
+    ]),
     status: z.enum([
       "scheduled",
       "live",
@@ -67,10 +79,18 @@ type Props = {
     overs_per_innings: number;
     players_per_side: number;
   };
+  tournamentFormat: TournamentFormat;
   teams: { id: string; name: string; short_name: string }[];
 };
 
-export function EditMatchForm({ match, teams }: Props) {
+export function EditMatchForm({ match, tournamentFormat, teams }: Props) {
+  // Curate the stage dropdown for the tournament's format. Include the
+  // match's existing stage even if it wouldn't normally surface for
+  // this format — so the user sees their current selection.
+  const stageOptionsBase = stagesForFormat(tournamentFormat);
+  const stageOptions = stageOptionsBase.includes(match.stage)
+    ? stageOptionsBase
+    : ([match.stage, ...stageOptionsBase] as typeof stageOptionsBase);
   const [deleting, startDelete] = useTransition();
 
   const form = useForm<FormValues>({
@@ -120,12 +140,11 @@ export function EditMatchForm({ match, teams }: Props) {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value="group">Group</SelectItem>
-                    <SelectItem value="qualifier">Qualifier</SelectItem>
-                    <SelectItem value="quarter">Quarter-final</SelectItem>
-                    <SelectItem value="semi">Semi-final</SelectItem>
-                    <SelectItem value="final">Final</SelectItem>
-                    <SelectItem value="exhibition">Exhibition</SelectItem>
+                    {stageOptions.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {MATCH_STAGE_LABEL[s]}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />

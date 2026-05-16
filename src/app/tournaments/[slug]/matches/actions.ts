@@ -13,6 +13,9 @@ import type { ActionResult } from "@/app/tournaments/actions";
 const matchStages = [
   "group",
   "qualifier",
+  "qualifier_1",
+  "eliminator",
+  "qualifier_2",
   "quarter",
   "semi",
   "final",

@@ -145,7 +145,7 @@ create table if not exists matches (
   tournament_id         uuid not null references tournaments(id) on delete cascade,
   match_number          int  not null,
   stage                 text not null default 'group'
-                          check (stage in ('group','qualifier','quarter','semi','final','exhibition')),
+                          check (stage in ('group','qualifier','qualifier_1','eliminator','qualifier_2','quarter','semi','final','exhibition')),
   team_a_id             uuid not null references teams(id),
   team_b_id             uuid not null references teams(id),
   scheduled_at          timestamptz,

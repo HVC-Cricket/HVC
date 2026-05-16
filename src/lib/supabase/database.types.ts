@@ -24,6 +24,9 @@ type TeamPlayerRole = "captain" | "vice_captain" | "wicket_keeper" | "player";
 type MatchStage =
   | "group"
   | "qualifier"
+  | "qualifier_1"
+  | "eliminator"
+  | "qualifier_2"
   | "quarter"
   | "semi"
   | "final"

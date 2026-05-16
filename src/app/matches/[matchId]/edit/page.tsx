@@ -33,7 +33,7 @@ export default async function EditMatchPage(props: {
   const [tournamentRes, teamsRes] = await Promise.all([
     supabase
       .from("tournaments")
-      .select("id, slug, name")
+      .select("id, slug, name, format")
       .eq("id", match.tournament_id)
       .single(),
     supabase
@@ -77,6 +77,7 @@ export default async function EditMatchPage(props: {
                 players_per_side: match.players_per_side,
                 status: match.status,
               }}
+              tournamentFormat={tournament.format}
               teams={teams ?? []}
             />
           </CardContent>

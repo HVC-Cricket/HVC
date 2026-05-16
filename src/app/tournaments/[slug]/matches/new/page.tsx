@@ -19,7 +19,7 @@ export default async function NewMatchPage(props: {
   const { data: tournament } = await supabase
     .from("tournaments")
     .select(
-      "id, slug, name, default_overs_per_innings, default_players_per_side, venue",
+      "id, slug, name, format, default_overs_per_innings, default_players_per_side, venue",
     )
     .eq("slug", slug)
     .single();
@@ -61,6 +61,7 @@ export default async function NewMatchPage(props: {
           <CardContent className="pt-6">
             <NewMatchForm
               tournamentSlug={tournament.slug}
+              tournamentFormat={tournament.format}
               teams={teams ?? []}
               defaults={{
                 overs_per_innings: tournament.default_overs_per_innings,
