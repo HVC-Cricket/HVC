@@ -206,13 +206,19 @@ async function main(): Promise<void> {
   for (const tm of teams) {
     const tournamentId = tournamentIds.get(tm.cricheroes_tournament_id);
     if (!tournamentId) { console.warn(`  ! orphan team ${tm.name}`); continue; }
+    // teams.csv stores just the cricheroes filename; prefix the canonical
+    // media host so the column holds a directly-usable URL.
+    let logoUrl: string | null = strOrNull(tm.logo_url);
+    if (logoUrl && !logoUrl.startsWith("http")) {
+      logoUrl = `https://media.cricheroes.in/team_logo/${logoUrl}`;
+    }
     const { data, error } = await supabase
       .from("teams")
       .insert({
         tournament_id: tournamentId,
         name: tm.name,
         short_name: tm.short_name,
-        logo_url: strOrNull(tm.logo_url),
+        logo_url: logoUrl,
       })
       .select("id")
       .single();

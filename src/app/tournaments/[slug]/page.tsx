@@ -428,29 +428,41 @@ function Stat({ label, value }: { label: string; value: number | string }) {
   );
 }
 
+function displayTeamName(name: string): string {
+  // Strip the "Team " prefix that some imported tournaments (Season 1
+  // Thirtharu names) carry. Leaves "Vadiraja Thirtharu" instead of
+  // "Team Vadiraja Thirtharu", which fits the match row better and reads
+  // like a team name rather than a placeholder.
+  return name.replace(/^team\s+/i, "");
+}
+
 function TeamMini({
   team,
 }: {
-  team?: { short_name: string; logo_url: string | null };
+  team?: { name: string; short_name: string; logo_url: string | null };
 }) {
   if (!team)
     return <span className="text-sm font-medium text-muted-foreground">?</span>;
+  const label = displayTeamName(team.name);
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex min-w-0 items-center gap-1.5">
       {team.logo_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={team.logo_url}
           alt=""
-          className="size-5 rounded-full border border-foreground/10 object-cover"
+          className="size-5 shrink-0 rounded-full border border-foreground/10 object-cover"
         />
       ) : (
-        <span className="flex size-5 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-muted-foreground">
+        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-muted-foreground">
           {team.short_name.slice(0, 2).toUpperCase()}
         </span>
       )}
-      <span className="font-mono text-sm font-semibold uppercase">
-        {team.short_name}
+      <span
+        className="truncate text-sm font-medium capitalize"
+        title={team.name}
+      >
+        {label}
       </span>
     </span>
   );
