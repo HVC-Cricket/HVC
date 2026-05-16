@@ -1,16 +1,12 @@
 import { CalendarDays, Trophy } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { LiveRefresh } from "@/components/live-refresh";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
+
+import { HomeMyProfile } from "./home-my-profile";
+import { HomePastTournaments } from "./home-past-tournaments";
 
 export const dynamic = "force-dynamic";
 
@@ -202,7 +198,7 @@ export default async function Home() {
           </p>
         </header>
 
-        {liveMatches.length > 0 ? (
+        {liveMatches.length > 0 && (
           <section className="space-y-3">
             <div className="flex items-center gap-2">
               <span className="relative flex size-2.5">
@@ -223,28 +219,12 @@ export default async function Home() {
               ))}
             </div>
           </section>
-        ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                No matches live right now
-              </CardTitle>
-              <CardDescription>
-                Browse tournaments or set up the next match to get started.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap gap-2">
-              <Link href="/tournaments">
-                <Button size="sm">Browse tournaments</Button>
-              </Link>
-              <Link href="/players">
-                <Button variant="ghost" size="sm">
-                  Players
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
         )}
+
+        {/* Signed-in viewers who play see their own snapshot here. */}
+        <Suspense fallback={null}>
+          <HomeMyProfile />
+        </Suspense>
 
         {upcomingMatches.length > 0 && (
           <section className="space-y-3">
@@ -280,6 +260,12 @@ export default async function Home() {
             </div>
           </section>
         )}
+
+        {/* Always-visible archive of completed tournaments — keeps the
+            page useful between live matches. */}
+        <Suspense fallback={null}>
+          <HomePastTournaments />
+        </Suspense>
 
         <footer className="border-t border-foreground/10 pt-6 text-center text-xs text-muted-foreground">
           <p>HVC Heroes · Box-cricket scoring app</p>
