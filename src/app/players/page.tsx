@@ -91,10 +91,17 @@ export default async function PlayersPage() {
                     .filter(Boolean)
                     .map((s) => s!.replace(/_/g, " "));
                   const styleText = styleParts.join(" · ");
+                  // If the signed-in user lands on their own linked
+                  // player here, route them to /me — that's "their"
+                  // profile page, same view they'd get from the nav.
+                  const href =
+                    ctx?.user.id != null && ctx.user.id === p.linked_user_id
+                      ? "/me"
+                      : `/players/${p.id}`;
                   return (
                     <li key={p.id}>
                       <Link
-                        href={`/players/${p.id}`}
+                        href={href}
                         prefetch
                         className="group flex items-center gap-3 px-4 py-3 transition hover:bg-muted/30"
                       >
