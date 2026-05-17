@@ -247,12 +247,12 @@ function InningsCard({
           below for full per-player breakdown. */}
       {!completed && (
         <CardContent className="space-y-4">
-          {/* Partnership · RR · CRR strip. RR = required run rate —
-              only meaningful in the 2nd innings when a target is set.
-              CRR = current overall run rate (total_runs / overs). */}
+          {/* Partnership · CRR strip. CRR = current overall run rate
+              (total_runs / overs). Required RR is rendered in the amber
+              chase strip above for the 2nd innings, so it isn't
+              duplicated here. */}
           {(partnership.runs > 0 ||
             partnership.balls > 0 ||
-            reqRR != null ||
             oversFloat > 0) && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
               {(partnership.runs > 0 || partnership.balls > 0) && (
@@ -266,12 +266,6 @@ function InningsCard({
                     {partnership.balls}
                   </span>
                   {")"}
-                </span>
-              )}
-              {reqRR != null && (
-                <span className="text-muted-foreground">
-                  <span className="font-medium uppercase">RR:</span>{" "}
-                  <span className="font-mono text-foreground">{reqRR}</span>
                 </span>
               )}
               {oversFloat > 0 && (
