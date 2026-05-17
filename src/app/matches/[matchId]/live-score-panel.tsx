@@ -1,6 +1,5 @@
 import { Trophy } from "lucide-react";
 
-import { BallIcon, BatIcon } from "@/components/cricket-icons";
 import { LiveRefresh } from "@/components/live-refresh";
 import {
   Card,
@@ -277,9 +276,17 @@ function InningsCard({
             </div>
           )}
 
-          {/* Batsmen */}
-          <div className="grid gap-2 sm:grid-cols-2">
-            <BatsmanRow
+          {/* Compact batter + bowler table — one row per player, with
+              section headers naming the stat columns (Batter R B 4s 6s
+              SR · Bowler O M R W ER). Replaces the previous stacked
+              colour-coded cards. Striker gets an asterisk + green
+              accent; bowler row gets an amber accent. */}
+          <div className="overflow-hidden rounded-md border border-foreground/10">
+            <PlayerTableHeader
+              label="Batter"
+              stats={["R", "B", "4s", "6s", "SR"]}
+            />
+            <BatterTableRow
               striker
               name={strikerId ? playerById.get(strikerId)?.display_name : null}
               cat={
@@ -287,7 +294,7 @@ function InningsCard({
               }
               stats={sIdStats}
             />
-            <BatsmanRow
+            <BatterTableRow
               name={
                 nonStrikerId
                   ? playerById.get(nonStrikerId)?.display_name
@@ -300,14 +307,16 @@ function InningsCard({
               }
               stats={nsIdStats}
             />
+            <PlayerTableHeader
+              label="Bowler"
+              stats={["O", "M", "R", "W", "ER"]}
+            />
+            <BowlerTableRow
+              name={bowlerId ? playerById.get(bowlerId)?.display_name : null}
+              cat={bowlerId ? playerById.get(bowlerId)?.category ?? null : null}
+              stats={bIdStats}
+            />
           </div>
-
-          {/* Bowler */}
-          <BowlerRow
-            name={bowlerId ? playerById.get(bowlerId)?.display_name : null}
-            cat={bowlerId ? playerById.get(bowlerId)?.category ?? null : null}
-            stats={bIdStats}
-          />
 
           {/* Recent balls */}
           <RecentBalls
@@ -320,7 +329,39 @@ function InningsCard({
   );
 }
 
-function BatsmanRow({
+// Shared grid template so the header + every row line up. Name column
+// is flexible; each stat column is a fixed narrow track so the numbers
+// stay aligned but the name keeps as much room as possible — was
+// wider before, which truncated 8+ char names on phones. `minmax(0, 1fr)`
+// still lets the name truncate when it really has to.
+const TABLE_GRID_COLS =
+  "grid-cols-[minmax(0,1fr)_1.5rem_1.5rem_1.5rem_1.5rem_2.25rem]";
+
+function PlayerTableHeader({
+  label,
+  stats,
+}: {
+  label: string;
+  stats: string[];
+}) {
+  return (
+    <div
+      className={cn(
+        "grid gap-x-1.5 border-b border-foreground/10 bg-muted/30 px-3 py-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground",
+        TABLE_GRID_COLS,
+      )}
+    >
+      <span>{label}</span>
+      {stats.map((s) => (
+        <span key={s} className="text-right">
+          {s}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function BatterTableRow({
   striker,
   name,
   cat,
@@ -331,28 +372,29 @@ function BatsmanRow({
   cat?: 1 | 2 | 3 | null;
   stats: ReturnType<typeof computeBatterStats> | null;
 }) {
+  const sr =
+    stats && stats.balls_faced > 0
+      ? ((stats.runs / stats.balls_faced) * 100).toFixed(1)
+      : "—";
   return (
     <div
       className={cn(
-        "rounded-md border px-3 py-2",
-        striker
-          ? "border-emerald-500/40 bg-emerald-500/5"
-          : "border-foreground/10 bg-muted/30",
+        "grid items-center gap-x-1.5 border-b border-foreground/10 px-3 py-2 last:border-b-0",
+        TABLE_GRID_COLS,
       )}
     >
-      <div className="flex items-center gap-2">
-        <BatIcon
-          dim={!striker}
-          className={
-            striker
-              ? "size-4 shrink-0 text-emerald-600 dark:text-emerald-400"
-              : undefined
-          }
-        />
-        <span className="truncate font-medium capitalize">{name ?? "—"}</span>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <span
+          className={cn(
+            "truncate font-medium capitalize",
+            striker && "text-emerald-700 dark:text-emerald-400",
+          )}
+        >
+          {name ?? "—"}
+        </span>
         {striker && name && (
           <span
-            className="font-mono text-base leading-none text-emerald-600 dark:text-emerald-400"
+            className="font-mono leading-none text-emerald-700 dark:text-emerald-400"
             aria-label="on strike"
             title="On strike"
           >
@@ -365,27 +407,24 @@ function BatsmanRow({
           </span>
         )}
       </div>
-      {stats && (
-        <div className="mt-1.5 grid grid-cols-5 gap-2 text-muted-foreground">
-          <Stat k="R" v={stats.runs} />
-          <Stat k="B" v={stats.balls_faced} />
-          <Stat k="4s" v={stats.fours} />
-          <Stat k="6s" v={stats.sixes} />
-          <Stat
-            k="SR"
-            v={
-              stats.balls_faced > 0
-                ? ((stats.runs / stats.balls_faced) * 100).toFixed(1)
-                : "—"
-            }
-          />
-        </div>
-      )}
+      <span className="text-right font-mono tabular-nums">
+        {stats?.runs ?? 0}
+      </span>
+      <span className="text-right font-mono tabular-nums">
+        {stats?.balls_faced ?? 0}
+      </span>
+      <span className="text-right font-mono tabular-nums">
+        {stats?.fours ?? 0}
+      </span>
+      <span className="text-right font-mono tabular-nums">
+        {stats?.sixes ?? 0}
+      </span>
+      <span className="text-right font-mono tabular-nums">{sr}</span>
     </div>
   );
 }
 
-function BowlerRow({
+function BowlerTableRow({
   name,
   cat,
   stats,
@@ -402,38 +441,34 @@ function BowlerRow({
       ? ((stats.runs_conceded / stats.legal_balls) * 6).toFixed(2)
       : "—";
   return (
-    <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
-      <div className="flex items-center gap-2">
-        <BallIcon className="size-5 shrink-0 text-amber-600 dark:text-amber-400" />
-        <span className="truncate font-medium capitalize">{name ?? "—"}</span>
+    <div
+      className={cn(
+        "grid items-center gap-x-1.5 px-3 py-2",
+        TABLE_GRID_COLS,
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-1.5">
+        <span className="truncate font-medium capitalize text-amber-700 dark:text-amber-400">
+          {name ?? "—"}
+        </span>
         {cat && (
           <span className="shrink-0 rounded bg-foreground/10 px-1 font-mono text-[10px]">
             C{cat}
           </span>
         )}
       </div>
-      {stats && (
-        <div className="mt-1.5 grid grid-cols-6 gap-2 text-muted-foreground">
-          <Stat k="O" v={overs} />
-          <Stat k="M" v={stats.maidens} />
-          <Stat k="R" v={stats.runs_conceded} />
-          <Stat k="W" v={stats.wickets} />
-          <Stat k="Dots" v={stats.dots} />
-          <Stat k="Econ" v={econ} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Stat({ k, v }: { k: string; v: string | number }) {
-  return (
-    <span className="flex flex-col leading-tight">
-      <span className="text-[9px] uppercase tracking-wide">{k}</span>
-      <span className="font-mono text-[13px] tabular-nums text-foreground">
-        {v}
+      <span className="text-right font-mono tabular-nums">{overs}</span>
+      <span className="text-right font-mono tabular-nums">
+        {stats?.maidens ?? 0}
       </span>
-    </span>
+      <span className="text-right font-mono tabular-nums">
+        {stats?.runs_conceded ?? 0}
+      </span>
+      <span className="text-right font-mono tabular-nums">
+        {stats?.wickets ?? 0}
+      </span>
+      <span className="text-right font-mono tabular-nums">{econ}</span>
+    </div>
   );
 }
 
