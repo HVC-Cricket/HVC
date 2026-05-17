@@ -454,29 +454,10 @@ export async function recordBall(
       .eq("id", innings.id)
       .single();
     inningsNumberJustEnded = i?.innings_number ?? null;
-    if (i?.innings_number === 2) {
-      const { data: i1 } = await supabase
-        .from("innings")
-        .select("total_runs")
-        .eq("match_id", parsed.data.matchId)
-        .eq("innings_number", 1)
-        .maybeSingle();
-      const { data: i2 } = await supabase
-        .from("innings")
-        .select("total_runs")
-        .eq("match_id", parsed.data.matchId)
-        .eq("innings_number", 2)
-        .maybeSingle();
-      // Only finalize if NOT tied. A tie waits for the super over to be
-      // started (or for the scorer to declare it a final tie manually).
-      if (i1 && i2 && i1.total_runs !== i2.total_runs) {
-        await finalizeMatchInternal(supabase, parsed.data.matchId);
-      }
-    }
-    if (i?.innings_number === 4) {
-      // Both super-over innings complete → finalize.
-      await finalizeMatchInternal(supabase, parsed.data.matchId);
-    }
+    // Match completion is no longer auto-applied here. When innings 2 (or
+    // super-over innings 4) ends the match enters a "pending finalize"
+    // state — the scorer confirms via the MatchCompletePanel, which gives
+    // them a chance to undo the last ball before the result is locked in.
   }
 
   // ---- Push notifications -------------------------------------------
@@ -540,33 +521,8 @@ export async function recordBall(
     }
   }
 
-  if (inningsNumberJustEnded === 2 || inningsNumberJustEnded === 4) {
-    const { data: m } = await supabase
-      .from("matches")
-      .select("status, winner_id, win_margin, result_type, team_a_id, team_b_id")
-      .eq("id", parsed.data.matchId)
-      .single();
-    if (m?.status === "completed") {
-      let body = "Final result available.";
-      if (m.winner_id && m.win_margin) {
-        const { data: t } = await supabase
-          .from("teams")
-          .select("name")
-          .eq("id", m.winner_id)
-          .maybeSingle();
-        const winnerName = t?.name ?? "Winner";
-        body = `${winnerName} won ${m.win_margin}`;
-      } else if (m.result_type === "tie") {
-        body = "Match tied";
-      }
-      pushEvents.push({
-        title: "Match complete",
-        body,
-        url: `/matches/${parsed.data.matchId}`,
-        tag: `match-end-${parsed.data.matchId}`,
-      });
-    }
-  }
+  // Match-completion push fires from finalizeMatch now, since recordBall
+  // no longer auto-completes the match.
 
   if (pushEvents.length > 0) {
     const matchId = parsed.data.matchId;
@@ -726,6 +682,43 @@ export async function finalizeMatch(
 
   const result = await finalizeMatchInternal(supabase, parsed.data.matchId);
   if (!result.ok) return result;
+
+  // Match-completion push (moved from recordBall now that completion is
+  // explicit). Single fan-out on confirm — no fan-out on the optimistic
+  // last-ball anymore.
+  const { data: m } = await supabase
+    .from("matches")
+    .select("status, winner_id, win_margin, result_type")
+    .eq("id", parsed.data.matchId)
+    .single();
+  if (m?.status === "completed") {
+    let body = "Final result available.";
+    if (m.winner_id && m.win_margin) {
+      const { data: t } = await supabase
+        .from("teams")
+        .select("name")
+        .eq("id", m.winner_id)
+        .maybeSingle();
+      const winnerName = t?.name ?? "Winner";
+      body = `${winnerName} won ${m.win_margin}`;
+    } else if (m.result_type === "tie") {
+      body = "Match tied";
+    }
+    const matchId = parsed.data.matchId;
+    after(async () => {
+      try {
+        await notifyMatch(matchId, {
+          title: "Match complete",
+          body,
+          url: `/matches/${matchId}`,
+          tag: `match-end-${matchId}`,
+        });
+      } catch (err) {
+        console.error("[push] dispatch failed", err);
+      }
+    });
+  }
+
   revalidatePath(`/matches/${parsed.data.matchId}/score`);
   revalidatePath(`/matches/${parsed.data.matchId}`);
   return { ok: true, data: undefined };

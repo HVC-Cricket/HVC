@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-import { finalizeMatch } from "./actions";
+import { finalizeMatch, voidLastBall } from "./actions";
 import type { ScoreboardState } from "./state";
 
 export function MatchCompletePanel({ state }: { state: ScoreboardState }) {
@@ -61,6 +61,21 @@ export function MatchCompletePanel({ state }: { state: ScoreboardState }) {
   const onFinalize = () => {
     startTransition(async () => {
       const result = await finalizeMatch({ matchId: state.match.id });
+      if (result && !result.ok) toast.error(result.error);
+    });
+  };
+
+  // The last decisive ball lives in whichever innings most recently ended.
+  // Pick that innings so Undo reopens the right one (super-over takes
+  // precedence over the chase if it exists).
+  const lastInnings = so2 ?? so1 ?? i2 ?? i1 ?? null;
+  const onUndoLastBall = () => {
+    if (!lastInnings) return;
+    startTransition(async () => {
+      const result = await voidLastBall({
+        matchId: state.match.id,
+        inningsId: lastInnings.id,
+      });
       if (result && !result.ok) toast.error(result.error);
     });
   };
@@ -113,9 +128,23 @@ export function MatchCompletePanel({ state }: { state: ScoreboardState }) {
             />
           )}
           {!finished && (
-            <Button onClick={onFinalize} disabled={pending} className="w-full">
-              {pending ? "Finalizing…" : "Finalize match"}
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                onClick={onFinalize}
+                disabled={pending}
+                className="flex-1"
+              >
+                {pending ? "Working…" : "Finish match"}
+              </Button>
+              <Button
+                onClick={onUndoLastBall}
+                disabled={pending || !lastInnings}
+                variant="outline"
+                className="flex-1"
+              >
+                Undo last ball
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
