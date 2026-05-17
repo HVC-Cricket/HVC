@@ -47,10 +47,12 @@ export async function TournamentStats({
 
   // 2. All innings → for the match_id → team mapping that drives the
   //    "X bats for HH" lookup later. We also use it to constrain the
-  //    balls query.
+  //    balls query. `innings_number` is read by the historical fallback
+  //    to translate per-innings rows from historical_match_batting/
+  //    bowling back to a real innings_id.
   const { data: innings } = await supabase
     .from("innings")
-    .select("id, match_id, batting_team_id, bowling_team_id")
+    .select("id, match_id, innings_number, batting_team_id, bowling_team_id")
     .in("match_id", matchIds);
 
   if (!innings || innings.length === 0) {
@@ -81,13 +83,11 @@ export async function TournamentStats({
   const allBalls = (ballsRows ?? []) as BallRow[];
 
   if (allBalls.length === 0) {
-    return (
-      <Card className="border-dashed">
-        <CardContent className="py-12 text-center text-sm text-muted-foreground">
-          No balls bowled yet.
-        </CardContent>
-      </Card>
-    );
+    // Historical (cricheroes-imported) seasons have no ball-by-ball
+    // data; per-innings aggregates live in historical_match_batting /
+    // historical_match_bowling instead. Compute the same leaderboards
+    // from those rows so the Stats tab works for S1–S6.
+    return loadHistoricalStats(supabase, matchIds, innings);
   }
 
   // 4. All player IDs we touched + the team they bat for, derived from
@@ -602,4 +602,322 @@ function buildLeaderboards(
     topSR,
     topEcon,
   };
+}
+
+/**
+ * Stats path for cricheroes-imported tournaments (S1–S6). Same
+ * leaderboards as the balls-based path, but the per-innings rollup is
+ * sourced from historical_match_batting/bowling rather than the empty
+ * balls table.
+ *
+ * Caveats vs the balls path:
+ *   - SR/econ thresholds use the same ≥12 ball minimums, but the data
+ *     is rounded by cricheroes to whole balls/overs.
+ *   - "Highest scores vs <X>" gets the opposition team from the OTHER
+ *     innings of the same match — i.e. innings_number 3-N for N=1, 2.
+ *   - Best-bowling (BBI) uses per-innings wickets/runs straight from
+ *     historical_match_bowling so the tie-break (fewer runs conceded)
+ *     still works.
+ */
+async function loadHistoricalStats(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  matchIds: string[],
+  innings: Array<{
+    id: string;
+    match_id: string;
+    innings_number: number;
+    batting_team_id: string;
+    bowling_team_id: string;
+  }>,
+) {
+  const [{ data: hbRows }, { data: hwRows }] = await Promise.all([
+    supabase
+      .from("historical_match_batting")
+      .select(
+        "match_id, innings_number, batting_team_id, player_id, runs, balls_faced, fours, sixes, is_out",
+      )
+      .in("match_id", matchIds),
+    supabase
+      .from("historical_match_bowling")
+      .select(
+        "match_id, innings_number, bowling_team_id, player_id, wickets, runs, dots, maidens, overs",
+      )
+      .in("match_id", matchIds),
+  ]);
+
+  const batRows = hbRows ?? [];
+  const bowlRows = hwRows ?? [];
+  if (batRows.length === 0 && bowlRows.length === 0) {
+    return (
+      <Card className="border-dashed">
+        <CardContent className="py-12 text-center text-sm text-muted-foreground">
+          No stats for this tournament.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // (match_id, innings_number) → innings.id, so we can reuse the same
+  // batByInn lookup shape the balls-based builder expects.
+  const inningsIdByKey = new Map<string, string>();
+  for (const inn of innings) {
+    inningsIdByKey.set(`${inn.match_id}|${inn.innings_number}`, inn.id);
+  }
+
+  type PerInnBat = {
+    runs: number;
+    balls: number;
+    fours: number;
+    sixes: number;
+    got_out: boolean;
+    match_id: string;
+  };
+  const batByInn = new Map<string, PerInnBat>();
+  type PerInnBowl = {
+    wickets: number;
+    runs_conceded: number;
+    legal_balls: number;
+    dots: number;
+    maidens: number;
+    match_id: string;
+  };
+  const bowlByInn = new Map<string, PerInnBowl>();
+
+  // player_id → team_id for the "X bats for HH" label. Use the team
+  // they appeared on (cricheroes data is one team per player per
+  // tournament, so first sighting wins).
+  const playerToTeam = new Map<string, string>();
+
+  for (const r of batRows) {
+    if (!r.player_id) continue;
+    const inningsId = inningsIdByKey.get(`${r.match_id}|${r.innings_number}`);
+    if (!inningsId) continue;
+    if (!playerToTeam.has(r.player_id))
+      playerToTeam.set(r.player_id, r.batting_team_id);
+    batByInn.set(`${r.player_id}|${inningsId}`, {
+      runs: r.runs,
+      balls: r.balls_faced,
+      fours: r.fours,
+      sixes: r.sixes,
+      got_out: r.is_out,
+      match_id: r.match_id,
+    });
+  }
+  for (const r of bowlRows) {
+    if (!r.player_id) continue;
+    const inningsId = inningsIdByKey.get(`${r.match_id}|${r.innings_number}`);
+    if (!inningsId) continue;
+    if (!playerToTeam.has(r.player_id))
+      playerToTeam.set(r.player_id, r.bowling_team_id);
+    // overs like "1.5" → 1*6 + 5 = 11 legal balls.
+    const overs = String(r.overs ?? "0");
+    let legalBalls = 0;
+    if (overs.includes(".")) {
+      const [full, partial] = overs.split(".", 2);
+      legalBalls = parseInt(full, 10) * 6 + parseInt(partial, 10);
+    } else {
+      legalBalls = parseInt(overs, 10) * 6;
+    }
+    if (!Number.isFinite(legalBalls)) legalBalls = 0;
+    bowlByInn.set(`${r.player_id}|${inningsId}`, {
+      wickets: r.wickets,
+      runs_conceded: r.runs,
+      legal_balls: legalBalls,
+      dots: r.dots,
+      maidens: r.maidens,
+      match_id: r.match_id,
+    });
+  }
+
+  // Player + team metadata.
+  const playerIds = [...playerToTeam.keys()];
+  const teamIds = [...new Set(playerToTeam.values())];
+  const [{ data: players }, { data: teams }] = await Promise.all([
+    supabase
+      .from("players")
+      .select("id, display_name, category")
+      .in("id", playerIds),
+    supabase.from("teams").select("id, short_name").in("id", teamIds),
+  ]);
+  const playerById = new Map((players ?? []).map((p) => [p.id, p]));
+  const teamShortById = new Map(
+    (teams ?? []).map((t) => [t.id, t.short_name]),
+  );
+
+  // Per-player aggregates (mirrors the balls-based block).
+  type BatAgg = {
+    player_id: string;
+    name: string;
+    team: string;
+    cat: number | null;
+    matches: number;
+    innings: number;
+    runs: number;
+    balls: number;
+    fours: number;
+    sixes: number;
+    dismissals: number;
+    highest: number;
+    highestInningsId: string | null;
+    strikeRate: number;
+    average: number | null;
+  };
+  type BowlAgg = {
+    player_id: string;
+    name: string;
+    team: string;
+    cat: number | null;
+    matches: number;
+    innings: number;
+    wickets: number;
+    runs_conceded: number;
+    legal_balls: number;
+    economy: number;
+    bestBowling: string;
+    bestSortKey: number;
+  };
+
+  const batPerPlayer = new Map<string, BatAgg>();
+  const bowlPerPlayer = new Map<string, BowlAgg>();
+
+  for (const [key, b] of batByInn) {
+    const [pid] = key.split("|");
+    const inningsId = key.slice(pid.length + 1);
+    const p = playerById.get(pid);
+    if (!p) continue;
+    if (b.balls === 0 && b.runs === 0) continue;
+    let agg = batPerPlayer.get(pid);
+    if (!agg) {
+      const teamId = playerToTeam.get(pid)!;
+      agg = {
+        player_id: pid,
+        name: p.display_name,
+        team: teamShortById.get(teamId) ?? "?",
+        cat: p.category,
+        matches: 0,
+        innings: 0,
+        runs: 0,
+        balls: 0,
+        fours: 0,
+        sixes: 0,
+        dismissals: 0,
+        highest: 0,
+        highestInningsId: null,
+        strikeRate: 0,
+        average: null,
+      };
+      batPerPlayer.set(pid, agg);
+    }
+    agg.innings += 1;
+    agg.runs += b.runs;
+    agg.balls += b.balls;
+    agg.fours += b.fours;
+    agg.sixes += b.sixes;
+    if (b.got_out) agg.dismissals += 1;
+    if (b.runs > agg.highest) {
+      agg.highest = b.runs;
+      agg.highestInningsId = inningsId;
+    }
+  }
+  for (const [key, b] of bowlByInn) {
+    const [pid] = key.split("|");
+    const p = playerById.get(pid);
+    if (!p) continue;
+    if (b.legal_balls === 0 && b.wickets === 0) continue;
+    let agg = bowlPerPlayer.get(pid);
+    if (!agg) {
+      const teamId = playerToTeam.get(pid)!;
+      agg = {
+        player_id: pid,
+        name: p.display_name,
+        team: teamShortById.get(teamId) ?? "?",
+        cat: p.category,
+        matches: 0,
+        innings: 0,
+        wickets: 0,
+        runs_conceded: 0,
+        legal_balls: 0,
+        economy: 0,
+        bestBowling: "—",
+        bestSortKey: -1,
+      };
+      bowlPerPlayer.set(pid, agg);
+    }
+    agg.innings += 1;
+    agg.wickets += b.wickets;
+    agg.runs_conceded += b.runs_conceded;
+    agg.legal_balls += b.legal_balls;
+    const sortKey = b.wickets * 1000 - b.runs_conceded;
+    if (sortKey > agg.bestSortKey) {
+      agg.bestSortKey = sortKey;
+      agg.bestBowling = `${b.wickets}/${b.runs_conceded}`;
+    }
+  }
+
+  // Distinct-match counts.
+  const batterMatches = new Map<string, Set<string>>();
+  for (const [key, b] of batByInn) {
+    const pid = key.split("|", 1)[0];
+    let s = batterMatches.get(pid);
+    if (!s) { s = new Set(); batterMatches.set(pid, s); }
+    s.add(b.match_id);
+  }
+  for (const [pid, s] of batterMatches) {
+    const agg = batPerPlayer.get(pid);
+    if (agg) agg.matches = s.size;
+  }
+  const bowlerMatches = new Map<string, Set<string>>();
+  for (const [key, b] of bowlByInn) {
+    const pid = key.split("|", 1)[0];
+    let s = bowlerMatches.get(pid);
+    if (!s) { s = new Set(); bowlerMatches.set(pid, s); }
+    s.add(b.match_id);
+  }
+  for (const [pid, s] of bowlerMatches) {
+    const agg = bowlPerPlayer.get(pid);
+    if (agg) agg.matches = s.size;
+  }
+
+  // Derived metrics.
+  for (const a of batPerPlayer.values()) {
+    a.strikeRate = a.balls > 0 ? (a.runs / a.balls) * 100 : 0;
+    a.average = a.dismissals > 0 ? a.runs / a.dismissals : null;
+  }
+  for (const a of bowlPerPlayer.values()) {
+    a.economy = a.legal_balls > 0 ? (a.runs_conceded / a.legal_balls) * 6 : 0;
+  }
+
+  // Per-innings bowling-team short name, for the "vs" column on the
+  // Highest scores leaderboard.
+  const bowlingTeamShortByInnings = new Map<string, string>();
+  for (const inn of innings) {
+    bowlingTeamShortByInnings.set(
+      inn.id,
+      teamShortById.get(inn.bowling_team_id) ?? "?",
+    );
+  }
+
+  const batRowsAll = [...batPerPlayer.values()];
+  const bowlRowsAll = [...bowlPerPlayer.values()];
+  const lookups = { batByInn, bowlingTeamShortByInnings };
+  const all = buildLeaderboards(batRowsAll, bowlRowsAll, lookups);
+  const cat1 = buildLeaderboards(
+    batRowsAll.filter((r) => r.cat === 1),
+    bowlRowsAll.filter((r) => r.cat === 1),
+    lookups,
+  );
+  const cat2 = buildLeaderboards(
+    batRowsAll.filter((r) => r.cat === 2),
+    bowlRowsAll.filter((r) => r.cat === 2),
+    lookups,
+  );
+  const cat3 = buildLeaderboards(
+    batRowsAll.filter((r) => r.cat === 3),
+    bowlRowsAll.filter((r) => r.cat === 3),
+    lookups,
+  );
+
+  return (
+    <TournamentStatsView all={all} cat1={cat1} cat2={cat2} cat3={cat3} />
+  );
 }
