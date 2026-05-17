@@ -310,6 +310,16 @@ export function WicketButton({
                     toast.error("Pick who's out — striker or non-striker");
                     return;
                   }
+                  if (showFielder && !fielder) {
+                    const role =
+                      wicketType === "stumped"
+                        ? "wicket-keeper"
+                        : wicketType === "run_out"
+                          ? "fielder who ran them out"
+                          : "fielder who caught it";
+                    toast.error(`Pick the ${role}`);
+                    return;
+                  }
                   onSubmit(
                     wicketType,
                     whoOut === "striker" ? strikerId : nonStrikerId,

@@ -220,7 +220,17 @@ const recordBallSchema = z.object({
     .optional(),
   player_out_id: z.string().uuid().nullable().optional(),
   fielder_id: z.string().uuid().nullable().optional(),
-});
+}).refine(
+  // Catches, run-outs, and stumpings need a credited fielder so the
+  // commentary string + fielding leaderboards don't end up with "?"
+  // entries. caught_and_bowled credits the bowler implicitly.
+  (d) =>
+    !d.is_wicket ||
+    !d.wicket_type ||
+    !["caught", "run_out", "stumped"].includes(d.wicket_type) ||
+    !!d.fielder_id,
+  { message: "Fielder is required for caught / run-out / stumped" },
+);
 
 export async function recordBall(
   input: z.infer<typeof recordBallSchema>,
