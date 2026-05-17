@@ -531,8 +531,11 @@ type BuildLookups = {
   bowlingTeamShortByInnings: Map<string, string>;
 };
 
-/** Top-N for every leaderboard. Kept small so the page stays scannable. */
-const TOP_N = 5;
+/** Safety ceiling on rows per leaderboard. Realistic counts are far
+ *  lower than this (≤ 50 qualifying players per leaderboard), so this
+ *  effectively means "every qualifying row" — the view paginates from
+ *  there. */
+const TOP_N = 500;
 /** Minimum sample sizes for ratio-based leaderboards. */
 const MIN_BAT_BALLS = 12; // for SR
 const MIN_BAT_INNINGS_FOR_AVG = 3;

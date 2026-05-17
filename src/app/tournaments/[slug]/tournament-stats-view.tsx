@@ -9,6 +9,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+const PAGE_SIZE = 10;
+
 export type LeaderRow = {
   name: string;
   team: string;
@@ -229,7 +231,13 @@ export function TournamentStatsView({
       </div>
 
       {table && activeStyle ? (
-        <LeaderTable title={activeStyle.label} table={table} />
+        // Remount on (filter, style) change so the per-table pagination
+        // state resets to page 1 without an effect inside LeaderTable.
+        <LeaderTable
+          key={`${filter}:${activeStyle.id}`}
+          title={activeStyle.label}
+          table={table}
+        />
       ) : (
         <Card className="border-dashed">
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
@@ -248,92 +256,139 @@ function LeaderTable({
   title: string;
   table: LeaderboardTable;
 }) {
+  const [page, setPage] = useState(0);
+  const totalRows = table.rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const start = safePage * PAGE_SIZE;
+  const end = Math.min(start + PAGE_SIZE, totalRows);
+  const visibleRows = table.rows.slice(start, end);
+
   return (
     <Card className="overflow-hidden">
       <CardHeader className="border-b border-foreground/5 bg-muted/30">
         <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        {table.rows.length === 0 ? (
+        {totalRows === 0 ? (
           <div className="px-4 py-6 text-sm text-muted-foreground">
             No data yet.
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-foreground/10 text-[10px] uppercase tracking-wide text-muted-foreground">
-                  <th
-                    scope="col"
-                    className="sticky left-0 z-10 bg-card px-3 py-2 text-left font-medium"
-                  >
-                    Player
-                  </th>
-                  {table.cols.map((c) => (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-foreground/10 text-[10px] uppercase tracking-wide text-muted-foreground">
                     <th
-                      key={c}
                       scope="col"
-                      className="px-2 py-2 text-right font-medium"
+                      className="sticky left-0 z-10 bg-card px-3 py-2 text-left font-medium"
                     >
-                      {c}
+                      Player
                     </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {table.rows.map((r, idx) => (
-                  <tr
-                    key={r.name + idx}
-                    className="border-b border-foreground/5 last:border-b-0"
-                  >
-                    <th
-                      scope="row"
-                      className="sticky left-0 z-10 bg-card px-3 py-2 text-left font-normal"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={
-                            "inline-flex size-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-semibold tabular-nums " +
-                            (idx === 0
-                              ? "bg-primary/15 text-primary"
-                              : "bg-muted text-muted-foreground")
-                          }
-                        >
-                          {idx + 1}
-                        </span>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1">
-                            <span className="truncate font-medium capitalize">
-                              {r.name}
-                            </span>
-                            {r.cat && (
-                              <span className="shrink-0 font-mono text-[9px] text-muted-foreground">
-                                C{r.cat}
-                              </span>
-                            )}
-                          </div>
-                          <div className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
-                            {r.team}
-                          </div>
-                        </div>
-                      </div>
-                    </th>
-                    {r.values.map((v, ci) => (
-                      <td
-                        key={ci}
-                        className={
-                          "px-2 py-2 text-right font-mono tabular-nums " +
-                          (ci === 0 ? "font-semibold" : "text-muted-foreground")
-                        }
+                    {table.cols.map((c) => (
+                      <th
+                        key={c}
+                        scope="col"
+                        className="px-2 py-2 text-right font-medium"
                       >
-                        {v}
-                      </td>
+                        {c}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {visibleRows.map((r, idx) => {
+                    const globalRank = start + idx + 1;
+                    return (
+                      <tr
+                        key={r.name + globalRank}
+                        className="border-b border-foreground/5 last:border-b-0"
+                      >
+                        <th
+                          scope="row"
+                          className="sticky left-0 z-10 bg-card px-3 py-2 text-left font-normal"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={
+                                "inline-flex size-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-semibold tabular-nums " +
+                                (globalRank === 1
+                                  ? "bg-primary/15 text-primary"
+                                  : "bg-muted text-muted-foreground")
+                              }
+                            >
+                              {globalRank}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1">
+                                <span className="truncate font-medium capitalize">
+                                  {r.name}
+                                </span>
+                                {r.cat && (
+                                  <span className="shrink-0 font-mono text-[9px] text-muted-foreground">
+                                    C{r.cat}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
+                                {r.team}
+                              </div>
+                            </div>
+                          </div>
+                        </th>
+                        {r.values.map((v, ci) => (
+                          <td
+                            key={ci}
+                            className={
+                              "px-2 py-2 text-right font-mono tabular-nums " +
+                              (ci === 0
+                                ? "font-semibold"
+                                : "text-muted-foreground")
+                            }
+                          >
+                            {v}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between gap-2 border-t border-foreground/10 px-3 py-2 text-xs text-muted-foreground">
+                <span className="font-mono tabular-nums">
+                  {start + 1}–{end} of {totalRows}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={safePage === 0}
+                    className="rounded-md border border-foreground/10 bg-card px-2.5 py-1 font-medium transition hover:bg-muted/30 disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Previous page"
+                  >
+                    Prev
+                  </button>
+                  <span className="px-1.5 font-mono tabular-nums">
+                    {safePage + 1} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPage((p) => Math.min(totalPages - 1, p + 1))
+                    }
+                    disabled={safePage >= totalPages - 1}
+                    className="rounded-md border border-foreground/10 bg-card px-2.5 py-1 font-medium transition hover:bg-muted/30 disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Next page"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
