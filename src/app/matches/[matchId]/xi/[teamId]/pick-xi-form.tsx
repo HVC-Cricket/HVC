@@ -36,8 +36,6 @@ export function PickXIForm({ matchId, teamId, playersPerSide, rows }: Props) {
   };
 
   const includedRows = state.filter((r) => r.included && !r.is_substitute);
-  const captains = state.filter((r) => r.included && r.is_captain).length;
-  const keepers = state.filter((r) => r.included && r.is_keeper).length;
   const overFilled = includedRows.length > playersPerSide;
   const underFilled = includedRows.length < playersPerSide;
 
@@ -68,14 +66,6 @@ export function PickXIForm({ matchId, teamId, playersPerSide, rows }: Props) {
   };
 
   const onSave = () => {
-    if (captains > 1) {
-      toast.error("Pick at most one captain");
-      return;
-    }
-    if (keepers > 1) {
-      toast.error("Pick at most one wicket-keeper");
-      return;
-    }
     startTransition(async () => {
       const result = await savePlayingXI({
         matchId,
@@ -116,9 +106,6 @@ export function PickXIForm({ matchId, teamId, playersPerSide, rows }: Props) {
               </label>
             </th>
             <th className="px-2 py-2 font-medium">Player</th>
-            <th className="px-2 py-2 font-medium">Order</th>
-            <th className="px-2 py-2 font-medium">C</th>
-            <th className="px-2 py-2 font-medium">WK</th>
             <th className="px-2 py-2 font-medium">Sub</th>
           </tr>
         </thead>
@@ -145,43 +132,6 @@ export function PickXIForm({ matchId, teamId, playersPerSide, rows }: Props) {
                 />
               </td>
               <td className="px-2 py-2">{r.display_name}</td>
-              <td className="px-2 py-2">
-                <input
-                  type="number"
-                  min={1}
-                  max={playersPerSide}
-                  className="h-8 w-16 rounded-md border border-input bg-transparent px-2"
-                  value={r.batting_order ?? ""}
-                  disabled={!r.included || r.is_substitute}
-                  onChange={(e) =>
-                    update(r.player_id, {
-                      batting_order: e.target.value
-                        ? Number(e.target.value)
-                        : null,
-                    })
-                  }
-                />
-              </td>
-              <td className="px-2 py-2">
-                <input
-                  type="checkbox"
-                  checked={r.is_captain}
-                  disabled={!r.included}
-                  onChange={(e) =>
-                    update(r.player_id, { is_captain: e.target.checked })
-                  }
-                />
-              </td>
-              <td className="px-2 py-2">
-                <input
-                  type="checkbox"
-                  checked={r.is_keeper}
-                  disabled={!r.included}
-                  onChange={(e) =>
-                    update(r.player_id, { is_keeper: e.target.checked })
-                  }
-                />
-              </td>
               <td className="px-2 py-2">
                 <input
                   type="checkbox"
