@@ -27,36 +27,39 @@ WITH
     ) v(name, short_name)
     RETURNING id, name
   ),
+  -- One Cat 1 + one Cat 3 per team so the special-over rules
+  -- (Cat-1-must-face-Cat-1, Cat-1/3 repeat dismissal, etc.) are
+  -- testable end-to-end. Remaining 5 per team are Cat 2.
   new_players AS (
     INSERT INTO players (display_name, batting_style, bowling_style, category)
     VALUES
       -- Royal Strikers
-      ('Arjun',   'right_hand', 'right_arm_fast',   2),
-      ('Vikram',  'right_hand', 'right_arm_fast',   2),
+      ('Arjun',   'right_hand', 'right_arm_fast',   1),
+      ('Vikram',  'right_hand', 'right_arm_fast',   3),
       ('Rohit',   'left_hand',  'right_arm_medium', 2),
       ('Surya',   'right_hand', 'right_arm_fast',   2),
       ('Karan',   'right_hand', 'right_arm_medium', 2),
       ('Pranav',  'right_hand', 'right_arm_spin',   2),
       ('Ishan',   'left_hand',  'right_arm_fast',   2),
       -- Storm Riders
-      ('Sachin',  'right_hand', 'right_arm_fast',   2),
-      ('Rahul',   'right_hand', 'right_arm_medium', 2),
+      ('Sachin',  'right_hand', 'right_arm_fast',   1),
+      ('Rahul',   'right_hand', 'right_arm_medium', 3),
       ('Yash',    'right_hand', 'right_arm_fast',   2),
       ('Dev',     'left_hand',  'right_arm_spin',   2),
       ('Aman',    'right_hand', 'right_arm_fast',   2),
       ('Nikhil',  'right_hand', 'right_arm_medium', 2),
       ('Manish',  'right_hand', 'right_arm_fast',   2),
       -- Phoenix Flames
-      ('Aditya',  'right_hand', 'right_arm_fast',   2),
-      ('Akhil',   'right_hand', 'right_arm_medium', 2),
+      ('Aditya',  'right_hand', 'right_arm_fast',   1),
+      ('Akhil',   'right_hand', 'right_arm_medium', 3),
       ('Tarun',   'left_hand',  'right_arm_fast',   2),
       ('Aakash',  'right_hand', 'right_arm_spin',   2),
       ('Varun',   'right_hand', 'right_arm_fast',   2),
       ('Sumit',   'right_hand', 'right_arm_medium', 2),
       ('Kunal',   'right_hand', 'right_arm_fast',   2),
       -- Silver Sharks
-      ('Sanjay',  'right_hand', 'right_arm_fast',   2),
-      ('Naveen',  'right_hand', 'right_arm_medium', 2),
+      ('Sanjay',  'right_hand', 'right_arm_fast',   1),
+      ('Naveen',  'right_hand', 'right_arm_medium', 3),
       ('Harish',  'right_hand', 'right_arm_fast',   2),
       ('Ramesh',  'left_hand',  'right_arm_spin',   2),
       ('Suresh',  'right_hand', 'right_arm_fast',   2),
