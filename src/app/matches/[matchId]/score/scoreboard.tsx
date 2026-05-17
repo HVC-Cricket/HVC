@@ -341,6 +341,36 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   const disabledBowlerIds = new Set(catBlockedBowlerIds);
   if (previousOverBowlerId) disabledBowlerIds.add(previousOverBowlerId);
 
+  // Auto-pick a Cat-matching striker + bowler when the over category
+  // restricts to Cat 1 or Cat 3 (Cat 2 is open). Fires both on manual
+  // category change AND on the over-boundary default reset above —
+  // saves the scorer the taps when the current slots are off-category.
+  // Skips if no candidate is available; the existing pre-submit
+  // validation still catches that case via a toast.
+  useEffect(() => {
+    if (overCategory === 2) return;
+    const strikerCat = playersById.get(strikerId)?.category ?? null;
+    if (strikerCat !== overCategory) {
+      const dismissed = new Set(state.active.dismissed_ids);
+      const candidate = battingXi.find(
+        (p) =>
+          p.category === overCategory &&
+          !dismissed.has(p.id) &&
+          p.id !== nonStrikerId,
+      );
+      if (candidate) setStrikerId(candidate.id);
+    }
+    const bowlerCat = playersById.get(bowlerId)?.category ?? null;
+    if (bowlerCat !== overCategory) {
+      const candidate = bowlingXi.find(
+        (p) => p.category === overCategory && !disabledBowlerIds.has(p.id),
+      );
+      if (candidate) setBowlerId(candidate.id);
+    }
+    // Run only on overCategory change. Re-running on every render
+    // would overwrite scorer-driven picks within the same over.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overCategory]);
 
   const striker = playersById.get(strikerId);
   const nonStriker = playersById.get(nonStrikerId);
