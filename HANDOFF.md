@@ -676,6 +676,14 @@ If/when the user asks for these, the schema may need extension:
 - **Database backups** — Pro tier ($25/mo) for daily backups; for now, manual `pg_dump` from dashboard.
 - **Seed data file** — none yet; will add `seed.sql` once first tournament is decided.
 
+### Super-over: ICC compliance gaps (queued, 2026-05-17)
+
+After the innings-cap fix landed (migration `20260517020000_*`), repeated super overs work end-to-end. These finer ICC rules are NOT yet enforced — flagged here so the next pass picks them up:
+
+- **No-repeat bowler / batter across super overs.** ICC: any player who batted *or* bowled in a Super Over may not repeat in the next one. The app currently lets the scorer pick freely from the XI every leg. Fix: extend `startSuperOverInnings` validation + grey-out previously-used players in `super-over-panel.tsx`. Needs a way to compute "previously-used in any prior super-over leg" — query `balls` for distinct `bowler_id` + `striker_id` / `non_striker_id` per innings ≥ 3.
+- **Win-margin wickets-out-of-`xi - 1` for super overs.** `finalizeMatchInternal` reports `wicketsLeft = players_per_side - 1 - so_winner.total_wickets`, so a side winning a 7-a-side super over with 0 wickets down reports "won by 6 wickets" instead of "won by 2 wickets" (out of the 2-wicket cap). Cosmetic but wrong. Fix: use `rules.super_over.max_wickets - so_winner.total_wickets` for super-over win-margin.
+- **Pre-super-over batter nomination step.** ICC: each side nominates up to 3 batters before the super over begins. Today the picks happen ball-by-ball and the 2-wicket cap naturally limits to 3 batters, so the practical outcome matches — but a formal nomination UI would catch misconfigured XI rosters (e.g., a team with only 2 fit batters) before the over starts.
+
 ---
 
 ## 12. Project context for the AI assistant
