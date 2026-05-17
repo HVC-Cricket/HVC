@@ -1137,6 +1137,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
               nonStriker={nonStriker?.display_name}
               strikerId={strikerId}
               nonStrikerId={nonStrikerId}
+              bowlerId={bowlerId}
               bowlingXi={state.xi[innings.bowling_team_id] ?? []}
             />
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2">

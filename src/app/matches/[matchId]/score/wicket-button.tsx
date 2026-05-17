@@ -53,6 +53,7 @@ export function WicketButton({
   nonStriker,
   strikerId,
   nonStrikerId,
+  bowlerId,
   bowlingXi,
 }: {
   open: boolean;
@@ -72,6 +73,9 @@ export function WicketButton({
   nonStriker?: string;
   strikerId: string;
   nonStrikerId: string;
+  /** Current bowler — disabled in the fielder picker for `stumped`
+   *  since the bowler can't physically stump the batter. */
+  bowlerId: string;
   bowlingXi: { id: string; display_name: string; category: 1 | 2 | 3 | null }[];
 }) {
   const [wicketType, setWicketType] = useState<WicketType>("bowled");
@@ -103,6 +107,14 @@ export function WicketButton({
   useEffect(() => {
     setWhoOut(wicketType === "run_out" ? "" : "striker");
   }, [wicketType]);
+
+  // Clear the fielder slot if the type flips to `stumped` and the
+  // current pick happens to be the bowler — they can't stump.
+  useEffect(() => {
+    if (wicketType === "stumped" && fielder === bowlerId) {
+      setFielder("");
+    }
+  }, [wicketType, fielder, bowlerId]);
 
   const close = () => {
     onOpenChange(false);
@@ -284,16 +296,27 @@ export function WicketButton({
                     <SelectValue placeholder="—" />
                   </SelectTrigger>
                   <SelectContent>
-                    {bowlingXi.map((p) => (
-                      <SelectItem
-                        key={p.id}
-                        value={p.id}
-                        className="capitalize"
-                      >
-                        {p.display_name}
-                        {p.category ? ` · C${p.category}` : ""}
-                      </SelectItem>
-                    ))}
+                    {bowlingXi.map((p) => {
+                      // Bowler can't physically stump the batter, so
+                      // disable that option in the stumped fielder
+                      // dropdown and append "(bowler)" so the scorer
+                      // can see why.
+                      const isBowler = p.id === bowlerId;
+                      const disabled =
+                        wicketType === "stumped" && isBowler;
+                      return (
+                        <SelectItem
+                          key={p.id}
+                          value={p.id}
+                          disabled={disabled}
+                          className="capitalize"
+                        >
+                          {p.display_name}
+                          {p.category ? ` · C${p.category}` : ""}
+                          {isBowler ? " (bowler)" : ""}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
               </label>
