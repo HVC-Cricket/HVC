@@ -266,19 +266,43 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   }, [state.balls.length]);
 
   // Sync the slot picks with the engine's post-rotation view ONLY when
-  // a new ball lands (or one is undone). state.balls.length changing is
-  // the unambiguous signal — between balls, the scorer's manual picks
-  // are preserved. Bowler at over boundary is `null` server-side; we
-  // clear locally so the slot tile shows "—" and the scorer has to
-  // pick the next bowler before tapping a run (and recordBall rejects
-  // it server-side if they don't).
+  // a new ball lands (or one is undone). `state.balls.length` changing
+  // is the unambiguous signal — between balls, the scorer's manual
+  // picks are preserved.
+  //
+  // At an over boundary the server already nulls `bowler_id`. HVC
+  // convention varies by the new over's category default:
+  //   - Cat 1 / Cat 3 over (over 1 / 2): clear striker + bowler so the
+  //     scorer picks Cat-matching players; keep non-striker (who was
+  //     batting last over and is now at non-strike post-rotation).
+  //   - Cat 2 over (over 3+) or super over: clear all three slots —
+  //     "any" category, no rule guiding the auto-pick, scorer chooses
+  //     both ends fresh.
+  // `state.balls.length > 0` rules out the initial-mount case where
+  // `bowler_id` is null because no ball has been bowled yet.
   const ballsLengthSyncRef = useRef(state.balls.length);
   useEffect(() => {
     if (state.balls.length === ballsLengthSyncRef.current) return;
     ballsLengthSyncRef.current = state.balls.length;
-    setStrikerId(state.active.striker_id ?? "");
-    setNonStrikerId(state.active.non_striker_id ?? "");
-    setBowlerId(state.active.bowler_id ?? "");
+    const atOverBoundary =
+      state.active.bowler_id === null && state.balls.length > 0;
+    if (atOverBoundary) {
+      const newOverCategory = isSuperOver
+        ? 2
+        : defaultOverCategory(state.active.over_number);
+      setStrikerId("");
+      setBowlerId("");
+      // Cat 2 (or super over) = clear non-striker too; otherwise keep.
+      if (newOverCategory === 2) {
+        setNonStrikerId("");
+      } else {
+        setNonStrikerId(state.active.non_striker_id ?? "");
+      }
+    } else {
+      setStrikerId(state.active.striker_id ?? "");
+      setNonStrikerId(state.active.non_striker_id ?? "");
+      setBowlerId(state.active.bowler_id ?? "");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.balls.length]);
 
@@ -352,12 +376,15 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   const disabledBowlerIds = new Set(catBlockedBowlerIds);
   if (previousOverBowlerId) disabledBowlerIds.add(previousOverBowlerId);
 
-  // Auto-pick a Cat-matching striker + bowler when the over category
-  // restricts to Cat 1 or Cat 3 (Cat 2 is open). Fires both on manual
-  // category change AND on the over-boundary default reset above —
-  // saves the scorer the taps when the current slots are off-category.
-  // Skips if no candidate is available; the existing pre-submit
-  // validation still catches that case via a toast.
+  // Auto-pick a Cat-matching striker + bowler when overCategory
+  // changes (over boundary default reset, OR manual dropdown change).
+  // Fires AFTER the balls-length sync above has already cleared
+  // striker + bowler at the boundary, so this fills the empty slots
+  // with the first eligible Cat-matching candidate. Non-striker is
+  // never touched here — they continue from the previous over.
+  // Skips when overCategory = 2 (Cat 2 = any player, no auto-pick).
+  // If no candidate matches, the slot is left as-is and the existing
+  // pre-submit validation toasts the scorer.
   useEffect(() => {
     if (overCategory === 2) return;
     const strikerCat = playersById.get(strikerId)?.category ?? null;
@@ -378,8 +405,6 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       );
       if (candidate) setBowlerId(candidate.id);
     }
-    // Run only on overCategory change. Re-running on every render
-    // would overwrite scorer-driven picks within the same over.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overCategory]);
 
