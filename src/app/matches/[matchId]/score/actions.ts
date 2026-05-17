@@ -993,55 +993,72 @@ async function maybeAutoSchedulePlayoffs(
     return true;
   };
 
-  // Walk the chain; first applicable transition fires this run. Each
-  // subsequent finalize triggers the next link.
+  // Multiple stages can be scheduled in a single run (Q1 + Eliminator
+  // both derive from the points table once group ends, so they go up
+  // together — no point waiting for Q1 to finish before queuing the
+  // Eliminator). Q2 / Final still need their dependencies to be done.
   let scheduled = false;
 
-  // 1. Qualifier 1 — top 2 on points table once every group match is terminal.
-  if (
-    !q1Any &&
-    groupMatches.length > 0 &&
-    groupMatches.every((m) => terminal(m.status))
-  ) {
-    const standings = await computeStandings(supabase, tournamentId);
+  const groupAllDone =
+    groupMatches.length > 0 && groupMatches.every((m) => terminal(m.status));
+
+  // Standings load only when needed for the points-table-driven slots.
+  let standingsCache: Awaited<ReturnType<typeof computeStandings>> | null =
+    null;
+  const getStandings = async () => {
+    if (!standingsCache) {
+      standingsCache = await computeStandings(supabase, tournamentId);
+    }
+    return standingsCache;
+  };
+
+  // 1. Qualifier 1 — top 1 vs top 2 on the points table.
+  if (!q1Any && groupAllDone) {
+    const standings = await getStandings();
     if (standings.length >= 2) {
-      scheduled = await schedule(
+      const ok = await schedule(
         "qualifier_1",
         standings[0].team_id,
         standings[1].team_id,
       );
+      if (ok) scheduled = true;
     }
   }
-  // 2. Eliminator — #3 vs #4 on the same points table.
-  else if (!elimAny && q1Done) {
-    const standings = await computeStandings(supabase, tournamentId);
+  // 2. Eliminator — top 3 vs top 4 on the points table. Same trigger
+  //    as Q1 (group done); they go up in parallel.
+  if (!elimAny && groupAllDone) {
+    const standings = await getStandings();
     if (standings.length >= 4) {
-      scheduled = await schedule(
+      const ok = await schedule(
         "eliminator",
         standings[2].team_id,
         standings[3].team_id,
       );
+      if (ok) scheduled = true;
     }
   }
-  // 3. Qualifier 2 — Q1 loser vs Eliminator winner.
-  else if (!q2Any && elimDone && q1Done) {
+  // 3. Qualifier 2 — Q1 loser vs Eliminator winner. Needs both to be
+  //    decided first.
+  if (!q2Any && q1Done && elimDone) {
     const q1Loser =
       q1Done.team_a_id === q1Done.winner_id
         ? q1Done.team_b_id
         : q1Done.team_a_id;
-    scheduled = await schedule(
+    const ok = await schedule(
       "qualifier_2",
       q1Loser,
       elimDone.winner_id as string,
     );
+    if (ok) scheduled = true;
   }
   // 4. Final — Q1 winner vs Q2 winner.
-  else if (!finalAny && q2Done && q1Done) {
-    scheduled = await schedule(
+  if (!finalAny && q1Done && q2Done) {
+    const ok = await schedule(
       "final",
       q1Done.winner_id as string,
       q2Done.winner_id as string,
     );
+    if (ok) scheduled = true;
   }
 
   if (scheduled && tournament.slug) {
