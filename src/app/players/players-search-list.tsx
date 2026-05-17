@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { getInitials } from "@/lib/utils";
 
 export type PlayerRow = {
@@ -34,30 +33,36 @@ export function PlayersSearchList({ rows }: { rows: PlayerRow[] }) {
 
   return (
     <div className="space-y-3">
-      <div className="relative">
+      {/* Flex-row search shell instead of an absolutely-positioned icon
+          on top of <Input> — the base component sets px-2.5 and Tailwind
+          merge wasn't reliably overriding it on Tailwind v4, so the icon
+          and the placeholder sat at the same x position. */}
+      <label
+        className="flex h-10 items-center gap-2 rounded-lg border border-input bg-transparent px-3 text-sm transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30"
+      >
         <Search
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          className="size-4 shrink-0 text-muted-foreground"
           aria-hidden
         />
-        <Input
+        <input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search players by name…"
           aria-label="Search players"
-          className="pl-9 pr-9"
+          className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
         />
         {query && (
           <button
             type="button"
             onClick={() => setQuery("")}
             aria-label="Clear search"
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            className="-mr-1 rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
           >
             <X className="size-4" />
           </button>
         )}
-      </div>
+      </label>
 
       {query && (
         <p className="text-xs text-muted-foreground">
