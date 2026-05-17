@@ -202,10 +202,6 @@ function InningsCard({
           <span className="font-mono text-base font-normal text-muted-foreground">
             {overs} ov
           </span>
-          <span className="ml-auto flex items-baseline gap-1 text-sm font-normal text-muted-foreground">
-            <span className="text-[10px] uppercase tracking-wide">RR</span>
-            <span className="font-mono text-foreground">{runRate}</span>
-          </span>
         </CardTitle>
         {/* Team-batting caption + chase summary previously lived here
             ("WK batting", "WK innings · chased 95"). Removed at the
