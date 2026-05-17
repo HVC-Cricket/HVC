@@ -18,6 +18,8 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-16 (evening) — Spectator UI polish + identity sync.** Tournament home now leads with a Champion + Runner-up + Player-of-the-Tournament hero (only on completed tournaments). Homepage dropped its "no matches live" empty state — always populated now with a linked-user profile strip + past-tournaments grid. `/me` and `/players/[id]` share a new `PlayerCareerSection` server component so the linked user sees the same Career + By-tournament card on both pages (no more 8-vs-9-stat divergence). Two new triggers (`20260516040000_sync_avatar_photo` + `20260516050000_sync_display_name`) keep `profiles.avatar_url ↔ players.photo_url` and `profiles.display_name ↔ players.display_name` in sync for linked accounts — bidirectional, recursion-safe, with one-shot backfill. Match-list rows show full team names with "Team " prefix stripped + 20 cricheroes team logos backfilled to full URLs. `/players` list routes the signed-in user's own row to `/me` instead of `/players/[id]`. See §16.
 
+**2026-05-17 — Cricheroes scrape pagination fix + league-only standings.** Earlier scrape silently captured only page 1 (12 matches) per tournament — cricheroes' `/api/v1/match/get-tournament-matches` API silently re-serves page 1 unless the server-minted `datetime` cursor from page 1 is replayed on subsequent requests. Added `fetch_tournament_matches()` paginator to `scripts/scrape_cricheroes.py` + required API headers. Re-imported all 6 seasons with `--reset`; counts roughly doubled (matches 71→131, match_players 925→1729, innings 142→266, historical_batting 850→1602, historical_bowling 776→1446). New migration `20260516100000_points_table_league_only.sql` restricts `v_points_table` to `stage='group'` so standings show only the league phase (matches cricheroes' "League Matches" table exactly). Sudharshan player re-linked to user account (display_name changed from "Sudharshan V" → "Sudharshan" after re-scrape). See §18.
+
 **2026-05-17 — Cricheroes leaderboard parity (MVP + POTM + Stats).** The MVP tab on historical seasons was tied on team-bonus only (every Hoysala player at 80 for S6) because our HVC formula was running against the empty `balls` table. Switched to mirroring cricheroes' published MVP rows verbatim: new `historical_tournament_mvp` table (migration `20260517000000_*` — **prod only; dev didn't need it**) holds 274 rows across S1–S6 with cricheroes' decimal totals (33.003, 22.400, …). `scripts/scrape_cricheroes.py` extended with `fetch_mvp_leaderboard()` hitting `api.cricheroes.in/api/v1/mvp/get-tournament-player-mvp/{tid}`. New `scripts/import_cricheroes_mvp.ts` is a targeted importer that resolves existing UUIDs by tournament-slug + team-name + player-display_name, so prod can be loaded without `--reset`-ing other historical data. `tournament-mvp.tsx` falls back to the new table; `tournament-champion.tsx` POTM card pulls rank 1 from it (Mady for S5, not the POM-count winner Ashrith Kashyap). Same day the Stats tab got a full historical fallback computing from `historical_match_batting/bowling`, plus a cricheroes-style BAT/BOWL/FIELD pill layout with a Style dropdown (7 batting + 7 bowling + 3 fielding leaderboards), pagination at 10 rows/page, and a constrained player column that wraps long names. FIELD section hidden on historical seasons (no per-ball fielder credits in the cricheroes feed). Plus several morning UI tweaks: match-complete panel now has an explicit "Finish match" + "Undo last ball" pair instead of auto-finalizing the last ball; scoreboard chase line reads "Need X runs from Y balls"; Pick XI gained a select-all header checkbox; homepage innings join disambiguated via `innings!innings_match_id_fkey`. See §17.
 
 **Project directory:** `~/Desktop/projects/hvc-scoring/` (Pavan's machine; was `/home/sudharshan/projects/own/hvc-scoring/` for the prior author).
@@ -662,6 +664,18 @@ If you're a Claude Code session reading this to pick up the work:
 - **Don't suggest heavy/custom infra** — they explicitly chose Supabase for simplicity.
 - **Don't add features beyond what was asked.** Three similar lines beats premature abstraction.
 
+### Workflow policy: HANDOFF.md ships with every change (2026-05-17)
+
+**Every change to this repo must include three things in the same commit:**
+
+1. The code / SQL / scraper / config change itself.
+2. A `HANDOFF.md` update describing what changed, why, and any caveats — extend the most recent dated section or add a new one. Keep the §1 TL;DR aligned.
+3. A push to `main` (trunk-based — no PR review process; small team).
+
+This is non-negotiable. After making any change: update `HANDOFF.md`, then `git add` + `git commit` + `git push origin main`. Don't batch across changes — every change ships with its own doc update and its own push. The whole point is that the next Claude session can pick up by reading `HANDOFF.md` alone and not have to reverse-engineer recent commits.
+
+This policy supersedes any older preference suggesting "wait for explicit instruction before commit/push" — that preference no longer applies.
+
 ### Key files to read first when resuming
 1. This file — `HANDOFF.md`
 2. `db.sql` — full schema, ready to run
@@ -1208,6 +1222,127 @@ src/app/tournaments/[slug]/teams/[teamId]/page.tsx    (squad list: C1/C2/C3 chip
 src/app/matches/[matchId]/score/wicket-button.tsx     (fielder picker now mandatory for caught/run_out/stumped)
 src/app/matches/[matchId]/score/actions.ts            (recordBallSchema .refine(): fielder required for caught/run_out/stumped)
 ```
+
+---
+
+## 18. Pagination fix, full re-scrape, league-only standings (2026-05-17)
+
+This was the actual content of commit `4ff6497` ("updated cricheroes data"), which had a sparse message. Documenting here.
+
+The 2026-05-16 cricheroes import looked clean but was missing roughly half the matches. CricHeroes' "League Matches" table for Season 6 showed 25 matches (7 teams × 6 league + knockouts); our standings showed teams playing 2–6 matches each. Root cause: the scraper only ever captured page 1 per tournament.
+
+### Root cause: silent pagination
+
+`scripts/scrape_cricheroes.py` originally read `pageProps.matchResponse.data` from the `past-matches.json` Next.js data endpoint — that's only the first 12 matches per tournament. The underlying `https://api.cricheroes.in/api/v1/match/get-tournament-matches/3/-1/-1` endpoint paginates by **(pageno, datetime)** together; `datetime` is a server-minted cursor handed back in `page.next` on the first response. **If you pass `pageno=N` without `datetime`, the API silently re-serves page 1 regardless of `pageno`.** No error, no warning — the loop just looked like it hit EOF after 12 rows.
+
+### Fix
+
+Added `fetch_tournament_matches(tid)` paginator + `API_HEADERS` constant to the scraper. Extracts the `datetime` cursor from page 1's `page.next` and replays it on subsequent requests:
+
+```python
+API_HEADERS = {
+    "api-key": "cr!CkH3r0s",
+    "device-type": "web",
+    "udid": "hvc-scraper-stable-id",
+}
+
+def fetch_tournament_matches(tid: int) -> list[dict]:
+    """Paginate /match/get-tournament-matches and return every completed match.
+    Cricheroes pages by (pageno, datetime) — the `datetime` cursor is minted on
+    page 1 and must be passed back on subsequent pages, otherwise the API
+    silently re-serves page 1 regardless of `pageno`."""
+    ...
+```
+
+Required headers (all three are mandatory — missing any produces `2003 UDID not found` / `2004 Device-type not found` errors): `api-key: cr!CkH3r0s`, `device-type: web`, `udid: <any stable id>`. Synthetic values are fine — they don't need to match a real session. `main()` no longer reads `matchResponse.data`; it calls the paginator directly.
+
+### Re-scrape + re-import (prod)
+
+Run with `ALLOW_PROD_IMPORT=1 pnpm run seed:cricheroes -- --reset`. The `--reset` flag truncates target tables in reverse-FK order before inserting. Before → after counts on prod:
+
+| Table | Before | After |
+|---|---:|---:|
+| matches | 71 | 131 |
+| match_players | 925 | 1729 |
+| innings | 142 | 266 |
+| historical_match_batting | 850 | 1602 |
+| historical_match_bowling | 776 | 1446 |
+| historical_match_fall_of_wickets | 477 | 873 |
+| tournaments | 6 | 6 |
+| teams | 39 | 39 |
+| players | 64 | 65 |
+| team_players | 275 | 308 |
+
+Tournament UUIDs rotated because `--reset` truncated and re-inserted. Current UUIDs as of 2026-05-17:
+
+| Season | UUID |
+|---|---|
+| hvc-season-1 | `c5c74662-b952-4be1-aaa2-52a973fea034` |
+| hvc-season-2 | `b6a2d810-9704-42e9-a257-8ec01e232304` |
+| hvc-season-3 | `bab12fcd-d292-4189-8f56-6023a9661830` |
+| hvc-season-4 | `43c65fc5-0598-4fd9-bf5d-7fbeff191b46` |
+| hvc-season-5 | `5f3a35ad-f144-42b4-abdd-3b1d1477a2d9` |
+| hvc-season-6 | `3c2f7696-0cfe-47b3-b4c1-f25a1fa45ccb` |
+
+The MVP-only importer (`scripts/import_cricheroes_mvp.ts`, see §17) resolves UUIDs by slug/name and re-runs cleanly after any `--reset`, so the rotated tournament UUIDs don't require manual fixup downstream.
+
+### Sudharshan re-link
+
+`--reset` wiped the players table. The fresh scrape produced a row with `display_name='Sudharshan'` (the 2026-05-16 row had `display_name='Sudharshan V'`) and no `linked_user_id`. Re-linked via PostgREST PATCH:
+
+```bash
+curl -X PATCH "$NEXT_PUBLIC_SUPABASE_URL/rest/v1/players?display_name=eq.Sudharshan" \
+  -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"linked_user_id":"e583ac39-9516-4c74-bb2f-954dc830d091"}'
+```
+
+Pavan's player row needs the same treatment if/when re-imports recur — `display_name` patterns can shift across cricheroes scrapes (capitalization, middle initials).
+
+### Standings still wrong: stage-aware points table
+
+After the re-import, S6 standings showed Hoysala Hunters with P=9 instead of 6. Root cause: `v_points_table` (originally defined in `db.sql:639`) counted every completed match — `stage='group'` plus `qualifier`, `semi`, `final` all blended into a single row's W/L/P. Cricheroes (and every league-style points table) renders ONLY the round-robin phase, with knockouts shown separately.
+
+New migration **`supabase/migrations/20260516100000_points_table_league_only.sql`** adds `where stage = 'group'` to both branches of the UNION ALL inside the view:
+
+```sql
+create or replace view v_points_table as
+with results as (
+  select m.tournament_id, m.team_a_id as team_id, ...
+  from matches m
+  where m.status = 'completed' and m.stage = 'group'   -- new filter
+  union all
+  select m.tournament_id, m.team_b_id as team_id, ...
+  from matches m
+  where m.status = 'completed' and m.stage = 'group'   -- new filter
+)
+...
+```
+
+Applied to prod with `pnpm exec supabase db push --linked` while linked to `cxysyglwooqmzcfvtmyl`. Dev still needs the same `db push --linked` while linked to `clqdimzthzcpurtwhtej` (the migration file is committed; the apply is per-environment).
+
+NRR calc in the app already reads from `v_points_table`'s output, so it inherits the same league-only filter implicitly — no separate fix needed.
+
+**Verification:** S6 standings now exactly match cricheroes' "League Matches" table — 6/6/0, 6/5/1, 6/4/2, 6/3/3, 6/2/4, 6/1/5, 6/0/6 across the 7 teams.
+
+### Files (already in `main` from commit 4ff6497 + this doc-only follow-up)
+
+```
+scripts/scrape_cricheroes.py                                       (paginator + API_HEADERS)
+supabase/migrations/20260516100000_points_table_league_only.sql    (new)
+data/cricheroes/csv/*.csv                                          (regenerated, all 7 tables)
+data/cricheroes/raw/*.json                                         (60 new match JSON files)
+HANDOFF.md                                                         (this §18 + §1 TL;DR + §12 policy)
+.claude/scheduled_tasks.lock                                       (removed — accidentally committed)
+```
+
+### Lessons for the next scraper bug
+
+- **Trust the count, not the loop.** When cricheroes' UI says 25 matches and the scraper produces 6, the loop is lying. Cross-check totals against the rendered tournament page before declaring an import "clean".
+- **Page 1 looks like the whole world** if the API silently ignores your pagination. Always inspect `page.next` (or whatever the cursor field is called) on the first response and confirm subsequent requests *change* the result set.
+- **Headers on `api.cricheroes.in` are picky but not authenticated.** Missing `api-key` / `device-type` / `udid` produces hard 4xx errors with specific codes (2003, 2004, etc.); presence of synthetic values is fine. Pro auth (cookies + `authorization` header) does NOT unlock additional ball-by-ball — only marketing-style `summaryData.insights` strings. Don't bother with pro auth for this scrape.
+- **`/api/v1/scorecard/v2/get-commentary/{matchId}` is rate-limited.** A burst of >5–8 requests within seconds triggers a 60–120s cooldown returning err `20250404`. Space requests by ~5–10s if you ever need this endpoint (we don't, for the historical scrape — commentary data is incomplete anyway; see §15 "Historical scorecard rendering").
 
 ---
 
