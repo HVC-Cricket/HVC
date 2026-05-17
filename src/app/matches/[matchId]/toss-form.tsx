@@ -1,6 +1,7 @@
 "use client";
 
-import { useTransition } from "react";
+import { Check, Pencil } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -22,42 +23,84 @@ type Props = {
 };
 
 export function TossForm({ matchId, teamA, teamB, current }: Props) {
+  const [winner, setWinner] = useState<string>(current?.toss_winner_id ?? "");
+  const [decision, setDecision] = useState<"" | "bat" | "bowl">(
+    current?.toss_decision ?? "",
+  );
+  const [savedWinner, setSavedWinner] = useState(current?.toss_winner_id ?? "");
+  const [savedDecision, setSavedDecision] = useState<"" | "bat" | "bowl">(
+    current?.toss_decision ?? "",
+  );
+  // `editing` is true until the user has saved at least once OR they
+  // explicitly tap Edit after a save. Lets the same component double as
+  // both the initial picker and the read-only summary.
+  const [editing, setEditing] = useState(!current);
   const [pending, startTransition] = useTransition();
 
+  // Auto-save when both selects are filled and the pair differs from
+  // whatever the server already has. No 'Save toss' button — the form
+  // commits on change once the picks are complete.
+  const inFlight = useRef(false);
+  useEffect(() => {
+    if (!editing) return;
+    if (!winner || !decision) return;
+    if (winner === savedWinner && decision === savedDecision) return;
+    if (inFlight.current) return;
+    inFlight.current = true;
+    startTransition(async () => {
+      const result = await setToss({
+        matchId,
+        toss_winner_id: winner,
+        toss_decision: decision,
+      });
+      inFlight.current = false;
+      if (result && !result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setSavedWinner(winner);
+      setSavedDecision(decision);
+      // Collapse to the summary as soon as a fresh save lands. User
+      // can tap Edit to reopen.
+      setEditing(false);
+      toast.success("Toss saved");
+    });
+  }, [winner, decision, savedWinner, savedDecision, matchId, editing]);
+
+  const savedTeamName =
+    savedWinner === teamA.id
+      ? teamA.name
+      : savedWinner === teamB.id
+        ? teamB.name
+        : null;
+
+  if (!editing && savedTeamName && savedDecision) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-foreground/10 bg-muted/30 px-3 py-2 text-sm">
+        <span className="flex items-center gap-2">
+          <Check className="size-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="capitalize">
+            <span className="font-medium">{savedTeamName}</span>
+            <span className="mx-1.5 text-muted-foreground">·</span>
+            <span>{savedDecision === "bat" ? "bat first" : "bowl first"}</span>
+          </span>
+        </span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setEditing(true)}
+          className="gap-1"
+        >
+          <Pencil className="size-3.5" />
+          Edit
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <form
-      className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]"
-      onSubmit={(e) => {
-        e.preventDefault();
-        const fd = new FormData(e.currentTarget);
-        const winner = String(fd.get("toss_winner_id") || "");
-        const decision = String(fd.get("toss_decision") || "");
-        if (!winner) {
-          toast.error("Pick toss winner");
-          return;
-        }
-        if (decision !== "bat" && decision !== "bowl") {
-          toast.error("Pick toss decision");
-          return;
-        }
-        startTransition(async () => {
-          const result = await setToss({
-            matchId,
-            toss_winner_id: winner,
-            toss_decision: decision,
-          });
-          if (result && !result.ok) {
-            toast.error(result.error);
-          } else {
-            toast.success("Toss saved");
-          }
-        });
-      }}
-    >
-      <Select
-        name="toss_winner_id"
-        defaultValue={current?.toss_winner_id ?? undefined}
-      >
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Select value={winner || undefined} onValueChange={setWinner}>
         <SelectTrigger className="capitalize">
           <SelectValue placeholder="Toss winner…" />
         </SelectTrigger>
@@ -71,8 +114,8 @@ export function TossForm({ matchId, teamA, teamB, current }: Props) {
         </SelectContent>
       </Select>
       <Select
-        name="toss_decision"
-        defaultValue={current?.toss_decision ?? undefined}
+        value={decision || undefined}
+        onValueChange={(v) => setDecision(v as "bat" | "bowl")}
       >
         <SelectTrigger>
           <SelectValue placeholder="Decision…" />
@@ -82,9 +125,13 @@ export function TossForm({ matchId, teamA, teamB, current }: Props) {
           <SelectItem value="bowl">Bowl first</SelectItem>
         </SelectContent>
       </Select>
-      <Button type="submit" size="sm" disabled={pending}>
-        {pending ? "Saving…" : current ? "Update toss" : "Save toss"}
-      </Button>
-    </form>
+      <p className="col-span-full text-xs text-muted-foreground">
+        {pending
+          ? "Saving…"
+          : !winner || !decision
+            ? "Pick the toss winner and what they chose — saves automatically."
+            : "Saved."}
+      </p>
+    </div>
   );
 }

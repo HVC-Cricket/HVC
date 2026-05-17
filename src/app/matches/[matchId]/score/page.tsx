@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/card";
 import { requireTournamentAdmin } from "@/lib/auth";
 
+import { TossForm } from "../toss-form";
+import { XISection } from "../xi-section";
 import { InningsBreakPanel } from "./innings-break-panel";
 import { getScoringLockStatus } from "./lock-actions";
 import { MatchCompletePanel } from "./match-complete-panel";
@@ -61,41 +63,64 @@ export default async function ScorePage(props: {
           </h1>
         </div>
 
-        {!hasToss && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Toss not set</CardTitle>
-              <CardDescription>
-                Set the toss on the{" "}
-                <Link
-                  href={`/matches/${state.match.id}`}
-                  className="underline underline-offset-4"
-                >
-                  match page
-                </Link>{" "}
-                before scoring.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )}
+        {/* Pre-scoring checklist. The scorer lands here from the match
+            page's 'Start scoring' CTA and needs both toss + both XIs
+            before the StartMatchPanel can fire — surface those steps
+            inline instead of bouncing them back to the match page. */}
+        {(!hasToss || !xisReady) && (
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Toss</CardTitle>
+                <CardDescription>
+                  Who won the toss and what did they choose?
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TossForm
+                  matchId={state.match.id}
+                  teamA={{ id: state.teamA.id, name: state.teamA.name }}
+                  teamB={{ id: state.teamB.id, name: state.teamB.name }}
+                  current={
+                    state.match.toss_winner_id && state.match.toss_decision
+                      ? {
+                          toss_winner_id: state.match.toss_winner_id,
+                          toss_decision: state.match.toss_decision as
+                            | "bat"
+                            | "bowl",
+                        }
+                      : null
+                  }
+                />
+              </CardContent>
+            </Card>
 
-        {hasToss && !xisReady && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Both XIs need to be picked</CardTitle>
-              <CardDescription>
-                {state.teamA.short_name}: {xiACount} ·{" "}
-                {state.teamB.short_name}: {xiBCount}. Pick XI on the{" "}
-                <Link
-                  href={`/matches/${state.match.id}`}
-                  className="underline underline-offset-4"
-                >
-                  match page
-                </Link>
-                .
-              </CardDescription>
-            </CardHeader>
-          </Card>
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 className="text-base font-semibold">Playing XI</h2>
+                <span className="text-xs text-muted-foreground">
+                  {xiACount} / {state.match.players_per_side} ·{" "}
+                  {xiBCount} / {state.match.players_per_side}
+                </span>
+              </div>
+              <XISection
+                matchId={state.match.id}
+                tournamentId={state.tournament.id}
+                playersPerSide={state.match.players_per_side}
+                teamA={{
+                  id: state.teamA.id,
+                  name: state.teamA.name,
+                  short_name: state.teamA.short_name,
+                }}
+                teamB={{
+                  id: state.teamB.id,
+                  name: state.teamB.name,
+                  short_name: state.teamB.short_name,
+                }}
+                canManage
+              />
+            </div>
+          </div>
         )}
 
         {hasToss && xisReady && state.phase === "pre_match" && (
