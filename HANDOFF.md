@@ -22,6 +22,8 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 — Cricheroes leaderboard parity (MVP + POTM + Stats).** The MVP tab on historical seasons was tied on team-bonus only (every Hoysala player at 80 for S6) because our HVC formula was running against the empty `balls` table. Switched to mirroring cricheroes' published MVP rows verbatim: new `historical_tournament_mvp` table (migration `20260517000000_*` — **prod only; dev didn't need it**) holds 274 rows across S1–S6 with cricheroes' decimal totals (33.003, 22.400, …). `scripts/scrape_cricheroes.py` extended with `fetch_mvp_leaderboard()` hitting `api.cricheroes.in/api/v1/mvp/get-tournament-player-mvp/{tid}`. New `scripts/import_cricheroes_mvp.ts` is a targeted importer that resolves existing UUIDs by tournament-slug + team-name + player-display_name, so prod can be loaded without `--reset`-ing other historical data. `tournament-mvp.tsx` falls back to the new table; `tournament-champion.tsx` POTM card pulls rank 1 from it (Mady for S5, not the POM-count winner Ashrith Kashyap). Same day the Stats tab got a full historical fallback computing from `historical_match_batting/bowling`, plus a cricheroes-style BAT/BOWL/FIELD pill layout with a Style dropdown (7 batting + 7 bowling + 3 fielding leaderboards), pagination at 10 rows/page, and a constrained player column that wraps long names. FIELD section hidden on historical seasons (no per-ball fielder credits in the cricheroes feed). Plus several morning UI tweaks: match-complete panel now has an explicit "Finish match" + "Undo last ball" pair instead of auto-finalizing the last ball; scoreboard chase line reads "Need X runs from Y balls"; Pick XI gained a select-all header checkbox; homepage innings join disambiguated via `innings!innings_match_id_fkey`. See §17.
 
+**2026-05-17 (late) — Scorer pre-match flow + NRR data fix.** Live testing surfaced a stack of papercuts in the scheduled-match → first-ball path. "Start scoring" inline with Activity/Edit on the match header read like a tab strip — scorers thought they were already in a "Start scoring" view; lifted it out into a full-width primary CTA card with Play + ChevronRight icons. The score page used to redirect blocked scorers ("Set toss on the match page first") — it now renders `TossForm` + `XISection` inline so the entire pre-scoring checklist is on one page. `TossForm` itself dropped its Save button — picking both selects auto-commits, then collapses to a `Team · bat first ✓ Edit` summary. Pick XI lost the Order / C / WK columns (captain is a roster role on the squad, keeper rotates per delivery, batting order is live) — table is now In / Player / Sub only, and Save XI calls `router.back()` so the scorer returns to wherever they came from. Plus an NRR bug fix: the `innings → matches` PostgREST embed in `points-table-section.tsx`, `lib/standings.ts`, and `tournament-champion.tsx` was ambiguous (matches has two FKs back — `innings_match_id_fkey` for the parent + `matches_current_innings_fk` for the live-innings pointer), so the queries silently 400'd with PGRST201 and Standings rendered `—` for every team's NRR. Pinned the embeds to `matches!innings_match_id_fkey`. Same root cause as the homepage embed fix earlier in the day. Team column on the points table also pinned to 130/180px so PTS + NRR have room on mobile. Also seeded dev with a second test tournament (`pranavs-tournament`, 6 teams / 42 players / 15 round-robin matches, IPL-style playoff auto-schedule). See §19.
+
 **Project directory:** `~/Desktop/projects/hvc-scoring/` (Pavan's machine; was `/home/sudharshan/projects/own/hvc-scoring/` for the prior author).
 **Files in repo today:**
 - `db.sql` — full schema; live DB matches this. The `prevent_self_promote()` trigger has been patched to allow direct-DB callers (Management API / dashboard SQL editor / service_role) to bootstrap the first super admin.
@@ -1343,6 +1345,110 @@ HANDOFF.md                                                         (this §18 + 
 - **Page 1 looks like the whole world** if the API silently ignores your pagination. Always inspect `page.next` (or whatever the cursor field is called) on the first response and confirm subsequent requests *change* the result set.
 - **Headers on `api.cricheroes.in` are picky but not authenticated.** Missing `api-key` / `device-type` / `udid` produces hard 4xx errors with specific codes (2003, 2004, etc.); presence of synthetic values is fine. Pro auth (cookies + `authorization` header) does NOT unlock additional ball-by-ball — only marketing-style `summaryData.insights` strings. Don't bother with pro auth for this scrape.
 - **`/api/v1/scorecard/v2/get-commentary/{matchId}` is rate-limited.** A burst of >5–8 requests within seconds triggers a 60–120s cooldown returning err `20250404`. Space requests by ~5–10s if you ever need this endpoint (we don't, for the historical scrape — commentary data is incomplete anyway; see §15 "Historical scorecard rendering").
+
+---
+
+## 19. Scorer pre-match flow + NRR data fix (2026-05-17 late)
+
+Two testers (Appi, Pranav) started clicking through the actual organizer → scorer flow on dev and surfaced a stack of papercuts plus one real data bug. This section covers what shipped to fix them.
+
+### "Start scoring" no longer reads like a tab
+
+`src/app/matches/[matchId]/page.tsx`. The header for a scheduled match used to render `Start scoring · Activity · Edit` as three same-size buttons in one row — the filled primary pill of "Start scoring" sat right next to the two ghost buttons and visually read as a selected tab in a strip. Testers waited for content to load below it rather than tapping through.
+
+For `status='scheduled'` the CTA now renders **outside** that row as a full-width Link card below the header band: Play icon + "Start scoring this match" + a hover-animated ChevronRight. Activity / Edit stay as the small ghost buttons in the header. For `live` / `innings_break` the compact "Score" pill stays in the header — those matches are clearly already in motion so the tab confusion doesn't apply.
+
+### Inline toss + XI on the score page
+
+`src/app/matches/[matchId]/score/page.tsx`. Previously, a scorer who landed on the score page before toss was set or before both XIs were picked saw a static card that said "Set the toss on the match page" or "Pick XI on the match page" — they had to navigate back, find the form, save, then come back. Three round-trips before they could record a ball.
+
+Now the score page renders `<TossForm>` + `<XISection>` directly when either is missing. The full checklist lives on one page; nothing redirects.
+
+### Auto-save toss
+
+`src/app/matches/[matchId]/toss-form.tsx`. Save button removed entirely. The form watches both selects; once they're both set and the pair differs from whatever the server has, it commits via `setToss` and replaces the picker with a one-line summary `Royal Strikers · bat first ✓ [Edit]`. Tapping Edit reopens the picker; any change auto-saves again. Status text under the picker doubles as save feedback (idle hint / `Saving…` / `Saved.`). Same component is shared with the match-page Edit, so the behaviour applies everywhere.
+
+### Pick XI: In / Player / Sub only
+
+`src/app/matches/[matchId]/xi/[teamId]/{pick-xi-form,page}.tsx`. Dropped three columns that duplicated state living elsewhere:
+
+- **Order** — striker / non-striker are picked live each ball on the scoreboard; the 1–N grid was always going stale.
+- **Captain** — already a roster role on the team squad (`/tournaments/[slug]/teams/[teamId]`), so it's tournament-level, not per-match.
+- **Wicket-keeper** — keeper changes per delivery in box cricket; the slot picker on the scoreboard handles it live.
+
+Dropped the captain/keeper count validations along with the columns. `match_players.is_captain / is_keeper / batting_order` columns stay (nullable + default false); older matches keep their values, this form just doesn't set them anymore. Header copy updated to explain where those fields actually live.
+
+`Save XI` now calls `router.back()` after a successful save so the scorer lands back where they came from (score page when in the pre-scoring flow). One toast, no manual nav.
+
+### NRR rendered `—` for every team — embed ambiguity
+
+`src/app/tournaments/[slug]/points-table-section.tsx`, `src/lib/standings.ts`, `src/app/tournaments/[slug]/tournament-champion.tsx`. Standings on Pranav's tournament (which had completed matches) showed correct W/L/Pts but `—` in the NRR column. Confirmed via raw PostgREST:
+
+```
+?select=...,matches!inner(tournament_id,status)
+→ HTTP 400 PGRST201
+  "Could not embed because more than one relationship was found for 'innings' and 'matches'"
+  Try matches!matches_current_innings_fk or matches!innings_match_id_fkey
+```
+
+`matches` has two FKs to `innings`: the parent `innings.match_id → matches.id` (`innings_match_id_fkey`) **and** the live-innings pointer `matches.current_innings_id → innings.id` (`matches_current_innings_fk`). The embed didn't pick one and PostgREST refused to guess; `data` came back null, the NRR map stayed empty, and `fmtNrr(undefined)` rendered `—`. Same root cause as the homepage match-card embed fix earlier in the day.
+
+Pinned to `matches!innings_match_id_fkey` in all three call sites. Same fix applies to:
+- the points-table query that drives the Standings card,
+- `lib/standings.ts` (shared by the playoff auto-scheduler, so the bracket would have used the wrong NRR tie-break when standings tied on points),
+- the balls→innings→matches chain in `tournament-champion.tsx` (POTM tie-break by total runs).
+
+**Lesson for future-Claude:** any time you embed `matches` from `innings` (or anywhere a chain passes through both), spell out `!innings_match_id_fkey` — the live-innings pointer reference will keep biting otherwise. PostgREST 400 is silent in the Next.js page (`data` is null, the page renders an empty state), so this fails quietly until someone notices the column is wrong.
+
+### Points table: narrower Team column
+
+Same treatment as the Stats table earlier — pinned the Team column at 130px on mobile / 180px on `sm+` so PTS + NRR have breathing room on narrow screens. `min-w-[34rem]` on the inner table still allows horizontal scroll for the rest of the columns.
+
+### Pranav's tournament seed (dev)
+
+`scripts/seed-pranavs-tournament.sql`. Second test tournament for a second tester, distinct from Appi's:
+
+- Format `round_robin_playoff_final` (IPL-style).
+- 6 teams (Thunder Wolves, Mystic Mavericks, Crimson Crusaders, Emerald Eagles, Cobalt Sharks, Golden Gladiators).
+- 42 players, 7 per team. 1 Cat 1 + 1 Cat 3 + 5 Cat 2 per team so the special-over rules are exercisable.
+- Single round-robin = C(6,2) = 15 group matches over 2026-05-20 / 21.
+- Playoff bracket (Q1 / Eliminator / Q2 / Final) auto-schedules via `maybeAutoSchedulePlayoffs` once every group match goes terminal.
+
+Creates the tournament row too (status `draft`). Run:
+
+```
+pnpm exec supabase link --project-ref clqdimzthzcpurtwhtej
+pnpm exec supabase db query --linked --file scripts/seed-pranavs-tournament.sql
+```
+
+One-shot — re-runs fail on the unique slug constraint. Targets dev only. Same shape as the existing `seed-appis-tournament.sql` but at a larger team count so points-table + NRR tie-breaks get more variety during testing.
+
+### Team squad page: category chip after each name
+
+`src/app/tournaments/[slug]/teams/[teamId]/page.tsx`. Squad list shows a coloured `C1` / `C2` / `C3` chip after every roster name (amber / muted / sky — same palette as scoring + stats). Organisers can scan a squad before a tournament starts and verify the special-category players are tagged correctly.
+
+### Wicket modal: fielder mandatory for caught / run-out / stumped
+
+`src/app/matches/[matchId]/score/wicket-button.tsx` + `actions.ts`. Save button now toasts "Pick the fielder…" (or "Pick the wicket-keeper" for stumped) when the picker is empty for `caught` / `run_out` / `stumped`. Same constraint enforced server-side via a Zod `.refine()` on `recordBallSchema` so an older or tampered client can't slip through. `caught_and_bowled` unaffected (bowler is the implicit fielder). Stops the commentary feed from reading "WICKET! X caught by ? off Y" and stops the wicket dropping from Most Catches / Run-outs / Stumpings.
+
+### New / changed files
+
+```
+src/app/matches/[matchId]/page.tsx                        (Start scoring CTA card)
+src/app/matches/[matchId]/score/page.tsx                  (inline TossForm + XISection block)
+src/app/matches/[matchId]/toss-form.tsx                   (auto-save; summary + Edit toggle)
+src/app/matches/[matchId]/xi/[teamId]/pick-xi-form.tsx    (slim columns; router.back() on save)
+src/app/matches/[matchId]/xi/[teamId]/page.tsx            (header copy; whitespace fix)
+src/app/matches/[matchId]/score/wicket-button.tsx         (mandatory fielder guard)
+src/app/matches/[matchId]/score/actions.ts                (.refine() on recordBallSchema)
+
+src/app/tournaments/[slug]/points-table-section.tsx       (FK pin; Team column width)
+src/app/tournaments/[slug]/tournament-champion.tsx        (FK pin on tie-break chain)
+src/app/tournaments/[slug]/teams/[teamId]/page.tsx        (category chip per roster row)
+src/lib/standings.ts                                       (FK pin)
+
+scripts/seed-pranavs-tournament.sql                       (new — 6-team IPL-format tournament for dev)
+```
 
 ---
 
