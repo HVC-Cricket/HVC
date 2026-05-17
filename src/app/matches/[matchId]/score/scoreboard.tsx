@@ -1472,9 +1472,16 @@ function renderBallPill(b: RenderBall) {
   else if (b.extra_type === "bye") label = `${b.extras}b`;
   const base =
     "inline-flex h-7 min-w-7 items-center justify-center rounded-md border border-foreground/10 px-1.5 text-xs font-mono ";
+  // Wicket > six > four > default. Boundary highlight is keyed off
+  // runs_off_bat (not extras) so a NB+6 still reads as a six off the
+  // bat. font-bold lifts the numeral so it pops in the over strip.
   const colour = b.is_wicket
     ? "bg-destructive/15 text-destructive"
-    : "bg-muted/40";
+    : b.runs_off_bat === 6
+      ? "bg-green-600/20 font-bold text-green-700 dark:text-green-400"
+      : b.runs_off_bat === 4
+        ? "bg-orange-500/20 font-bold text-orange-700 dark:text-orange-400"
+        : "bg-muted/40";
   // Optimistic balls render at reduced opacity until the server
   // confirms — gives the scorer a visual cue that the tap is in flight
   // without slowing the headline number down.
