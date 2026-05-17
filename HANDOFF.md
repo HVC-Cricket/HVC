@@ -18,6 +18,8 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-16 (evening) — Spectator UI polish + identity sync.** Tournament home now leads with a Champion + Runner-up + Player-of-the-Tournament hero (only on completed tournaments). Homepage dropped its "no matches live" empty state — always populated now with a linked-user profile strip + past-tournaments grid. `/me` and `/players/[id]` share a new `PlayerCareerSection` server component so the linked user sees the same Career + By-tournament card on both pages (no more 8-vs-9-stat divergence). Two new triggers (`20260516040000_sync_avatar_photo` + `20260516050000_sync_display_name`) keep `profiles.avatar_url ↔ players.photo_url` and `profiles.display_name ↔ players.display_name` in sync for linked accounts — bidirectional, recursion-safe, with one-shot backfill. Match-list rows show full team names with "Team " prefix stripped + 20 cricheroes team logos backfilled to full URLs. `/players` list routes the signed-in user's own row to `/me` instead of `/players/[id]`. See §16.
 
+**2026-05-17 — Cricheroes leaderboard parity (MVP + POTM + Stats).** The MVP tab on historical seasons was tied on team-bonus only (every Hoysala player at 80 for S6) because our HVC formula was running against the empty `balls` table. Switched to mirroring cricheroes' published MVP rows verbatim: new `historical_tournament_mvp` table (migration `20260517000000_*` — **prod only; dev didn't need it**) holds 274 rows across S1–S6 with cricheroes' decimal totals (33.003, 22.400, …). `scripts/scrape_cricheroes.py` extended with `fetch_mvp_leaderboard()` hitting `api.cricheroes.in/api/v1/mvp/get-tournament-player-mvp/{tid}`. New `scripts/import_cricheroes_mvp.ts` is a targeted importer that resolves existing UUIDs by tournament-slug + team-name + player-display_name, so prod can be loaded without `--reset`-ing other historical data. `tournament-mvp.tsx` falls back to the new table; `tournament-champion.tsx` POTM card pulls rank 1 from it (Mady for S5, not the POM-count winner Ashrith Kashyap). Same day the Stats tab got a full historical fallback computing from `historical_match_batting/bowling`, plus a cricheroes-style BAT/BOWL/FIELD pill layout with a Style dropdown (7 batting + 7 bowling + 3 fielding leaderboards), pagination at 10 rows/page, and a constrained player column that wraps long names. FIELD section hidden on historical seasons (no per-ball fielder credits in the cricheroes feed). Plus several morning UI tweaks: match-complete panel now has an explicit "Finish match" + "Undo last ball" pair instead of auto-finalizing the last ball; scoreboard chase line reads "Need X runs from Y balls"; Pick XI gained a select-all header checkbox; homepage innings join disambiguated via `innings!innings_match_id_fkey`. See §17.
+
 **Project directory:** `~/Desktop/projects/hvc-scoring/` (Pavan's machine; was `/home/sudharshan/projects/own/hvc-scoring/` for the prior author).
 **Files in repo today:**
 - `db.sql` — full schema; live DB matches this. The `prevent_self_promote()` trigger has been patched to allow direct-DB callers (Management API / dashboard SQL editor / service_role) to bootstrap the first super admin.
@@ -1066,6 +1068,134 @@ src/app/page.tsx                                  (homepage redesign)
 src/app/matches/[matchId]/full-scorecard.tsx      (delegates to historical when balls empty)
 src/lib/supabase/database.types.ts                (3 new tables typed)
 scripts/import_cricheroes.ts                     (loads historical aggregates; logo URL fix)
+```
+
+---
+
+## 17. Cricheroes leaderboard parity — MVP / POTM / Stats (2026-05-17)
+
+§16 shipped a champion hero with a Player-of-the-Tournament card and a working scorecard for historical seasons. What stayed broken was the **MVP** and **Stats** tabs: both read exclusively from the `balls` table, which is empty for every CricHeroes-imported match. MVP on Season 6 had every Hoysala Hunters player tied at 80 — our HVC formula was running with zero balls, so only the `+10 per win` team bonus accumulated (HOY won 8 → 80 each). This section is what shipped to fix that, plus the Stats-tab work and the morning UI tweaks.
+
+### MVP: mirror cricheroes' published leaderboard
+
+The HVC formula in `@/lib/scoring/mvp.ts` is tuned for our 7-over format and isn't reverse-compatible with cricheroes' proprietary formula (different weights, decimal totals). Trying to re-derive it locally would never match what spectators already saw on cricheroes. Decision: **import cricheroes' MVP rows verbatim** for the 6 historical tournaments and render them through the same view component.
+
+**New table** (`supabase/migrations/20260517000000_historical_tournament_mvp.sql`):
+
+```sql
+historical_tournament_mvp (
+  id, tournament_id, player_id, player_name, team_id,
+  rank, matches,
+  batting_points, bowling_points, fielding_points, total_points  -- all NUMERIC
+)
+```
+
+Public-read RLS, unique on `(tournament_id, player_id, player_name)`. **Applied to prod only** (`hvc-scoring` / `cxysyglwooqmzcfvtmyl`) — Pavan explicitly opted out of dev because nothing in dev uses historical data.
+
+**Scrape** — `scripts/scrape_cricheroes.py` gained `fetch_mvp_leaderboard(tid)` hitting `https://api.cricheroes.in/api/v1/mvp/get-tournament-player-mvp/{tid}` (path-style, not query-string — different from the rest of the api endpoints). Returns one row per player who appeared in the tournament, already ranked, with `batting/bowling/fielding/total` as decimal strings. Pulled 275 rows total across S1–S6 (S1:37 S2:44 S3:42 S4:49 S5:52 S6:51), raw JSON at `data/cricheroes/raw/mvp_<tid>.json`, aggregate CSV at `data/cricheroes/csv/tournament_mvp.csv`.
+
+**Import** — two paths now exist:
+
+1. `scripts/import_cricheroes.ts` — full-tournament importer. Got a step 11 that loads `tournament_mvp.csv` into `historical_tournament_mvp` using the existing in-memory `cricheroes_*_id → uuid` maps that were already built for steps 1-10. Used when you `--reset` everything from scratch.
+2. `scripts/import_cricheroes_mvp.ts` — **new**, targeted MVP-only importer. Reads `tournaments.csv` + `teams.csv` + `players.csv` + `tournament_mvp.csv`, queries the live DB for matching tournaments (by slug), teams (by `(tournament, name)`), and players (by case-insensitive `display_name`) to rebuild the UUID maps without inserting anything, then writes only the MVP rows. **Safe to run against prod without `--reset`** — preserves `player.linked_user_id` and every other downstream link.
+
+Run against prod (`.env.local` is pointed at prod):
+
+```
+ALLOW_PROD_IMPORT=1 pnpm exec tsx scripts/import_cricheroes_mvp.ts
+```
+
+(Node 22+ required — `@supabase/supabase-js` 2.105 needs native WebSocket. Use `PATH="…/.nvm/versions/node/v22.X/bin:$PATH"`.)
+
+**One row was skipped**: cricheroes had two distinct profiles for "Ajith P" in S6 (player_ids 8670699 + 29578223, ranks 49 + 50, both with negligible scores). Both mapped to our single "Ajith P" UUID; the unique constraint kept the higher rank (49) and dropped 50. 274/275 inserted.
+
+**UI fallback** — `src/app/tournaments/[slug]/tournament-mvp.tsx`:
+
+```ts
+// Historical fallback first; falls through if no rows exist.
+const historical = await loadHistoricalMvp(supabase, tournamentId);
+if (historical) return historical;
+// …existing balls-based compute…
+```
+
+`loadHistoricalMvp` queries by `tournament_id`, joins to `players` for display_name + avatar + category, builds `MvpEntry[]`, and returns the same `TournamentMvpView` with `source="cricheroes"`. The view branches on `source`:
+
+- Cricheroes path: 3-decimal totals (`.toFixed(3)`), no per-category chips (cricheroes' MVP is one combined list), drops the "Team:" breakdown row, swaps the formula explainer for `CricheroesFormulaCard` ("This season was scored on CricHeroes…").
+- HVC path: integer totals, Cat 1/2/3 chips, full breakdown including team bonus, original formula card.
+
+### POTM card pivot for historical
+
+`src/app/tournaments/[slug]/tournament-champion.tsx` previously always used "most match-POM awards" + tie-break by total runs. For historical seasons that gives the wrong answer — POM awards are per-match judgement calls and don't track MVP rank. Pre-fix: S5 showed Ashrith Kashyap (4 POM awards) while the MVP tab below showed Mady at rank 1 (22.400). Post-fix: card shows Mady.
+
+New helper `pickHistoricalPotm(supabase, tournamentId)` queries `historical_tournament_mvp` for rank 1; if no row, returns null and falls through to the existing POM-count `pickPotm`. POTM return shape was generalized to `{ id, display_name, metric: { value, label } }` so historical can render "22.400 MVP score" while live keeps "4 POM awards".
+
+### Stats tab: historical fallback
+
+`tournament-stats.tsx` previously returned "No balls bowled yet." when `balls` was empty. Now it falls back to `loadHistoricalStats(supabase, matchIds, innings)`, which reads `historical_match_batting/bowling`, maps `(match_id, innings_number) → innings.id`, and feeds the rows through the **same** `BatAgg` / `BowlAgg` accumulators the balls-based path uses. Both compute paths now share module-level helpers: `newBatAgg`, `newBowlAgg`, `newFieldAgg`, `accumulateBatInnings`, `accumulateBowlInnings`.
+
+`PerInnBat` / `PerInnBowl` types are also shared. `BatAgg` gained `fifties` (count of innings ≥ 50 runs); `BowlAgg` gained `maidens` + `dots` (sums of per-innings figures); `FieldAgg` is new (catches / run_outs / stumpings).
+
+### Stats tab: cricheroes-style layout
+
+Replaced the long scroll of 6 stacked leaderboards with a section + style layout that mirrors cricheroes' leaderboard page:
+
+```
+[All] [Cat 1] [Cat 2] [Cat 3]                ← existing category chip
+[BAT] [BOWL] [FIELD]          [Style ▼]      ← new section pills + sub-style dropdown
+<one LeaderTable for the active leaderboard>
+```
+
+17 leaderboards in total: 7 batting (Top Runs / Highest Scores / Best SR / Best Avg / Most 4s / Most 6s / Most 50s), 7 bowling (Most Wickets / Best Avg / Best Econ / Best SR / BBI / Most Maidens / Most Dots), 3 fielding (Most Catches / Run Outs / Stumpings). **FIELD is hidden entirely on cricheroes-imported tournaments** — the cricheroes commentary feed doesn't expose per-ball fielder credits, so there's nothing to aggregate. Most Centuries is omitted by design (unreachable in 7 overs).
+
+Min-sample thresholds for ratio leaderboards:
+- Batting SR: ≥ 12 balls faced
+- Batting Avg: ≥ 3 innings
+- Bowling Econ: ≥ 12 legal balls bowled
+- Bowling Avg / SR: ≥ 2 wickets
+
+### Stats pagination
+
+`buildLeaderboards` sends every qualifying row (capped at 500 for safety; real counts are ≤ ~50). `LeaderTable` paginates client-side at 10 rows/page with Prev/Next + "N–M of total". Rank stays absolute (page × PAGE_SIZE + idx + 1) so #1 on page 2 reads as 11. The parent passes `key={`${filter}:${styleId}`}` on `LeaderTable` so React remounts on switch and the page resets to 1 — avoids the `react-hooks/set-state-in-effect` lint rule.
+
+### Stats column-width fix
+
+Player column was taking the longest entry's natural width and pushing stat columns off-screen on mobile (a horizontal scroll was visible for any name like "Pradhdhyumna Kashyap HP (Wk)"). Pinned at 140px on mobile / 200px on `sm+`; name span switched from `truncate` to `break-words leading-tight` so long names wrap to a second line. Rank chip is now `items-start` + `mt-0.5` so it stays aligned with the first text line on multi-line rows.
+
+### Morning UI tweaks (same day, earlier)
+
+Pre-existing changes that landed as separate small commits before the cricheroes work:
+
+- **Match complete: explicit finalize + Undo last ball.** `recordBall` no longer auto-finalizes when innings 2 (or super-over innings 4) ends. The match enters a "pending finalize" state and the `MatchCompletePanel` exposes "Finish match" alongside "Undo last ball" so a mis-tapped delivery can be rolled back before the result locks in. Match-completion push fan-out moved with completion — single dispatch from `finalizeMatch` on confirm, no fan-out on the optimistic last ball.
+- **Scoreboard chase line.** Second-innings footer reads "Need *X* runs from *Y* balls · Target *T*" instead of just "Need X runs to win".
+- **Pick XI select-all.** Header row of the squad table has a master checkbox that toggles every player's `included` flag at once, with indeterminate state when partially selected. Clears captain / keeper / sub flags + batting_order when unchecking.
+- **Homepage innings join.** Embed switched to `innings!innings_match_id_fkey(...)` so the FK is unambiguous now that `historical_match_*` tables also reference `matches`.
+
+### New / changed files
+
+```
+supabase/migrations/20260517000000_historical_tournament_mvp.sql   (new — prod only)
+
+scripts/scrape_cricheroes.py                          (+ fetch_mvp_leaderboard, + main loop wiring)
+scripts/import_cricheroes.ts                          (+ step 11: tournament_mvp.csv → historical_tournament_mvp)
+scripts/import_cricheroes_mvp.ts                      (new — targeted prod-safe MVP importer)
+data/cricheroes/csv/tournament_mvp.csv                (new — 275 scraped rows)
+data/cricheroes/raw/mvp_<tid>.json × 6                (new — raw scrape per tournament)
+.gitignore                                            (+ scripts/__pycache__)
+
+src/app/tournaments/[slug]/tournament-mvp.tsx         (loadHistoricalMvp fallback)
+src/app/tournaments/[slug]/tournament-mvp-view.tsx    (source prop + CricheroesFormulaCard)
+src/app/tournaments/[slug]/tournament-champion.tsx    (pickHistoricalPotm; metric shape)
+src/app/tournaments/[slug]/tournament-stats.tsx       (shared helpers; loadHistoricalStats; expanded buildLeaderboards)
+src/app/tournaments/[slug]/tournament-stats-view.tsx  (BAT/BOWL/FIELD + style dropdown + pagination + width fix)
+
+src/app/matches/[matchId]/score/actions.ts            (drop auto-finalize from recordBall; push moves to finalizeMatch)
+src/app/matches/[matchId]/score/match-complete-panel.tsx (Finish match + Undo last ball pair)
+src/app/matches/[matchId]/score/scoreboard.tsx        (chase line: balls remaining)
+src/app/matches/[matchId]/xi/[teamId]/pick-xi-form.tsx (select-all header checkbox)
+src/app/page.tsx                                      (innings_match_id_fkey)
+src/lib/supabase/database.types.ts                    (+ historical_tournament_mvp row/insert/update)
+
+scripts/seed-pavs-tournament.sql                      (new — 7-team / 49-player / 21-match round-robin for dev)
 ```
 
 ---

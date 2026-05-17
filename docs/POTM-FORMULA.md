@@ -1,8 +1,10 @@
 # HVC Scoring — Auto Player-of-the-Match Formula
 
-> Last revised: 2026-05-11
+> Last revised: 2026-05-11 (historical-tournament POTM override noted 2026-05-17).
 > Source of truth: `src/app/matches/[matchId]/player-of-match/match-awards.tsx`, function `computePerformances`.
 > Used wherever a completed match doesn't yet have an admin-confirmed `matches.player_of_match_id` value.
+
+> **Historical (CricHeroes-imported) tournaments only — the *Tournament*-level POTM card on the completed-tournament hero is overridden by `historical_tournament_mvp` rank 1**, not derived from this per-match formula. See HANDOFF §17. The per-match POTM formula below is still the source of truth for individual matches scored in our app, and for the tournament-POTM tie-break on tournaments scored in our app.
 
 ## Why we have a formula at all
 
