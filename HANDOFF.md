@@ -601,6 +601,7 @@ Phases 0–3 done. Pick up at **Phase 4** (scoring engine). Each phase is roughl
    - **`startSuperOverInnings` accepts innings ≥ 3.** Schema relaxed from `z.union([3, 4])` → `z.coerce.number().int().min(3)`. Batting-team rule generalised: odd innings_number (first leg) = batting team of the most recent prior leg (or `i2` for the very first super over); even (second leg) = sides flipped, target = first leg's runs + 1. Validation checks that the prior pair is complete + tied for first-leg innings ≥ 5, and that the first leg is complete for any second leg. `SuperOverPanel` derives the next innings number from `state.allInnings` instead of hardcoding 3/4, and the headline reads `Super over 1` / `Super over 2 — previous tied` / etc.
 
    All 21 engine tests still pass.
+- [x] **Live card horizontal-room polish + Target chip (2026-05-17 late)** — `LiveScorePanel` card was eating 32px of horizontal room (default shadcn `px-4` on header + content). Tightened to `px-3 sm:px-4` so phones get 16px back, tablet+ unchanged. Recent-balls strip relabelled `Prev` / `This` → `Prev over` / `This over` (clearer at a glance); label column widened `w-12 → w-16` to fit, gap tightened `gap-3 → gap-2` so net horizontal cost is small. Added a `Target: 110` chip to the Partnership · CRR strip — only renders when `innings.target != null` (so 2nd innings / super-over chase) so innings 1 stays clean. Strip-visibility gate broadened to include `target != null` so the row appears immediately at the start of innings 2 even before the first ball lands.
 
 ---
 

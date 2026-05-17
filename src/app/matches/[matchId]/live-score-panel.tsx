@@ -193,7 +193,7 @@ function InningsCard({
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="px-3 sm:px-4">
         <div className="text-xs font-medium capitalize text-muted-foreground">
           {teamName(innings.batting_team_id)}{" "}
           <span className="font-normal text-muted-foreground/70">
@@ -251,14 +251,15 @@ function InningsCard({
           the match is over. Completed matches use the scorecard tab
           below for full per-player breakdown. */}
       {!completed && (
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 px-3 sm:px-4">
           {/* Partnership · CRR strip. CRR = current overall run rate
               (total_runs / overs). Required RR is rendered in the amber
               chase strip above for the 2nd innings, so it isn't
               duplicated here. */}
           {(partnership.runs > 0 ||
             partnership.balls > 0 ||
-            oversFloat > 0) && (
+            oversFloat > 0 ||
+            target != null) && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
               {(partnership.runs > 0 || partnership.balls > 0) && (
                 <span className="text-muted-foreground">
@@ -277,6 +278,12 @@ function InningsCard({
                 <span className="text-muted-foreground">
                   <span className="font-medium uppercase">CRR:</span>{" "}
                   <span className="font-mono text-foreground">{runRate}</span>
+                </span>
+              )}
+              {target != null && (
+                <span className="text-muted-foreground">
+                  <span className="font-medium uppercase">Target:</span>{" "}
+                  <span className="font-mono text-foreground">{target}</span>
                 </span>
               )}
             </div>
@@ -543,16 +550,16 @@ function RecentBalls({
   return (
     <div className="space-y-1.5 border-t border-foreground/10 pt-3">
       {previous.length > 0 && (
-        <div className="flex items-start gap-3">
-          <span className="w-12 shrink-0 pt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            Prev
+        <div className="flex items-start gap-2">
+          <span className="w-16 shrink-0 pt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Prev over
           </span>
           <div className="flex flex-wrap gap-1">{previous.map(renderBall)}</div>
         </div>
       )}
-      <div className="flex items-start gap-3">
-        <span className="w-12 shrink-0 pt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          This
+      <div className="flex items-start gap-2">
+        <span className="w-16 shrink-0 pt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          This over
         </span>
         <div className="flex flex-wrap gap-1">{current.map(renderBall)}</div>
       </div>
