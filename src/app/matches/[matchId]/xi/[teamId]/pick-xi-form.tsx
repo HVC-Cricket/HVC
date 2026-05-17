@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -26,6 +27,7 @@ type Props = {
 };
 
 export function PickXIForm({ matchId, teamId, playersPerSide, rows }: Props) {
+  const router = useRouter();
   const [state, setState] = useState<Row[]>(rows);
   const [pending, startTransition] = useTransition();
 
@@ -82,9 +84,13 @@ export function PickXIForm({ matchId, teamId, playersPerSide, rows }: Props) {
       });
       if (result && !result.ok) {
         toast.error(result.error);
-      } else {
-        toast.success("XI saved");
+        return;
       }
+      toast.success("XI saved");
+      // Drop the scorer back where they came from (score page or
+      // match page) so they don't have to navigate manually after
+      // saving each side's XI.
+      router.back();
     });
   };
 

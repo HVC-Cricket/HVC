@@ -92,10 +92,10 @@ export default async function PickXIPage(props: {
           <h1 className="text-2xl font-semibold">{team.name} — Pick XI</h1>
           <p className="text-sm text-muted-foreground">
             Tick {match.players_per_side} players for this match. Anyone left
-            ticked beyond {match.players_per_side} should be marked as
-            substitute. Captain + wicket-keeper aren&apos;t set here — captain
-            comes from the team squad, and the keeper is picked per-delivery
-            on the scoreboard.
+            ticked beyond {match.players_per_side}{" "}
+            should be marked as substitute. Captain + wicket-keeper
+            aren&apos;t set here — captain comes from the team squad,
+            and the keeper is picked per-delivery on the scoreboard.
           </p>
         </div>
 
