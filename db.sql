@@ -212,7 +212,7 @@ create table if not exists match_players (
 create table if not exists innings (
   id                       uuid primary key default gen_random_uuid(),
   match_id                 uuid not null references matches(id) on delete cascade,
-  innings_number           int  not null check (innings_number between 1 and 4),
+  innings_number           int  not null check (innings_number >= 1),
   batting_team_id          uuid not null references teams(id),
   bowling_team_id          uuid not null references teams(id),
   total_runs               int  not null default 0,

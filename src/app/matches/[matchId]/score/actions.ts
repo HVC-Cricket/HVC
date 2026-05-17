@@ -829,8 +829,17 @@ async function finalizeMatchInternal(
     .order("innings_number", { ascending: true });
   const i1 = innings?.find((i) => i.innings_number === 1);
   const i2 = innings?.find((i) => i.innings_number === 2);
-  const so1 = innings?.find((i) => i.innings_number === 3);
-  const so2 = innings?.find((i) => i.innings_number === 4);
+  // Super overs chain — 3/4 is the first pair, 5/6 the second, etc.
+  // The decisive pair is the highest one with both legs present.
+  const superOvers = (innings ?? [])
+    .filter((i) => i.innings_number >= 3)
+    .sort((a, b) => a.innings_number - b.innings_number);
+  let so1: (typeof superOvers)[number] | undefined;
+  let so2: (typeof superOvers)[number] | undefined;
+  for (let idx = 0; idx + 1 < superOvers.length; idx += 2) {
+    so1 = superOvers[idx];
+    so2 = superOvers[idx + 1];
+  }
   if (!i1 || !i2) {
     return { ok: false, error: "Both innings must exist to finalize" };
   }

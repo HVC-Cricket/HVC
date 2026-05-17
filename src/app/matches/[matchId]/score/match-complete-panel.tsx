@@ -22,8 +22,12 @@ export function MatchCompletePanel({ state }: { state: ScoreboardState }) {
 
   const i1 = state.allInnings.find((i) => i.innings_number === 1);
   const i2 = state.allInnings.find((i) => i.innings_number === 2);
-  const so1 = state.allInnings.find((i) => i.innings_number === 3);
-  const so2 = state.allInnings.find((i) => i.innings_number === 4);
+  // Super-over chain — innings 3+4 is SO1, 5+6 SO2, etc. All but the
+  // last pair are tied (else the match would have ended already).
+  const superOvers = state.allInnings
+    .filter((i) => i.innings_number >= 3)
+    .sort((a, b) => a.innings_number - b.innings_number);
+  const lastSuperOver = superOvers[superOvers.length - 1];
 
   const teamName = (id: string) =>
     id === state.teamA.id ? state.teamA.name : state.teamB.name;
@@ -68,7 +72,7 @@ export function MatchCompletePanel({ state }: { state: ScoreboardState }) {
   // The last decisive ball lives in whichever innings most recently ended.
   // Pick that innings so Undo reopens the right one (super-over takes
   // precedence over the chase if it exists).
-  const lastInnings = so2 ?? so1 ?? i2 ?? i1 ?? null;
+  const lastInnings = lastSuperOver ?? i2 ?? i1 ?? null;
   const onUndoLastBall = () => {
     if (!lastInnings) return;
     startTransition(async () => {
@@ -115,18 +119,20 @@ export function MatchCompletePanel({ state }: { state: ScoreboardState }) {
               value={`${i2.total_runs}/${i2.total_wickets} in ${Math.floor(i2.total_legal_balls / 6)}.${i2.total_legal_balls % 6}`}
             />
           )}
-          {so1 && (
-            <Row
-              label={`${teamShort(so1.batting_team_id)} (super over)`}
-              value={`${so1.total_runs}/${so1.total_wickets} in ${Math.floor(so1.total_legal_balls / 6)}.${so1.total_legal_balls % 6}`}
-            />
-          )}
-          {so2 && (
-            <Row
-              label={`${teamShort(so2.batting_team_id)} (super over)`}
-              value={`${so2.total_runs}/${so2.total_wickets} in ${Math.floor(so2.total_legal_balls / 6)}.${so2.total_legal_balls % 6}`}
-            />
-          )}
+          {superOvers.map((so) => {
+            const pairIndex = Math.ceil((so.innings_number - 2) / 2);
+            const legLabel =
+              superOvers.length <= 2
+                ? "super over"
+                : `super over ${pairIndex}`;
+            return (
+              <Row
+                key={so.innings_number}
+                label={`${teamShort(so.batting_team_id)} (${legLabel})`}
+                value={`${so.total_runs}/${so.total_wickets} in ${Math.floor(so.total_legal_balls / 6)}.${so.total_legal_balls % 6}`}
+              />
+            );
+          })}
           {!finished && (
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button
