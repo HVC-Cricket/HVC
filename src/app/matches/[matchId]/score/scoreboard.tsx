@@ -128,9 +128,17 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   const battingTeam =
     innings.batting_team_id === state.teamA.id ? state.teamA : state.teamB;
 
+  // Super-over innings get a 1-over cap (from `rules.super_over.overs`);
+  // regular innings use the tournament's overs_per_innings (7 for HVC).
+  // All the overs / balls-remaining displays below derive from this.
+  const isSuperOver = innings.innings_number > 2;
+  const inningsOversCap = isSuperOver
+    ? state.rules.super_over.overs
+    : state.rules.overs_per_innings;
+
   const overs =
     `${Math.floor(innings.total_legal_balls / 6)}.${innings.total_legal_balls % 6}` +
-    ` / ${state.rules.overs_per_innings}`;
+    ` / ${inningsOversCap}`;
 
   // Active state. If no balls yet, fall back to whoever opened the innings.
   const [strikerId, setStrikerId] = useState<string>(
@@ -277,15 +285,18 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   // Per-over category restriction. Default: over 1 → Cat 1, over 2 →
   // Cat 2, over 3+ → Cat 3. Scorer can override within an over; we
   // re-default on the next over boundary. Cat 2 = open (no filter).
+  // Super overs (innings 3+) have no category rule — force Cat 2.
   const [overCategory, setOverCategory] = useState<1 | 2 | 3>(
-    defaultOverCategory(state.active.over_number),
+    isSuperOver ? 2 : defaultOverCategory(state.active.over_number),
   );
   const lastOverRef = useRef(state.active.over_number);
   useEffect(() => {
     if (state.active.over_number === lastOverRef.current) return;
     lastOverRef.current = state.active.over_number;
-    setOverCategory(defaultOverCategory(state.active.over_number));
-  }, [state.active.over_number]);
+    setOverCategory(
+      isSuperOver ? 2 : defaultOverCategory(state.active.over_number),
+    );
+  }, [state.active.over_number, isSuperOver]);
 
   const battingXi = state.xi[innings.batting_team_id] ?? [];
   const bowlingXi = state.xi[innings.bowling_team_id] ?? [];
@@ -587,7 +598,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   // "ov" disambiguates the slash, otherwise it looks like a fraction.
   const displayOvers =
     `${Math.floor(displayLegalBalls / 6)}.${displayLegalBalls % 6}` +
-    ` / ${state.rules.overs_per_innings} ov`;
+    ` / ${inningsOversCap} ov`;
 
   // Hide server balls that are pending undo from the recent-balls strip
   // so the user sees them disappear the moment they tap Undo.
@@ -652,14 +663,14 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             <span className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
               {Math.floor(displayLegalBalls / 6)}.{displayLegalBalls % 6}
               {" / "}
-              {state.rules.overs_per_innings} OVERS
+              {inningsOversCap} OVERS
             </span>
           </div>
           {innings.target != null && (() => {
             const runsNeeded = Math.max(0, innings.target - displayRuns);
             const ballsLeft = Math.max(
               0,
-              state.rules.overs_per_innings * 6 - displayLegalBalls,
+              inningsOversCap * 6 - displayLegalBalls,
             );
             return (
               <div className="text-xs text-muted-foreground">
@@ -715,15 +726,17 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             <Select
               value={String(overCategory)}
               onValueChange={(v) => setOverCategory(Number(v) as 1 | 2 | 3)}
-              disabled={state.currentOverBalls.length > 0}
+              disabled={isSuperOver || state.currentOverBalls.length > 0}
             >
               <SelectTrigger
                 className="h-8 w-auto px-2"
                 aria-label="Over category"
                 title={
-                  state.currentOverBalls.length > 0
-                    ? "Category is locked once the over has started"
-                    : undefined
+                  isSuperOver
+                    ? "Super over — no category restriction"
+                    : state.currentOverBalls.length > 0
+                      ? "Category is locked once the over has started"
+                      : undefined
                 }
               >
                 <SelectValue />
@@ -734,11 +747,16 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 <SelectItem value="3">Cat 3</SelectItem>
               </SelectContent>
             </Select>
-            {state.currentOverBalls.length === 0 && (
+            {state.currentOverBalls.length === 0 && !isSuperOver && (
               <span className="text-xs text-muted-foreground">
                 {overCategory === 2
                   ? "Any striker / any bowler"
                   : `Striker + bowler must both be Cat ${overCategory}`}
+              </span>
+            )}
+            {isSuperOver && (
+              <span className="text-xs text-muted-foreground">
+                Super over · any striker / any bowler
               </span>
             )}
             <ConfirmButton

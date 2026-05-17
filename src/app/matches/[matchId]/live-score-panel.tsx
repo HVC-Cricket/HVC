@@ -142,10 +142,16 @@ function InningsCard({
   const runRate =
     oversFloat > 0 ? (innings.total_runs / oversFloat).toFixed(2) : "—";
 
+  // Super-over innings get the 1-over cap; regular innings use the
+  // tournament's overs_per_innings.
+  const isSuperOver = innings.innings_number > 2;
+  const inningsOversCap = isSuperOver
+    ? state.rules.super_over.overs
+    : state.rules.overs_per_innings;
+
   // Chase context
   const target = innings.target ?? null;
-  const ballsRemaining =
-    state.rules.overs_per_innings * 6 - innings.total_legal_balls;
+  const ballsRemaining = inningsOversCap * 6 - innings.total_legal_balls;
   const runsNeeded = target != null ? target - innings.total_runs : null;
   const reqRR =
     target != null && ballsRemaining > 0
@@ -165,7 +171,7 @@ function InningsCard({
       ? "1st inn"
       : innings.innings_number === 2
         ? "2nd inn"
-        : "super over";
+        : `super over ${Math.ceil((innings.innings_number - 2) / 2)}`;
 
   // Active batsmen are striker + non-striker per the latest ball (or initial)
   const last = balls[balls.length - 1];

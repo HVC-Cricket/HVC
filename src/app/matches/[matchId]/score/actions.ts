@@ -1055,20 +1055,25 @@ async function maybeAutoSchedulePlayoffs(
 
 const startSuperOverInningsSchema = z.object({
   matchId: z.string().uuid(),
-  inningsNumber: z.union([z.literal(3), z.literal(4)]),
+  inningsNumber: z.coerce.number().int().min(3),
   striker_id: z.string().uuid(),
   non_striker_id: z.string().uuid(),
   bowler_id: z.string().uuid(),
 });
 
 /**
- * Creates a super-over innings (3 = team that batted 2nd in main match,
- * 4 = team that batted 1st). Validates that:
- *  - regular innings 1 + 2 are both complete and tied
- *  - the requested super-over innings doesn't already exist
- *  - super-over team setup follows HVC: team that batted second in main
- *    match bats first in super over (i.e. innings 3.batting_team =
- *    innings 2.batting_team).
+ * Creates a super-over innings. Innings 3+4 are the first super over,
+ * 5+6 the second, etc. — pairs continue until one is decided.
+ *
+ * Batting-team rule:
+ *  - First leg of a super over (odd innings_number ≥ 3): team that
+ *    batted SECOND in the previous leg (or in innings 2 for the first
+ *    super over) bats first.
+ *  - Second leg (even ≥ 4): the other team chases the first leg's total + 1.
+ *
+ * Each super over is independent for stats / wickets caps; the engine's
+ * `is_super_over` flag (innings_number > 2) drives the 1-over / 2-wicket
+ * caps and disables Cat 1/3 special-batter rules.
  */
 export async function startSuperOverInnings(
   input: z.infer<typeof startSuperOverInningsSchema>,
@@ -1087,15 +1092,15 @@ export async function startSuperOverInnings(
   if (!match) return { ok: false, error: "Match not found" };
   await requireTournamentAdmin(match.tournament_id);
 
-  const { data: regular } = await supabase
+  const { data: allInnings } = await supabase
     .from("innings")
-    .select("innings_number, batting_team_id, bowling_team_id, total_runs, is_complete")
+    .select(
+      "innings_number, batting_team_id, bowling_team_id, total_runs, is_complete",
+    )
     .eq("match_id", match.id)
-    .in("innings_number", [1, 2, 3, 4]);
-  const i1 = regular?.find((i) => i.innings_number === 1);
-  const i2 = regular?.find((i) => i.innings_number === 2);
-  const so1 = regular?.find((i) => i.innings_number === 3);
-  const so2 = regular?.find((i) => i.innings_number === 4);
+    .order("innings_number", { ascending: true });
+  const i1 = allInnings?.find((i) => i.innings_number === 1);
+  const i2 = allInnings?.find((i) => i.innings_number === 2);
 
   if (!i1?.is_complete || !i2?.is_complete) {
     return { ok: false, error: "Regular innings must both be complete" };
@@ -1107,23 +1112,75 @@ export async function startSuperOverInnings(
     };
   }
 
+  const targetInnings = parsed.data.inningsNumber;
+  if (allInnings?.some((i) => i.innings_number === targetInnings)) {
+    return {
+      ok: false,
+      error: `Innings ${targetInnings} already exists`,
+    };
+  }
+  // First leg of a super over (odd innings_number) requires the previous
+  // pair to be tied. Second leg (even) requires its own first leg done.
+  if (targetInnings % 2 === 1) {
+    // Odd ≥ 3 — first leg. Need the prior pair to be complete + tied.
+    if (targetInnings >= 5) {
+      const prevFirst = allInnings?.find(
+        (i) => i.innings_number === targetInnings - 2,
+      );
+      const prevSecond = allInnings?.find(
+        (i) => i.innings_number === targetInnings - 1,
+      );
+      if (!prevFirst?.is_complete || !prevSecond?.is_complete) {
+        return {
+          ok: false,
+          error: `Innings ${targetInnings - 2} and ${targetInnings - 1} must both be complete first`,
+        };
+      }
+      if (prevFirst.total_runs !== prevSecond.total_runs) {
+        return {
+          ok: false,
+          error: "Previous super over wasn't tied — no follow-up needed",
+        };
+      }
+    }
+  } else {
+    // Even — second leg. Need its first leg done.
+    const firstLeg = allInnings?.find(
+      (i) => i.innings_number === targetInnings - 1,
+    );
+    if (!firstLeg?.is_complete) {
+      return {
+        ok: false,
+        error: `Innings ${targetInnings - 1} must be complete first`,
+      };
+    }
+  }
+
   let battingTeamId: string;
   let bowlingTeamId: string;
   let target: number | null = null;
 
-  if (parsed.data.inningsNumber === 3) {
-    if (so1) return { ok: false, error: "Super over innings 3 already exists" };
-    // Team that batted SECOND in main match bats FIRST in super over.
-    battingTeamId = i2.batting_team_id;
-    bowlingTeamId = i2.bowling_team_id;
-  } else {
-    if (!so1?.is_complete) {
-      return { ok: false, error: "Super over innings 3 must be complete first" };
+  if (targetInnings % 2 === 1) {
+    // First leg of a (new) super over — team that batted SECOND in the
+    // most recent prior leg bats first. For innings 3, that's i2.
+    // For innings 5+, that's the second leg of the previous super over.
+    const reference =
+      targetInnings === 3
+        ? i2
+        : allInnings?.find((i) => i.innings_number === targetInnings - 1);
+    if (!reference) {
+      return { ok: false, error: "Missing reference innings" };
     }
-    if (so2) return { ok: false, error: "Super over innings 4 already exists" };
-    battingTeamId = so1.bowling_team_id;
-    bowlingTeamId = so1.batting_team_id;
-    target = so1.total_runs + 1;
+    battingTeamId = reference.batting_team_id;
+    bowlingTeamId = reference.bowling_team_id;
+  } else {
+    // Second leg — chase the first leg's total + 1, sides flipped.
+    const firstLeg = allInnings!.find(
+      (i) => i.innings_number === targetInnings - 1,
+    )!;
+    battingTeamId = firstLeg.bowling_team_id;
+    bowlingTeamId = firstLeg.batting_team_id;
+    target = firstLeg.total_runs + 1;
   }
 
   // Validate XI membership.

@@ -44,16 +44,36 @@ export function SuperOverPanel({ state }: { state: ScoreboardState }) {
   const [bowler, setBowler] = useState("");
 
   const i2 = state.allInnings.find((i) => i.innings_number === 2);
-  const so1 = state.allInnings.find((i) => i.innings_number === 3);
-
-  const isInnings3 = state.phase === "tied_pending_super_over";
-  const isInnings4 = state.phase === "super_over_break";
-  if (!isInnings3 && !isInnings4) return null;
   if (!i2) return null;
 
-  const battingTeamId = isInnings3
-    ? i2.batting_team_id
-    : (so1?.bowling_team_id ?? "");
+  const isFirstLeg = state.phase === "tied_pending_super_over";
+  const isSecondLeg = state.phase === "super_over_break";
+  if (!isFirstLeg && !isSecondLeg) return null;
+
+  // Figure out which innings we're about to start. For the first leg
+  // of a super over, that's the next odd innings ≥ 3 (the most recent
+  // existing super-over innings + 1, or 3 if none yet). For the second
+  // leg it's the most recent + 1 (always even).
+  const superInnings = state.allInnings
+    .filter((i) => i.innings_number >= 3)
+    .sort((a, b) => a.innings_number - b.innings_number);
+  const lastSuper = superInnings[superInnings.length - 1];
+  const inningsNumber = isFirstLeg
+    ? (lastSuper?.innings_number ?? 2) + 1
+    : (lastSuper?.innings_number ?? 2) + 1;
+  // Super over pair index for the label ("super over 1", "super over 2"
+  // …) — innings 3/4 → 1, innings 5/6 → 2, etc.
+  const superPairIndex = Math.ceil((inningsNumber - 2) / 2);
+
+  // Batting / bowling team: first leg → batting team of the most recent
+  // existing innings (innings 2 for first ever super over; second leg
+  // of the previous super over otherwise). Second leg → flip.
+  const referenceInnings = isFirstLeg
+    ? (lastSuper ?? i2)
+    : (lastSuper ?? i2);
+  const battingTeamId = isFirstLeg
+    ? referenceInnings.batting_team_id
+    : referenceInnings.bowling_team_id;
   const bowlingTeamId =
     battingTeamId === state.teamA.id ? state.teamB.id : state.teamA.id;
 
@@ -64,7 +84,8 @@ export function SuperOverPanel({ state }: { state: ScoreboardState }) {
   const battingXi = state.xi[battingTeamId] ?? [];
   const bowlingXi = state.xi[bowlingTeamId] ?? [];
 
-  const target = isInnings4 && so1 ? so1.total_runs + 1 : null;
+  const target =
+    isSecondLeg && lastSuper ? lastSuper.total_runs + 1 : null;
 
   const onStart = () => {
     if (!striker || !nonStriker || !bowler) {
@@ -78,7 +99,7 @@ export function SuperOverPanel({ state }: { state: ScoreboardState }) {
     startTransition(async () => {
       const result = await startSuperOverInnings({
         matchId: state.match.id,
-        inningsNumber: isInnings3 ? 3 : 4,
+        inningsNumber,
         striker_id: striker,
         non_striker_id: nonStriker,
         bowler_id: bowler,
@@ -87,18 +108,23 @@ export function SuperOverPanel({ state }: { state: ScoreboardState }) {
     });
   };
 
+  const headlineFirstLeg =
+    superPairIndex === 1
+      ? "Match tied — super over"
+      : `Super over ${superPairIndex} — previous tied`;
+  const headlineSecondLeg = `Super over ${superPairIndex} · chase ${target}`;
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>
-          {isInnings3 ? "Match tied — super over" : "Super over · innings 4"}
+          {isFirstLeg ? headlineFirstLeg : headlineSecondLeg}
         </CardTitle>
         <CardDescription>
-          {isInnings3 ? (
+          {isFirstLeg ? (
             <>
-              {battingTeam.name} bats first in the super over (the side that
-              batted second in the main match). Each team plays 1 over with a
-              2-wicket cap.
+              {battingTeam.name} bats first. Each team plays 1 over with a
+              2-wicket cap. No category restrictions apply.
             </>
           ) : (
             <>
@@ -130,7 +156,7 @@ export function SuperOverPanel({ state }: { state: ScoreboardState }) {
         <Button onClick={onStart} disabled={pending} className="w-full">
           {pending
             ? "Starting…"
-            : isInnings3
+            : isFirstLeg
               ? "Start super over"
               : `Start chase — ${target}`}
         </Button>

@@ -414,8 +414,6 @@ function derivePhase(args: {
 
   const i1 = allInnings.find((i) => i.innings_number === 1);
   const i2 = allInnings.find((i) => i.innings_number === 2);
-  const so1 = allInnings.find((i) => i.innings_number === 3);
-  const so2 = allInnings.find((i) => i.innings_number === 4);
 
   if (!i1) return "pre_match";
   if (!i1.is_complete) return "innings_1";
@@ -431,25 +429,38 @@ function derivePhase(args: {
   if (!i2) return "innings_break";
   if (!i2.is_complete) return "innings_2";
 
-  // Both regular innings complete. Tied?
-  const regularTied = i1.total_runs === i2.total_runs;
+  // Both regular innings complete. Decided?
+  if (i1.total_runs !== i2.total_runs) return "match_complete";
 
-  if (!regularTied) {
-    // Decided after second innings.
-    if (match.status === "completed") return "match_complete";
-    return "match_complete";
+  // Regular match tied — walk through super-over pairs. Innings 3+4
+  // are SO1, 5+6 are SO2, and so on. If a pair is tied, the next pair
+  // begins; the loop bottoms out either at a decided pair, the gap
+  // before the first leg of the next pair, or the gap between the
+  // two legs of the current pair.
+  const superOvers = allInnings
+    .filter((i) => i.innings_number >= 3)
+    .sort((a, b) => a.innings_number - b.innings_number);
+
+  // Step in pairs (first/second leg). `i` is the index of the first
+  // leg of the current super over.
+  for (let i = 0; i < superOvers.length; i += 2) {
+    const first = superOvers[i];
+    const second = superOvers[i + 1];
+
+    if (!first.is_complete) return "super_over_1";
+    if (!second) return "super_over_break";
+    if (!second.is_complete) return "super_over_2";
+
+    // Pair complete — decide.
+    if (first.total_runs !== second.total_runs) {
+      return match.status === "completed"
+        ? "match_complete"
+        : "super_over_decided";
+    }
+    // Pair tied — loop to the next pair (or fall through to start
+    // another super over if no rows exist yet).
   }
 
-  // Tied. Super over may or may not have started.
-  if (!so1) return "tied_pending_super_over";
-  if (!so1.is_complete) return "super_over_1";
-  if (!so2) return "super_over_break";
-  if (!so2.is_complete) return "super_over_2";
-
-  // Both super-over innings complete.
-  if (so1.total_runs === so2.total_runs) {
-    // Super over also tied.
-    return match.status === "completed" ? "match_complete" : "super_over_tied";
-  }
-  return match.status === "completed" ? "match_complete" : "super_over_decided";
+  // Tied — start another super over.
+  return "tied_pending_super_over";
 }

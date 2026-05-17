@@ -46,6 +46,7 @@ export function startInnings(args: {
     striker,
     non_striker,
     rules,
+    is_super_over,
   );
 
   return {
@@ -91,8 +92,12 @@ function computeSpecialOverContext(
   striker: EnginePlayer,
   _non_striker: EnginePlayer,
   rules: RuleSet,
+  isSuperOver: boolean,
 ): InningsState["special_over"] {
   if (!rules.categories.enabled) return null;
+  // Super overs have no Cat 1 / Cat 3 special-batter rule — any
+  // category player can bat or bowl and standard rotation applies.
+  if (isSuperOver) return null;
 
   if (striker.category === 1) {
     return {
@@ -362,6 +367,7 @@ export function advanceBowler(
     striker,
     non_striker,
     rules,
+    next.is_super_over,
   );
   return next;
 }
