@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { requireOrganizer } from "@/lib/auth";
+import { requireTournamentAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 import { PickXIForm } from "./pick-xi-form";
@@ -27,7 +27,7 @@ export default async function PickXIPage(props: {
   if (!match) notFound();
   if (teamId !== match.team_a_id && teamId !== match.team_b_id) notFound();
 
-  await requireOrganizer(match.tournament_id);
+  await requireTournamentAdmin(match.tournament_id);
 
   const { data: team } = await supabase
     .from("teams")

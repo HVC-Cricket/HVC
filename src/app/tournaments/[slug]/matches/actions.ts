@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { requireOrganizer, requireUser } from "@/lib/auth";
+import { requireOrganizer, requireTournamentAdmin, requireUser } from "@/lib/auth";
 import { logMatchAuditEvent } from "@/lib/match-audit";
 import { createClient } from "@/lib/supabase/server";
 
@@ -236,7 +236,9 @@ export async function setToss(
     await requireUser();
     return { ok: false, error: "Match not found" };
   }
-  await requireOrganizer(match.tournament_id);
+  // Scorers run pre-match setup (toss + XI) from the score page, so
+  // tournament-admin (organizer OR scorer) is the right gate here.
+  await requireTournamentAdmin(match.tournament_id);
 
   if (
     parsed.data.toss_winner_id !== match.team_a_id &&

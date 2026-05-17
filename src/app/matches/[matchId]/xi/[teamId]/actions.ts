@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { requireOrganizer, requireUser } from "@/lib/auth";
+import { requireTournamentAdmin, requireUser } from "@/lib/auth";
 import { logMatchAuditEvent } from "@/lib/match-audit";
 import { createClient } from "@/lib/supabase/server";
 
@@ -51,7 +51,7 @@ export async function savePlayingXI(
     return { ok: false, error: "Team does not belong to this match" };
   }
 
-  await requireOrganizer(match.tournament_id);
+  await requireTournamentAdmin(match.tournament_id);
 
   const captainCount = parsed.data.entries.filter((e) => e.is_captain).length;
   if (captainCount > 1) {

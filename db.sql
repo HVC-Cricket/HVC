@@ -906,25 +906,39 @@ create policy "tp_write" on team_players for all
   );
 
 
--- ---- matches ----  (public read; organizer writes)
-drop policy if exists "matches_read"  on matches;
-drop policy if exists "matches_write" on matches;
-create policy "matches_read"  on matches for select using (true);
-create policy "matches_write" on matches for all
-  using (is_tournament_organizer(tournament_id, auth.uid()))
+-- ---- matches ----  (public read; organizer-only insert/delete; admin update)
+-- Split write policies so scorers (tournament admins) can persist toss
+-- + similar in-match state, but only organizers can create or remove
+-- matches. Mirrors `innings` / `balls` for UPDATE while keeping the
+-- create/delete surface tight.
+drop policy if exists "matches_read"   on matches;
+drop policy if exists "matches_write"  on matches;
+drop policy if exists "matches_insert" on matches;
+drop policy if exists "matches_update" on matches;
+drop policy if exists "matches_delete" on matches;
+create policy "matches_read"   on matches for select using (true);
+create policy "matches_insert" on matches for insert
   with check (is_tournament_organizer(tournament_id, auth.uid()));
+create policy "matches_update" on matches for update
+  using (is_tournament_admin(tournament_id, auth.uid()))
+  with check (is_tournament_admin(tournament_id, auth.uid()));
+create policy "matches_delete" on matches for delete
+  using (is_tournament_organizer(tournament_id, auth.uid()));
 
 
 -- ---- match_players ----
+-- Scorers run pre-match XI selection from the score page, so admin
+-- (organizer OR scorer) is the right write gate here — same as
+-- `innings` / `balls`.
 drop policy if exists "mp_read"  on match_players;
 drop policy if exists "mp_write" on match_players;
 create policy "mp_read"  on match_players for select using (true);
 create policy "mp_write" on match_players for all
   using (
-    is_tournament_organizer(tournament_id_for_match(match_id), auth.uid())
+    is_tournament_admin(tournament_id_for_match(match_id), auth.uid())
   )
   with check (
-    is_tournament_organizer(tournament_id_for_match(match_id), auth.uid())
+    is_tournament_admin(tournament_id_for_match(match_id), auth.uid())
   );
 
 
