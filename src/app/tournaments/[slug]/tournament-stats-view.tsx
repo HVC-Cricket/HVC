@@ -282,7 +282,7 @@ function LeaderTable({
                   <tr className="border-b border-foreground/10 text-[10px] uppercase tracking-wide text-muted-foreground">
                     <th
                       scope="col"
-                      className="sticky left-0 z-10 bg-card px-3 py-2 text-left font-medium"
+                      className="sticky left-0 z-10 w-[140px] max-w-[140px] bg-card px-3 py-2 text-left font-medium sm:w-[200px] sm:max-w-[200px]"
                     >
                       Player
                     </th>
@@ -307,12 +307,12 @@ function LeaderTable({
                       >
                         <th
                           scope="row"
-                          className="sticky left-0 z-10 bg-card px-3 py-2 text-left font-normal"
+                          className="sticky left-0 z-10 w-[140px] max-w-[140px] bg-card px-3 py-2 text-left font-normal sm:w-[200px] sm:max-w-[200px]"
                         >
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-start gap-2">
                             <span
                               className={
-                                "inline-flex size-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-semibold tabular-nums " +
+                                "mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-semibold tabular-nums " +
                                 (globalRank === 1
                                   ? "bg-primary/15 text-primary"
                                   : "bg-muted text-muted-foreground")
@@ -320,9 +320,9 @@ function LeaderTable({
                             >
                               {globalRank}
                             </span>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1">
-                                <span className="truncate font-medium capitalize">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0">
+                                <span className="font-medium capitalize leading-tight break-words">
                                   {r.name}
                                 </span>
                                 {r.cat && (
