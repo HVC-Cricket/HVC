@@ -186,11 +186,6 @@ function InningsCard({
   // (or from the start of the innings if there hasn't been one).
   const partnership = computeCurrentPartnership(balls);
 
-  // Recent run rate over the last 5 overs (or all overs if innings is
-  // shorter). Useful chase context — a chase looking ahead at 7 RPO
-  // means a different thing when the last 5 overs went at 12 vs at 3.
-  const recentRR = computeRecentRR(balls, 5);
-
   return (
     <Card>
       <CardHeader>
@@ -256,8 +251,13 @@ function InningsCard({
           below for full per-player breakdown. */}
       {!completed && (
         <CardContent className="space-y-4">
-          {/* Partnership + recent RR strip */}
-          {(partnership.runs > 0 || partnership.balls > 0 || recentRR) && (
+          {/* Partnership · RR · CRR strip. RR = required run rate —
+              only meaningful in the 2nd innings when a target is set.
+              CRR = current overall run rate (total_runs / overs). */}
+          {(partnership.runs > 0 ||
+            partnership.balls > 0 ||
+            reqRR != null ||
+            oversFloat > 0) && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
               {(partnership.runs > 0 || partnership.balls > 0) && (
                 <span className="text-muted-foreground">
@@ -272,15 +272,16 @@ function InningsCard({
                   {")"}
                 </span>
               )}
-              {recentRR && (
+              {reqRR != null && (
                 <span className="text-muted-foreground">
-                  <span className="font-medium uppercase">
-                    Last {recentRR.overs} ov:
-                  </span>{" "}
-                  <span className="font-mono text-foreground">
-                    {recentRR.runs}
-                  </span>
-                  {" runs"}
+                  <span className="font-medium uppercase">RR:</span>{" "}
+                  <span className="font-mono text-foreground">{reqRR}</span>
+                </span>
+              )}
+              {oversFloat > 0 && (
+                <span className="text-muted-foreground">
+                  <span className="font-medium uppercase">CRR:</span>{" "}
+                  <span className="font-mono text-foreground">{runRate}</span>
                 </span>
               )}
             </div>
@@ -557,31 +558,3 @@ function computeCurrentPartnership(balls: Ball[]) {
   return { runs, balls: bf };
 }
 
-/**
- * Runs scored in the most-recent N overs (capped to however many overs
- * actually exist) plus the rolling RR. Returns null when fewer than 1
- * over has been bowled — too little signal to display.
- */
-function computeRecentRR(
-  balls: Ball[],
-  windowOvers: number,
-): { runs: number; overs: number; rr: string } | null {
-  if (balls.length === 0) return null;
-  const latestOver = balls[balls.length - 1].over_number;
-  if (latestOver < 2) return null;
-  const fromOver = Math.max(1, latestOver - windowOvers + 1);
-  let runs = 0;
-  let legalBalls = 0;
-  for (const b of balls) {
-    if (b.over_number < fromOver) continue;
-    runs += b.runs_off_bat + b.extras;
-    if (b.extra_type !== "wide" && b.extra_type !== "no_ball") legalBalls += 1;
-  }
-  const oversCount = legalBalls / 6;
-  if (oversCount <= 0) return null;
-  return {
-    runs,
-    overs: latestOver - fromOver + 1,
-    rr: (runs / oversCount).toFixed(2),
-  };
-}
