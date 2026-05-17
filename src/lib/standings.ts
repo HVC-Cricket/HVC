@@ -137,7 +137,13 @@ export async function computeStandings(
 
   rows.sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
-    return b.nrr - a.nrr;
+    if (b.nrr !== a.nrr) return b.nrr - a.nrr;
+    // Final tiebreaker — team_id alphabetical — so the standings order
+    // is fully deterministic when teams are tied on points + NRR.
+    // Matters for the playoff auto-scheduler (it picks standings[0..3]
+    // by index, so a flaky tie-break could send the wrong team into
+    // Q1 / Eliminator).
+    return a.team_id.localeCompare(b.team_id);
   });
 
   return rows;

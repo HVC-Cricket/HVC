@@ -916,14 +916,20 @@ async function finalizeMatchInternal(
 
 /**
  * IPL-style playoff chain for round_robin_playoff_final tournaments.
- * Fires the next transition each time a match is finalized:
- *   - All group matches terminal → Qualifier 1 (top 2 on points table)
- *   - Qualifier 1 terminal       → Eliminator   (#3 vs #4 on points table)
- *   - Eliminator terminal        → Qualifier 2  (Q1 loser vs Eliminator winner)
- *   - Qualifier 2 terminal       → Final        (Q1 winner vs Q2 winner)
+ * Fires whenever a match is finalised; multiple stages can be queued
+ * in the same run if their dependencies are simultaneously satisfied:
  *
- * Idempotent — re-runs after a stage match exists are no-ops. Bails
- * cleanly for any other tournament format.
+ *   - All group matches terminal → Qualifier 1 (#1 vs #2 on the points
+ *                                  table) AND Eliminator (#3 vs #4)
+ *                                  scheduled in parallel — both depend
+ *                                  only on standings, no need to wait
+ *                                  for Q1 to finish.
+ *   - Q1 + Eliminator terminal   → Qualifier 2 (Q1 loser vs Elim winner)
+ *   - Qualifier 2 terminal       → Final       (Q1 winner vs Q2 winner)
+ *
+ * Idempotent — each branch guards on `!stageAny` so existing playoff
+ * rows are never duplicated or overwritten. Bails cleanly for any
+ * other tournament format.
  */
 async function maybeAutoSchedulePlayoffs(
   supabase: Awaited<ReturnType<typeof createClient>>,
