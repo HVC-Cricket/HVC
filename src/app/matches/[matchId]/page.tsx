@@ -1,4 +1,4 @@
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -130,14 +130,15 @@ export default async function MatchDetailPage(props: {
             )}
             {canManage && (
               <>
-                {/* Score button only makes sense for matches still in progress
-                    or scheduled — a completed match shouldn't be scored
-                    further. Admin can still re-open via Edit if needed. */}
-                {ms !== "completed" && ms !== "abandoned" && (
+                {/* For scheduled matches the primary CTA is rendered as
+                    a full-width card below — pairing it with Activity /
+                    Edit in this row reads like a tab strip and scorers
+                    miss that it navigates away. Live / innings_break
+                    keep the compact 'Score' here since the match is
+                    clearly already in motion. */}
+                {(ms === "live" || ms === "innings_break") && (
                   <Link href={`/matches/${match.id}/score`} prefetch>
-                    <Button size="sm">
-                      {ms === "scheduled" ? "Start scoring" : "Score"}
-                    </Button>
+                    <Button size="sm">Score</Button>
                   </Link>
                 )}
                 <Link href={`/matches/${match.id}/activity`}>
@@ -154,6 +155,20 @@ export default async function MatchDetailPage(props: {
             )}
           </div>
         </div>
+
+        {canManage && ms === "scheduled" && (
+          <Link
+            href={`/matches/${match.id}/score`}
+            prefetch
+            className="group flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-medium text-primary transition hover:bg-primary/15"
+          >
+            <span className="flex items-center gap-2">
+              <Play className="size-4 fill-current" />
+              Start scoring this match
+            </span>
+            <ChevronRight className="size-4 transition group-hover:translate-x-0.5" />
+          </Link>
+        )}
 
         {(ms === "live" ||
           ms === "innings_break" ||
