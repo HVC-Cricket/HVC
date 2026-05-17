@@ -11,7 +11,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getSessionContext, isTournamentOrganizer } from "@/lib/auth";
+import {
+  getSessionContext,
+  isTournamentAdmin,
+  isTournamentOrganizer,
+} from "@/lib/auth";
 import {
   MATCH_STATUS_CLASSES,
   MATCH_STATUS_LABEL,
@@ -78,13 +82,22 @@ export default async function MatchDetailPage(props: {
   const teamA = teamRows?.find((t) => t.id === match.team_a_id);
   const teamB = teamRows?.find((t) => t.id === match.team_b_id);
 
-  const canManage = ctx
-    ? await isTournamentOrganizer(tournament.id, ctx)
-    : false;
+  // canManage = organizer-only (Edit match, Toss form, XI picker).
+  // canScore  = tournament admin = organizer OR scorer (Score CTA,
+  //             Activity log, POTM pick — gated server-side on
+  //             requireTournamentAdmin). Without this split a scorer
+  //             couldn't even see the "Start scoring this match" CTA
+  //             that they're authorised to use.
+  const [canManage, canScore] = ctx
+    ? await Promise.all([
+        isTournamentOrganizer(tournament.id, ctx),
+        isTournamentAdmin(tournament.id, ctx),
+      ])
+    : [false, false];
 
   const ms = match.status as MatchStatus;
 
-  const showStartScoringBar = canManage && ms === "scheduled";
+  const showStartScoringBar = canScore && ms === "scheduled";
 
   return (
     <main className="flex-1 p-4 sm:p-6">
@@ -137,7 +150,7 @@ export default async function MatchDetailPage(props: {
             {(ms === "live" || ms === "innings_break") && (
               <NotifyButton matchId={match.id} />
             )}
-            {canManage && (
+            {canScore && (
               <>
                 {/* For scheduled matches the primary CTA is rendered as
                     a full-width card below — pairing it with Activity /
@@ -155,12 +168,14 @@ export default async function MatchDetailPage(props: {
                     Activity
                   </Button>
                 </Link>
-                <Link href={`/matches/${match.id}/edit`} prefetch>
-                  <Button variant="ghost" size="sm">
-                    Edit
-                  </Button>
-                </Link>
               </>
+            )}
+            {canManage && (
+              <Link href={`/matches/${match.id}/edit`} prefetch>
+                <Button variant="ghost" size="sm">
+                  Edit
+                </Button>
+              </Link>
             )}
           </div>
         </div>
@@ -176,7 +191,7 @@ export default async function MatchDetailPage(props: {
                 </Suspense>
                 {ms === "completed" && (
                   <Suspense fallback={<SectionSkeleton lines={2} />}>
-                    <MatchAwards matchId={match.id} canManage={canManage} />
+                    <MatchAwards matchId={match.id} canManage={canScore} />
                   </Suspense>
                 )}
               </div>
