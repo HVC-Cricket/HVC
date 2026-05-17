@@ -151,12 +151,6 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
 
   return (
     <section className="space-y-3">
-      <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-lg font-semibold">Scorecard</h2>
-        <span className="text-xs text-muted-foreground">
-          Per-player batting &amp; bowling
-        </span>
-      </div>
       <ScorecardInningsTabs tabs={tabs} />
     </section>
   );

@@ -155,6 +155,18 @@ function InningsCard({
 
   const teamShort = (id: string) =>
     id === state.teamA.id ? state.teamA.short_name : state.teamB.short_name;
+  const teamName = (id: string) =>
+    id === state.teamA.id ? state.teamA.name : state.teamB.name;
+
+  // Small batting-team caption that sits above the 93/3 score, e.g.
+  // "Wodeyars The Kings (1st inn)" — same style as the scoring page's
+  // top-of-card label. Super overs (innings 3/4) just read "super over".
+  const inningsTag =
+    innings.innings_number === 1
+      ? "1st inn"
+      : innings.innings_number === 2
+        ? "2nd inn"
+        : "super over";
 
   // Active batsmen are striker + non-striker per the latest ball (or initial)
   const last = balls[balls.length - 1];
@@ -182,6 +194,12 @@ function InningsCard({
   return (
     <Card>
       <CardHeader>
+        <div className="text-xs font-medium capitalize text-muted-foreground">
+          {teamName(innings.batting_team_id)}{" "}
+          <span className="font-normal text-muted-foreground/70">
+            ({inningsTag})
+          </span>
+        </div>
         <CardTitle className="flex items-baseline gap-3">
           <span className="font-mono text-3xl tabular-nums sm:text-4xl">
             {innings.total_runs}/{innings.total_wickets}
@@ -194,38 +212,28 @@ function InningsCard({
             <span className="font-mono text-foreground">{runRate}</span>
           </span>
         </CardTitle>
-        <CardDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span>
-            <span className="capitalize">
-              {teamShort(innings.batting_team_id)}
-            </span>{" "}
-            {completed ? "innings" : "batting"}
-            {completed && target != null && (
-              <>
-                {" · "}
-                {state.match.winner_id === innings.batting_team_id ? (
-                  <span className="text-foreground">chased {target}</span>
-                ) : state.match.result_type === "tie" ? (
-                  <span className="text-foreground">tied at {target - 1}</span>
-                ) : (
-                  <span className="text-foreground">
-                    fell {target - innings.total_runs} short of {target}
-                  </span>
-                )}
-              </>
-            )}
-          </span>
-          {!completed && state.active.free_hit_pending && (
-            <span className="rounded bg-yellow-500/15 px-1.5 py-0.5 text-xs text-yellow-700 dark:text-yellow-300">
-              Free hit
-            </span>
+        {/* Team-batting caption + chase summary previously lived here
+            ("WK batting", "WK innings · chased 95"). Removed at the
+            scorer's request — full team name + (1st inn / 2nd inn) is
+            now in the small line above the score, and the trophy /
+            winner card above already shows the chase result for
+            completed matches. Only the in-flight pills (free hit,
+            CAT1/CAT3 over) survive. */}
+        {!completed &&
+          (state.active.free_hit_pending || state.active.is_special_over) && (
+            <CardDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {state.active.free_hit_pending && (
+                <span className="rounded bg-yellow-500/15 px-1.5 py-0.5 text-xs text-yellow-700 dark:text-yellow-300">
+                  Free hit
+                </span>
+              )}
+              {state.active.is_special_over && (
+                <span className="rounded bg-blue-500/15 px-1.5 py-0.5 text-xs text-blue-700 dark:text-blue-300">
+                  {state.active.is_special_over.toUpperCase()} over
+                </span>
+              )}
+            </CardDescription>
           )}
-          {!completed && state.active.is_special_over && (
-            <span className="rounded bg-blue-500/15 px-1.5 py-0.5 text-xs text-blue-700 dark:text-blue-300">
-              {state.active.is_special_over.toUpperCase()} over
-            </span>
-          )}
-        </CardDescription>
         {/* Prominent chase strip — only when innings 2 is in progress
             with runs left to chase. Sits inside the card header so it's
             unmissable. */}
@@ -272,10 +280,7 @@ function InningsCard({
                   <span className="font-mono text-foreground">
                     {recentRR.runs}
                   </span>
-                  {" runs · RR "}
-                  <span className="font-mono text-foreground">
-                    {recentRR.rr}
-                  </span>
+                  {" runs"}
                 </span>
               )}
             </div>
