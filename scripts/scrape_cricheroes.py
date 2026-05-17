@@ -93,6 +93,19 @@ API_HEADERS = {
 API_BASE = "https://api.cricheroes.in/api/v1"
 
 
+def fetch_mvp_leaderboard(tid: int) -> list[dict[str, Any]]:
+    """Fetch cricheroes' published MVP leaderboard for a tournament.
+
+    Endpoint returns one row per player who appeared, already ranked, with
+    cricheroes' proprietary batting/bowling/fielding/total scores as decimal
+    strings (e.g. "33.003"). No pagination — single response.
+    """
+    url = f"{API_BASE}/mvp/get-tournament-player-mvp/{tid}"
+    body = json.loads(http_get(url, extra_headers=API_HEADERS))
+    data = body.get("data") or []
+    return data if isinstance(data, list) else []
+
+
 def fetch_tournament_matches(tid: int) -> list[dict[str, Any]]:
     """Paginate /match/get-tournament-matches and return every completed match.
 
@@ -339,6 +352,7 @@ def main() -> None:
     historical_batting_rows: list[dict] = []
     historical_bowling_rows: list[dict] = []
     fow_rows: list[dict] = []
+    tournament_mvp_rows: list[dict] = []
 
     missing_matches: list[int] = []
 
@@ -357,6 +371,34 @@ def main() -> None:
             continue
         (RAW_DIR / f"tournament_{tid}.json").write_text(json.dumps(tour, indent=2))
         time.sleep(SLEEP_BETWEEN_REQUESTS)
+
+        # MVP leaderboard — cricheroes' proprietary scoring; we mirror their
+        # published rows verbatim so historical seasons match what users
+        # already saw on cricheroes.com.
+        try:
+            mvp_rows = fetch_mvp_leaderboard(tid)
+            (RAW_DIR / f"mvp_{tid}.json").write_text(json.dumps(mvp_rows, indent=2))
+            for r in mvp_rows:
+                pid = r.get("player_id")
+                team_id = r.get("team_id")
+                if not pid or not team_id:
+                    continue
+                tournament_mvp_rows.append({
+                    "cricheroes_tournament_id": tid,
+                    "cricheroes_team_id": team_id,
+                    "cricheroes_player_id": pid,
+                    "name": (r.get("name") or "").strip(),
+                    "rank": r.get("rank") or 0,
+                    "matches": r.get("matches") or 0,
+                    "batting": r.get("batting") or "0",
+                    "bowling": r.get("bowling") or "0",
+                    "fielding": r.get("fielding") or "0",
+                    "total": r.get("total") or "0",
+                })
+            print(f"  MVP rows: {len(mvp_rows)}")
+            time.sleep(SLEEP_BETWEEN_REQUESTS)
+        except HTTPError as e:
+            print(f"  ! MVP leaderboard fetch failed ({e.code}) — skipping season")
 
         pp = tour["pageProps"]
         td = safe(pp, "tournamentDetails", "data", default={})
@@ -726,6 +768,7 @@ def main() -> None:
     write_csv(CSV_DIR / "historical_batting.csv", historical_batting_rows)
     write_csv(CSV_DIR / "historical_bowling.csv", historical_bowling_rows)
     write_csv(CSV_DIR / "fall_of_wickets.csv",    fow_rows)
+    write_csv(CSV_DIR / "tournament_mvp.csv",     tournament_mvp_rows)
 
     print("\nDONE")
     print(f"  tournaments:        {len(tournaments_rows)}")
@@ -738,6 +781,7 @@ def main() -> None:
     print(f"  historical_batting: {len(historical_batting_rows)}")
     print(f"  historical_bowling: {len(historical_bowling_rows)}")
     print(f"  fall_of_wickets:    {len(fow_rows)}")
+    print(f"  tournament_mvp:     {len(tournament_mvp_rows)}")
     print(f"  CSVs at:            {CSV_DIR}")
     if missing_matches:
         print(f"  ! {len(missing_matches)} match(es) 404'd on cricheroes: {missing_matches}")

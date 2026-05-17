@@ -137,6 +137,7 @@ async function main(): Promise<void> {
       "historical_match_fall_of_wickets",
       "historical_match_bowling",
       "historical_match_batting",
+      "historical_tournament_mvp",
       "balls",
       "innings",
       "match_players",
@@ -563,6 +564,43 @@ async function main(): Promise<void> {
   }
   console.log(`        inserted: ${hfCount}, skipped: ${hfSkip}\n`);
 
+  // ----- 11. historical_tournament_mvp -----
+  // CricHeroes' published MVP leaderboard per tournament. Mirrors the
+  // values shown on cricheroes.com — see migration 20260517000000 for
+  // why we don't compute these locally.
+  const mvpRows = readCsv("tournament_mvp.csv");
+  console.log(`[11/11] historical_tournament_mvp  (${mvpRows.length} rows)`);
+  let mvpCount = 0, mvpSkip = 0;
+  for (const r of mvpRows) {
+    const tournamentId = tournamentIds.get(r.cricheroes_tournament_id);
+    const teamId = tournamentId
+      ? teamIds.get(teamKey(r.cricheroes_tournament_id, r.cricheroes_team_id)) ?? null
+      : null;
+    const playerId = playerIds.get(r.cricheroes_player_id) ?? null;
+    if (!tournamentId) { mvpSkip++; continue; }
+    const { error } = await supabase
+      .from("historical_tournament_mvp")
+      .insert({
+        tournament_id: tournamentId,
+        player_id: playerId,
+        player_name: r.name,
+        team_id: teamId,
+        rank: intOrNull(r.rank) ?? 0,
+        matches: intOrNull(r.matches) ?? 0,
+        batting_points: r.batting ? Number(r.batting) : 0,
+        bowling_points: r.bowling ? Number(r.bowling) : 0,
+        fielding_points: r.fielding ? Number(r.fielding) : 0,
+        total_points: r.total ? Number(r.total) : 0,
+      });
+    if (error) {
+      if (error.message.includes("duplicate")) { mvpSkip++; continue; }
+      console.error(`  ! historical_tournament_mvp (tournament ${r.cricheroes_tournament_id}, player ${r.cricheroes_player_id}): ${error.message}`);
+      process.exit(1);
+    }
+    mvpCount++;
+  }
+  console.log(`        inserted: ${mvpCount}, skipped: ${mvpSkip}\n`);
+
   console.log("DONE");
   console.log(`  tournaments:                       ${tournamentIds.size}`);
   console.log(`  teams:                             ${teamIds.size}`);
@@ -574,6 +612,7 @@ async function main(): Promise<void> {
   console.log(`  historical_match_batting:          ${hbCount}`);
   console.log(`  historical_match_bowling:          ${hwCount}`);
   console.log(`  historical_match_fall_of_wickets:  ${hfCount}`);
+  console.log(`  historical_tournament_mvp:         ${mvpCount}`);
 }
 
 main().catch(err => {

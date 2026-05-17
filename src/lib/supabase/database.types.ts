@@ -716,6 +716,36 @@ export type Database = {
         Update: Partial<Database["public"]["Tables"]["historical_match_fall_of_wickets"]["Insert"]>;
         Relationships: [];
       };
+      historical_tournament_mvp: {
+        Row: {
+          id: string;
+          tournament_id: string;
+          player_id: string | null;
+          player_name: string;
+          team_id: string | null;
+          rank: number;
+          matches: number;
+          batting_points: number;
+          bowling_points: number;
+          fielding_points: number;
+          total_points: number;
+        };
+        Insert: {
+          id?: string;
+          tournament_id: string;
+          player_id?: string | null;
+          player_name: string;
+          team_id?: string | null;
+          rank: number;
+          matches?: number;
+          batting_points?: number;
+          bowling_points?: number;
+          fielding_points?: number;
+          total_points: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["historical_tournament_mvp"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
