@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getSessionContext } from "@/lib/auth";
+import { type MatchStage, type MatchStatus } from "@/lib/constants/match";
 import {
   deriveTournamentStatus,
   FORMAT_LABEL,
@@ -69,7 +70,7 @@ export default async function TournamentsPage() {
             .in("tournament_id", tournamentIds),
           supabase
             .from("matches")
-            .select("id, tournament_id, status")
+            .select("id, tournament_id, stage, status")
             .in("tournament_id", tournamentIds),
         ])
       : [{ data: [] }, { data: [] }];
@@ -78,24 +79,26 @@ export default async function TournamentsPage() {
   for (const r of teamRowsRes.data ?? []) {
     teamCountById.set(r.tournament_id, (teamCountById.get(r.tournament_id) ?? 0) + 1);
   }
-  const matchStatusesById = new Map<string, string[]>();
+  type MatchSummary = { stage: MatchStage; status: MatchStatus };
+  const matchSummariesById = new Map<string, MatchSummary[]>();
   for (const r of matchRowsRes.data ?? []) {
-    const list = matchStatusesById.get(r.tournament_id) ?? [];
-    list.push(r.status);
-    matchStatusesById.set(r.tournament_id, list);
+    const list = matchSummariesById.get(r.tournament_id) ?? [];
+    list.push({
+      stage: r.stage as MatchStage,
+      status: r.status as MatchStatus,
+    });
+    matchSummariesById.set(r.tournament_id, list);
   }
 
   // Replace each tournament's stored status with the derived one for
   // both sorting and rendering — keeps the rest of the page agnostic.
   const enriched = rows.map((t) => {
-    const matchStatuses = (matchStatusesById.get(t.id) ?? []) as Array<
-      "scheduled" | "live" | "innings_break" | "completed" | "abandoned"
-    >;
+    const matchSummaries = matchSummariesById.get(t.id) ?? [];
     return {
       ...t,
-      status: deriveTournamentStatus(t.status, matchStatuses),
+      status: deriveTournamentStatus(t.status, matchSummaries, t.format),
       teamCount: teamCountById.get(t.id) ?? 0,
-      matchCount: matchStatuses.length,
+      matchCount: matchSummaries.length,
     };
   });
   const sorted = [...enriched].sort(

@@ -4,6 +4,8 @@
  * status pill and format chip render identically.
  */
 
+import { stagesForFormat, type MatchStage, type MatchStatus } from "./match";
+
 export type TournamentStatus =
   | "draft"
   | "active"
@@ -41,8 +43,8 @@ export const FORMAT_LABEL: Record<TournamentFormat, string> = {
 };
 
 /**
- * Compute the *effective* tournament status from the match statuses,
- * so the badge stays honest as scoring progresses. The stored
+ * Compute the *effective* tournament status from the match list, so the
+ * badge stays honest as scoring progresses. The stored
  * `tournaments.status` is treated as a fallback — admins set it on
  * create (default `draft`) but rarely remember to flip it later.
  *
@@ -50,24 +52,39 @@ export const FORMAT_LABEL: Record<TournamentFormat, string> = {
  *   - `archived` is preserved — admins use it to hide old tournaments,
  *     so we never override it.
  *   - Any live / innings_break match → `active`.
- *   - All matches terminal (completed/abandoned) and at least one
- *     exists → `completed`.
+ *   - All matches terminal (completed/abandoned):
+ *       - For formats that include a Final stage (knockout,
+ *         group_then_knockout, round_robin_playoff_final): only
+ *         `completed` if a final-stage match exists AND is terminal.
+ *         Otherwise the tournament is between phases (e.g. group is
+ *         done, playoffs haven't been scheduled yet) → keep `active`
+ *         so admins see the badge still pulsing while they set up the
+ *         next round.
+ *       - Other formats → `completed`.
  *   - Any completed/abandoned alongside scheduled ones → `active`.
  *   - Otherwise (no matches yet, or only scheduled & nothing played)
  *     → fall back to the stored value (typically `draft`).
  */
 export function deriveTournamentStatus(
   stored: TournamentStatus,
-  matchStatuses: Array<
-    "scheduled" | "live" | "innings_break" | "completed" | "abandoned"
-  >,
+  matches: Array<{ stage: MatchStage; status: MatchStatus }>,
+  format: TournamentFormat,
 ): TournamentStatus {
   if (stored === "archived") return "archived";
-  if (matchStatuses.length === 0) return stored;
-  if (matchStatuses.some((s) => s === "live" || s === "innings_break"))
+  if (matches.length === 0) return stored;
+  if (matches.some((m) => m.status === "live" || m.status === "innings_break"))
     return "active";
-  const terminal = (s: string) => s === "completed" || s === "abandoned";
-  if (matchStatuses.every(terminal)) return "completed";
-  if (matchStatuses.some(terminal)) return "active";
+  const terminal = (s: MatchStatus) => s === "completed" || s === "abandoned";
+  const hasFinal = stagesForFormat(format).includes("final");
+  if (matches.every((m) => terminal(m.status))) {
+    if (hasFinal) {
+      const finalDone = matches.some(
+        (m) => m.stage === "final" && terminal(m.status),
+      );
+      if (!finalDone) return "active";
+    }
+    return "completed";
+  }
+  if (matches.some((m) => terminal(m.status))) return "active";
   return stored;
 }

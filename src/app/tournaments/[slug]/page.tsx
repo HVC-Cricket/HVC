@@ -15,6 +15,7 @@ import { getSessionContext, isTournamentOrganizer } from "@/lib/auth";
 import {
   MATCH_STATUS_CLASSES,
   MATCH_STATUS_LABEL,
+  type MatchStage,
   type MatchStatus,
 } from "@/lib/constants/match";
 import {
@@ -93,9 +94,11 @@ export default async function TournamentDetailPage(props: {
   // reality once scoring starts. `archived` is preserved as-is.
   const status = deriveTournamentStatus(
     tournament.status,
-    matches.map((m) => m.status) as Array<
-      "scheduled" | "live" | "innings_break" | "completed" | "abandoned"
-    >,
+    matches.map((m) => ({
+      stage: m.stage as MatchStage,
+      status: m.status as MatchStatus,
+    })),
+    fmt,
   );
 
   return (

@@ -711,31 +711,43 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                   : `Striker + bowler must both be Cat ${overCategory}`}
               </span>
             )}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="ml-auto h-8 gap-1.5"
-              onClick={() => {
-                if (!strikerId && !nonStrikerId) return;
+            <ConfirmButton
+              title="Swap striker and non-striker?"
+              description={
+                <>
+                  <span className="font-medium capitalize">
+                    {striker?.display_name ?? "Striker"}
+                  </span>{" "}
+                  moves to non-striker;{" "}
+                  <span className="font-medium capitalize">
+                    {nonStriker?.display_name ?? "Non-striker"}
+                  </span>{" "}
+                  comes on strike.
+                </>
+              }
+              confirmLabel="Swap"
+              onConfirm={() => {
                 setStrikerId(nonStrikerId);
                 setNonStrikerId(strikerId);
               }}
-              disabled={
-                (!strikerId && !nonStrikerId) ||
-                strikerId === nonStrikerId ||
-                state.active.last_man_mode
-              }
-              title={
-                state.active.last_man_mode
+              triggerProps={{
+                type: "button",
+                variant: "outline",
+                size: "sm",
+                className: "ml-auto h-8 gap-1.5",
+                disabled:
+                  (!strikerId && !nonStrikerId) ||
+                  strikerId === nonStrikerId ||
+                  state.active.last_man_mode,
+                title: state.active.last_man_mode
                   ? "Disabled — last man standing"
-                  : "Swap striker and non-striker"
-              }
-              aria-label="Swap striker and non-striker"
+                  : "Swap striker and non-striker",
+                "aria-label": "Swap striker and non-striker",
+              }}
             >
               <ArrowLeftRight className="size-4" />
               <span className="hidden sm:inline">Swap</span>
-            </Button>
+            </ConfirmButton>
           </div>
           {/* Slot tiles double as the picker — tap a tile, native mobile
               picker opens, pick a player, done. No second "Who's batting"

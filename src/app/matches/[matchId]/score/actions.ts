@@ -16,6 +16,7 @@ import {
   setNonStriker,
   setStriker,
 } from "@/lib/scoring";
+import { computeStandings } from "@/lib/standings";
 import { createClient } from "@/lib/supabase/server";
 
 import type { ActionResult } from "@/app/tournaments/actions";
@@ -683,6 +684,15 @@ export async function finalizeMatch(
   const result = await finalizeMatchInternal(supabase, parsed.data.matchId);
   if (!result.ok) return result;
 
+  // Auto-schedule the next playoff stage when each round wraps up
+  // (Q1 → Eliminator → Q2 → Final). Best-effort: a failure here is
+  // logged but never blocks the scorer from finalizing the result.
+  try {
+    await maybeAutoSchedulePlayoffs(supabase, match.tournament_id);
+  } catch (err) {
+    console.error("[auto-schedule playoffs] failed", err);
+  }
+
   // Match-completion push (moved from recordBall now that completion is
   // explicit). Single fan-out on confirm — no fan-out on the optimistic
   // last-ball anymore.
@@ -826,6 +836,141 @@ async function finalizeMatchInternal(
   });
 
   return { ok: true, data: undefined };
+}
+
+/**
+ * IPL-style playoff chain for round_robin_playoff_final tournaments.
+ * Fires the next transition each time a match is finalized:
+ *   - All group matches terminal → Qualifier 1 (top 2 on points table)
+ *   - Qualifier 1 terminal       → Eliminator   (#3 vs #4 on points table)
+ *   - Eliminator terminal        → Qualifier 2  (Q1 loser vs Eliminator winner)
+ *   - Qualifier 2 terminal       → Final        (Q1 winner vs Q2 winner)
+ *
+ * Idempotent — re-runs after a stage match exists are no-ops. Bails
+ * cleanly for any other tournament format.
+ */
+async function maybeAutoSchedulePlayoffs(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tournamentId: string,
+): Promise<void> {
+  const { data: tournament } = await supabase
+    .from("tournaments")
+    .select("format, slug")
+    .eq("id", tournamentId)
+    .single();
+  if (tournament?.format !== "round_robin_playoff_final") return;
+
+  const { data: matchRows } = await supabase
+    .from("matches")
+    .select(
+      "id, stage, status, team_a_id, team_b_id, winner_id, match_number, overs_per_innings, players_per_side, venue",
+    )
+    .eq("tournament_id", tournamentId);
+  if (!matchRows || matchRows.length === 0) return;
+
+  const terminal = (s: string | null | undefined) =>
+    s === "completed" || s === "abandoned";
+
+  const groupMatches = matchRows.filter((m) => m.stage === "group");
+  const q1Any = matchRows.find((m) => m.stage === "qualifier_1");
+  const elimAny = matchRows.find((m) => m.stage === "eliminator");
+  const q2Any = matchRows.find((m) => m.stage === "qualifier_2");
+  const finalAny = matchRows.find((m) => m.stage === "final");
+
+  const q1Done =
+    q1Any && terminal(q1Any.status) && q1Any.winner_id ? q1Any : null;
+  const elimDone =
+    elimAny && terminal(elimAny.status) && elimAny.winner_id ? elimAny : null;
+  const q2Done =
+    q2Any && terminal(q2Any.status) && q2Any.winner_id ? q2Any : null;
+
+  // Format settings (overs / players / venue) inherit from a group
+  // match so the playoff is configured the same way without an admin
+  // having to set them by hand. Fall back to any earlier playoff row
+  // if there's no group match (defensive — `round_robin_playoff_final`
+  // requires a group stage in practice).
+  const template = groupMatches[0] ?? q1Any ?? elimAny ?? q2Any;
+  if (!template) return;
+
+  let nextNumber =
+    matchRows.reduce((mx, m) => Math.max(mx, m.match_number ?? 0), 0) + 1;
+
+  const schedule = async (
+    stage: "qualifier_1" | "eliminator" | "qualifier_2" | "final",
+    teamAId: string,
+    teamBId: string,
+  ) => {
+    const { error } = await supabase.from("matches").insert({
+      tournament_id: tournamentId,
+      match_number: nextNumber++,
+      stage,
+      team_a_id: teamAId,
+      team_b_id: teamBId,
+      overs_per_innings: template.overs_per_innings,
+      players_per_side: template.players_per_side,
+      venue: template.venue,
+    });
+    if (error) {
+      console.error(`[auto-schedule ${stage}] insert failed`, error);
+      return false;
+    }
+    return true;
+  };
+
+  // Walk the chain; first applicable transition fires this run. Each
+  // subsequent finalize triggers the next link.
+  let scheduled = false;
+
+  // 1. Qualifier 1 — top 2 on points table once every group match is terminal.
+  if (
+    !q1Any &&
+    groupMatches.length > 0 &&
+    groupMatches.every((m) => terminal(m.status))
+  ) {
+    const standings = await computeStandings(supabase, tournamentId);
+    if (standings.length >= 2) {
+      scheduled = await schedule(
+        "qualifier_1",
+        standings[0].team_id,
+        standings[1].team_id,
+      );
+    }
+  }
+  // 2. Eliminator — #3 vs #4 on the same points table.
+  else if (!elimAny && q1Done) {
+    const standings = await computeStandings(supabase, tournamentId);
+    if (standings.length >= 4) {
+      scheduled = await schedule(
+        "eliminator",
+        standings[2].team_id,
+        standings[3].team_id,
+      );
+    }
+  }
+  // 3. Qualifier 2 — Q1 loser vs Eliminator winner.
+  else if (!q2Any && elimDone && q1Done) {
+    const q1Loser =
+      q1Done.team_a_id === q1Done.winner_id
+        ? q1Done.team_b_id
+        : q1Done.team_a_id;
+    scheduled = await schedule(
+      "qualifier_2",
+      q1Loser,
+      elimDone.winner_id as string,
+    );
+  }
+  // 4. Final — Q1 winner vs Q2 winner.
+  else if (!finalAny && q2Done && q1Done) {
+    scheduled = await schedule(
+      "final",
+      q1Done.winner_id as string,
+      q2Done.winner_id as string,
+    );
+  }
+
+  if (scheduled && tournament.slug) {
+    revalidatePath(`/tournaments/${tournament.slug}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
