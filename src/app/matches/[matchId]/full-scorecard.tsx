@@ -5,6 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatEnumLabel } from "@/lib/format";
 import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
@@ -576,7 +577,7 @@ function computeDismissal(
     case "timed_out":
       return "timed out";
     default:
-      return dismissal.wicket_type.replace(/_/g, " ");
+      return formatEnumLabel(dismissal.wicket_type);
   }
 }
 

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { PlayerCareerSection } from "@/components/player-career-section";
 import { Button } from "@/components/ui/button";
 import { getSessionContext, isOrganizerOrSuperAdmin } from "@/lib/auth";
+import { formatEnumLabel } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -81,7 +82,7 @@ export default async function PlayerDetailPage(props: {
               <p className="text-sm text-muted-foreground">
                 {[player.batting_style, player.bowling_style]
                   .filter(Boolean)
-                  .map((s) => s!.replace(/_/g, " "))
+                  .map((s) => formatEnumLabel(s!))
                   .join(" · ") || "—"}
               </p>
               {linkedEmail && (

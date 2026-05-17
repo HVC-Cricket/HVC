@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 
+import { formatEnumLabel } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 export const alt = "HVC Heroes — tournament";
@@ -50,7 +51,7 @@ export default async function TournamentOgImage(props: {
       >
         <div style={{ fontSize: 28, color: "#a1a1aa", letterSpacing: 4 }}>
           HVC SCORING ·{" "}
-          {tournament.format.replace(/_/g, " ").toUpperCase()}
+          {formatEnumLabel(tournament.format).toUpperCase()}
         </div>
 
         <div

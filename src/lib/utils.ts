@@ -24,3 +24,13 @@ export function getInitials(name: string): string {
     .toUpperCase();
   return initials || "?";
 }
+
+/**
+ * "MM" / "RS" — first two characters of a team's short_name in
+ * upper-case. Used for the round badge fallback when a team has no
+ * uploaded logo (home page live cards, upcoming rows, recent rows,
+ * tournament detail, match detail).
+ */
+export function getTeamInitials(shortName: string): string {
+  return shortName.slice(0, 2).toUpperCase();
+}

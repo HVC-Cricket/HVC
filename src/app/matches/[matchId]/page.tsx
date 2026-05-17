@@ -21,7 +21,9 @@ import {
   MATCH_STATUS_LABEL,
   type MatchStatus,
 } from "@/lib/constants/match";
+import { formatEnumLabel, formatScheduledAt } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import { getTeamInitials } from "@/lib/utils";
 
 import { CommentaryFeed } from "./commentary-feed";
 import { FullScorecard } from "./full-scorecard";
@@ -128,7 +130,7 @@ export default async function MatchDetailPage(props: {
               <span>Match {match.match_number}</span>
               <span aria-hidden>·</span>
               <span className="capitalize">
-                {match.stage.replace(/_/g, " ")}
+                {formatEnumLabel(match.stage)}
               </span>
               <span
                 className={
@@ -432,22 +434,6 @@ function tossWinnerName(
   return "(unknown)";
 }
 
-function formatScheduledAt(iso: string | null): string {
-  if (!iso) return "TBD";
-  const d = new Date(iso);
-  const date = d.toLocaleDateString(undefined, {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-  const time = d.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-  return `${date} · ${time}`;
-}
-
 function FixturePreview({
   teamA,
   teamB,
@@ -506,7 +492,7 @@ function TeamPreview({
         />
       ) : (
         <div className="flex size-14 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground sm:size-16">
-          {team.short_name.slice(0, 2).toUpperCase()}
+          {getTeamInitials(team.short_name)}
         </div>
       )}
       <div

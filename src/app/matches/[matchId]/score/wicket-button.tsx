@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatEnumLabel } from "@/lib/format";
 
 export type WicketType =
   | "bowled"
@@ -197,7 +198,7 @@ export function WicketButton({
                         value={t}
                         className="capitalize"
                       >
-                        {t.replace(/_/g, " ")}
+                        {formatEnumLabel(t)}
                       </SelectItem>
                     ))}
                   </SelectContent>

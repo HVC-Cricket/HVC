@@ -25,7 +25,9 @@ import {
   STATUS_LABEL,
   type TournamentFormat,
 } from "@/lib/constants/tournament";
+import { formatDateRange, formatEnumLabel, formatMatchTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import { getTeamInitials } from "@/lib/utils";
 
 import { PointsTableSection } from "./points-table-section";
 import { TournamentChampion } from "./tournament-champion";
@@ -269,7 +271,7 @@ export default async function TournamentDetailPage(props: {
                             </div>
                             <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground">
                               <span className="capitalize">
-                                {m.stage.replace(/_/g, " ")}
+                                {formatEnumLabel(m.stage)}
                               </span>
                               {m.scheduled_at && (
                                 <>
@@ -389,7 +391,7 @@ export default async function TournamentDetailPage(props: {
                           />
                         ) : (
                           <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-muted text-[10px] font-semibold text-muted-foreground">
-                            {team.short_name.slice(0, 2).toUpperCase()}
+                            {getTeamInitials(team.short_name)}
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
@@ -463,7 +465,7 @@ function TeamMini({
         />
       ) : (
         <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[8px] font-semibold text-muted-foreground">
-          {team.short_name.slice(0, 2).toUpperCase()}
+          {getTeamInitials(team.short_name)}
         </span>
       )}
       <span
@@ -476,32 +478,3 @@ function TeamMini({
   );
 }
 
-function formatDateRange(
-  start: string | null,
-  end: string | null,
-): string {
-  if (!start && !end) return "TBD";
-  const fmt = (d: string) =>
-    new Date(d).toLocaleDateString(undefined, {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  if (start && end) {
-    const s = new Date(start);
-    const e = new Date(end);
-    if (s.toDateString() === e.toDateString()) return fmt(start);
-    const sameMonth =
-      s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth();
-    if (sameMonth) {
-      return `${s.toLocaleDateString(undefined, { day: "numeric", month: "short" })} – ${e.getDate()}, ${e.getFullYear()}`;
-    }
-    return `${fmt(start)} – ${fmt(end)}`;
-  }
-  return `${start ? fmt(start) : "TBD"} – ${end ? fmt(end) : "TBD"}`;
-}
-
-function formatMatchTime(iso: string): string {
-  const d = new Date(iso);
-  return `${d.toLocaleDateString(undefined, { day: "numeric", month: "short" })} · ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
-}

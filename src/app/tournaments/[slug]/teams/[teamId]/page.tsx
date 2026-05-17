@@ -15,6 +15,7 @@ import {
   getSessionContext,
   isTournamentOrganizer,
 } from "@/lib/auth";
+import { formatEnumLabel } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 import { AddRosterForm } from "./add-roster-form";
@@ -183,7 +184,7 @@ export default async function TeamDetailPage(props: {
                         )}
                         {!canManage && (
                           <span className="text-xs text-muted-foreground capitalize">
-                            {r.role.replace(/_/g, " ")}
+                            {formatEnumLabel(r.role)}
                           </span>
                         )}
                       </span>

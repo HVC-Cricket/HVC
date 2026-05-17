@@ -5,6 +5,7 @@ import { after } from "next/server";
 import { z } from "zod";
 
 import { requireTournamentAdmin } from "@/lib/auth";
+import { formatEnumLabel } from "@/lib/format";
 import { logMatchAuditEvent } from "@/lib/match-audit";
 import { type MatchPushPayload, notifyMatch } from "@/lib/push";
 import {
@@ -491,7 +492,7 @@ export async function recordBall(
       ? (playerById.get(parsed.data.player_out_id)?.display_name ?? "Batter")
       : "Batter";
     const wicketLabel = parsed.data.wicket_type
-      ? parsed.data.wicket_type.replace(/_/g, " ")
+      ? formatEnumLabel(parsed.data.wicket_type)
       : "out";
     pushEvents.push({
       title: "Wicket!",

@@ -8,6 +8,7 @@ import {
   CardHeader,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { formatEnumLabel } from "@/lib/format";
 import { getInitials } from "@/lib/utils";
 
 import { EditProfileForm } from "./edit-profile-form";
@@ -52,7 +53,7 @@ export function ProfileCard({
 
   const styleParts = [playerBattingStyle, playerBowlingStyle]
     .filter((s): s is string => Boolean(s))
-    .map((s) => s.replace(/_/g, " "));
+    .map(formatEnumLabel);
   const styleLine = styleParts.length > 0 ? styleParts.join(" · ") : null;
 
   return (

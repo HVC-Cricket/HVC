@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getSessionContext, isOrganizerOrSuperAdmin } from "@/lib/auth";
+import { formatEnumLabel } from "@/lib/format";
 import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
 import { resolvePlayerPhoto } from "@/lib/players/photo";
 import { createClient } from "@/lib/supabase/server";
@@ -45,7 +46,7 @@ export default async function PlayersPage() {
     category: p.category,
     style_text: [p.batting_style, p.bowling_style]
       .filter(Boolean)
-      .map((s) => s!.replace(/_/g, " "))
+      .map((s) => formatEnumLabel(s!))
       .join(" · "),
     photo: resolvePlayerPhoto({
       photo_url: p.photo_url,

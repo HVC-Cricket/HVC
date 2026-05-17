@@ -19,6 +19,7 @@ import {
   type TournamentFormat,
   type TournamentStatus,
 } from "@/lib/constants/tournament";
+import { formatDateRange } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -275,28 +276,3 @@ function FormatChip({ format }: { format: TournamentRow["format"] }) {
   );
 }
 
-function formatDateRange(
-  start: string | null,
-  end: string | null,
-): string {
-  if (!start && !end) return "TBD";
-  const fmt = (d: string) =>
-    new Date(d).toLocaleDateString(undefined, {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  if (start && end) {
-    const s = new Date(start);
-    const e = new Date(end);
-    const sameDay = s.toDateString() === e.toDateString();
-    if (sameDay) return fmt(start);
-    const sameMonth =
-      s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth();
-    if (sameMonth) {
-      return `${s.toLocaleDateString(undefined, { day: "numeric", month: "short" })} – ${e.getDate()}, ${e.getFullYear()}`;
-    }
-    return `${fmt(start)} – ${fmt(end)}`;
-  }
-  return `${start ? fmt(start) : "TBD"} – ${end ? fmt(end) : "TBD"}`;
-}

@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireTournamentAdmin } from "@/lib/auth";
+import { formatEnumLabel } from "@/lib/format";
 import { listMatchAuditEvents } from "@/lib/match-audit";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
@@ -228,7 +229,7 @@ export default async function ActivityPage(props: {
               </>
             )}
             <span>Match {match.match_number}</span>
-            <span className="capitalize"> · {match.stage.replace(/_/g, " ")}</span>
+            <span className="capitalize"> · {formatEnumLabel(match.stage)}</span>
           </p>
           <h1 className="text-2xl font-semibold">
             Activity log — {teamA?.short_name ?? "?"} vs {teamB?.short_name ?? "?"}
@@ -395,7 +396,7 @@ function formatMatchEventLabel(type: string): string {
     case "potm_cleared":
       return "POTM cleared";
     default:
-      return type.replace(/_/g, " ");
+      return formatEnumLabel(type);
   }
 }
 
@@ -468,7 +469,7 @@ function describeBall(b: BallRow, players: Map<string, string>): string {
   const bits: string[] = [];
   if (b.is_wicket) {
     bits.push(
-      `WICKET · ${b.wicket_type?.replace(/_/g, " ") ?? "out"}${outName ? ` (${outName})` : ""}`,
+      `WICKET · ${b.wicket_type ? formatEnumLabel(b.wicket_type) : "out"}${outName ? ` (${outName})` : ""}`,
     );
   }
   if (b.extra_type === "wide") {

@@ -1,5 +1,6 @@
 import { ImageResponse } from "next/og";
 
+import { formatEnumLabel } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 export const alt = "HVC Heroes — match";
@@ -110,7 +111,7 @@ export default async function MatchOgImage(props: {
         >
           <div style={{ fontSize: 28, color: "#a1a1aa" }}>
             {tournament?.name ?? "HVC Heroes"} ·{" "}
-            {match.stage.replace(/_/g, " ")}
+            {formatEnumLabel(match.stage)}
           </div>
           <div
             style={{
