@@ -18,10 +18,12 @@ type Team = {
  *
  *   1. Champion + final scoreline + win margin
  *   2. Runner-up
- *   3. Player of the Tournament — most match-POM awards in this
- *      tournament; ties broken by total runs (from both balls and
- *      historical_match_batting so the figure works for old
- *      cricheroes-imported seasons too).
+ *   3. Player of the Tournament:
+ *        - Historical (cricheroes-imported) tournaments use MVP rank 1
+ *          from historical_tournament_mvp so the card mirrors what
+ *          cricheroes showed users at the time.
+ *        - Otherwise: most match-POM awards in this tournament; ties
+ *          broken by total runs.
  *
  * Returns null if the tournament has no completed final, so it stays
  * invisible for in-progress tournaments.
@@ -89,7 +91,10 @@ export async function TournamentChampion({
     );
   }
 
-  // 4. POTM: count POM awards per player + tie-break by total runs.
+  // 4. POTM:
+  //    - Historical tournaments: cricheroes' MVP rank 1, so the card
+  //      stays consistent with the MVP tab below.
+  //    - Otherwise: most POM awards, tie-broken by total runs.
   const pomCount = new Map<string, number>();
   for (const r of pomRes.data ?? []) {
     if (!r.player_of_match_id) continue;
@@ -98,9 +103,11 @@ export async function TournamentChampion({
       (pomCount.get(r.player_of_match_id) ?? 0) + 1,
     );
   }
-  const potm = pomCount.size > 0
-    ? await pickPotm(supabase, tournamentId, pomCount)
-    : null;
+  const potm =
+    (await pickHistoricalPotm(supabase, tournamentId)) ??
+    (pomCount.size > 0
+      ? await pickPotm(supabase, tournamentId, pomCount)
+      : null);
 
   return (
     <Card className="border-amber-200/40 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent dark:border-amber-400/20 dark:from-amber-400/15 dark:via-amber-400/5">
@@ -165,19 +172,25 @@ export async function TournamentChampion({
               <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Player of the Tournament
               </div>
-              <Link
-                href={`/players/${potm.id}`}
-                className="block truncate text-sm font-medium capitalize hover:underline"
-              >
-                {potm.display_name}
-              </Link>
+              {potm.id ? (
+                <Link
+                  href={`/players/${potm.id}`}
+                  className="block truncate text-sm font-medium capitalize hover:underline"
+                >
+                  {potm.display_name}
+                </Link>
+              ) : (
+                <div className="block truncate text-sm font-medium capitalize">
+                  {potm.display_name}
+                </div>
+              )}
             </div>
             <div className="shrink-0 text-right">
               <div className="font-mono text-base font-semibold tabular-nums">
-                {potm.pomCount}
+                {potm.metric.value}
               </div>
               <div className="text-[9px] uppercase tracking-wide text-muted-foreground">
-                POM {potm.pomCount === 1 ? "award" : "awards"}
+                {potm.metric.label}
               </div>
             </div>
           </div>
@@ -185,6 +198,52 @@ export async function TournamentChampion({
       </CardContent>
     </Card>
   );
+}
+
+type Potm = {
+  id: string;
+  display_name: string;
+  metric: { value: string; label: string };
+};
+
+/**
+ * Historical (cricheroes-imported) tournaments: surface MVP rank 1
+ * from historical_tournament_mvp. Returns null if the tournament has
+ * no historical MVP rows (i.e. it's scored in our app).
+ */
+async function pickHistoricalPotm(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tournamentId: string,
+): Promise<Potm | null> {
+  const { data: rows } = await supabase
+    .from("historical_tournament_mvp")
+    .select("player_id, player_name, total_points")
+    .eq("tournament_id", tournamentId)
+    .eq("rank", 1)
+    .limit(1);
+  const row = rows?.[0];
+  if (!row) return null;
+
+  // Resolve display_name to whatever players row says today (player may
+  // have been renamed since import). Fall back to the preserved name.
+  let displayName = row.player_name;
+  if (row.player_id) {
+    const { data: p } = await supabase
+      .from("players")
+      .select("display_name")
+      .eq("id", row.player_id)
+      .maybeSingle();
+    if (p?.display_name) displayName = p.display_name;
+  }
+
+  return {
+    id: row.player_id ?? "",
+    display_name: displayName,
+    metric: {
+      value: Number(row.total_points).toFixed(3),
+      label: "MVP score",
+    },
+  };
 }
 
 /**
@@ -196,7 +255,7 @@ async function pickPotm(
   supabase: Awaited<ReturnType<typeof createClient>>,
   tournamentId: string,
   pomCount: Map<string, number>,
-): Promise<{ id: string; display_name: string; pomCount: number } | null> {
+): Promise<Potm | null> {
   // Top POM count(s).
   const maxCount = Math.max(...pomCount.values());
   const topPlayers = [...pomCount.entries()]
@@ -255,5 +314,12 @@ async function pickPotm(
     .eq("id", winnerId)
     .single();
   if (!player) return null;
-  return { id: player.id, display_name: player.display_name, pomCount: maxCount };
+  return {
+    id: player.id,
+    display_name: player.display_name,
+    metric: {
+      value: String(maxCount),
+      label: `POM ${maxCount === 1 ? "award" : "awards"}`,
+    },
+  };
 }
