@@ -22,6 +22,8 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 — Cricheroes leaderboard parity (MVP + POTM + Stats).** The MVP tab on historical seasons was tied on team-bonus only (every Hoysala player at 80 for S6) because our HVC formula was running against the empty `balls` table. Switched to mirroring cricheroes' published MVP rows verbatim: new `historical_tournament_mvp` table (migration `20260517000000_*` — **prod only; dev didn't need it**) holds 274 rows across S1–S6 with cricheroes' decimal totals (33.003, 22.400, …). `scripts/scrape_cricheroes.py` extended with `fetch_mvp_leaderboard()` hitting `api.cricheroes.in/api/v1/mvp/get-tournament-player-mvp/{tid}`. New `scripts/import_cricheroes_mvp.ts` is a targeted importer that resolves existing UUIDs by tournament-slug + team-name + player-display_name, so prod can be loaded without `--reset`-ing other historical data. `tournament-mvp.tsx` falls back to the new table; `tournament-champion.tsx` POTM card pulls rank 1 from it (Mady for S5, not the POM-count winner Ashrith Kashyap). Same day the Stats tab got a full historical fallback computing from `historical_match_batting/bowling`, plus a cricheroes-style BAT/BOWL/FIELD pill layout with a Style dropdown (7 batting + 7 bowling + 3 fielding leaderboards), pagination at 10 rows/page, and a constrained player column that wraps long names. FIELD section hidden on historical seasons (no per-ball fielder credits in the cricheroes feed). Plus several morning UI tweaks: match-complete panel now has an explicit "Finish match" + "Undo last ball" pair instead of auto-finalizing the last ball; scoreboard chase line reads "Need X runs from Y balls"; Pick XI gained a select-all header checkbox; homepage innings join disambiguated via `innings!innings_match_id_fkey`. See §17.
 
+**2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
+
 **2026-05-17 (late) — Scorer pre-match flow + NRR data fix.** Live testing surfaced a stack of papercuts in the scheduled-match → first-ball path. "Start scoring" inline with Activity/Edit on the match header read like a tab strip — scorers thought they were already in a "Start scoring" view; lifted it out into a full-width primary CTA card with Play + ChevronRight icons. The score page used to redirect blocked scorers ("Set toss on the match page first") — it now renders `TossForm` + `XISection` inline so the entire pre-scoring checklist is on one page. `TossForm` itself dropped its Save button — picking both selects auto-commits, then collapses to a `Team · bat first ✓ Edit` summary. Pick XI lost the Order / C / WK columns (captain is a roster role on the squad, keeper rotates per delivery, batting order is live) — table is now In / Player / Sub only, and Save XI calls `router.back()` so the scorer returns to wherever they came from. Plus an NRR bug fix: the `innings → matches` PostgREST embed in `points-table-section.tsx`, `lib/standings.ts`, and `tournament-champion.tsx` was ambiguous (matches has two FKs back — `innings_match_id_fkey` for the parent + `matches_current_innings_fk` for the live-innings pointer), so the queries silently 400'd with PGRST201 and Standings rendered `—` for every team's NRR. Pinned the embeds to `matches!innings_match_id_fkey`. Same root cause as the homepage embed fix earlier in the day. Team column on the points table also pinned to 130/180px so PTS + NRR have room on mobile. Also seeded dev with a second test tournament (`pranavs-tournament`, 6 teams / 42 players / 15 round-robin matches, IPL-style playoff auto-schedule). See §19.
 
 **Project directory:** `~/Desktop/projects/hvc-scoring/` (Pavan's machine; was `/home/sudharshan/projects/own/hvc-scoring/` for the prior author).
@@ -1448,6 +1450,58 @@ src/app/tournaments/[slug]/teams/[teamId]/page.tsx        (category chip per ros
 src/lib/standings.ts                                       (FK pin)
 
 scripts/seed-pranavs-tournament.sql                       (new — 6-team IPL-format tournament for dev)
+```
+
+---
+
+## 20. Sticky CTA + Innings-1 pending-finalize gate + Cat auto-pick (2026-05-17 late, batch 2)
+
+Three small ones that landed after §19. Two are Sudharshan's, one is mine.
+
+### Sticky-bottom Start scoring CTA
+
+`src/app/matches/[matchId]/page.tsx`. The earlier fix in §19 pulled "Start scoring" out of the Activity/Edit row and rendered it as an inline card below the header — fixed the tab-strip confusion but the scorer still had to scroll back up to tap it after reading Details / Toss / Squad on a long match page.
+
+Now for `status='scheduled'` the CTA renders as a viewport-pinned bar at the bottom. Backdrop-blurred (`bg-background/95 supports-[backdrop-filter]:bg-background/80 backdrop-blur`), inner content clamps to `max-w-3xl` so it lines up with the page on desktop, `pb-[env(safe-area-inset-bottom)]` so iOS doesn't tuck it under the home indicator. The scrolling container picks up `pb-24 sm:pb-28` only when the bar renders, so the last content card isn't hidden behind the bar.
+
+Live / innings_break unaffected — those still surface the compact "Score" button in the header row, since the match is clearly already running.
+
+### Innings-1 pending-finalize gate — Sudharshan
+
+`commit df6db21`. Files: `src/app/matches/[matchId]/score/{actions.ts, innings-finish-panel.tsx (new), page.tsx, state.ts}`.
+
+When the last ball of innings 1 lands, `recordBall` used to immediately stamp `innings.ended_at` and flip the phase to `innings_break`. The match-complete escape hatch already existed for innings 2 — same pattern now applies at innings break:
+
+- `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1.
+- New phase `innings_1_pending_finish` surfaces an **`InningsFinishPanel`** with **Finish innings** + **Undo last ball** controls.
+- `finalizeInnings` (new server action) stamps `ended_at` on confirm and transitions to `innings_break`.
+- `voidLastBall` clears both `is_complete` and `ended_at` (existing behaviour) so the scoreboard re-opens cleanly on undo.
+
+Existing in-flight matches aren't affected: in-progress innings have `is_complete=false`, and matches past innings 1 already have `ended_at` set which skips the new gate. Innings 2 / super-over still stamp `ended_at` immediately and gate on `match.status` (covered by the existing MatchCompletePanel).
+
+### Cat-matching auto-pick on category change — Sudharshan
+
+`commit e20febd`. Files: `src/app/matches/[matchId]/score/scoreboard.tsx`.
+
+When the over-Category dropdown switches to **Cat 1** or **Cat 3**, the striker and bowler slot tiles now auto-fill with an eligible player of that category:
+- **Striker** — first non-dismissed batting-XI member of the target category (excluding whoever's already on the non-striker slot).
+- **Bowler** — first bowling-XI member of the target category not currently in `disabledBowlerIds` (i.e. not the previous-over bowler).
+
+Saves the taps every over boundary when the default Cat 1/3 restriction kicks in — previously the scorer had to manually pick from the (now-filtered) picker even though only one or two players actually qualified.
+
+Fires on manual dropdown changes too. Cat 2 is "any", so it's a no-op.
+
+### New / changed files
+
+```
+src/app/matches/[matchId]/page.tsx                            (sticky CTA bar)
+
+src/app/matches/[matchId]/score/innings-finish-panel.tsx      (new — Finish innings + Undo)
+src/app/matches/[matchId]/score/actions.ts                    (finalizeInnings action; recordBall leaves ended_at null at end-of-innings-1)
+src/app/matches/[matchId]/score/page.tsx                      (innings_1_pending_finish phase mount)
+src/app/matches/[matchId]/score/state.ts                      (new phase derivation)
+
+src/app/matches/[matchId]/score/scoreboard.tsx                (Cat 1/3 auto-pick on dropdown change)
 ```
 
 ---
