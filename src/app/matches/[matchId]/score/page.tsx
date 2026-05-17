@@ -12,6 +12,7 @@ import { requireTournamentAdmin } from "@/lib/auth";
 import { TossForm } from "../toss-form";
 import { XISection } from "../xi-section";
 import { InningsBreakPanel } from "./innings-break-panel";
+import { InningsFinishPanel } from "./innings-finish-panel";
 import { getScoringLockStatus } from "./lock-actions";
 import { MatchCompletePanel } from "./match-complete-panel";
 import { Scoreboard } from "./scoreboard";
@@ -139,6 +140,10 @@ export default async function ScorePage(props: {
               <Scoreboard state={state} />
             </ScoringLockGate>
           )}
+
+        {state.phase === "innings_1_pending_finish" && (
+          <InningsFinishPanel state={state} />
+        )}
 
         {state.phase === "innings_break" && (
           <InningsBreakPanel state={state} />

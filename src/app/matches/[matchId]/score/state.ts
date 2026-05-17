@@ -24,6 +24,11 @@ export type InningsSummary = {
   extras_byes: number;
   target: number | null;
   is_complete: boolean;
+  /** Doubles as the scorer-confirmed-finalize flag. recordBall leaves
+   *  this null when innings 1 auto-completes; `finalizeInnings` sets it
+   *  when the scorer taps "Finish innings". The phase machine treats
+   *  `is_complete && !ended_at` as the "pending finalize" state. */
+  ended_at: string | null;
   // The picks captured at innings-start. Used as the fallback when no
   // ball has been recorded yet so the scoreboard knows who's at the
   // crease without forcing the scorer to re-pick.
@@ -35,6 +40,7 @@ export type InningsSummary = {
 export type MatchPhase =
   | "pre_match"
   | "innings_1"
+  | "innings_1_pending_finish"
   | "innings_break"
   | "innings_2"
   | "match_complete"
@@ -131,7 +137,7 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
       supabase
         .from("innings")
         .select(
-          "id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls, extras_wides, extras_no_balls, extras_byes, target, is_complete, initial_striker_id, initial_non_striker_id, initial_bowler_id",
+          "id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls, extras_wides, extras_no_balls, extras_byes, target, is_complete, ended_at, initial_striker_id, initial_non_striker_id, initial_bowler_id",
         )
         .eq("match_id", match.id)
         .order("innings_number", { ascending: true }),
@@ -414,7 +420,14 @@ function derivePhase(args: {
   if (!i1) return "pre_match";
   if (!i1.is_complete) return "innings_1";
 
-  // Innings 1 complete
+  // Innings 1 complete by the engine, but the scorer hasn't confirmed
+  // the finish yet — sits in a "pending finalize" state with Finish /
+  // Undo last ball buttons before sides flip. `ended_at` is the
+  // server-side gate (set by `finalizeInnings`; left null by
+  // `recordBall` on auto-complete).
+  if (!i1.ended_at) return "innings_1_pending_finish";
+
+  // Innings 1 finalized
   if (!i2) return "innings_break";
   if (!i2.is_complete) return "innings_2";
 

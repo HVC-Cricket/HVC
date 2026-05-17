@@ -453,9 +453,18 @@ export async function recordBall(
 
   let inningsNumberJustEnded: number | null = null;
   if (inningsComplete) {
+    // Innings 1 enters a "pending finalize" state: scorer confirms via
+    // the InningsFinishPanel before sides flip. We leave `ended_at`
+    // null and the phase machine treats `is_complete && !ended_at` as
+    // pending. Innings 2 / super-over use `match.status` as their gate
+    // (MatchCompletePanel), so we stamp `ended_at` there as before.
+    const isInnings1 = (inningsRow?.innings_number ?? 1) === 1;
     await supabase
       .from("innings")
-      .update({ is_complete: true, ended_at: new Date().toISOString() })
+      .update({
+        is_complete: true,
+        ended_at: isInnings1 ? null : new Date().toISOString(),
+      })
       .eq("id", innings.id);
 
     // If this was the second innings, finalize the match.
@@ -670,6 +679,63 @@ export async function startSecondInnings(
 
   revalidatePath(`/matches/${match.id}/score`);
   return { ok: true, data: { inningsId: innings.id } };
+}
+
+// ---------------------------------------------------------------------------
+// Innings-level finalize — mirrors finalizeMatch but for innings 1.
+// ---------------------------------------------------------------------------
+//
+// When innings 1 auto-completes (all out / overs exhausted), `recordBall`
+// flags `is_complete = true` but leaves `ended_at` null. The page enters
+// the `innings_1_pending_finish` phase and surfaces the InningsFinishPanel
+// with Finish / Undo last ball buttons. This action stamps `ended_at` so
+// the next page refresh advances to the innings-break picker.
+
+const finalizeInningsSchema = z.object({
+  matchId: z.string().uuid(),
+  inningsId: z.string().uuid(),
+});
+
+export async function finalizeInnings(
+  input: z.infer<typeof finalizeInningsSchema>,
+): Promise<ActionResult> {
+  const parsed = finalizeInningsSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const supabase = await createClient();
+  const { data: match } = await supabase
+    .from("matches")
+    .select("tournament_id")
+    .eq("id", parsed.data.matchId)
+    .single();
+  if (!match) return { ok: false, error: "Match not found" };
+  await requireTournamentAdmin(match.tournament_id);
+
+  const { data: innings } = await supabase
+    .from("innings")
+    .select("is_complete, ended_at")
+    .eq("id", parsed.data.inningsId)
+    .single();
+  if (!innings) return { ok: false, error: "Innings not found" };
+  if (!innings.is_complete) {
+    return { ok: false, error: "Innings is not complete yet" };
+  }
+  if (innings.ended_at) {
+    // Idempotent — already finalized.
+    return { ok: true, data: undefined };
+  }
+
+  const { error } = await supabase
+    .from("innings")
+    .update({ ended_at: new Date().toISOString() })
+    .eq("id", parsed.data.inningsId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/matches/${parsed.data.matchId}/score`);
+  revalidatePath(`/matches/${parsed.data.matchId}`);
+  return { ok: true, data: undefined };
 }
 
 const finalizeSchema = z.object({ matchId: z.string().uuid() });
