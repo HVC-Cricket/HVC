@@ -74,7 +74,7 @@ export default async function Home() {
     tournament:tournaments(id, slug, name),
     team_a:teams!matches_team_a_id_fkey(id, name, short_name, logo_url),
     team_b:teams!matches_team_b_id_fkey(id, name, short_name, logo_url),
-    innings(innings_number, batting_team_id, total_runs, total_wickets, total_legal_balls, target)
+    innings!innings_match_id_fkey(innings_number, batting_team_id, total_runs, total_wickets, total_legal_balls, target)
   `;
   const [liveRes, upcomingRes, recentRes] = await Promise.all([
     supabase
