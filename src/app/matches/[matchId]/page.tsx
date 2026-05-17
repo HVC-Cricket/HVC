@@ -168,21 +168,19 @@ export default async function MatchDetailPage(props: {
         {(ms === "live" ||
           ms === "innings_break" ||
           ms === "completed") && (
-          <Suspense fallback={<SectionSkeleton lines={4} />}>
-            <LiveScorePanel matchId={match.id} />
-          </Suspense>
-        )}
-
-        {ms === "completed" && (
-          <Suspense fallback={<SectionSkeleton lines={2} />}>
-            <MatchAwards matchId={match.id} canManage={canManage} />
-          </Suspense>
-        )}
-
-        {(ms === "live" ||
-          ms === "innings_break" ||
-          ms === "completed") && (
           <MatchTabs
+            live={
+              <div className="space-y-4">
+                <Suspense fallback={<SectionSkeleton lines={4} />}>
+                  <LiveScorePanel matchId={match.id} />
+                </Suspense>
+                {ms === "completed" && (
+                  <Suspense fallback={<SectionSkeleton lines={2} />}>
+                    <MatchAwards matchId={match.id} canManage={canManage} />
+                  </Suspense>
+                )}
+              </div>
+            }
             scorecard={
               <Suspense fallback={<SectionSkeleton lines={6} />}>
                 <FullScorecard matchId={match.id} />

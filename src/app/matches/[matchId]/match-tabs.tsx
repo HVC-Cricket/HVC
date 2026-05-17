@@ -2,16 +2,17 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
-type TabId = "scorecard" | "commentary" | "info";
+type TabId = "live" | "scorecard" | "commentary" | "info";
 
 const TABS: { id: TabId; label: string }[] = [
+  { id: "live", label: "Live" },
   { id: "scorecard", label: "Scorecard" },
   { id: "commentary", label: "Commentary" },
   { id: "info", label: "Info" },
 ];
 
 /**
- * Tabbed sections for the match detail page — Cricbuzz-style. All three
+ * Tabbed sections for the match detail page — Cricbuzz-style. All four
  * panels are rendered server-side (so their data fetches happen in
  * parallel during initial render) and we toggle visibility on the client,
  * so tab switching is instant with no refetch.
@@ -22,26 +23,31 @@ const TABS: { id: TabId; label: string }[] = [
  * that was making tab switching feel sluggish). The mirror lets a
  * refresh keep the active tab and the URL stay shareable without
  * costing us a network roundtrip per click.
+ *
+ * "Live" is the default — it holds the live score panel (and POTM
+ * card on completed matches), so spectators land on score-first.
  */
 export function MatchTabs({
+  live,
   scorecard,
   commentary,
   info,
 }: {
+  live: ReactNode;
   scorecard: ReactNode;
   commentary: ReactNode;
   info: ReactNode;
 }) {
-  // Default to "scorecard" on both server and first-client render to keep
+  // Default to "live" on both server and first-client render to keep
   // hydration matched. After mount, sync from the URL — if someone landed
-  // on ?tab=commentary, useEffect will swap them over in a single paint.
-  const [active, setActive] = useState<TabId>("scorecard");
+  // on ?tab=scorecard, useEffect will swap them over in a single paint.
+  const [active, setActive] = useState<TabId>("live");
 
   const setTab = (id: TabId) => {
     setActive(id);
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    if (id === "scorecard") url.searchParams.delete("tab");
+    if (id === "live") url.searchParams.delete("tab");
     else url.searchParams.set("tab", id);
     // history.replaceState updates the bar without notifying the
     // Next.js router; no server roundtrip, no re-render.
@@ -84,6 +90,9 @@ export function MatchTabs({
         })}
       </nav>
 
+      <div role="tabpanel" hidden={active !== "live"}>
+        {live}
+      </div>
       <div role="tabpanel" hidden={active !== "scorecard"}>
         {scorecard}
       </div>
@@ -98,8 +107,8 @@ export function MatchTabs({
 }
 
 function readTabFromURL(): TabId {
-  if (typeof window === "undefined") return "scorecard";
+  if (typeof window === "undefined") return "live";
   const t = new URL(window.location.href).searchParams.get("tab");
-  if (t === "commentary" || t === "info") return t;
-  return "scorecard";
+  if (t === "scorecard" || t === "commentary" || t === "info") return t;
+  return "live";
 }
