@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -12,7 +11,8 @@ import { getSessionContext, isOrganizerOrSuperAdmin } from "@/lib/auth";
 import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
 import { resolvePlayerPhoto } from "@/lib/players/photo";
 import { createClient } from "@/lib/supabase/server";
-import { getInitials } from "@/lib/utils";
+
+import { PlayersSearchList, type PlayerRow } from "./players-search-list";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +36,32 @@ export default async function PlayersPage() {
   // their account (no player photo uploaded) still show a face.
   const avatarByUserId = await fetchLinkedAvatars(supabase, players ?? []);
 
+  // Pre-resolve everything the client list needs (photo, href, style
+  // text) so the search component is purely a render + filter — no
+  // session checks, no map lookups, no async work on the client.
+  const rows: PlayerRow[] = (players ?? []).map((p) => ({
+    id: p.id,
+    display_name: p.display_name,
+    category: p.category,
+    style_text: [p.batting_style, p.bowling_style]
+      .filter(Boolean)
+      .map((s) => s!.replace(/_/g, " "))
+      .join(" · "),
+    photo: resolvePlayerPhoto({
+      photo_url: p.photo_url,
+      linked_avatar_url: p.linked_user_id
+        ? (avatarByUserId.get(p.linked_user_id) ?? null)
+        : null,
+    }),
+    // If the signed-in user lands on their own linked player here,
+    // route them to /me — that's "their" profile page, same view they'd
+    // get from the nav.
+    href:
+      ctx?.user.id != null && ctx.user.id === p.linked_user_id
+        ? "/me"
+        : `/players/${p.id}`,
+  }));
+
   return (
     <main className="flex-1 p-4 sm:p-6">
       <div className="mx-auto max-w-5xl space-y-5">
@@ -45,8 +71,8 @@ export default async function PlayersPage() {
               Players
             </h1>
             <p className="text-sm text-muted-foreground">
-              {players?.length
-                ? `${players.length} player${players.length === 1 ? "" : "s"} in the global registry.`
+              {rows.length
+                ? `${rows.length} player${rows.length === 1 ? "" : "s"} in the global registry.`
                 : "Global registry across all tournaments."}
             </p>
           </div>
@@ -63,7 +89,7 @@ export default async function PlayersPage() {
           </p>
         )}
 
-        {players && players.length === 0 && (
+        {rows.length === 0 ? (
           <Card className="border-dashed">
             <CardHeader>
               <CardTitle className="text-base">No players yet</CardTitle>
@@ -74,78 +100,8 @@ export default async function PlayersPage() {
               </CardDescription>
             </CardHeader>
           </Card>
-        )}
-
-        {players && players.length > 0 && (
-          <Card className="overflow-hidden">
-            <CardContent className="p-0">
-              <ul className="divide-y divide-foreground/10">
-                {players.map((p) => {
-                  const photo = resolvePlayerPhoto({
-                    photo_url: p.photo_url,
-                    linked_avatar_url: p.linked_user_id
-                      ? (avatarByUserId.get(p.linked_user_id) ?? null)
-                      : null,
-                  });
-                  const styleParts = [p.batting_style, p.bowling_style]
-                    .filter(Boolean)
-                    .map((s) => s!.replace(/_/g, " "));
-                  const styleText = styleParts.join(" · ");
-                  // If the signed-in user lands on their own linked
-                  // player here, route them to /me — that's "their"
-                  // profile page, same view they'd get from the nav.
-                  const href =
-                    ctx?.user.id != null && ctx.user.id === p.linked_user_id
-                      ? "/me"
-                      : `/players/${p.id}`;
-                  return (
-                    <li key={p.id}>
-                      <Link
-                        href={href}
-                        prefetch
-                        className="group flex items-center gap-3 px-4 py-3 transition hover:bg-muted/30"
-                      >
-                        {photo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={photo}
-                            alt=""
-                            className="size-11 shrink-0 rounded-full border border-foreground/10 object-cover"
-                          />
-                        ) : (
-                          <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
-                            {getInitials(p.display_name)}
-                          </span>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="truncate text-sm font-medium capitalize">
-                              {p.display_name}
-                            </span>
-                            {p.category ? (
-                              <span className="shrink-0 rounded-full border border-foreground/15 bg-muted px-1.5 py-px font-mono text-[10px] text-muted-foreground">
-                                C{p.category}
-                              </span>
-                            ) : (
-                              <span className="shrink-0 rounded-full border border-destructive/30 bg-destructive/10 px-1.5 py-px text-[9px] font-medium uppercase tracking-wide text-destructive">
-                                no cat
-                              </span>
-                            )}
-                          </div>
-                          <div className="truncate text-[11px] capitalize text-muted-foreground">
-                            {styleText || "—"}
-                          </div>
-                        </div>
-                        <span className="shrink-0 text-xs text-muted-foreground transition group-hover:text-foreground">
-                          →
-                        </span>
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </CardContent>
-          </Card>
+        ) : (
+          <PlayersSearchList rows={rows} />
         )}
       </div>
     </main>
