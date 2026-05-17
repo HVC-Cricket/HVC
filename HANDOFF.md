@@ -1170,6 +1170,12 @@ Pre-existing changes that landed as separate small commits before the cricheroes
 - **Pick XI select-all.** Header row of the squad table has a master checkbox that toggles every player's `included` flag at once, with indeterminate state when partially selected. Clears captain / keeper / sub flags + batting_order when unchecking.
 - **Homepage innings join.** Embed switched to `innings!innings_match_id_fkey(...)` so the FK is unambiguous now that `historical_match_*` tables also reference `matches`.
 
+### Same-day follow-ups (later 2026-05-17)
+
+- **Team squad: category chip.** `/tournaments/[slug]/teams/[teamId]` shows a coloured `C1` / `C2` / `C3` chip after every roster name. Same amber / muted / sky palette scoring and stats already use. Helps organisers verify category assignments before a tournament starts.
+- **Wicket modal: fielder mandatory for caught / run-out / stumped.** Save button toasts "Pick the fielder…" when the picker is empty for any of those three dismissal types. `recordBallSchema` gained a Zod `.refine()` so an older or tampered client can't bypass it server-side either. `caught_and_bowled` unaffected (bowler is the implicit fielder). Stops commentary from rendering "WICKET! X caught by ? off Y" and stops the wicket dropping from Most Catches / Run-outs / Stumpings.
+- **Appi's tournament seed (dev only).** `scripts/seed-appis-tournament.sql` — 4 teams, 28 players, 6 single-round-robin matches for the `round_robin_playoff_final` test tournament; 1 Cat 1 + 1 Cat 3 per team so the special-over rules are exercisable. Run via `pnpm exec supabase db query --linked --file scripts/seed-appis-tournament.sql` after `supabase link --project-ref clqdimzthzcpurtwhtej`. Playoff bracket auto-schedules via `maybeAutoSchedulePlayoffs` once all 6 group matches go terminal.
+
 ### New / changed files
 
 ```
@@ -1196,6 +1202,11 @@ src/app/page.tsx                                      (innings_match_id_fkey)
 src/lib/supabase/database.types.ts                    (+ historical_tournament_mvp row/insert/update)
 
 scripts/seed-pavs-tournament.sql                      (new — 7-team / 49-player / 21-match round-robin for dev)
+scripts/seed-appis-tournament.sql                     (new — 4-team / 28-player / 6-match round-robin for dev; 1×C1 + 1×C3 per team)
+
+src/app/tournaments/[slug]/teams/[teamId]/page.tsx    (squad list: C1/C2/C3 chip after each name)
+src/app/matches/[matchId]/score/wicket-button.tsx     (fielder picker now mandatory for caught/run_out/stumped)
+src/app/matches/[matchId]/score/actions.ts            (recordBallSchema .refine(): fielder required for caught/run_out/stumped)
 ```
 
 ---
