@@ -625,19 +625,28 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
               {state.rules.overs_per_innings} OVERS
             </span>
           </div>
-          {innings.target != null && (
-            <div className="text-xs text-muted-foreground">
-              Need{" "}
-              <span className="font-semibold text-foreground">
-                {Math.max(0, innings.target - displayRuns)}
-              </span>{" "}
-              run
-              {Math.max(0, innings.target - displayRuns) === 1 ? "" : "s"} to
-              win
-              <span className="mx-1.5 text-muted-foreground/60">·</span>
-              Target {innings.target}
-            </div>
-          )}
+          {innings.target != null && (() => {
+            const runsNeeded = Math.max(0, innings.target - displayRuns);
+            const ballsLeft = Math.max(
+              0,
+              state.rules.overs_per_innings * 6 - displayLegalBalls,
+            );
+            return (
+              <div className="text-xs text-muted-foreground">
+                Need{" "}
+                <span className="font-semibold text-foreground">
+                  {runsNeeded}
+                </span>{" "}
+                run{runsNeeded === 1 ? "" : "s"} from{" "}
+                <span className="font-semibold text-foreground">
+                  {ballsLeft}
+                </span>{" "}
+                ball{ballsLeft === 1 ? "" : "s"}
+                <span className="mx-1.5 text-muted-foreground/60">·</span>
+                Target {innings.target}
+              </div>
+            );
+          })()}
           {(state.active.free_hit_pending ||
             overCategory !== 2 ||
             state.active.last_man_mode) && (
