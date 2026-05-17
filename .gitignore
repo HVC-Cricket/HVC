@@ -46,3 +46,7 @@ next-env.d.ts
 
 # supabase CLI local cache (regenerated on `supabase link`, machine-specific)
 supabase/.temp/
+
+# python bytecode (from scripts/)
+__pycache__/
+*.pyc
