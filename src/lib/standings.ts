@@ -47,7 +47,11 @@ export async function computeStandings(
     supabase
       .from("innings")
       .select(
-        "match_id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls, matches!inner(tournament_id, status, stage)",
+        // Spell out the FK — `matches` has two relationships back to
+        // `innings` (innings_match_id_fkey + matches_current_innings_fk)
+        // and the ambiguous form 400s with PGRST201. Same fix as the
+        // homepage match-card embed.
+        "match_id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls, matches!innings_match_id_fkey!inner(tournament_id, status, stage)",
       )
       .eq("matches.tournament_id", tournamentId)
       .eq("matches.status", "completed")

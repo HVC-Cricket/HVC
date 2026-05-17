@@ -84,7 +84,11 @@ export async function PointsTableSection({
     supabase
       .from("innings")
       .select(
-        "match_id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls, matches!inner(tournament_id, status)",
+        // `matches` has two FKs back to `innings` (innings_match_id_fkey
+        // + matches_current_innings_fk), so the embed has to spell out
+        // which one — otherwise PostgREST 400s with PGRST201 and the
+        // NRR column silently renders as '—' for every team.
+        "match_id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, total_legal_balls, matches!innings_match_id_fkey!inner(tournament_id, status)",
       )
       .eq("matches.tournament_id", tournamentId)
       .eq("matches.status", "completed")
@@ -210,7 +214,7 @@ export async function PointsTableSection({
                   <th className="sticky left-0 z-10 bg-card px-3 py-2 text-left font-medium">
                     #
                   </th>
-                  <th className="sticky left-8 z-10 bg-card px-2 py-2 text-left font-medium">
+                  <th className="sticky left-8 z-10 w-[130px] max-w-[130px] bg-card px-2 py-2 text-left font-medium sm:w-[180px] sm:max-w-[180px]">
                     Team
                   </th>
                   <th className="px-2.5 py-2 text-right font-medium">P</th>
@@ -233,7 +237,7 @@ export async function PointsTableSection({
                       <td className="sticky left-0 z-10 bg-card px-3 py-2 text-muted-foreground">
                         {idx + 1}
                       </td>
-                      <td className="sticky left-8 z-10 bg-card px-2 py-2 font-medium">
+                      <td className="sticky left-8 z-10 w-[130px] max-w-[130px] bg-card px-2 py-2 font-medium sm:w-[180px] sm:max-w-[180px]">
                         <div className="flex min-w-0 items-center gap-1.5">
                           <span className="truncate capitalize">
                             {team?.name ?? "(unknown)"}

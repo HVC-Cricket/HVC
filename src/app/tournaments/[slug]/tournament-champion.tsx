@@ -283,11 +283,14 @@ async function pickPotm(
       );
     }
 
-    // Balls-derived runs for matches in this tournament.
+    // Balls-derived runs for matches in this tournament. The inner
+    // `matches` embed has to spell out `innings_match_id_fkey` — both
+    // innings_match_id_fkey and matches_current_innings_fk would
+    // otherwise satisfy the join and PostgREST 400s with PGRST201.
     const { data: ballRows } = await supabase
       .from("balls")
       .select(
-        "batter_id, runs_off_bat, innings!inner(matches!inner(tournament_id))",
+        "batter_id, runs_off_bat, innings!inner(matches!innings_match_id_fkey!inner(tournament_id))",
       )
       .eq("innings.matches.tournament_id", tournamentId)
       .eq("is_voided", false)
