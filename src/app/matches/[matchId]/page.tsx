@@ -99,7 +99,16 @@ export default async function MatchDetailPage(props: {
 
   const ms = match.status as MatchStatus;
 
-  const showStartScoringBar = canScore && ms === "scheduled";
+  // Promote the Score CTA to a full-width sticky card whenever the scorer
+  // can act: scheduled (start), live (continue), or innings_break
+  // (continue into innings 2). The header row keeps Notify / Activity /
+  // Edit only — pairing a primary button with those ghost buttons
+  // visually reads like a tab strip (see screenshot from 2026-05-17).
+  const showScoringBar =
+    canScore &&
+    (ms === "scheduled" || ms === "live" || ms === "innings_break");
+  const scoringBarLabel =
+    ms === "scheduled" ? "Start scoring this match" : "Continue scoring";
 
   return (
     <main className="flex-1 p-4 sm:p-6">
@@ -108,7 +117,7 @@ export default async function MatchDetailPage(props: {
           "mx-auto max-w-3xl space-y-6 " +
           // Reserve room at the bottom of the scrollable content so the
           // sticky CTA bar doesn't sit on top of the last card.
-          (showStartScoringBar ? "pb-24 sm:pb-28" : "")
+          (showScoringBar ? "pb-24 sm:pb-28" : "")
         }
       >
         <Link
@@ -153,24 +162,11 @@ export default async function MatchDetailPage(props: {
               <NotifyButton matchId={match.id} />
             )}
             {canScore && (
-              <>
-                {/* For scheduled matches the primary CTA is rendered as
-                    a full-width card below — pairing it with Activity /
-                    Edit in this row reads like a tab strip and scorers
-                    miss that it navigates away. Live / innings_break
-                    keep the compact 'Score' here since the match is
-                    clearly already in motion. */}
-                {(ms === "live" || ms === "innings_break") && (
-                  <Link href={`/matches/${match.id}/score`} prefetch>
-                    <Button size="sm">Score</Button>
-                  </Link>
-                )}
-                <Link href={`/matches/${match.id}/activity`}>
-                  <Button variant="ghost" size="sm">
-                    Activity
-                  </Button>
-                </Link>
-              </>
+              <Link href={`/matches/${match.id}/activity`}>
+                <Button variant="ghost" size="sm">
+                  Activity
+                </Button>
+              </Link>
             )}
             {canManage && (
               <Link href={`/matches/${match.id}/edit`} prefetch>
@@ -379,12 +375,13 @@ export default async function MatchDetailPage(props: {
         )}
       </div>
 
-      {/* Sticky Start-scoring CTA — pinned to the bottom of the viewport
-          for scheduled matches so it stays in thumb reach no matter how
-          far the scorer scrolls. The inner container clamps to the same
-          max-w as the page so the bar lines up with the rest of the
-          layout on desktop. */}
-      {showStartScoringBar && (
+      {/* Sticky Score CTA — pinned to the bottom of the viewport for any
+          scoreable status (scheduled / live / innings_break) so it stays
+          in thumb reach no matter how far the scorer scrolls. Inline-in-
+          header reads like a tab strip; a full-width card removes that
+          ambiguity. Label flips to "Continue scoring" once the match is
+          underway. */}
+      {showScoringBar && (
         <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40">
           <div className="pointer-events-auto border-t border-foreground/10 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur supports-[backdrop-filter]:bg-background/80">
             <div className="mx-auto max-w-3xl p-3 sm:p-4">
@@ -395,7 +392,7 @@ export default async function MatchDetailPage(props: {
               >
                 <span className="flex items-center gap-2">
                   <Play className="size-4 fill-current" />
-                  Start scoring this match
+                  {scoringBarLabel}
                 </span>
                 <ChevronRight className="size-4 transition group-hover:translate-x-0.5" />
               </Link>
