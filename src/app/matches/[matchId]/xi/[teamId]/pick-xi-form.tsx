@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,32 @@ export function PickXIForm({ matchId, teamId, playersPerSide, rows }: Props) {
   const overFilled = includedRows.length > playersPerSide;
   const underFilled = includedRows.length < playersPerSide;
 
+  const allIncluded = state.length > 0 && state.every((r) => r.included);
+  const noneIncluded = state.every((r) => !r.included);
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = !allIncluded && !noneIncluded;
+    }
+  }, [allIncluded, noneIncluded]);
+
+  const toggleAll = (checked: boolean) => {
+    setState((s) =>
+      s.map((r) =>
+        checked
+          ? { ...r, included: true }
+          : {
+              ...r,
+              included: false,
+              is_captain: false,
+              is_keeper: false,
+              is_substitute: false,
+              batting_order: null,
+            },
+      ),
+    );
+  };
+
   const onSave = () => {
     if (captains > 1) {
       toast.error("Pick at most one captain");
@@ -77,7 +103,18 @@ export function PickXIForm({ matchId, teamId, playersPerSide, rows }: Props) {
       <table className="w-full text-sm">
         <thead className="text-left text-xs uppercase text-muted-foreground">
           <tr>
-            <th className="px-2 py-2 font-medium">In</th>
+            <th className="px-2 py-2 font-medium">
+              <label className="flex items-center gap-1.5 normal-case">
+                <input
+                  ref={selectAllRef}
+                  type="checkbox"
+                  checked={allIncluded}
+                  onChange={(e) => toggleAll(e.target.checked)}
+                  aria-label="Select all players"
+                />
+                <span>In</span>
+              </label>
+            </th>
             <th className="px-2 py-2 font-medium">Player</th>
             <th className="px-2 py-2 font-medium">Order</th>
             <th className="px-2 py-2 font-medium">C</th>
