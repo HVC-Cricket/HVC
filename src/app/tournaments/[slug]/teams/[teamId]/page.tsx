@@ -57,7 +57,7 @@ export default async function TeamDetailPage(props: {
         : Promise.resolve(false),
       supabase
         .from("players")
-        .select("id, display_name")
+        .select("id, display_name, category")
         .order("display_name", { ascending: true }),
       supabase
         .from("team_players")
@@ -164,8 +164,23 @@ export default async function TeamDetailPage(props: {
                   const player = playersById.get(r.player_id);
                   return (
                     <li key={r.id} className="flex items-center justify-between gap-3 p-4 text-sm">
-                      <span className="flex items-center gap-3">
+                      <span className="flex items-center gap-2">
                         <span className="font-medium">{player?.display_name ?? "(unknown)"}</span>
+                        {player?.category && (
+                          <span
+                            className={
+                              "rounded-full px-1.5 py-0.5 font-mono text-[9px] font-semibold tabular-nums " +
+                              (player.category === 1
+                                ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                : player.category === 3
+                                  ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
+                                  : "bg-muted text-muted-foreground")
+                            }
+                            title={`Category ${player.category}`}
+                          >
+                            C{player.category}
+                          </span>
+                        )}
                         {!canManage && (
                           <span className="text-xs text-muted-foreground capitalize">
                             {r.role.replace(/_/g, " ")}
