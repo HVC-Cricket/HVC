@@ -11,6 +11,11 @@ import { TournamentMvpView, type MvpEntry } from "./tournament-mvp-view";
  * player appeared in. Same scoring rules as the per-match Player-of-
  * the-Match award (see @/lib/scoring/mvp), so the leaderboard is just
  * a season aggregate of those.
+ *
+ * Historical (CricHeroes-imported) tournaments don't have ball-by-ball
+ * data, so we can't run our formula over them — instead we render
+ * cricheroes' published MVP leaderboard verbatim from
+ * historical_tournament_mvp. See migration 20260517000000.
  */
 export async function TournamentMvp({
   tournamentId,
@@ -18,6 +23,12 @@ export async function TournamentMvp({
   tournamentId: string;
 }) {
   const supabase = await createClient();
+
+  // Historical fallback: cricheroes-imported tournaments have rows in
+  // historical_tournament_mvp. Render those directly and skip the
+  // ball-by-ball compute.
+  const historical = await loadHistoricalMvp(supabase, tournamentId);
+  if (historical) return historical;
 
   const { data: matches } = await supabase
     .from("matches")
@@ -209,4 +220,86 @@ export async function TournamentMvp({
   const all = entries.slice(0, 25);
 
   return <TournamentMvpView all={all} cat1={cat1} cat2={cat2} cat3={cat3} />;
+}
+
+/**
+ * Returns the rendered cricheroes-MVP view if this tournament has
+ * historical MVP rows; otherwise `null` so the caller falls through
+ * to the ball-by-ball compute path.
+ */
+async function loadHistoricalMvp(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  tournamentId: string,
+) {
+  const { data: rows } = await supabase
+    .from("historical_tournament_mvp")
+    .select(
+      "player_id, player_name, team_id, rank, matches, batting_points, bowling_points, fielding_points, total_points",
+    )
+    .eq("tournament_id", tournamentId)
+    .order("rank", { ascending: true });
+  if (!rows || rows.length === 0) return null;
+
+  // Resolve player + team metadata. player_id can be null (e.g. a
+  // cricheroes player who never got mapped to one of ours); in that
+  // case fall back to the preserved player_name and skip the photo.
+  const playerIds = rows
+    .map((r) => r.player_id)
+    .filter((v): v is string => v != null);
+  const teamIds = [
+    ...new Set(rows.map((r) => r.team_id).filter((v): v is string => v != null)),
+  ];
+  const [{ data: players }, { data: teams }] = await Promise.all([
+    playerIds.length > 0
+      ? supabase
+          .from("players")
+          .select("id, display_name, category, photo_url, linked_user_id")
+          .in("id", playerIds)
+      : Promise.resolve({ data: [] as Array<{
+          id: string;
+          display_name: string;
+          category: number | null;
+          photo_url: string | null;
+          linked_user_id: string | null;
+        }> }),
+    teamIds.length > 0
+      ? supabase.from("teams").select("id, short_name").in("id", teamIds)
+      : Promise.resolve({ data: [] as Array<{ id: string; short_name: string }> }),
+  ]);
+  const playerById = new Map((players ?? []).map((p) => [p.id, p]));
+  const teamShortById = new Map(
+    (teams ?? []).map((t) => [t.id, t.short_name]),
+  );
+  const avatarByUserId = await fetchLinkedAvatars(supabase, players ?? []);
+
+  const entries: MvpEntry[] = rows.map((r) => {
+    const p = r.player_id ? playerById.get(r.player_id) : undefined;
+    const photo =
+      p?.photo_url ??
+      (p?.linked_user_id ? avatarByUserId.get(p.linked_user_id) : null) ??
+      null;
+    return {
+      player_id: r.player_id ?? `historical:${r.rank}`,
+      name: p?.display_name ?? r.player_name,
+      cat: p?.category ?? null,
+      team: r.team_id ? teamShortById.get(r.team_id) ?? "?" : "?",
+      photo,
+      matches: r.matches,
+      battingPts: Number(r.batting_points),
+      bowlingPts: Number(r.bowling_points),
+      fieldingPts: Number(r.fielding_points),
+      teamPts: 0,
+      total: Number(r.total_points),
+    };
+  });
+
+  return (
+    <TournamentMvpView
+      source="cricheroes"
+      all={entries}
+      cat1={[]}
+      cat2={[]}
+      cat3={[]}
+    />
+  );
 }

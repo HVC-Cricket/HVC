@@ -26,6 +26,13 @@ export type MvpEntry = {
   total: number;
 };
 
+/**
+ * `"hvc"` — computed locally with our box-cricket formula (integers).
+ * `"cricheroes"` — mirrored from cricheroes' published MVP leaderboard
+ * (fractional decimals; no team-bonus breakout; no per-category filter).
+ */
+export type MvpSource = "hvc" | "cricheroes";
+
 type CategoryFilter = "all" | "1" | "2" | "3";
 
 const CATEGORY_CHIPS: { id: CategoryFilter; label: string }[] = [
@@ -40,11 +47,13 @@ export function TournamentMvpView({
   cat1,
   cat2,
   cat3,
+  source = "hvc",
 }: {
   all: MvpEntry[];
   cat1: MvpEntry[];
   cat2: MvpEntry[];
   cat3: MvpEntry[];
+  source?: MvpSource;
 }) {
   const [filter, setFilter] = useState<CategoryFilter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -59,34 +68,44 @@ export function TournamentMvpView({
           ? cat3
           : all;
 
+  // Historical seasons aren't categorized — cricheroes publishes one
+  // combined MVP list. Hide the category chips for that case.
+  const showCategoryFilter = source === "hvc";
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div
-          role="tablist"
-          className="flex flex-wrap gap-1 rounded-full border border-foreground/10 bg-muted/30 p-1"
-        >
-          {CATEGORY_CHIPS.map((c) => {
-            const isActive = filter === c.id;
-            return (
-              <button
-                key={c.id}
-                role="tab"
-                type="button"
-                aria-selected={isActive}
-                onClick={() => setFilter(c.id)}
-                className={
-                  "rounded-full px-3 py-1.5 text-xs font-medium transition " +
-                  (isActive
-                    ? "bg-background shadow-sm"
-                    : "text-muted-foreground hover:text-foreground")
-                }
-              >
-                {c.label}
-              </button>
-            );
-          })}
-        </div>
+        {showCategoryFilter ? (
+          <div
+            role="tablist"
+            className="flex flex-wrap gap-1 rounded-full border border-foreground/10 bg-muted/30 p-1"
+          >
+            {CATEGORY_CHIPS.map((c) => {
+              const isActive = filter === c.id;
+              return (
+                <button
+                  key={c.id}
+                  role="tab"
+                  type="button"
+                  aria-selected={isActive}
+                  onClick={() => setFilter(c.id)}
+                  className={
+                    "rounded-full px-3 py-1.5 text-xs font-medium transition " +
+                    (isActive
+                      ? "bg-background shadow-sm"
+                      : "text-muted-foreground hover:text-foreground")
+                  }
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            from cricheroes
+          </span>
+        )}
         <button
           type="button"
           onClick={() => setShowFormula((v) => !v)}
@@ -96,7 +115,13 @@ export function TournamentMvpView({
         </button>
       </div>
 
-      {showFormula && <FormulaCard onClose={() => setShowFormula(false)} />}
+      {showFormula && (
+        source === "cricheroes" ? (
+          <CricheroesFormulaCard onClose={() => setShowFormula(false)} />
+        ) : (
+          <FormulaCard onClose={() => setShowFormula(false)} />
+        )
+      )}
 
       {data.length === 0 ? (
         <Card className="border-dashed">
@@ -113,6 +138,7 @@ export function TournamentMvpView({
                   key={e.player_id}
                   idx={idx}
                   entry={e}
+                  source={source}
                   isOpen={openId === e.player_id}
                   onToggle={() =>
                     setOpenId(openId === e.player_id ? null : e.player_id)
@@ -130,14 +156,21 @@ export function TournamentMvpView({
 function MvpRow({
   idx,
   entry,
+  source,
   isOpen,
   onToggle,
 }: {
   idx: number;
   entry: MvpEntry;
+  source: MvpSource;
   isOpen: boolean;
   onToggle: () => void;
 }) {
+  // Cricheroes publishes fractional scores (33.003); our formula
+  // produces integers.
+  const fmt = (n: number) =>
+    source === "cricheroes" ? n.toFixed(3) : String(n);
+
   return (
     <li>
       <button
@@ -193,7 +226,7 @@ function MvpRow({
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <span className="font-mono text-xl font-semibold tabular-nums">
-            {entry.total}
+            {fmt(entry.total)}
           </span>
           <ChevronDown
             className={
@@ -208,28 +241,75 @@ function MvpRow({
           <span className="font-mono">
             Bat:{" "}
             <span className="font-semibold text-foreground">
-              {entry.battingPts}
+              {fmt(entry.battingPts)}
             </span>
             {" + Bowl: "}
             <span className="font-semibold text-foreground">
-              {entry.bowlingPts}
+              {fmt(entry.bowlingPts)}
             </span>
             {" + Field: "}
             <span className="font-semibold text-foreground">
-              {entry.fieldingPts}
+              {fmt(entry.fieldingPts)}
             </span>
-            {" + Team: "}
-            <span className="font-semibold text-foreground">
-              {entry.teamPts}
-            </span>
+            {source === "hvc" && (
+              <>
+                {" + Team: "}
+                <span className="font-semibold text-foreground">
+                  {fmt(entry.teamPts)}
+                </span>
+              </>
+            )}
             {" = "}
             <span className="font-semibold text-foreground">
-              {entry.total}
+              {fmt(entry.total)}
             </span>
           </span>
         </div>
       )}
     </li>
+  );
+}
+
+function CricheroesFormulaCard({ onClose }: { onClose: () => void }) {
+  return (
+    <Card>
+      <CardHeader className="border-b border-foreground/5">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-base">How MVP is calculated</CardTitle>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-xs text-muted-foreground hover:text-foreground"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3 py-4 text-xs leading-relaxed text-muted-foreground">
+        <p>
+          This season was scored on{" "}
+          <a
+            href="https://cricheroes.com"
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            CricHeroes
+          </a>
+          , and the MVP leaderboard here mirrors the one CricHeroes
+          published — exact same scores, same ranking. CricHeroes does
+          not document the formula publicly, but it weights batting,
+          bowling, and fielding contributions with their own decimal
+          coefficients (hence totals like 33.003 instead of round
+          numbers).
+        </p>
+        <p>
+          Tournaments scored in the HVC app use a separate, transparent
+          point system tuned for our box-cricket format.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
