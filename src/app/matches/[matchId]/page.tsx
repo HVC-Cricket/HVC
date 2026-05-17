@@ -84,9 +84,18 @@ export default async function MatchDetailPage(props: {
 
   const ms = match.status as MatchStatus;
 
+  const showStartScoringBar = canManage && ms === "scheduled";
+
   return (
     <main className="flex-1 p-4 sm:p-6">
-      <div className="mx-auto max-w-3xl space-y-6">
+      <div
+        className={
+          "mx-auto max-w-3xl space-y-6 " +
+          // Reserve room at the bottom of the scrollable content so the
+          // sticky CTA bar doesn't sit on top of the last card.
+          (showStartScoringBar ? "pb-24 sm:pb-28" : "")
+        }
+      >
         <Link
           href={`/tournaments/${tournament.slug}`}
           prefetch
@@ -155,20 +164,6 @@ export default async function MatchDetailPage(props: {
             )}
           </div>
         </div>
-
-        {canManage && ms === "scheduled" && (
-          <Link
-            href={`/matches/${match.id}/score`}
-            prefetch
-            className="group flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm font-medium text-primary transition hover:bg-primary/15"
-          >
-            <span className="flex items-center gap-2">
-              <Play className="size-4 fill-current" />
-              Start scoring this match
-            </span>
-            <ChevronRight className="size-4 transition group-hover:translate-x-0.5" />
-          </Link>
-        )}
 
         {(ms === "live" ||
           ms === "innings_break" ||
@@ -368,6 +363,31 @@ export default async function MatchDetailPage(props: {
           </div>
         )}
       </div>
+
+      {/* Sticky Start-scoring CTA — pinned to the bottom of the viewport
+          for scheduled matches so it stays in thumb reach no matter how
+          far the scorer scrolls. The inner container clamps to the same
+          max-w as the page so the bar lines up with the rest of the
+          layout on desktop. */}
+      {showStartScoringBar && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40">
+          <div className="pointer-events-auto border-t border-foreground/10 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <div className="mx-auto max-w-3xl p-3 sm:p-4">
+              <Link
+                href={`/matches/${match.id}/score`}
+                prefetch
+                className="group flex items-center justify-between gap-3 rounded-lg border border-primary/40 bg-primary/15 px-4 py-3 text-sm font-medium text-primary transition hover:bg-primary/20"
+              >
+                <span className="flex items-center gap-2">
+                  <Play className="size-4 fill-current" />
+                  Start scoring this match
+                </span>
+                <ChevronRight className="size-4 transition group-hover:translate-x-0.5" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
