@@ -326,15 +326,23 @@ export async function recordBall(
   // < per-match scalar columns (players_per_side, overs_per_innings).
   // The scalar layer is what makes a 6-player match end the innings at
   // 6 wickets under HVC's 7-player tournament rules instead of 7.
+  //
+  // Bind to `rules` — there is no second variant; every downstream
+  // consumer (replay, applyBall, advanceBowler, validateBowlerRules,
+  // per-ball cat enforcement, post-completion writes) must see the
+  // exact same effective set or behaviour drifts. We had a regression
+  // where `rules` was the base and `effectiveRules` was the merged
+  // version, but only the cat-enforcement check used the merged copy
+  // so the engine still ended innings using the tournament's wicket
+  // cap. Single source of truth from here on.
   const { data: tournament } = await supabase
     .from("tournaments")
     .select("rules")
     .eq("id", match.tournament_id)
     .single();
-  const rules = getRuleSet(tournament?.rules);
-  const effectiveRules = applyMatchScalarRules(
+  const rules = applyMatchScalarRules(
     applyRulesOverride(
-      rules,
+      getRuleSet(tournament?.rules),
       (match.rules_override as RulesOverride) ?? null,
     ),
     {
@@ -442,8 +450,8 @@ export async function recordBall(
   // over and the engine wouldn't notice (it keys off striker.category
   // for special-over mechanics but doesn't gate against the rule
   // arrays). Super overs skip the rule by definition.
-  if (!isSuperOver && effectiveRules.categories.enabled) {
-    const requiredCat = categoryForOver(effectiveRules, state.current_over_number);
+  if (!isSuperOver && rules.categories.enabled) {
+    const requiredCat = categoryForOver(rules, state.current_over_number);
     if (requiredCat !== 2) {
       const strikerCat = playerById.get(parsed.data.striker_id)?.category;
       const bowlerCat = playerById.get(parsed.data.bowler_id)?.category;

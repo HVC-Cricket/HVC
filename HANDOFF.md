@@ -58,6 +58,14 @@ Implementation notes:
 
 After the fix, a 6-player match with `last_man_standing = true` correctly ends at 6 wickets (5 + last man standing → 6th dismissal = all out).
 
+**Follow-up #5 (same day) — recordBall regression: server engine still used pre-scalar-override rules.**
+
+The previous scalar-override fix layered `match.players_per_side` / `overs_per_innings` into a new `effectiveRules` local in `actions.ts:recordBall`, but only the per-ball category enforcement actually consumed it. `replayInnings`, `applyBall`, `advanceBowler`, and `validateBowlerRules` all still received the un-merged base `rules` — so the engine kept using the tournament's `players_per_side` for the wickets cap. Net effect: a 6-player match with `last_man_standing = true` would correctly enter last-man mode at the 5th dismissal (state derivation was already fixed) but the innings wouldn't end at the 6th wicket because the authoritative server path's engine still saw wicketsCap = 7.
+
+Fix: collapsed `rules` and `effectiveRules` into a single `rules` local — the merged effective set — so every downstream consumer sees the same source of truth. Single binding from the moment it's built; no chance of a future call site silently pulling the un-merged version.
+
+**Recovery note for currently-stuck matches:** if a match recorded the 6th wicket under the buggy code, the engine state in the DB shows `is_complete = false`. Undoing the last over (or last 3 balls) and re-recording will trigger the now-correct engine completion path.
+
 **Follow-up #4 (same day) — Highlight button moved from /admins to the public match page.**
 
 The Highlight Cards section under `/admins` Matches tab was admin-gated, but the OG image route itself was always public (no auth). Moved the entry point to the match header on `/matches/<id>` (visible only when `match.status === 'completed'`) so any spectator can grab the card. Deleted `src/app/admins/completed-matches-card.tsx` and the import/slot wiring on the admin page.
