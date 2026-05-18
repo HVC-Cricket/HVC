@@ -1,7 +1,9 @@
 "use server";
 
+import { after } from "next/server";
 import { z } from "zod";
 
+import { notifyOne } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -52,6 +54,24 @@ export async function subscribePush(
     { onConflict: "match_id,endpoint" },
   );
   if (error) return { ok: false, error: error.message };
+
+  // Fire a one-off confirmation push so the user knows the full pipeline
+  // works without waiting for a real wicket. Async via `after()` so the
+  // subscribe call returns immediately. Best-effort; failures here are
+  // logged inside `notifyOne` and never bubble up to the toast.
+  const { matchId, endpoint, p256dh, auth } = parsed.data;
+  after(async () => {
+    await notifyOne(
+      { endpoint, p256dh, auth },
+      {
+        title: "Notifications on",
+        body: "You'll get alerts for this match.",
+        url: `/matches/${matchId}`,
+        tag: `subscribe-confirm-${matchId}`,
+      },
+    );
+  });
+
   return { ok: true };
 }
 

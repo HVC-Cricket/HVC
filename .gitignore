@@ -50,3 +50,4 @@ supabase/.temp/
 # python bytecode (from scripts/)
 __pycache__/
 *.pyc
+hvc-group-messages.txt

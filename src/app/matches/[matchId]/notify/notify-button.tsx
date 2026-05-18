@@ -18,10 +18,29 @@ function urlBase64ToUint8Array(b64: string) {
   return out;
 }
 
+/**
+ * iOS Safari only delivers web push to PWAs installed via Add to Home
+ * Screen — regular Safari tabs can subscribe but never receive pushes.
+ * Detect that combo so we can guide the user instead of letting them
+ * subscribe into a dead end.
+ */
+function isIosWithoutPwa(): boolean {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return false;
+  }
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  if (!isIOS) return false;
+  const standalone =
+    (navigator as Navigator & { standalone?: boolean }).standalone === true ||
+    window.matchMedia("(display-mode: standalone)").matches;
+  return !standalone;
+}
+
 export function NotifyButton({ matchId }: { matchId: string }) {
   const [supported, setSupported] = useState<boolean | null>(null);
   const [subscribed, setSubscribed] = useState(false);
   const [pending, setPending] = useState(false);
+  const [permissionDenied, setPermissionDenied] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -34,14 +53,36 @@ export function NotifyButton({ matchId }: { matchId: string }) {
       setSupported(false);
       return;
     }
-    setSupported(true);
+
+    // If the browser has already denied notification permission, surface
+    // a disabled "Blocked" state instead of letting the user click into
+    // a permission re-prompt that immediately returns "denied".
+    if (Notification.permission === "denied") {
+      setSupported(true);
+      setPermissionDenied(true);
+      return;
+    }
 
     navigator.serviceWorker
       .getRegistration()
-      .then((reg) => reg?.pushManager.getSubscription())
-      .then((sub) => setSubscribed(!!sub))
+      .then((reg) => {
+        // No registration means the SW isn't active — dev mode (where
+        // register-sw.tsx skips registration to avoid Turbopack
+        // conflicts) or a failed registration in prod. Either way,
+        // `navigator.serviceWorker.ready` would hang forever on click,
+        // so hide the button.
+        if (!reg) {
+          setSupported(false);
+          return undefined;
+        }
+        setSupported(true);
+        return reg.pushManager.getSubscription();
+      })
+      .then((sub) => {
+        if (sub) setSubscribed(true);
+      })
       .catch(() => {
-        /* if the SW isn't registered yet, treat as not subscribed */
+        setSupported(false);
       });
   }, []);
 
@@ -65,9 +106,19 @@ export function NotifyButton({ matchId }: { matchId: string }) {
         return;
       }
 
+      // iOS without PWA install: web push won't be delivered. Guide the
+      // user before kicking off the permission flow.
+      if (isIosWithoutPwa()) {
+        toast.error(
+          "On iPhone/iPad, tap Share → Add to Home Screen first, then open the app from your home screen and try again.",
+        );
+        return;
+      }
+
       // Subscribe path
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
+        if (permission === "denied") setPermissionDenied(true);
         toast.error("Notifications blocked. Allow them in browser settings.");
         return;
       }
@@ -102,6 +153,19 @@ export function NotifyButton({ matchId }: { matchId: string }) {
       setPending(false);
     }
   };
+
+  if (permissionDenied) {
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled
+        title="Notifications are blocked in your browser settings. Allow them there to re-enable."
+      >
+        🔕 Blocked
+      </Button>
+    );
+  }
 
   return (
     <Button

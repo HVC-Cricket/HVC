@@ -81,3 +81,37 @@ export async function notifyMatch(matchId: string, payload: MatchPushPayload) {
     await admin.from("push_subscriptions").delete().in("id", dead);
   }
 }
+
+/**
+ * Sends a single push to one known subscription — used for the
+ * "Notifications on for this match" confirmation right after a user
+ * subscribes, so they can verify their browser + permissions before
+ * the first real event. Best-effort; logs and swallows errors.
+ */
+export async function notifyOne(
+  sub: { endpoint: string; p256dh: string; auth: string },
+  payload: MatchPushPayload,
+) {
+  if (!configureVapid()) {
+    console.warn("[push] VAPID keys not configured — skipping confirmation");
+    return;
+  }
+  try {
+    await webpush.sendNotification(
+      {
+        endpoint: sub.endpoint,
+        keys: { p256dh: sub.p256dh, auth: sub.auth },
+      },
+      JSON.stringify(payload),
+      // Short TTL — if the device is offline at subscribe time, a stale
+      // "you're subscribed" notification 10 minutes later is just noise.
+      { TTL: 60 },
+    );
+  } catch (err: unknown) {
+    const status =
+      err && typeof err === "object" && "statusCode" in err
+        ? (err as { statusCode?: number }).statusCode
+        : undefined;
+    console.error("[push] notifyOne failed", status, err);
+  }
+}
