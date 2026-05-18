@@ -84,22 +84,31 @@ export function PickXITabs({
 
   return (
     <div className="space-y-4">
+      {/* Underline-style tabs matching MatchTabs — each tab is full
+          name on top, progress badge below, with the active one
+          carrying a primary-coloured bottom border. Reads more like
+          a tab strip than a segmented pill, and gives both team
+          names room without truncating to just the short_name. */}
       <nav
         role="tablist"
-        className="flex overflow-x-auto rounded-lg border border-foreground/10 bg-muted/30 p-1"
+        className="-mx-4 flex border-b border-foreground/10 sm:mx-0"
       >
         <TabButton
           isActive={active === "A"}
           onClick={() => setActive("A")}
-          label={teamA.shortName || teamA.name}
-          subtitle={`${playingCountA} / ${playersPerSide}`}
+          fullName={teamA.name}
+          shortName={teamA.shortName}
+          playing={playingCountA}
+          target={playersPerSide}
           done={savedA}
         />
         <TabButton
           isActive={active === "B"}
           onClick={() => setActive("B")}
-          label={teamB.shortName || teamB.name}
-          subtitle={`${playingCountB} / ${playersPerSide}`}
+          fullName={teamB.name}
+          shortName={teamB.shortName}
+          playing={playingCountB}
+          target={playersPerSide}
           done={savedB}
         />
       </nav>
@@ -131,16 +140,21 @@ export function PickXITabs({
 function TabButton({
   isActive,
   onClick,
-  label,
-  subtitle,
+  fullName,
+  shortName,
+  playing,
+  target,
   done,
 }: {
   isActive: boolean;
   onClick: () => void;
-  label: string;
-  subtitle: string;
+  fullName: string;
+  shortName: string;
+  playing: number;
+  target: number;
   done: boolean;
 }) {
+  const complete = playing === target;
   return (
     <button
       role="tab"
@@ -148,23 +162,25 @@ function TabButton({
       aria-selected={isActive}
       onClick={onClick}
       className={
-        "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition " +
+        "-mb-px flex flex-1 flex-col items-center gap-0.5 border-b-2 px-3 py-3 transition " +
         (isActive
-          ? "bg-background text-foreground shadow-sm"
-          : "text-muted-foreground hover:text-foreground")
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground")
       }
     >
-      <span className="capitalize">{label}</span>
+      <span className="truncate text-sm font-medium capitalize">
+        {fullName}
+      </span>
       <span
         className={
-          "font-mono text-xs tabular-nums " +
-          (done
+          "font-mono text-[11px] tabular-nums " +
+          (done || complete
             ? "text-emerald-700 dark:text-emerald-300"
             : "text-muted-foreground")
         }
       >
-        {subtitle}
-        {done && " ✓"}
+        {shortName} · {playing} / {target}
+        {done ? " ✓" : ""}
       </span>
     </button>
   );

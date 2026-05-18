@@ -173,13 +173,18 @@ export function PickXIForm({
         </tbody>
       </table>
 
-      <div className="flex items-center justify-between gap-3 text-sm">
-        <span className="text-muted-foreground">
+      {/* Save bar — full-width primary action below a clear status
+          line. Beats the old side-by-side layout where the save
+          button sat in the bottom-right corner looking like a
+          tertiary action. Sticky-positioned so it stays in thumb
+          reach even on rosters longer than the viewport. */}
+      <div className="sticky bottom-0 -mx-4 space-y-2 border-t border-foreground/10 bg-background/95 px-4 pb-[env(safe-area-inset-bottom)] pt-3 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <p className="text-center text-sm text-muted-foreground">
           {includedRows.length} / {playersPerSide} playing
           {overFilled && " · over the limit (mark extras as sub)"}
           {underFilled && ` · need ${playersPerSide - includedRows.length} more`}
-        </span>
-        <Button onClick={onSave} disabled={pending}>
+        </p>
+        <Button onClick={onSave} disabled={pending} className="w-full">
           {pending ? "Saving…" : saveLabel}
         </Button>
       </div>
