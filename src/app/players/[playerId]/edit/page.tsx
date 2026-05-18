@@ -2,7 +2,13 @@ import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { requireOrganizerOrSuperAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -36,6 +42,36 @@ export default async function EditPlayerPage(props: {
   const linkedEmail = (linkedEmailRes.data as string | null) ?? null;
   const linkableUsers = linkableUsersRes.data;
 
+  // Surface a warning when the player is on the playing XI of any
+  // in-progress match. Changing their `category` mid-match would
+  // shift which Cat-N overs are still satisfiable; changing their
+  // name / photo is harmless. Read-only check — doesn't block the
+  // save, just informs.
+  const { data: liveMatchPlayers } = await supabase
+    .from("match_players")
+    .select(
+      "match_id, matches!inner(id, status, match_number, team_a_id, team_b_id, tournaments(name, slug))",
+    )
+    .eq("player_id", player.id)
+    .eq("is_substitute", false)
+    .in("matches.status", ["live", "innings_break"]);
+  type LiveRow = {
+    match_id: string;
+    matches: {
+      id: string;
+      status: string;
+      match_number: number | null;
+      team_a_id: string;
+      team_b_id: string;
+      tournaments: { name: string; slug: string } | null;
+    } | null;
+  };
+  const liveMatches = (
+    (liveMatchPlayers ?? []) as unknown as LiveRow[]
+  )
+    .map((r) => r.matches)
+    .filter((m): m is NonNullable<typeof m> => m != null);
+
   return (
     <main className="flex-1 p-4 sm:p-6">
       <div className="mx-auto max-w-2xl space-y-5">
@@ -54,6 +90,39 @@ export default async function EditPlayerPage(props: {
             Update profile, role, photo, or unlink the auth account.
           </p>
         </div>
+
+        {liveMatches.length > 0 && (
+          <Card className="border-amber-500/30 bg-amber-500/5 dark:border-amber-400/20 dark:bg-amber-400/5">
+            <CardHeader>
+              <CardTitle className="text-base">
+                Player is in a live match
+              </CardTitle>
+              <CardDescription className="space-y-1">
+                <span className="block">
+                  Changing <strong>category</strong> mid-match may break
+                  Cat-N over rules already scheduled. Name, photo, phone,
+                  and batting / bowling style are safe to edit.
+                </span>
+                <span className="block">
+                  Currently on the XI of:
+                </span>
+                <ul className="list-disc space-y-0.5 pl-5">
+                  {liveMatches.map((m) => (
+                    <li key={m.id}>
+                      <Link
+                        href={`/matches/${m.id}`}
+                        className="font-medium text-primary hover:underline"
+                      >
+                        {m.tournaments?.name ?? "(unknown tournament)"} ·
+                        Match {m.match_number ?? "?"}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
 
         <Card>
           <CardContent className="pt-6">

@@ -51,6 +51,8 @@ export function CategoryOversFields({
     onChange({ cat1Overs: nextCat1, cat3Overs: nextCat3 });
   };
 
+  const hasAny = cat1Overs.length > 0 || cat3Overs.length > 0;
+
   return (
     <div className="space-y-3">
       <ChipRow
@@ -71,10 +73,26 @@ export function CategoryOversFields({
         onToggle={toggle}
         disabled={disabled}
       />
-      <p className="text-[11px] text-muted-foreground">
-        Overs not picked here are Cat 2 — open to any player. An over
-        can&apos;t be both Cat 1 and Cat 3.
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] text-muted-foreground">
+          Overs not picked here are Cat 2 — open to any player. An over
+          can&apos;t be both Cat 1 and Cat 3.
+        </p>
+        {/* One-click reset for the "no Cat overs at all" case so the
+            organiser doesn't have to untick every chip individually
+            after toggling the override on (or for a tournament that
+            doesn't use categories). Hidden when both rows are
+            already empty. */}
+        {hasAny && !disabled && (
+          <button
+            type="button"
+            onClick={() => onChange({ cat1Overs: [], cat3Overs: [] })}
+            className="shrink-0 text-[11px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          >
+            Clear both
+          </button>
+        )}
+      </div>
     </div>
   );
 }

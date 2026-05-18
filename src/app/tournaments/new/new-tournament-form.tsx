@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { CategoryOversFields } from "@/components/category-overs-fields";
 import { DateInput } from "@/components/ui/date-input";
 import {
   Form,
@@ -49,6 +50,8 @@ const schema = z.object({
   end_date: z.string().optional().or(z.literal("")),
   venue: z.string().optional().or(z.literal("")),
   description: z.string().optional().or(z.literal("")),
+  cat1_overs: z.array(z.number().int().positive()),
+  cat3_overs: z.array(z.number().int().positive()),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -65,8 +68,16 @@ export function NewTournamentForm() {
       end_date: "",
       venue: "",
       description: "",
+      // Seed with the HVC default so brand-new tournaments behave
+      // like the original baked-in mapping (over 1 = Cat 1, over 2
+      // = Cat 3). The organiser can clear / re-arrange from here.
+      cat1_overs: [1],
+      cat3_overs: [2],
     },
   });
+  const overs = form.watch("default_overs_per_innings");
+  const cat1Overs = form.watch("cat1_overs");
+  const cat3Overs = form.watch("cat3_overs");
 
   const onSubmit = async (values: FormValues) => {
     const result = await createTournament(values);
@@ -172,6 +183,28 @@ export function NewTournamentForm() {
                 <FormMessage />
               </FormItem>
             )}
+          />
+        </div>
+        <div className="space-y-2 rounded-md border border-foreground/10 bg-muted/20 p-3">
+          <div className="space-y-0.5">
+            <div className="text-sm font-medium">Category overs</div>
+            <p className="text-[11px] text-muted-foreground">
+              Default Cat 1 / Cat 3 schedule for every match. A single
+              match can override later via its edit form.
+            </p>
+          </div>
+          <CategoryOversFields
+            overs={Number(overs) || 1}
+            cat1Overs={cat1Overs}
+            cat3Overs={cat3Overs}
+            onChange={(next) => {
+              form.setValue("cat1_overs", next.cat1Overs, {
+                shouldDirty: true,
+              });
+              form.setValue("cat3_overs", next.cat3Overs, {
+                shouldDirty: true,
+              });
+            }}
           />
         </div>
         <FormField

@@ -292,11 +292,21 @@ export async function recordBall(
   if (!innings) return { ok: false, error: "Innings not found" };
   if (innings.is_complete) return { ok: false, error: "Innings already complete" };
 
-  const { data: match } = await supabase
+  // `rules_override` was added in migration 20260518130000_*; the
+  // generated database.types.ts hasn't been regenerated, so cast
+  // the row shape here. Drop the cast once we re-run gen:types.
+  const { data: match } = (await supabase
     .from("matches")
-    .select("id, tournament_id, players_per_side")
+    .select("id, tournament_id, players_per_side, rules_override")
     .eq("id", parsed.data.matchId)
-    .single();
+    .single()) as unknown as {
+    data: {
+      id: string;
+      tournament_id: string;
+      players_per_side: number;
+      rules_override: unknown;
+    } | null;
+  };
   if (!match) return { ok: false, error: "Match not found" };
   await requireTournamentAdmin(match.tournament_id);
 
@@ -308,13 +318,20 @@ export async function recordBall(
   });
   if (!lock.ok) return lock;
 
-  // Load rules for engine validation.
+  // Load rules for engine validation. The engine itself keys off
+  // striker.category for special-over mechanics, so the per-tournament
+  // RuleSet is sufficient here. The match-level cat override only
+  // matters for the per-ball Cat-N enforcement below.
   const { data: tournament } = await supabase
     .from("tournaments")
     .select("rules")
     .eq("id", match.tournament_id)
     .single();
   const rules = getRuleSet(tournament?.rules);
+  const effectiveRules = applyRulesOverride(
+    rules,
+    (match.rules_override as RulesOverride) ?? null,
+  );
 
   // Load existing balls to compute current state.
   const { data: prevBalls } = await supabase
@@ -407,6 +424,32 @@ export async function recordBall(
       toEnginePlayer(state.non_striker_id),
       rules,
     );
+  }
+
+  // Per-ball cat enforcement (server-side mirror of the client toast
+  // in scoreboard.tsx). The scorer-side check is purely advisory; a
+  // tampered client could submit a Cat 2 striker + bowler on a Cat 1
+  // over and the engine wouldn't notice (it keys off striker.category
+  // for special-over mechanics but doesn't gate against the rule
+  // arrays). Super overs skip the rule by definition.
+  if (!isSuperOver && effectiveRules.categories.enabled) {
+    const requiredCat = categoryForOver(effectiveRules, state.current_over_number);
+    if (requiredCat !== 2) {
+      const strikerCat = playerById.get(parsed.data.striker_id)?.category;
+      const bowlerCat = playerById.get(parsed.data.bowler_id)?.category;
+      if (strikerCat !== requiredCat) {
+        return {
+          ok: false,
+          error: `Over ${state.current_over_number} is a Cat ${requiredCat} over — striker must be Category ${requiredCat}.`,
+        };
+      }
+      if (bowlerCat !== requiredCat) {
+        return {
+          ok: false,
+          error: `Over ${state.current_over_number} is a Cat ${requiredCat} over — bowler must be Category ${requiredCat}.`,
+        };
+      }
+    }
   }
 
   // Apply the new ball through the engine for validation.

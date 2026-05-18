@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireOrganizer } from "@/lib/auth";
+import { matchHasRecordedBalls } from "@/lib/match-balls";
 import {
   applyRulesOverride,
   getRuleSet,
@@ -60,6 +61,16 @@ export default async function EditMatchPage(props: {
     (match as { rules_override?: RulesOverride }).rules_override ?? null;
   const effectiveRules = applyRulesOverride(baseRules, matchOverride);
 
+  // Field-level lock: once any ball is recorded for this match, the
+  // structural fields (teams, overs / innings, players / side) are
+  // frozen — changing them would silently invalidate the existing
+  // match_players / innings / balls references. Rules + scheduling /
+  // venue / status / stage stay editable so mid-match adjustments
+  // (category override flip, status revert, scheduling tweaks) keep
+  // working. The form-level lock is purely UI; server `updateMatch`
+  // would also need to enforce — see TODO at the action.
+  const xiLocked = await matchHasRecordedBalls(supabase, match.id);
+
   return (
     <main className="flex-1 p-4 sm:p-6">
       <div className="mx-auto max-w-2xl space-y-4">
@@ -96,6 +107,7 @@ export default async function EditMatchPage(props: {
               }}
               tournamentFormat={tournament.format}
               teams={teams ?? []}
+              structuralLocked={xiLocked}
             />
           </CardContent>
         </Card>

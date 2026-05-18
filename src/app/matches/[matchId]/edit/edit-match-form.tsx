@@ -95,9 +95,20 @@ type Props = {
   };
   tournamentFormat: TournamentFormat;
   teams: { id: string; name: string; short_name: string }[];
+  /** Once scoring has started, structural fields (team_a, team_b,
+   *  overs/innings, players/side) freeze — changing them after the
+   *  fact would silently invalidate balls / innings / match_players
+   *  references. Rules override + status + venue + scheduling stay
+   *  editable for mid-match adjustments. */
+  structuralLocked: boolean;
 };
 
-export function EditMatchForm({ match, tournamentFormat, teams }: Props) {
+export function EditMatchForm({
+  match,
+  tournamentFormat,
+  teams,
+  structuralLocked,
+}: Props) {
   // Curate the stage dropdown for the tournament's format. Include the
   // match's existing stage even if it wouldn't normally surface for
   // this format — so the user sees their current selection.
@@ -209,6 +220,7 @@ export function EditMatchForm({ match, tournamentFormat, teams }: Props) {
                 <Select
                   value={field.value || undefined}
                   onValueChange={field.onChange}
+                  disabled={structuralLocked}
                 >
                   <FormControl>
                     <SelectTrigger className="capitalize">
@@ -240,6 +252,7 @@ export function EditMatchForm({ match, tournamentFormat, teams }: Props) {
                 <Select
                   value={field.value || undefined}
                   onValueChange={field.onChange}
+                  disabled={structuralLocked}
                 >
                   <FormControl>
                     <SelectTrigger className="capitalize">
@@ -297,7 +310,13 @@ export function EditMatchForm({ match, tournamentFormat, teams }: Props) {
               <FormItem>
                 <FormLabel>Overs / innings</FormLabel>
                 <FormControl>
-                  <Input type="number" min={1} max={50} {...field} />
+                  <Input
+                    type="number"
+                    min={1}
+                    max={50}
+                    disabled={structuralLocked}
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -310,13 +329,27 @@ export function EditMatchForm({ match, tournamentFormat, teams }: Props) {
               <FormItem>
                 <FormLabel>Players / side</FormLabel>
                 <FormControl>
-                  <Input type="number" min={2} max={15} {...field} />
+                  <Input
+                    type="number"
+                    min={2}
+                    max={15}
+                    disabled={structuralLocked}
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
+        {structuralLocked && (
+          <p className="rounded-md border border-foreground/10 bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
+            Scoring has started — teams, overs / innings, and players /
+            side are frozen. Status / stage / scheduling / rules
+            override stay editable. Undo every ball back to the start
+            to re-open these fields.
+          </p>
+        )}
         {/* Per-match override for Cat 1 / Cat 3 schedule. Off by
             default; flipping it on takes the toggles below as the
             effective rule for this match only. */}

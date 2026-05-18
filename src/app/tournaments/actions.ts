@@ -29,6 +29,12 @@ const baseTournamentFields = {
   venue: z.string().optional().or(z.literal("")),
   description: z.string().optional().or(z.literal("")),
   logo_url: z.string().url().nullable().optional(),
+  // Optional at the create form too so existing callers without
+  // these fields still work. When provided, merged into the seeded
+  // HVC ruleset so the rest of the rule shape (super_over, extras,
+  // …) is preserved.
+  cat1_overs: z.array(z.number().int().positive()).optional(),
+  cat3_overs: z.array(z.number().int().positive()).optional(),
 };
 
 const createTournamentSchema = z.object(baseTournamentFields);
@@ -72,6 +78,17 @@ export async function createTournament(
   if (!user) return { ok: false, error: "Not signed in" };
 
   const baseSlug = slugify(data.name) || "tournament";
+  // Default new tournaments to the HVC ruleset, optionally overriding
+  // the cat1_overs / cat3_overs arrays from the create form. Stored
+  // as JSONB so we can tweak per-tournament without migrations.
+  const rules = {
+    ...HVC_RULES,
+    categories: {
+      ...HVC_RULES.categories,
+      cat1_overs: data.cat1_overs ?? HVC_RULES.categories.cat1_overs,
+      cat3_overs: data.cat3_overs ?? HVC_RULES.categories.cat3_overs,
+    },
+  };
   // Try base slug, then base-2, base-3, etc., until insert succeeds.
   for (let attempt = 0; attempt < 10; attempt++) {
     const slug = attempt === 0 ? baseSlug : `${baseSlug}-${attempt + 1}`;
@@ -86,9 +103,7 @@ export async function createTournament(
       end_date: data.end_date || null,
       venue: data.venue || null,
       description: data.description || null,
-      // Default new tournaments to the HVC ruleset. Stored as JSONB so we can
-      // tweak per-tournament without migrations. Engine reads via getRuleSet().
-      rules: HVC_RULES as unknown as Json,
+      rules: rules as unknown as Json,
       created_by: user.id,
     });
 

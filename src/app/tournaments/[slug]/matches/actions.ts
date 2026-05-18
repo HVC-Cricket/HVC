@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { requireOrganizer, requireTournamentAdmin, requireUser } from "@/lib/auth";
 import { logMatchAuditEvent } from "@/lib/match-audit";
+import { matchHasRecordedBalls } from "@/lib/match-balls";
 import { createClient } from "@/lib/supabase/server";
 
 import type { ActionResult } from "@/app/tournaments/actions";
@@ -149,7 +150,9 @@ export async function updateMatch(
   const supabase = await createClient();
   const { data: match } = await supabase
     .from("matches")
-    .select("id, tournament_id")
+    .select(
+      "id, tournament_id, team_a_id, team_b_id, overs_per_innings, players_per_side",
+    )
     .eq("id", parsed.data.matchId)
     .single();
   if (!match) {
@@ -157,6 +160,26 @@ export async function updateMatch(
     return { ok: false, error: "Match not found" };
   }
   await requireOrganizer(match.tournament_id);
+
+  // Structural-field lock once scoring has started. Mirrors the UI
+  // freeze on the edit form — refuse to mutate team_a_id, team_b_id,
+  // overs_per_innings, or players_per_side after the first ball
+  // lands. The other fields (stage, status, scheduling, venue,
+  // rules_override) stay open so mid-match adjustments work.
+  const structuralLocked = await matchHasRecordedBalls(supabase, match.id);
+  if (
+    structuralLocked &&
+    (parsed.data.team_a_id !== match.team_a_id ||
+      parsed.data.team_b_id !== match.team_b_id ||
+      parsed.data.overs_per_innings !== match.overs_per_innings ||
+      parsed.data.players_per_side !== match.players_per_side)
+  ) {
+    return {
+      ok: false,
+      error:
+        "Scoring has started — teams, overs / innings, and players / side can't change until every ball is undone.",
+    };
+  }
 
   // Compose the rules_override payload. When the toggle is off (or
   // absent), explicitly null it out so the match inherits the
