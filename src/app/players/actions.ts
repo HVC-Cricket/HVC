@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireOrganizerOrSuperAdmin, requireSuperAdmin } from "@/lib/auth";
-import { PHONE_ALLOWED_RE } from "@/lib/phone";
+import { isValidIndianPhone, PHONE_MAX_LENGTH } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 
 import type { ActionResult } from "@/app/tournaments/actions";
@@ -34,7 +34,11 @@ const emailField = z
 
 const phoneField = z
   .string()
-  .regex(PHONE_ALLOWED_RE, "Digits, +, -, spaces, parens only")
+  .max(PHONE_MAX_LENGTH, "Phone is too long")
+  .refine(
+    (v) => isValidIndianPhone(v),
+    "Enter a valid Indian mobile (10 digits starting 6-9)",
+  )
   .optional()
   .or(z.literal(""));
 

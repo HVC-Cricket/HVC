@@ -24,6 +24,20 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 18) — Phone fields cap length + validate Indian format.** Batch 17 stripped letters from phone inputs but left two holes: (a) `maxLength` wasn't set, so a user could type / paste an unbounded number string (one tester ended up with 50+ digits in the field), and (b) the only format check was "characters look phone-ish" — no Indian-mobile shape gate. Both fixed across the three phone surfaces (`/me`, `/players/new`, `/players/[id]/edit`).
+
+`src/lib/phone.ts` now exports:
+
+- `PHONE_MAX_LENGTH = 17` — generous enough to hold `+91 (98765) 43210`; passed to the `<Input maxLength>` prop and clamped inside `stripPhoneInput`.
+- `INDIAN_PHONE_DIGITS_RE = /^(91|0)?[6-9]\d{9}$/` — checked against the digits-only normalization, so `+91 98765 43210` / `09876543210` / `919876543210` / `9876543210` all pass, while `5876543210` (starts with 5) and `98765` (too short) fail.
+- `digitsOnly(v)` and `isValidIndianPhone(v)` helpers; empty passes (phone is optional everywhere).
+
+Zod schemas swap the old `regex(PHONE_ALLOWED_RE)` for `.max(PHONE_MAX_LENGTH).refine(isValidIndianPhone, "Enter a valid Indian mobile (10 digits starting 6-9)")` — same shape on both the form's client schema and the server action's. Inputs gained `placeholder="98765 43210"` so the expected format is obvious before the user starts typing.
+
+Landlines deliberately not supported — this app is mobile-first and the box-cricket players are all tracked by mobile. Loosen the regex if a future cohort needs landlines.
+
+6 files / +71 / −16 LOC.
+
 **2026-05-18 (batch 17) — Phone update on /me actually persists + phone fields reject letters.** Two bugs from live testing batch 16:
 
 1. **Silent no-op for non-admin phone update.** `/me` reported "Profile updated" but the player row's `phone` column never changed. Root cause: the action used the user-scoped Supabase client, and `players_update_admin` RLS (db.sql:878) only permits super-admin / organizer writes — so PostgREST returned success with 0 rows affected for a regular linked user. Fix: swap to `createAdminClient()` for the player-row UPDATE inside `me/actions.ts`. The column whitelist above the UPDATE is the trust boundary — we've already authenticated the user via `getUser()`, confirmed `linkedPlayerId` belongs to them (`linked_user_id = user.id`), and limited which columns the non-super-admin path writes (phone only). Service-role here doesn't expand surface area; it just sidesteps an RLS policy that was correct for `/players/[id]/edit` but too strict for self-service phone edits. No migration; no policy change.

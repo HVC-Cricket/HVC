@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { PHONE_ALLOWED_RE } from "@/lib/phone";
+import { isValidIndianPhone, PHONE_MAX_LENGTH } from "@/lib/phone";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,7 +33,11 @@ const schema = z.object({
   category: z.enum(["", "1", "2", "3"]).optional(),
   phone: z
     .string()
-    .regex(PHONE_ALLOWED_RE, "Phone must contain only digits and + - ( ) spaces")
+    .max(PHONE_MAX_LENGTH, "Phone is too long")
+    .refine(
+      (v) => isValidIndianPhone(v),
+      "Enter a valid Indian mobile (10 digits starting 6-9)",
+    )
     .optional()
     .or(z.literal("")),
   batting_style: z.enum(["", ...battingStyles]).optional(),

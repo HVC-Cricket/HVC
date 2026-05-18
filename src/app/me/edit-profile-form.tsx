@@ -8,7 +8,11 @@ import { z } from "zod";
 
 import { LogoUploader } from "@/components/logo-uploader";
 import { Button } from "@/components/ui/button";
-import { PHONE_ALLOWED_RE, stripPhoneInput } from "@/lib/phone";
+import {
+  isValidIndianPhone,
+  PHONE_MAX_LENGTH,
+  stripPhoneInput,
+} from "@/lib/phone";
 import {
   Form,
   FormControl,
@@ -51,7 +55,11 @@ const schema = z.object({
   category: z.enum(["", "1", "2", "3"]).optional(),
   phone: z
     .string()
-    .regex(PHONE_ALLOWED_RE, "Digits, +, -, spaces, parens only")
+    .max(PHONE_MAX_LENGTH, "Phone is too long")
+    .refine(
+      (v) => isValidIndianPhone(v ?? ""),
+      "Enter a valid Indian mobile (10 digits starting 6-9)",
+    )
     .optional(),
   batting_style: z.enum(["", ...battingStyles]).optional(),
   bowling_style: z.enum(["", ...bowlingStyles]).optional(),
@@ -217,6 +225,8 @@ export function EditProfileForm({
                     <Input
                       type="tel"
                       inputMode="tel"
+                      maxLength={PHONE_MAX_LENGTH}
+                      placeholder="98765 43210"
                       {...field}
                       onChange={(e) =>
                         field.onChange(stripPhoneInput(e.target.value))

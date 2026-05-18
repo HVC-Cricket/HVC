@@ -24,7 +24,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PHONE_ALLOWED_RE, stripPhoneInput } from "@/lib/phone";
+import {
+  isValidIndianPhone,
+  PHONE_MAX_LENGTH,
+  stripPhoneInput,
+} from "@/lib/phone";
 
 import { createPlayer } from "../actions";
 
@@ -35,7 +39,11 @@ const schema = z.object({
   }),
   phone: z
     .string()
-    .regex(PHONE_ALLOWED_RE, "Digits, +, -, spaces, parens only")
+    .max(PHONE_MAX_LENGTH, "Phone is too long")
+    .refine(
+      (v) => isValidIndianPhone(v),
+      "Enter a valid Indian mobile (10 digits starting 6-9)",
+    )
     .optional()
     .or(z.literal("")),
   batting_style: z.enum(["", "right_hand", "left_hand"]).optional(),
@@ -156,6 +164,8 @@ export function NewPlayerForm({
                 <Input
                   type="tel"
                   inputMode="tel"
+                  maxLength={PHONE_MAX_LENGTH}
+                  placeholder="98765 43210"
                   {...field}
                   onChange={(e) =>
                     field.onChange(stripPhoneInput(e.target.value))
