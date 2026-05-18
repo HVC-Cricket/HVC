@@ -24,6 +24,16 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 13) — Squads photos + commentary full team name.** Two polish items spotted while reviewing live screenshots.
+
+`XISection` (the component behind the Squads tab + the scheduled-match XI cards) now shows player photos. Each row leads with a `size-8` circular avatar between the batting-order column and the name. Resolution reuses the existing helpers — `fetchLinkedAvatars` (batch-pulls `avatar_url` for any player who linked their auth account) + `resolvePlayerPhoto` (prefers the player's own `photo_url`, falls back to the linked-account avatar, returns null otherwise). When `resolved_photo` is null the row renders an initials chip via `getInitials()`, styled like the POTM card's fallback. Same query shape used everywhere else in the app — no new types, no new endpoints.
+
+Same file: the batting-order column was rendering "—" for every row on the spectator Squads tab (since order is null until Pick XI assigns 1..N), which both cluttered the UI and indented the names. `showOrderColumn` (= `xi.some((m) => m.batting_order != null)`) now decides whether to render the column at all — Pick XI still gets numbers, Squads gets a tight left-aligned name column. The dash fallback was replaced with an empty string so a partial-order XI on Pick XI doesn't show stray dashes either.
+
+Separately, `commentary-feed.tsx` was labelling each innings section with `team.short_name` (`"WK — Innings 1"`). Switched the `teams` select to pull `name` and renamed the lookup map (`teamShort` → `teamName`) so the strip now reads `"WODEYARS THE KINGS — INNINGS 1"` (the wrapping `uppercase` class still applies).
+
+Commits `08f2c7d` (Squads polish) + `d9358d2` (commentary header); 2 files / +57 / −13 LOC.
+
 **2026-05-18 (batch 12) — Live panel: FOUR! / SIX! / WICKET! celebration overlay.** Pavan asked for a quick visual punch when a boundary or wicket lands — large centered text on the live tab for ~2 s, then fades.
 
 New client component `src/app/matches/[matchId]/ball-celebration.tsx`. Mounts inside `LiveScorePanel` alongside `LiveRefresh`, so the existing Supabase Realtime → `router.refresh()` loop already drives the re-render that the trigger detects. Receives `latestBall` (id, runs_off_bat, is_wicket, scored_at) as a prop.
