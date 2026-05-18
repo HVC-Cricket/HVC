@@ -24,6 +24,16 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 11) — Match page header: mobile layout polish.** Three related fixes after Pavan tested the match detail page on his phone.
+
+- **Team-vs-team title wrapping.** `Vijayanagara Royals vs Wodeyars The Kings` was breaking onto two lines because of `flex-wrap` + a fixed `text-base` font. Switched to `flex-nowrap` + `whitespace-nowrap`, and bound the font size to viewport width with `text-[clamp(0.8125rem,3.8vw,1.25rem)]` so the title scales smoothly with the device — common HVC team names fit on a single line at iPhone-SE widths while the cap matches the previous `text-xl` on sm+. The `vs` separator switched from `text-xs sm:text-sm` to `text-[0.7em]` so it stays proportional once the title font shrinks below 14px. The chevron icon got `shrink-0` so it doesn't get squeezed.
+
+- **Meta + actions on one row.** `Match N · Stage · LIVE` and the action buttons (Notify, Activity, Edit) were stacking onto two rows on mobile because the outer wrapper was `flex flex-wrap items-start`. Switched to `flex flex-nowrap items-center`, so meta is left, buttons are right, single row at every breakpoint. Inner meta row keeps `flex-wrap` as a safety net for very narrow phones. Button-group gap tightened from `gap-2` to `gap-1`.
+
+- **Tighter vertical rhythm on mobile.** Outer header stack (`title → meta row → tab strip`) had a uniform `space-y-6` (24px); felt loose on phones. Switched to `space-y-2 sm:space-y-6` — 8px on mobile, 24px on tablet/desktop.
+
+Commit `a5c91b2`; 1 file / +39 / −28 LOC.
+
 **2026-05-18 (batch 10) — Squads tab + commentary header trim.** Two more match-page polish items.
 
 A new **Squads** tab now sits between Scorecard and Info on the live / innings_break / completed match panel. It renders the existing `<XISection>` (the same component the scheduled-match view already used inline — both teams' XIs side-by-side, batting order, C / WK badges, sub flag, "Pick XI / Edit XI" button for users with manage perms). The duplicate `<XISection>` inside the Info tab was removed so the squad info lives in exactly one place. `match-tabs.tsx`: added `"squads"` to the `TabId` union, the `TABS` array, the props, the tabpanel, and `readTabFromURL` (so `?tab=squads` deep-links work). `page.tsx`: passed the new `squads={...}` slot containing the `XISection` with its Suspense wrapper.
