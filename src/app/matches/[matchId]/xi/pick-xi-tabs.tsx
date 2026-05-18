@@ -73,10 +73,19 @@ export function PickXITabs({
   const teamAComplete = savedA || playingCountA === playersPerSide;
   const teamBComplete = savedB || playingCountB === playersPerSide;
 
+  // Explicit navigation back to the match page instead of `router.back()`
+  // — back() depends on browser history, which can land users on home
+  // if they reached /xi via a direct URL, a redirect chain, or after
+  // session-based navigation that wiped the history stack. The match
+  // page is the canonical parent of /xi and is readable by every role
+  // (super-admin / organizer / scorer / spectator), so it's always a
+  // safe destination after save.
+  const backToMatch = () => router.push(`/matches/${matchId}`);
+
   const onSaveA = () => {
     setSavedA(true);
     if (teamBComplete) {
-      router.back();
+      backToMatch();
     } else {
       setActive("B");
     }
@@ -84,7 +93,7 @@ export function PickXITabs({
   const onSaveB = () => {
     setSavedB(true);
     if (teamAComplete) {
-      router.back();
+      backToMatch();
     } else {
       setActive("A");
     }

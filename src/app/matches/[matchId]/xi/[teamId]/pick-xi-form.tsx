@@ -106,10 +106,13 @@ export function PickXIForm({
       if (onSaveSuccess) {
         onSaveSuccess();
       } else {
-        // Default: drop the scorer back where they came from (score
-        // page or match page) so they don't have to navigate manually
-        // after saving each side's XI.
-        router.back();
+        // Default: navigate explicitly to the match page (parent of
+        // /xi). Earlier we used `router.back()`, but that's coupled to
+        // browser history — users reaching the picker via a direct
+        // URL, redirect chain, or post-auth navigation could end up
+        // on home instead of the match. The match page is readable
+        // by every role so it's always a safe destination.
+        router.push(`/matches/${matchId}`);
       }
     });
   };
