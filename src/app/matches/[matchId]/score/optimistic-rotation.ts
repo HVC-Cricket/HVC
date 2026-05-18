@@ -40,6 +40,11 @@ type ActiveState = {
    *  keep it). Under "stay", the special batter is always the current
    *  striker (no odd-run swap, no end-of-over move mid-over). */
   special_stay_rule: boolean;
+  /** Dismissed-player IDs from `state.active.dismissed_ids`. Used at
+   *  end-of-over in a special over to drop a dismissed batter who was
+   *  being held at the crease by the stay rule — the engine clears
+   *  them when `special_over` resets at the boundary. */
+  dismissed_ids: string[];
 };
 
 export type OptimisticRotation = {
@@ -109,6 +114,22 @@ export function applyOptimisticRotation(args: {
   const endOfOver = isLegalBall && legalAfter >= 6;
   if (endOfOver && !active.last_man_mode) {
     [strikerId, nonStrikerId] = [nonStrikerId, strikerId];
+  }
+  // At the end of a special over the engine resets `special_over` to
+  // null, which makes `stillSpecialStay` in state.ts return false for
+  // any dismissed batter who was being held at the crease by the stay
+  // rule — they get dropped from the field. Mirror that here so the
+  // post-swap non-striker slot doesn't briefly show a dismissed player
+  // before the server roundtrip lands. Build the dismissed set from
+  // `active.dismissed_ids` plus this ball's wicket (if any), since the
+  // server-side list is updated only after the ball is recorded.
+  if (endOfOver && active.is_special_over !== null) {
+    const dismissedSet = new Set(active.dismissed_ids);
+    if (ball.is_wicket) {
+      dismissedSet.add(ball.player_out_id ?? args.strikerId);
+    }
+    if (dismissedSet.has(strikerId)) strikerId = "";
+    if (dismissedSet.has(nonStrikerId)) nonStrikerId = "";
   }
   if (endOfOver) {
     bowlerId = "";

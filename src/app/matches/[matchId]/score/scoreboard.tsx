@@ -307,28 +307,59 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       // server roundtrip lands.
       const justBowled = state.balls[state.balls.length - 1]?.bowler_id;
       setBowlerId((current) => (current === justBowled ? "" : current));
-      // Preserve any optimistic batter pick from the wicket prompt:
-      // when the server has a value, sync to it; when it's null
-      // (dismissed slot, no engine-side replacement yet), keep the
-      // local pick.
-      setNonStrikerId(
-        (current) => state.active.non_striker_id ?? current,
+      // Batter slots: when the server has a value, sync to it; when
+      // it's null AND the local slot still holds a dismissed player,
+      // clear it (covers the Cat 1/3 stay-rule case where the dismissed
+      // special batter occupied the slot for the rest of the over and
+      // gets pushed out at the boundary); otherwise preserve the local
+      // pick (covers an optimistic wicket-prompt pick that hasn't been
+      // confirmed yet).
+      const dismissedSet = new Set(state.active.dismissed_ids);
+      const reconcile = (
+        serverValue: string | null,
+        current: string,
+      ): string => {
+        if (serverValue !== null) return serverValue;
+        if (dismissedSet.has(current)) return "";
+        return current;
+      };
+      setNonStrikerId((current) =>
+        reconcile(state.active.non_striker_id, current),
       );
       if (newOverCategory === 2) {
-        setStrikerId((current) => state.active.striker_id ?? current);
+        setStrikerId((current) =>
+          reconcile(state.active.striker_id, current),
+        );
       } else {
         // Cat 1 / Cat 3 boundary: original behavior was to clear the
         // striker so the auto-pick effect could fill a Cat-matching
         // candidate. Preserve a non-empty pick (came from the wicket
-        // dialog, already category-filtered).
-        setStrikerId((current) => current || "");
+        // dialog, already category-filtered), but still clear if the
+        // local value is a dismissed player.
+        setStrikerId((current) =>
+          dismissedSet.has(current) ? "" : current || "",
+        );
       }
     } else {
       // Non-boundary sync — same null-preserves-local rule so a wicket
       // prompt pick on a mid-over dismissal isn't clobbered when the
-      // server reconciliation lands.
-      setStrikerId((current) => state.active.striker_id ?? current);
-      setNonStrikerId((current) => state.active.non_striker_id ?? current);
+      // server reconciliation lands. Dismissed-slot fallback mirrors
+      // the boundary branch above.
+      const dismissedSet = new Set(state.active.dismissed_ids);
+      const reconcile = (
+        serverValue: string | null,
+        current: string,
+      ): string => {
+        if (serverValue !== null) return serverValue;
+        if (dismissedSet.has(current)) return "";
+        return current;
+      };
+      setStrikerId((current) =>
+        reconcile(state.active.striker_id, current),
+      );
+      setNonStrikerId((current) =>
+        reconcile(state.active.non_striker_id, current),
+      );
       setBowlerId(state.active.bowler_id ?? "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -589,6 +620,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
         is_special_over: localIsSpecialOver,
         special_stay_rule:
           state.rules.categories?.cat_special_strike === "stay",
+        dismissed_ids: state.active.dismissed_ids,
       },
     });
     setStrikerId(next.strikerId);
