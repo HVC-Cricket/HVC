@@ -47,7 +47,7 @@ export async function CommentaryFeed({ matchId }: { matchId: string }) {
       .order("scored_at", { ascending: true }),
     supabase
       .from("teams")
-      .select("id, short_name")
+      .select("id, name")
       .in("id", [match.team_a_id, match.team_b_id]),
     supabase
       .from("match_players")
@@ -73,8 +73,8 @@ export async function CommentaryFeed({ matchId }: { matchId: string }) {
     );
   }
 
-  const teamShort = new Map(
-    (teamsRes.data ?? []).map((t) => [t.id, t.short_name]),
+  const teamName = new Map(
+    (teamsRes.data ?? []).map((t) => [t.id, t.name]),
   );
 
   // Build commentary per innings (so we can group + show innings headers).
@@ -93,7 +93,7 @@ export async function CommentaryFeed({ matchId }: { matchId: string }) {
       playerCats,
     });
     lines.forEach((l) => (l.inningsNumber = inn.innings_number));
-    const team = teamShort.get(inn.batting_team_id) ?? "?";
+    const team = teamName.get(inn.batting_team_id) ?? "?";
     const isSuperOver = inn.innings_number > 2;
     const label = isSuperOver
       ? `${team} — Super over ${inn.innings_number - 2}`
