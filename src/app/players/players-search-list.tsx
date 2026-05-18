@@ -4,8 +4,9 @@ import { Search, X } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { getInitials } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 
 export type PlayerRow = {
   id: string;
@@ -19,17 +20,40 @@ export type PlayerRow = {
   href: string;
 };
 
+/** Category filter state. `null` = no category filter (show all);
+ *  `"none"` = only players with `category == null`; `1 | 2 | 3` =
+ *  exact match. */
+type CategoryFilter = null | 1 | 2 | 3 | "none";
+
 export function PlayersSearchList({ rows }: { rows: PlayerRow[] }) {
   const [query, setQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(null);
   // useDeferredValue keeps the input responsive when the list re-renders
   // — for 64 rows it's overkill but cheap insurance if the registry grows.
   const deferredQuery = useDeferredValue(query);
 
+  // Per-bucket counts for the filter chips — computed off the raw
+  // `rows`, not the filtered set, so each chip always shows its total.
+  const counts = useMemo(() => {
+    const c = { all: rows.length, 1: 0, 2: 0, 3: 0, none: 0 };
+    for (const p of rows) {
+      if (p.category === 1) c[1] += 1;
+      else if (p.category === 2) c[2] += 1;
+      else if (p.category === 3) c[3] += 1;
+      else c.none += 1;
+    }
+    return c;
+  }, [rows]);
+
   const filtered = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((p) => p.display_name.toLowerCase().includes(q));
-  }, [rows, deferredQuery]);
+    return rows.filter((p) => {
+      if (q && !p.display_name.toLowerCase().includes(q)) return false;
+      if (categoryFilter === null) return true;
+      if (categoryFilter === "none") return p.category == null;
+      return p.category === categoryFilter;
+    });
+  }, [rows, deferredQuery, categoryFilter]);
 
   return (
     <div className="space-y-3">
@@ -64,19 +88,80 @@ export function PlayersSearchList({ rows }: { rows: PlayerRow[] }) {
         )}
       </label>
 
-      {query && (
+      {/* Category filter chip row. "All" + Cat 1/2/3 + No cat — clicking
+          a chip toggles it on/off (re-clicking the active one clears).
+          Counts come off the unfiltered list so each chip shows its
+          total regardless of what's currently selected. */}
+      <div className="flex flex-wrap gap-1.5">
+        <FilterChip
+          label="All"
+          count={counts.all}
+          active={categoryFilter === null}
+          onClick={() => setCategoryFilter(null)}
+        />
+        <FilterChip
+          label="Cat 1"
+          count={counts[1]}
+          active={categoryFilter === 1}
+          tone="cat1"
+          onClick={() => setCategoryFilter(categoryFilter === 1 ? null : 1)}
+        />
+        <FilterChip
+          label="Cat 2"
+          count={counts[2]}
+          active={categoryFilter === 2}
+          tone="cat2"
+          onClick={() => setCategoryFilter(categoryFilter === 2 ? null : 2)}
+        />
+        <FilterChip
+          label="Cat 3"
+          count={counts[3]}
+          active={categoryFilter === 3}
+          tone="cat3"
+          onClick={() => setCategoryFilter(categoryFilter === 3 ? null : 3)}
+        />
+        {counts.none > 0 && (
+          <FilterChip
+            label="No cat"
+            count={counts.none}
+            active={categoryFilter === "none"}
+            tone="warn"
+            onClick={() =>
+              setCategoryFilter(categoryFilter === "none" ? null : "none")
+            }
+          />
+        )}
+      </div>
+
+      {(query || categoryFilter !== null) && (
         <p className="text-xs text-muted-foreground">
-          {filtered.length} match{filtered.length === 1 ? "" : "es"} for{" "}
-          <span className="font-medium text-foreground">
-            &ldquo;{query}&rdquo;
-          </span>
+          {filtered.length} match{filtered.length === 1 ? "" : "es"}
+          {query && (
+            <>
+              {" "}for{" "}
+              <span className="font-medium text-foreground">
+                &ldquo;{query}&rdquo;
+              </span>
+            </>
+          )}
+          {categoryFilter !== null && (
+            <>
+              {" "}
+              in{" "}
+              <span className="font-medium text-foreground">
+                {categoryFilter === "none"
+                  ? "uncategorised"
+                  : `Cat ${categoryFilter}`}
+              </span>
+            </>
+          )}
         </p>
       )}
 
       {filtered.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No players match &ldquo;{query}&rdquo;.
+            No players match the current filter.
           </CardContent>
         </Card>
       ) : (
@@ -132,5 +217,48 @@ export function PlayersSearchList({ rows }: { rows: PlayerRow[] }) {
         </Card>
       )}
     </div>
+  );
+}
+
+function FilterChip({
+  label,
+  count,
+  active,
+  tone,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  active: boolean;
+  /** Color accent when active — keeps the chip visually tied to the
+   *  Cat-N badges used elsewhere in the app (amber Cat 1, sky Cat 3,
+   *  destructive for uncategorised). */
+  tone?: "cat1" | "cat2" | "cat3" | "warn";
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant={active ? "default" : "outline"}
+      onClick={onClick}
+      className={cn(
+        "h-8 gap-1.5 px-2.5 text-xs",
+        active && tone === "cat1" && "bg-amber-500 text-white hover:bg-amber-500/90",
+        active && tone === "cat3" && "bg-sky-500 text-white hover:bg-sky-500/90",
+        active && tone === "warn" &&
+          "bg-destructive text-white hover:bg-destructive/90",
+      )}
+    >
+      <span>{label}</span>
+      <span
+        className={cn(
+          "rounded font-mono text-[10px] tabular-nums",
+          active ? "text-white/80" : "text-muted-foreground",
+        )}
+      >
+        {count}
+      </span>
+    </Button>
   );
 }
