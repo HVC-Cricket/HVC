@@ -123,25 +123,22 @@ export async function deleteUser(
   }
 
   const supabase = await createClient();
-  // If the target is a super-admin, refuse if they're the last one
-  // — losing every super-admin means losing all access to /admins.
+  // Super-admins can't be deleted from here at all — they have to be
+  // demoted first (via this same page) before deletion. This is
+  // stronger than the previous "only block the last one" rule and
+  // matches the new DB trigger `prevent_super_admin_delete` so the
+  // server and the DB agree.
   const { data: targetProfile } = await supabase
     .from("profiles")
     .select("is_super_admin")
     .eq("id", userId)
     .maybeSingle();
   if (targetProfile?.is_super_admin) {
-    const { count } = await supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("is_super_admin", true)
-      .neq("id", userId);
-    if ((count ?? 0) === 0) {
-      return {
-        ok: false,
-        error: "Can't delete the last super-admin — promote someone else first.",
-      };
-    }
+    return {
+      ok: false,
+      error:
+        "Super-admins can't be deleted. Demote them to a normal user first, then delete.",
+    };
   }
 
   const adminClient = createAdminClient();

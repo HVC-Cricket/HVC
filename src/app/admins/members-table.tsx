@@ -236,7 +236,11 @@ function MemberItem({
             disabled={pending}
             onConfirm={onToggleSuper}
           />
-          {!isSelf && (
+          {/* Delete is hidden for the signed-in user themselves AND
+              for any super-admin row — a DB trigger on profiles also
+              refuses to delete a super-admin until they're demoted,
+              so this matches the server-side rule. */}
+          {!isSelf && !row.isSuperAdmin && (
             <DeleteUserButton
               row={row}
               disabled={pending}

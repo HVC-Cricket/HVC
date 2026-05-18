@@ -24,6 +24,18 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 28) — Super-admins can't be deleted: UI + server + DB trigger.** Three layers of defence so a super-admin can never be removed without an explicit demote step first:
+
+1. **UI:** `/admins` members table now hides the delete button on every super-admin row (in addition to the existing self-row hide). Only non-super-admin, non-self rows show the trash icon.
+2. **Server action `deleteUser`:** the previous "block when target would be the last super-admin" check is replaced with **"block if target is a super-admin at all"**. Returns "Demote them first" instead.
+3. **DB trigger `prevent_super_admin_delete`** (migration `20260518100000_*`): a `BEFORE DELETE` on `profiles` that raises whenever the row being deleted still has `is_super_admin = true`. Catches direct Management API / SQL editor / service-role deletes too — the cascade from `auth.users` → `profiles` fires this trigger, so `delete from auth.users` itself fails for super-admins. Applied to prod + dev.
+
+To legitimately delete a super-admin: demote via the /admins toggle (or `update profiles set is_super_admin = false where id = …`), then delete. The existing `prevent_self_promote` trigger still only blocks demotion when the caller isn't a super-admin, so a super-admin can demote a peer (which then unlocks the delete).
+
+Linked-account ↔ player behaviour is unchanged and was verified along the way: deleting a user keeps the player row (FK cascade through profiles sets `players.linked_user_id = null` via `on delete set null`), and deleting a player leaves the user untouched (no FK back to `players` from `profiles` / `auth.users`).
+
+4 files / +30 / −18 LOC + 1 new migration.
+
 **2026-05-18 (batch 27) — XI chip shows squad alongside XI count; /admins gets delete-user + mobile popover fix.** Three things together:
 
 1. **XISection count chip rewritten as a two-line block.** Top line is the XI selection (`5 / 6`, green when full); bottom line is squad size (`7 in squad`, muted). The old single-line chip "5 / 6" was confusing when the squad listed 7 rows because the chip and the visible row count didn't add up. Description copy refined too — "1 more to pick" → "1 more to pick from squad", and the full-XI case now appends "· N on the bench" when there are extras beyond `players_per_side`.
