@@ -24,6 +24,10 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 20) — `/admins` members table: live search by name or email.** Single input above the members list filters rows where `displayName` OR `email` contains the query (case-insensitive substring). Same search shell as `players-search-list.tsx` — flex-row with `Search` icon + clearable `X`, `useDeferredValue` keeps typing responsive once the membership list grows. Header chip shows `N of M` while a query is active, `M total` otherwise. Empty state reads "No members match …". Client-side only — every member row is already loaded, no need to round-trip the server.
+
+1 file / +66 / −6 LOC.
+
 **2026-05-18 (batch 19) — `/admins` v1: members + promote/demote + link/unlink + audit log + quick stats.** New super-admin-only landing page at `/admins` for ops self-service. Gated via `requireSuperAdmin` in the page itself; the drawer hides the nav link from non-super-admins (one extra single-row `profiles.is_super_admin` query in `site-nav.tsx` so the link only shows when relevant). Direct URL access still bounces non-super-admins via the redirect inside `requireSuperAdmin`.
 
 Sections shipped:

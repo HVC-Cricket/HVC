@@ -1,8 +1,15 @@
 "use client";
 
-import { Check, ChevronsUpDown, Loader2, UserRound, X } from "lucide-react";
+import {
+  Check,
+  ChevronsUpDown,
+  Loader2,
+  Search,
+  UserRound,
+  X,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useDeferredValue, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -69,21 +76,76 @@ export function MembersTable({
   rows: MemberRow[];
   playerOptions: PlayerOption[];
 }) {
+  const [query, setQuery] = useState("");
+  // useDeferredValue keeps the input responsive when the filtered set
+  // is large enough that re-rendering noticeably blocks typing.
+  const deferredQuery = useDeferredValue(query);
+
+  const filtered = useMemo(() => {
+    const q = deferredQuery.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (r) =>
+        r.displayName.toLowerCase().includes(q) ||
+        r.email.toLowerCase().includes(q),
+    );
+  }, [rows, deferredQuery]);
+
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Members</CardTitle>
+      <CardHeader className="space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <CardTitle className="text-base">Members</CardTitle>
+          <span className="text-[11px] tabular-nums text-muted-foreground">
+            {query
+              ? `${filtered.length} of ${rows.length}`
+              : `${rows.length} total`}
+          </span>
+        </div>
+        {/* Match the players-list search shell — flex row instead of
+            an absolutely-positioned icon so Tailwind v4's px-2.5 on
+            <Input> doesn't fight the icon position. */}
+        <label className="flex h-10 items-center gap-2 rounded-lg border border-input bg-transparent px-3 text-sm transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30">
+          <Search
+            className="size-4 shrink-0 text-muted-foreground"
+            aria-hidden
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name or email…"
+            aria-label="Search members"
+            className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              className="-mr-1 rounded-md p-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            >
+              <X className="size-4" />
+            </button>
+          )}
+        </label>
       </CardHeader>
       <CardContent className="p-0">
-        <ul className="divide-y divide-foreground/10">
-          {rows.map((row) => (
-            <MemberItem
-              key={row.userId}
-              row={row}
-              playerOptions={playerOptions}
-            />
-          ))}
-        </ul>
+        {filtered.length === 0 ? (
+          <p className="px-4 pb-6 pt-2 text-sm text-muted-foreground sm:px-6">
+            No members match &ldquo;{query}&rdquo;.
+          </p>
+        ) : (
+          <ul className="divide-y divide-foreground/10">
+            {filtered.map((row) => (
+              <MemberItem
+                key={row.userId}
+                row={row}
+                playerOptions={playerOptions}
+              />
+            ))}
+          </ul>
+        )}
       </CardContent>
     </Card>
   );
