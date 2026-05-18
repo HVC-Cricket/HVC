@@ -24,6 +24,18 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 29) — Promote/demote was silently no-op'ing — missing RLS policy.** Pavan flagged that hitting Promote on /admins toasted "promoted to super-admin" but the badge never flipped; same for Demote. Root cause: the only update policy on `profiles` was `profiles_update_own (auth.uid() = id)` — a super-admin trying to update another user's `is_super_admin` flag would have the UPDATE rejected by RLS, but PostgREST returns success with 0 rows affected so the action reported success.
+
+Two fixes:
+
+1. **Migration `20260518110000_super_admin_update_any_profile.sql`** adds a second update policy: `profiles_update_super` (using + with check on `is_super_admin(auth.uid())`). Existing `profiles_update_own` stays so regular users keep updating their own row. The `prevent_self_promote` trigger still blocks anyone-who-isn't-a-super-admin from flipping `is_super_admin` regardless of this policy.
+
+2. **`setSuperAdmin` now `.select("id")` after the UPDATE** and treats `data.length === 0` as an error ("Update didn't apply — RLS on profiles may be blocking the write."). Same defensive pattern should go into any other "user-scoped client UPDATE on a table with restrictive RLS" we add in the future. The /me phone-update bug from batch 17 was the same gotcha — silent 0-row-success surfaces in too many places.
+
+Applied to prod + dev.
+
+2 files / +24 / −3 LOC + 1 new migration.
+
 **2026-05-18 (batch 28) — Super-admins can't be deleted: UI + server + DB trigger.** Three layers of defence so a super-admin can never be removed without an explicit demote step first:
 
 1. **UI:** `/admins` members table now hides the delete button on every super-admin row (in addition to the existing self-row hide). Only non-super-admin, non-self rows show the trash icon.

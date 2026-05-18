@@ -41,11 +41,22 @@ export async function setSuperAdmin(
     }
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .update({ is_super_admin: value, updated_at: new Date().toISOString() })
-    .eq("id", userId);
+    .eq("id", userId)
+    .select("id");
   if (error) return { ok: false, error: error.message };
+  // PostgREST returns success with 0 rows when RLS rejects the
+  // UPDATE — that's how this whole feature shipped silently broken
+  // before the `profiles_update_super` policy landed. Fail loud
+  // here so any future RLS regression surfaces immediately.
+  if (!data || data.length === 0) {
+    return {
+      ok: false,
+      error: "Update didn't apply — RLS on profiles may be blocking the write.",
+    };
+  }
 
   revalidatePath("/admins");
   return { ok: true, data: null };
