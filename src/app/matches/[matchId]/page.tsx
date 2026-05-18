@@ -22,6 +22,7 @@ import {
   type MatchStatus,
 } from "@/lib/constants/match";
 import { formatEnumLabel, formatScheduledAt } from "@/lib/format";
+import { matchHasRecordedBalls } from "@/lib/match-balls";
 import {
   applyRulesOverride,
   findCategoryGaps,
@@ -106,6 +107,13 @@ export default async function MatchDetailPage(props: {
     : [false, false];
 
   const ms = match.status as MatchStatus;
+
+  // XI lock: once any non-voided ball is recorded, "Pick playing XIs"
+  // and the inline Add-player surfaces are frozen. Undoing every
+  // ball back to the start unlocks (voiding clears the gate). Cheap
+  // skip when the match is still scheduled — no balls possible.
+  const xiLocked =
+    ms !== "scheduled" ? await matchHasRecordedBalls(supabase, match.id) : false;
 
   // Promote the Score CTA to a full-width sticky card whenever the scorer
   // can act: scheduled (start), live (continue), or innings_break
@@ -306,6 +314,7 @@ export default async function MatchDetailPage(props: {
                     teamA={teamA}
                     teamB={teamB}
                     canManage={canManage}
+                    xiLocked={xiLocked}
                   />
                 </Suspense>
               ) : null
@@ -462,6 +471,7 @@ export default async function MatchDetailPage(props: {
                   teamA={teamA}
                   teamB={teamB}
                   canManage={canManage}
+                  xiLocked={xiLocked}
                 />
               </Suspense>
             )}

@@ -24,6 +24,20 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-19 (batch 34) — XI locks once scoring starts; unlocks again on a full undo.** Pavan flagged that "Edit XI" stayed clickable after the first ball — changing the XI mid-match would silently invalidate `match_players` references from already-recorded balls. Gate added across every entry point + server action.
+
+**Rule:** XI is locked iff the match has at least one non-voided ball. `recordBall` flips `is_voided=true` on undo (never deletes), so undoing every ball back to the start unlocks the form again — exactly the rollback path the user described.
+
+**New helper `src/lib/match-balls.ts → matchHasRecordedBalls(supabase, matchId)`.** Two-query check (innings ids → balls count) because `balls.match_id` doesn't exist directly.
+
+**Wired in:**
+- Server action `savePlayingXI` returns "Scoring has started — XI is locked. Undo every ball before editing." when the gate fires. Trust boundary stays on the server; UI is just a hint.
+- Match-page `XISection` takes `xiLocked` prop. Hides the "Pick playing XIs" button + the per-card "Add player" popover; replaces the button with a small "XI is locked — scoring has started" note. Match page passes `xiLocked` to both Squads-tab and pre-XI-section renders.
+- Score-page header link "Edit XI" hides when locked (computed cheaply off `state.allInnings` totals, which the `recompute_innings` trigger keeps in sync). "Match settings" link stays visible — rules can still be tweaked mid-match.
+- Pick XI page (single-team) + Pick XI tabs page each render a muted "XI locked" Card above the form and pass `locked` into the `PickXIForm` / `PickXITabs`, which disables the In / Sub checkboxes + the Save button.
+
+5 server pages + 3 client components + 1 new helper / +95 / −5 LOC.
+
 **2026-05-19 (batch 33) — Flexible Cat 1 / Cat 3 over scheduling + pre-flight gate + quick-access on score page.** The biggest slice landed since the cricheroes pagination fix. Replaces three hard-coded HVC-isms with a configurable rule set so tournaments / matches can skip Cat 1, skip Cat 3, skip both, or schedule them in any over.
 
 **Schema (migration `20260518130000_flexible_category_overs.sql`):**

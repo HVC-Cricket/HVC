@@ -40,11 +40,15 @@ export function PickXITabs({
   playersPerSide,
   teamA,
   teamB,
+  locked = false,
 }: {
   matchId: string;
   playersPerSide: number;
   teamA: TeamPickProps;
   teamB: TeamPickProps;
+  /** When true, scoring has begun — both forms are read-only and
+   *  Save is disabled. Server action re-checks the same gate. */
+  locked?: boolean;
 }) {
   const router = useRouter();
   const [active, setActive] = useState<"A" | "B">("A");
@@ -139,6 +143,7 @@ export function PickXITabs({
           rows={teamA.rows}
           saveLabel={teamBComplete ? "Save & done" : "Save & next team"}
           onSaveSuccess={onSaveA}
+          locked={locked}
         />
       </div>
       <div role="tabpanel" hidden={active !== "B"}>
@@ -149,6 +154,7 @@ export function PickXITabs({
           rows={teamB.rows}
           saveLabel={teamAComplete ? "Save & done" : "Save & next team"}
           onSaveSuccess={onSaveB}
+          locked={locked}
         />
       </div>
     </div>

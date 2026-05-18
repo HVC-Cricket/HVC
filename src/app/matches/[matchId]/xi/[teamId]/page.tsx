@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireTournamentAdmin } from "@/lib/auth";
+import { matchHasRecordedBalls } from "@/lib/match-balls";
 import { createClient } from "@/lib/supabase/server";
 
 import { PickXIForm } from "./pick-xi-form";
@@ -123,6 +124,8 @@ export default async function PickXIPage(props: {
     (existing ?? []).map((m) => [m.player_id, m]),
   );
 
+  const xiLocked = await matchHasRecordedBalls(supabase, match.id);
+
   const rosterRows = (roster ?? []).map((r) => {
     const p = playerById.get(r.player_id);
     const ex = existingByPlayer.get(r.player_id);
@@ -160,6 +163,21 @@ export default async function PickXIPage(props: {
             and the keeper is picked per-delivery on the scoreboard.
           </p>
         </div>
+
+        {xiLocked && (
+          <Card className="border-foreground/15 bg-muted/30">
+            <CardHeader>
+              <CardTitle className="text-base">XI locked</CardTitle>
+              <CardDescription>
+                Scoring has started for this match — the playing XI
+                can&apos;t change while balls are on the books.
+                If you really need to edit it, undo every ball back to
+                the start of the match first (the undo button on the
+                scoreboard re-opens this form once the innings clears).
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
 
         {rosterRows.length === 0 ? (
           <Card>
@@ -224,6 +242,7 @@ export default async function PickXIPage(props: {
                   teamId={team.id}
                   playersPerSide={match.players_per_side}
                   rows={rosterRows}
+                  locked={xiLocked}
                 />
               </CardContent>
             </Card>

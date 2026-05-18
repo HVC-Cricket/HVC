@@ -34,6 +34,10 @@ type Props = {
    * team's tab instead of leaving.
    */
   onSaveSuccess?: () => void;
+  /** When true, scoring has begun (at least one non-voided ball
+   *  exists) — the form is read-only and Save is disabled. Server
+   *  action re-checks the same gate. */
+  locked?: boolean;
 };
 
 export function PickXIForm({
@@ -43,6 +47,7 @@ export function PickXIForm({
   rows,
   saveLabel = "Save XI",
   onSaveSuccess,
+  locked = false,
 }: Props) {
   const router = useRouter();
   const [state, setState] = useState<Row[]>(rows);
@@ -129,6 +134,7 @@ export function PickXIForm({
                   ref={selectAllRef}
                   type="checkbox"
                   checked={allIncluded}
+                  disabled={locked}
                   onChange={(e) => toggleAll(e.target.checked)}
                   aria-label="Select all players"
                 />
@@ -146,6 +152,7 @@ export function PickXIForm({
                 <input
                   type="checkbox"
                   checked={r.included}
+                  disabled={locked}
                   onChange={(e) =>
                     update(r.player_id, {
                       included: e.target.checked,
@@ -171,7 +178,7 @@ export function PickXIForm({
                 <input
                   type="checkbox"
                   checked={r.is_substitute}
-                  disabled={!r.included}
+                  disabled={!r.included || locked}
                   onChange={(e) =>
                     update(r.player_id, { is_substitute: e.target.checked })
                   }
@@ -193,7 +200,11 @@ export function PickXIForm({
           {overFilled && " · over the limit (mark extras as sub)"}
           {underFilled && ` · need ${playersPerSide - includedRows.length} more`}
         </p>
-        <Button onClick={onSave} disabled={pending} className="w-full">
+        <Button
+          onClick={onSave}
+          disabled={pending || locked}
+          className="w-full"
+        >
           {pending ? "Saving…" : saveLabel}
         </Button>
       </div>

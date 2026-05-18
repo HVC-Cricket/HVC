@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { requireTournamentAdmin, requireUser } from "@/lib/auth";
 import { logMatchAuditEvent } from "@/lib/match-audit";
+import { matchHasRecordedBalls } from "@/lib/match-balls";
 import { createClient } from "@/lib/supabase/server";
 
 import type { ActionResult } from "@/app/tournaments/actions";
@@ -52,6 +53,19 @@ export async function savePlayingXI(
   }
 
   await requireTournamentAdmin(match.tournament_id);
+
+  // Scoring-started gate: once any non-voided ball is recorded for
+  // this match, the XI is locked — changing it would retroactively
+  // invalidate match_players references in balls / innings. Undoing
+  // every ball back to the start unlocks it again (voiding clears
+  // the flag).
+  if (await matchHasRecordedBalls(supabase, match.id)) {
+    return {
+      ok: false,
+      error:
+        "Scoring has started — XI is locked. Undo every ball before editing.",
+    };
+  }
 
   const captainCount = parsed.data.entries.filter((e) => e.is_captain).length;
   if (captainCount > 1) {

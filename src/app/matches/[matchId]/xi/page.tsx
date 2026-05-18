@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireTournamentAdmin } from "@/lib/auth";
+import { matchHasRecordedBalls } from "@/lib/match-balls";
 import { createClient } from "@/lib/supabase/server";
 
 import { PickXITabs } from "./pick-xi-tabs";
@@ -106,6 +107,7 @@ export default async function PickXICombinedPage(props: {
   const rowsB = buildRows(teamB.id);
 
   const hasAnyRoster = rowsA.length > 0 || rowsB.length > 0;
+  const xiLocked = await matchHasRecordedBalls(supabase, match.id);
 
   return (
     <main className="flex-1 p-4 sm:p-6">
@@ -124,6 +126,19 @@ export default async function PickXICombinedPage(props: {
             batting order is set live as each batter walks in.
           </p>
         </div>
+
+        {xiLocked && (
+          <Card className="border-foreground/15 bg-muted/30">
+            <CardHeader>
+              <CardTitle className="text-base">XI locked</CardTitle>
+              <CardDescription>
+                Scoring has started — the playing XI can&apos;t change
+                while balls are on the books. Undo every ball back to
+                the start of the match to re-open the form.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
 
         {!hasAnyRoster ? (
           <Card>
@@ -153,6 +168,7 @@ export default async function PickXICombinedPage(props: {
                   shortName: teamB.short_name,
                   rows: rowsB,
                 }}
+                locked={xiLocked}
               />
             </CardContent>
           </Card>

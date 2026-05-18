@@ -33,6 +33,7 @@ export async function XISection({
   teamA,
   teamB,
   canManage,
+  xiLocked = false,
 }: {
   matchId: string;
   tournamentId: string;
@@ -40,13 +41,23 @@ export async function XISection({
   teamA: Team;
   teamB: Team;
   canManage: boolean;
+  /** True when at least one non-voided ball is on the books — XI
+   *  becomes immutable. Hides the Pick XI / Add player controls so
+   *  the scorer doesn't try to change an XI that's already played.
+   *  Server `savePlayingXI` also rejects in this state. */
+  xiLocked?: boolean;
 }) {
   // Pre-compute "Add player" data for both teams when the viewer can
   // manage the team. Spectators don't need this, so we skip the
-  // fetches entirely for them.
-  const addCtx = canManage
-    ? await loadAddPlayerContext(tournamentId, [teamA.id, teamB.id])
-    : null;
+  // fetches entirely for them. Also skip when the XI is locked —
+  // adding squad members mid-match is fine in principle, but the
+  // "Add player" entry point used to do double duty as the inline
+  // XI fix-up path, and gating both behind one switch keeps the
+  // mental model simple: scoring started → no roster fiddling.
+  const addCtx =
+    canManage && !xiLocked
+      ? await loadAddPlayerContext(tournamentId, [teamA.id, teamB.id])
+      : null;
 
   return (
     <div className="space-y-3">
@@ -71,14 +82,22 @@ export async function XISection({
       {/* Single combined CTA — the per-team Pick XI buttons were a
           source of confusion (scorers would set one team and start a
           match with the other still empty). Funnel everyone through
-          the tabs flow which makes both teams' progress obvious. */}
-      {canManage && (
-        <div className="flex justify-end">
-          <Link href={`/matches/${matchId}/xi`} prefetch>
-            <Button size="sm">Pick playing XIs</Button>
-          </Link>
-        </div>
-      )}
+          the tabs flow which makes both teams' progress obvious.
+          Once scoring has started the XI is frozen — surface a
+          read-only "XI locked" note in place of the button. */}
+      {canManage &&
+        (xiLocked ? (
+          <p className="text-right text-[11px] text-muted-foreground">
+            XI is locked — scoring has started. Undo every ball to
+            re-open editing.
+          </p>
+        ) : (
+          <div className="flex justify-end">
+            <Link href={`/matches/${matchId}/xi`} prefetch>
+              <Button size="sm">Pick playing XIs</Button>
+            </Link>
+          </div>
+        ))}
     </div>
   );
 }

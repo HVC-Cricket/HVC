@@ -95,6 +95,18 @@ export default async function ScorePage(props: {
   const categoryGaps = findCategoryGaps(state.rules, teamSummaries);
   const categoryReady = categoryGaps.length === 0;
 
+  // XI is locked once any non-voided ball exists in any innings.
+  // `state.allInnings` has the aggregate totals (kept in sync by the
+  // recompute_innings trigger), so we can skip a balls round-trip
+  // here. Undo-all-balls drops these totals back to zero, which
+  // re-opens "Edit XI" — exactly the workflow the user described.
+  const xiLocked = (state.allInnings ?? []).some(
+    (i) =>
+      (i.total_legal_balls ?? 0) > 0 ||
+      (i.total_runs ?? 0) > 0 ||
+      (i.total_wickets ?? 0) > 0,
+  );
+
   return (
     <main className="flex-1 p-3">
       <div className="mx-auto max-w-3xl space-y-6">
@@ -124,12 +136,18 @@ export default async function ScorePage(props: {
                 from there. requireTournamentAdmin already gates this
                 whole page, so anyone seeing it can use the link. */}
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <Link
-                href={`/matches/${state.match.id}/xi`}
-                className="hover:underline hover:text-foreground"
-              >
-                Edit XI
-              </Link>
+              {/* "Edit XI" is hidden once any ball is recorded —
+                  changing the XI mid-match would invalidate
+                  match_players references in balls / innings. Undo
+                  every ball back to the start to re-open editing. */}
+              {!xiLocked && (
+                <Link
+                  href={`/matches/${state.match.id}/xi`}
+                  className="hover:underline hover:text-foreground"
+                >
+                  Edit XI
+                </Link>
+              )}
               <Link
                 href={`/matches/${state.match.id}/edit`}
                 className="hover:underline hover:text-foreground"
@@ -195,6 +213,7 @@ export default async function ScorePage(props: {
                   short_name: state.teamB.short_name,
                 }}
                 canManage
+                xiLocked={xiLocked}
               />
             </div>
           </div>
