@@ -5,6 +5,7 @@ import {
   ChevronsUpDown,
   Loader2,
   Search,
+  Trash2,
   UserRound,
   X,
 } from "lucide-react";
@@ -45,7 +46,7 @@ import {
 } from "@/components/ui/popover";
 import { cn, getInitials } from "@/lib/utils";
 
-import { setLinkedPlayer, setSuperAdmin } from "./actions";
+import { deleteUser, setLinkedPlayer, setSuperAdmin } from "./actions";
 
 export type MemberRow = {
   userId: string;
@@ -72,9 +73,13 @@ export type PlayerOption = {
 export function MembersTable({
   rows,
   playerOptions,
+  currentUserId,
 }: {
   rows: MemberRow[];
   playerOptions: PlayerOption[];
+  /** Id of the signed-in super-admin. The delete-user control on
+   *  that row gets hidden — we never allow self-delete from here. */
+  currentUserId: string;
 }) {
   const [query, setQuery] = useState("");
   // useDeferredValue keeps the input responsive when the filtered set
@@ -142,6 +147,7 @@ export function MembersTable({
                 key={row.userId}
                 row={row}
                 playerOptions={playerOptions}
+                isSelf={row.userId === currentUserId}
               />
             ))}
           </ul>
@@ -154,9 +160,11 @@ export function MembersTable({
 function MemberItem({
   row,
   playerOptions,
+  isSelf,
 }: {
   row: MemberRow;
   playerOptions: PlayerOption[];
+  isSelf: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -175,6 +183,18 @@ function MemberItem({
           ? `${row.displayName || row.email} demoted`
           : `${row.displayName || row.email} promoted to super-admin`,
       );
+      router.refresh();
+    });
+  };
+
+  const onDelete = () => {
+    startTransition(async () => {
+      const res = await deleteUser(row.userId);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
+      toast.success(`${row.displayName || row.email} deleted`);
       router.refresh();
     });
   };
@@ -210,13 +230,74 @@ function MemberItem({
           playerOptions={playerOptions}
           disabled={pending}
         />
-        <SuperAdminToggle
-          row={row}
-          disabled={pending}
-          onConfirm={onToggleSuper}
-        />
+        <div className="flex items-center gap-2">
+          <SuperAdminToggle
+            row={row}
+            disabled={pending}
+            onConfirm={onToggleSuper}
+          />
+          {!isSelf && (
+            <DeleteUserButton
+              row={row}
+              disabled={pending}
+              onConfirm={onDelete}
+            />
+          )}
+        </div>
       </div>
     </li>
+  );
+}
+
+function DeleteUserButton({
+  row,
+  disabled,
+  onConfirm,
+}: {
+  row: MemberRow;
+  disabled: boolean;
+  onConfirm: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          aria-label={`Delete ${row.displayName || row.email}`}
+          disabled={disabled}
+          className="size-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 className="size-3.5" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            Delete {row.displayName || row.email}?
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            This removes their auth account permanently. Any linked
+            player record stays but is unlinked from this user.
+            Match history is unaffected. This can&apos;t be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              setOpen(false);
+              onConfirm();
+            }}
+            className="bg-destructive text-white hover:bg-destructive/90"
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 
@@ -420,8 +501,17 @@ function PlayerLinkControl({
           )}
         />
         <PopoverContent
-          className="w-[260px] p-0"
-          align="end"
+          // Mobile-safe sizing: never wider than the viewport (minus
+          // a small inset) and capped vertically so the popup can
+          // always fit inside the visible area. `align="start"`
+          // anchors the popup's left edge to the trigger's left
+          // edge, which keeps it on-screen when the trigger sits on
+          // the right side of a narrow row — `align="end"` was
+          // causing the page to scroll up when base-ui's auto-focus
+          // moved focus to a CommandInput that had ended up
+          // off-screen above the trigger after a collision flip.
+          className="w-[min(280px,calc(100vw-1.5rem))] max-h-[60vh] overflow-hidden p-0"
+          align="start"
         >
           <Command
             // See add-roster-form.tsx for the same trick: cmdk dedupes

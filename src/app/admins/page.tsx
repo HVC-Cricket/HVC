@@ -15,7 +15,7 @@ import { MembersTable, type MemberRow, type PlayerOption } from "./members-table
 export const dynamic = "force-dynamic";
 
 export default async function AdminsPage() {
-  await requireSuperAdmin();
+  const ctx = await requireSuperAdmin();
 
   const adminClient = createAdminClient();
 
@@ -223,7 +223,11 @@ export default async function AdminsPage() {
           </CardContent>
         </Card>
 
-        <MembersTable rows={rows} playerOptions={playerOptions} />
+        <MembersTable
+          rows={rows}
+          playerOptions={playerOptions}
+          currentUserId={ctx.user.id}
+        />
 
         <AuditLogSection events={auditEvents} />
       </div>

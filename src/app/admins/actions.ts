@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireSuperAdmin } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 import type { ActionResult } from "@/app/tournaments/actions";
@@ -84,6 +85,68 @@ export async function setLinkedPlayer(
       .eq("id", playerId);
     if (setError) return { ok: false, error: setError.message };
   }
+
+  revalidatePath("/admins");
+  return { ok: true, data: null };
+}
+
+/**
+ * Permanently delete an auth user. Cascades through `profiles` (FK
+ * with `on delete cascade`), nulls out `players.linked_user_id`,
+ * and removes `tournament_admins` rows for the user. The actual
+ * deletion goes through the Supabase admin API because `auth.users`
+ * is in the protected `auth` schema and isn't writable via the
+ * user-scoped REST client.
+ *
+ * Safeguards:
+ *   - Caller must be super-admin (gate at the top + same gate is
+ *     enforced on the page route).
+ *   - Can't delete yourself — typically a footgun, and there's no
+ *     way to undo it from the app.
+ *   - Can't delete the last remaining super-admin — protects
+ *     against an org locking itself out.
+ *
+ * Match data (balls, innings, match_players) is untouched — those
+ * tables don't reference `auth.users` directly; they reference
+ * `players`, which keeps its `display_name` after the link is
+ * cleared.
+ */
+export async function deleteUser(
+  userId: string,
+): Promise<ActionResult<null>> {
+  const ctx = await requireSuperAdmin();
+  if (ctx.user.id === userId) {
+    return {
+      ok: false,
+      error: "You can't delete your own account from here.",
+    };
+  }
+
+  const supabase = await createClient();
+  // If the target is a super-admin, refuse if they're the last one
+  // — losing every super-admin means losing all access to /admins.
+  const { data: targetProfile } = await supabase
+    .from("profiles")
+    .select("is_super_admin")
+    .eq("id", userId)
+    .maybeSingle();
+  if (targetProfile?.is_super_admin) {
+    const { count } = await supabase
+      .from("profiles")
+      .select("id", { count: "exact", head: true })
+      .eq("is_super_admin", true)
+      .neq("id", userId);
+    if ((count ?? 0) === 0) {
+      return {
+        ok: false,
+        error: "Can't delete the last super-admin — promote someone else first.",
+      };
+    }
+  }
+
+  const adminClient = createAdminClient();
+  const { error } = await adminClient.auth.admin.deleteUser(userId);
+  if (error) return { ok: false, error: error.message };
 
   revalidatePath("/admins");
   return { ok: true, data: null };

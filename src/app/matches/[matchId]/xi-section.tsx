@@ -313,16 +313,26 @@ async function TeamXICard({
       <CardHeader>
         <div className="flex items-baseline justify-between gap-2">
           <CardTitle className="text-base capitalize">{team.name}</CardTitle>
-          <span
-            className={
-              "font-mono text-xs tabular-nums " +
-              (isComplete
-                ? "text-emerald-700 dark:text-emerald-300"
-                : "text-muted-foreground")
-            }
-          >
-            {playing.length} / {playersPerSide}
-          </span>
+          {/* Two-line chip — top: XI selection progress; bottom:
+              total squad size. The chip used to read "5 / 6" while
+              the card listed 7 squad members, which was visually
+              jarring. Showing both numbers makes it obvious that
+              the 6 is the per-side target while squad size can be
+              larger or smaller. */}
+          <div className="flex flex-col items-end font-mono text-xs tabular-nums leading-tight">
+            <span
+              className={
+                isComplete
+                  ? "text-emerald-700 dark:text-emerald-300"
+                  : "text-muted-foreground"
+              }
+            >
+              {playing.length} / {playersPerSide}
+            </span>
+            <span className="text-[10px] text-muted-foreground/70">
+              {squadSize} in squad
+            </span>
+          </div>
         </div>
         <CardDescription>
           {squadShortBy > 0
@@ -330,8 +340,10 @@ async function TeamXICard({
             : isEmpty
               ? "No XI selected yet."
               : isComplete
-                ? "Playing XI is set."
-                : `${playersPerSide - playing.length} more to pick.`}
+                ? squadSize > playersPerSide
+                  ? `Playing XI is set · ${squadSize - playersPerSide} on the bench.`
+                  : "Playing XI is set."
+                : `${playersPerSide - playing.length} more to pick from squad.`}
         </CardDescription>
         {canManage && addCtx && (
           <div className="pt-2">

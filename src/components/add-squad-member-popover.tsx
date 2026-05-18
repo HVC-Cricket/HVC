@@ -103,7 +103,10 @@ export function AddSquadMemberPopover({
           </Button>
         )}
       />
-      <PopoverContent className="w-[280px] p-0" align={align}>
+      <PopoverContent
+        className="w-[min(280px,calc(100vw-1.5rem))] p-0"
+        align={align}
+      >
         <Command
           // Search on display_name only. The cmdk value packs the id
           // for de-dupe (two players with the same display name); the
