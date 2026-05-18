@@ -24,6 +24,21 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 8) — Commentary narration + Live-panel over-strip order.** Two small UX adds.
+
+The auto-generated commentary feed (`/lib/commentary.ts`) now emits short narration lines between the ball-by-ball entries to give the feed a broadcast-style flow:
+
+- **Innings start.** First entry per innings names the opening striker, non-striker, and bowler instead of dropping straight into ball 0.1.
+- **Wicket replacement.** When the previous ball was a wicket and a new player ID appears in the dismissed slot on the next ball, emits *"X comes in to replace dismissed Y."*
+- **Manual swap.** Computes the engine's expected post-rotation pair from the previous ball (odd-run rotation, byes-on-no-ball running, end-of-over swap, Cat 1/3 stay-rule suppression — a small `expectedRotation` helper mirrors the engine's logic in pure-function form) and compares against the actual `cur.batter_id / cur.non_striker_id`. Mismatch with no players changed → emits *"Ends switched. X now on strike, Y at the non-striker end."* — picks up `⇄ Swap` button uses without the scorer typing anything.
+- **Mid-innings substitution.** Non-wicket batter change (scorer fixed a slot picker mid-innings, or an off-engine intervention) → emits *"X replaces Y at the crease."*
+
+Synthetic lines carry `isNarration: true` so the renderer in `commentary-feed.tsx` styles them as italic muted text with a subtle background tint — clearly distinct from the bold ball outcome lines. The feed's `match_players` query was extended to pull `category` alongside `display_name`; the builder needs categories for the stay-rule swap detector.
+
+Same session: the **Live tab's over-strip** was rendering "Prev over" above "This over" (`live-score-panel.tsx:551–566`). Pavan flagged this looks backwards — current-action should be on top, history below. Swapped the JSX order; the now-correct order is *This over → Prev over*.
+
+Commit `1ecf5c7` (commentary) + `5aab9ba` (over-strip); 3 files / +196 / −15 LOC.
+
 **2026-05-18 (batch 7) — Scoreboard: drop dismissed batters at the special-over boundary.** Follow-up to batches 5–6. Pavan reported that "after the 2nd over is completed, the player is already out is being automatically selected" — i.e., the non-striker slot in over 3 was still showing the dismissed Cat 3 player from over 2.
 
 Root cause: the engine's end-of-over flow swaps `striker_id ↔ non_striker_id` and then resets `special_over = null`; once that resets, `stillSpecialStay` in state.ts returns false for the dismissed special batter, so state.ts blanks the non-striker slot to null. The optimistic rotation modelled the swap but **not** the blanking — so for the 1–3 s recordBall roundtrip the local non-striker slot held the dismissed Cat 3 player, and the slot tile rendered them as the selected value.
