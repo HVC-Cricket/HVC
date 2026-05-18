@@ -181,27 +181,86 @@ async function TeamXICard({
   addCtx?: EligibleAdd | null;
 }) {
   const supabase = await createClient();
-  // Pull match_players for this match/team + a separate squad-size
-  // count from team_players. The squad size is needed so we can
-  // distinguish "user just hasn't picked the XI yet" from "the team
-  // squad is too small to field a full XI" — the second case has to
-  // be fixed on the team page, not on Pick XI.
-  const [xiRes, squadCountRes] = await Promise.all([
+  // Pull both match_players (per-match XI selection) AND team_players
+  // (the team's squad) so the card lists every squad member, not just
+  // the ones already picked into the XI. Without the squad join,
+  // adding a player to the squad via the inline "Add player" popover
+  // would silently fail to appear on the match page — because the
+  // new row lives in `team_players` only until Pick XI runs.
+  const [xiRes, squadRes] = await Promise.all([
     supabase
       .from("match_players")
-      .select("id, player_id, batting_order, is_captain, is_keeper, is_substitute")
+      .select(
+        "id, player_id, batting_order, is_captain, is_keeper, is_substitute",
+      )
       .eq("match_id", matchId)
       .eq("team_id", team.id)
       .order("batting_order", { ascending: true, nullsFirst: false }),
     supabase
       .from("team_players")
-      .select("player_id", { count: "exact", head: true })
-      .eq("team_id", team.id),
+      .select("player_id, created_at")
+      .eq("team_id", team.id)
+      .order("created_at", { ascending: true }),
   ]);
-  const xi = xiRes.data;
-  const squadSize = squadCountRes.count ?? 0;
+  const squadRows = squadRes.data ?? [];
+  const squadSize = squadRows.length;
+  const matchPlayerByPlayer = new Map(
+    (xiRes.data ?? []).map((m) => [m.player_id, m]),
+  );
 
-  const playerIds = (xi ?? []).map((m) => m.player_id);
+  // Union of squad + match_players. Most matches will have squad ⊇
+  // match_players, but if a player was removed from the squad after
+  // being added to the XI (rare) we still want to show their match
+  // row so the chip / breakdown stays honest.
+  type Row = {
+    key: string;
+    player_id: string;
+    batting_order: number | null;
+    is_captain: boolean;
+    is_keeper: boolean;
+    is_substitute: boolean;
+    /** True when the player has a match_players row. False means
+     *  they're on the squad but haven't been picked into the XI yet
+     *  — they default to "sub" in the playing-count math. */
+    in_match: boolean;
+  };
+  const rows: Row[] = squadRows.map((tp) => {
+    const mp = matchPlayerByPlayer.get(tp.player_id);
+    return {
+      key: mp?.id ?? `squad-${tp.player_id}`,
+      player_id: tp.player_id,
+      batting_order: mp?.batting_order ?? null,
+      is_captain: mp?.is_captain ?? false,
+      is_keeper: mp?.is_keeper ?? false,
+      is_substitute: mp?.is_substitute ?? true,
+      in_match: !!mp,
+    };
+  });
+  for (const mp of xiRes.data ?? []) {
+    if (rows.some((r) => r.player_id === mp.player_id)) continue;
+    rows.push({
+      key: mp.id,
+      player_id: mp.player_id,
+      batting_order: mp.batting_order,
+      is_captain: !!mp.is_captain,
+      is_keeper: !!mp.is_keeper,
+      is_substitute: !!mp.is_substitute,
+      in_match: true,
+    });
+  }
+  // Display order: XI (sorted by batting_order, nulls last) → in-match
+  // subs → not-yet-picked squad members. Keeps the chip-aligned "this
+  // is the playing XI" group at the top.
+  rows.sort((a, b) => {
+    const rank = (r: Row) => (r.in_match ? (r.is_substitute ? 1 : 0) : 2);
+    if (rank(a) !== rank(b)) return rank(a) - rank(b);
+    if (rank(a) === 0) {
+      return (a.batting_order ?? 99) - (b.batting_order ?? 99);
+    }
+    return 0;
+  });
+
+  const playerIds = rows.map((r) => r.player_id);
   type PlayerRow = {
     id: string;
     display_name: string;
@@ -232,9 +291,9 @@ async function TeamXICard({
     ]),
   );
 
-  const playing = (xi ?? []).filter((m) => !m.is_substitute);
+  const playing = rows.filter((r) => r.in_match && !r.is_substitute);
 
-  const isEmpty = (xi?.length ?? 0) === 0;
+  const isEmpty = rows.length === 0;
   const isComplete = playing.length === playersPerSide;
   // Squad-vs-side mismatch: the team can't field a full XI because
   // the squad is below players_per_side. Show a different copy here
@@ -247,7 +306,7 @@ async function TeamXICard({
   // on the spectator Squads tab the column is usually all-null and
   // would otherwise render a row of empty dashes that just indent the
   // names to no benefit.
-  const showOrderColumn = (xi ?? []).some((m) => m.batting_order != null);
+  const showOrderColumn = rows.some((r) => r.batting_order != null);
 
   return (
     <Card>
@@ -288,18 +347,18 @@ async function TeamXICard({
       <CardContent className="p-0">
         {!isEmpty && (
           <ul className="divide-y divide-foreground/10">
-            {(xi ?? []).map((m) => {
-              const p = byId.get(m.player_id);
+            {rows.map((r) => {
+              const p = byId.get(r.player_id);
               const name = p?.display_name ?? "(unknown)";
               return (
                 <li
-                  key={m.id}
+                  key={r.key}
                   className="flex items-center justify-between gap-3 px-6 py-2 text-sm"
                 >
                   <span className="flex items-center gap-3">
                     {showOrderColumn && (
                       <span className="inline-flex w-6 justify-end font-mono text-muted-foreground tabular-nums">
-                        {m.batting_order ?? ""}
+                        {r.batting_order ?? ""}
                       </span>
                     )}
                     {p?.resolved_photo ? (
@@ -315,17 +374,22 @@ async function TeamXICard({
                       </span>
                     )}
                     <span className="font-medium capitalize">{name}</span>
-                    {m.is_captain && (
+                    {r.is_captain && (
                       <span className="rounded bg-foreground/10 px-1 text-xs">
                         C
                       </span>
                     )}
-                    {m.is_keeper && (
+                    {r.is_keeper && (
                       <span className="rounded bg-foreground/10 px-1 text-xs">
                         WK
                       </span>
                     )}
-                    {m.is_substitute && (
+                    {!r.in_match && (
+                      <span className="rounded bg-foreground/10 px-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        not picked
+                      </span>
+                    )}
+                    {r.in_match && r.is_substitute && (
                       <span className="text-xs text-muted-foreground">
                         sub
                       </span>
