@@ -519,8 +519,23 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       toast.error(`Pick the ${list} first`);
       return;
     }
+    // Compute the "is this a Cat 1 / Cat 3 special over?" flag from the
+    // LOCAL striker's category. `state.active.is_special_over` lags by
+    // one ball on the first delivery of a fresh over — the auto-picked
+    // Cat-matching striker hasn't been recorded yet, so the server view
+    // still shows the previous over's striker. Mirrors the engine's
+    // `computeSpecialOverContext` (category-of-striker).
+    const localStrikerCat =
+      playersById.get(strikerId)?.category ?? null;
+    const localIsSpecialOver: "cat1" | "cat3" | null =
+      localStrikerCat === 1
+        ? "cat1"
+        : localStrikerCat === 3
+          ? "cat3"
+          : null;
+
     if (overCategory !== 2) {
-      const strikerCat = playersById.get(strikerId)?.category ?? null;
+      const strikerCat = localStrikerCat;
       const bowlerCat = playersById.get(bowlerId)?.category ?? null;
       if (strikerCat !== overCategory || bowlerCat !== overCategory) {
         toast.error(
@@ -565,7 +580,13 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       },
       active: {
         last_man_mode: state.active.last_man_mode,
-        is_special_over: state.active.is_special_over,
+        // Derive special-over from the LOCAL striker's category instead
+        // of `state.active.is_special_over`. The server-side value lags
+        // by one ball: on the first ball of a new over the auto-picked
+        // Cat 1 / Cat 3 striker hasn't been written yet, so the server
+        // still shows the previous striker's category and the stay
+        // rule misfires.
+        is_special_over: localIsSpecialOver,
         special_stay_rule:
           state.rules.categories?.cat_special_strike === "stay",
       },
@@ -583,7 +604,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
         (input as { player_out_id?: string | null }).player_out_id ??
         strikerId;
       const isSpecialStay =
-        state.active.is_special_over !== null &&
+        localIsSpecialOver !== null &&
         state.rules.categories?.cat_special_strike === "stay" &&
         dismissedId === strikerId;
       const willEnterLastMan =
@@ -971,10 +992,13 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 disabled:
                   (!strikerId && !nonStrikerId) ||
                   strikerId === nonStrikerId ||
-                  state.active.last_man_mode,
+                  state.active.last_man_mode ||
+                  overCategory !== 2,
                 title: state.active.last_man_mode
                   ? "Disabled — last man standing"
-                  : "Swap striker and non-striker",
+                  : overCategory !== 2
+                    ? `Disabled — Cat ${overCategory} striker must stay on strike`
+                    : "Swap striker and non-striker",
                 "aria-label": "Swap striker and non-striker",
               }}
             >
