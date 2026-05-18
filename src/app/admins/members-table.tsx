@@ -121,7 +121,11 @@ export function MembersTable({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by name or email…"
             aria-label="Search members"
-            className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+            // Hide WebKit/Chromium's native clear button on
+            // `type=search` so it doesn't overlap our custom X. Plus
+            // the IE-era reveal/clear pseudo-elements for good
+            // measure.
+            className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:appearance-none [&::-ms-clear]:hidden [&::-ms-reveal]:hidden"
           />
           {query && (
             <button

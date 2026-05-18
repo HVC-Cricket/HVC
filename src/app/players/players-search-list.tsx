@@ -50,7 +50,7 @@ export function PlayersSearchList({ rows }: { rows: PlayerRow[] }) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search players by name…"
           aria-label="Search players"
-          className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+          className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground [&::-webkit-search-cancel-button]:appearance-none [&::-ms-clear]:hidden [&::-ms-reveal]:hidden"
         />
         {query && (
           <button
