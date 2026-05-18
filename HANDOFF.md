@@ -24,6 +24,19 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 12) — Live panel: FOUR! / SIX! / WICKET! celebration overlay.** Pavan asked for a quick visual punch when a boundary or wicket lands — large centered text on the live tab for ~2 s, then fades.
+
+New client component `src/app/matches/[matchId]/ball-celebration.tsx`. Mounts inside `LiveScorePanel` alongside `LiveRefresh`, so the existing Supabase Realtime → `router.refresh()` loop already drives the re-render that the trigger detects. Receives `latestBall` (id, runs_off_bat, is_wicket, scored_at) as a prop.
+
+Triggering logic:
+- A ref tracks the last-seen `latestBall.id`; an effect fires only when the id flips to something new.
+- Recency gate: skip when `Date.now() - scored_at > 10_000 ms`. That filters out two known false positives — page mount (the latest ball can be minutes old) and undo (the latest reverts to an older delivery). A fresh tap has a server-side `scored_at` of roughly now, so the new ball clears the gate.
+- Decision: `is_wicket` → WICKET (red), `runs_off_bat === 4` → FOUR (sky), `runs_off_bat === 6` → SIX (violet). Anything else → no overlay.
+
+Rendering: `pointer-events-none fixed inset-0 z-50`, centered with flex, bold sans `text-7xl sm:text-9xl` + `drop-shadow`, animated in with `animate-in fade-in zoom-in-50 duration-300` (the same Tailwind utility set the AlertDialog component uses), `setTimeout(2000)` to clear. Only rendered when match status is `live` or `innings_break` so completed views don't carry the trigger; lives inside the Live tab so the `hidden` cascade on non-active tabs keeps the flash from leaking onto Scorecard / Squads / Info.
+
+Commit `13a0622`; 2 files / +108 / 0 LOC (new file).
+
 **2026-05-18 (batch 11) — Match page header: mobile layout polish.** Three related fixes after Pavan tested the match detail page on his phone.
 
 - **Team-vs-team title wrapping.** `Vijayanagara Royals vs Wodeyars The Kings` was breaking onto two lines because of `flex-wrap` + a fixed `text-base` font. Switched to `flex-nowrap` + `whitespace-nowrap`, and bound the font size to viewport width with `text-[clamp(0.8125rem,3.8vw,1.25rem)]` so the title scales smoothly with the device — common HVC team names fit on a single line at iPhone-SE widths while the cap matches the previous `text-xl` on sm+. The `vs` separator switched from `text-xs sm:text-sm` to `text-[0.7em]` so it stays proportional once the title font shrinks below 14px. The chevron icon got `shrink-0` so it doesn't get squeezed.
