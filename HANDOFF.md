@@ -58,6 +58,10 @@ Implementation notes:
 
 After the fix, a 6-player match with `last_man_standing = true` correctly ends at 6 wickets (5 + last man standing → 6th dismissal = all out).
 
+**Follow-up #6 (same day) — last-man-standing non-striker tile no longer mislabels itself as the dismissed batter.**
+
+In last-man mode the non-striker slot stays bound to the most-recently-dismissed batter's id (engine needs a body at that end for ball records), but the tile was rendering that batter's name + batting stats + a dropdown caret — so to a scorer it looked like Sandeep was at the crease when he was actually out. New `solo` prop on `SlotPicker`: when true, the tile renders an explicit "—" with a "Last man · solo" pill and a dashed border. No name, no stats, no caret. The internal `nonStrikerId` state is unchanged, so the ball-record payload is identical; only the rendering changes.
+
 **Follow-up #5 (same day) — recordBall regression: server engine still used pre-scalar-override rules.**
 
 The previous scalar-override fix layered `match.players_per_side` / `overs_per_innings` into a new `effectiveRules` local in `actions.ts:recordBall`, but only the per-ball category enforcement actually consumed it. `replayInnings`, `applyBall`, `advanceBowler`, and `validateBowlerRules` all still received the un-merged base `rules` — so the engine kept using the tournament's `players_per_side` for the wickets cap. Net effect: a 6-player match with `last_man_standing = true` would correctly enter last-man mode at the 5th dismissal (state derivation was already fixed) but the innings wouldn't end at the 6th wicket because the authoritative server path's engine still saw wicketsCap = 7.

@@ -1134,6 +1134,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
               hideLabel
               leadingIcon={<BatIcon dim />}
               disabled={state.active.last_man_mode}
+              solo={state.active.last_man_mode}
               value={nonStrikerId}
               options={battingXi}
               onChange={setNonStrikerId}
@@ -1696,6 +1697,7 @@ function SlotPicker({
   nameClassName,
   leadingIcon,
   inlineStats,
+  solo,
   disabled,
 }: {
   label: string;
@@ -1738,8 +1740,32 @@ function SlotPicker({
    *  greyed out and the dropdown won't open. Used by the non-striker
    *  tile in last-man-standing mode. */
   disabled?: boolean;
+  /** Last-man-standing mode for the non-striker tile. The slot's
+   *  `value` still points at a dismissed batter (the engine needs a
+   *  body at the non-striker end for ball records), but rendering the
+   *  dismissed player's name + batting stats made it look like they
+   *  were live at the crease. When `solo` is true we replace the
+   *  tile content with an explicit "Last man — solo" placeholder.
+   */
+  solo?: boolean;
 }) {
   const selected = options.find((p) => p.id === value);
+  if (solo) {
+    return (
+      <div
+        aria-label={label}
+        className="block w-full rounded-md border border-dashed border-foreground/15 bg-muted/10 px-3 py-2 text-left opacity-70"
+      >
+        <div className="flex items-center gap-1.5 font-medium">
+          {leadingIcon}
+          <span className="truncate text-muted-foreground">—</span>
+          <span className="ml-auto rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-300">
+            Last man · solo
+          </span>
+        </div>
+      </div>
+    );
+  }
   return (
     <Select
       value={value || undefined}
