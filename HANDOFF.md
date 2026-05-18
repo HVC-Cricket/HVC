@@ -24,6 +24,20 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 7) — Scoreboard: drop dismissed batters at the special-over boundary.** Follow-up to batches 5–6. Pavan reported that "after the 2nd over is completed, the player is already out is being automatically selected" — i.e., the non-striker slot in over 3 was still showing the dismissed Cat 3 player from over 2.
+
+Root cause: the engine's end-of-over flow swaps `striker_id ↔ non_striker_id` and then resets `special_over = null`; once that resets, `stillSpecialStay` in state.ts returns false for the dismissed special batter, so state.ts blanks the non-striker slot to null. The optimistic rotation modelled the swap but **not** the blanking — so for the 1–3 s recordBall roundtrip the local non-striker slot held the dismissed Cat 3 player, and the slot tile rendered them as the selected value.
+
+Fix is in two layers:
+
+1. `applyOptimisticRotation` now takes `dismissed_ids: string[]` on `ActiveState` and, at end-of-over in a special over, clears any slot whose ID is in `dismissed_ids` (with this ball's wicket added to the set, since the server's list updates only after the ball is recorded). Catches both sub-cases — wicket landed on the 6th ball itself, OR a prior ball dismissed the special batter and the stay rule held them at the crease for the remaining balls. The scoreboard caller passes `state.active.dismissed_ids` straight through.
+
+2. The balls-length sync's reconcile helper, added earlier in the day, is the backstop: `reconcile(serverValue, current)` returns `serverValue` when non-null; clears to `""` when `serverValue` is null AND `current` is in `dismissed_ids`; otherwise preserves `current` (covers an in-flight wicket-prompt pick that hasn't been confirmed yet). Applied on both the boundary and non-boundary sync paths so a mid-over dismissed slot gets the same treatment.
+
+Net: after over 2 with a Cat 3 dismissal under the stay rule, the non-striker slot in over 3 is empty immediately on the 6th-ball tap — no flash of the dismissed player, and no need to wait for server reconciliation.
+
+Commit `f340565`; 2 files / +65 / −12 LOC.
+
 **2026-05-18 (batch 6) — Scoreboard: derive special-over locally + lock Swap in Cat 1/3 overs.** Two follow-ups while testing batch 5.
 
 Pavan flagged that the wicket-replacement dialog still opened (and the striker slot still flashed empty) on the very first ball of over 2 when a Cat 3 striker was dismissed — exactly the case batch 5's stay-rule suppression was meant to cover. Root cause: `state.active.is_special_over` is derived server-side from the LAST RECORDED ball's striker. On the first delivery of a fresh over, the auto-picked Cat 1 / Cat 3 striker has only been written to local state (`setStrikerId(candidate.id)` from the Cat-matching auto-pick effect) — the server still shows the previous over's striker, so `state.active.is_special_over` is `null` or carries the wrong cat. Subsequent deliveries reconcile fine, but the first wicket of a new special over slipped through the stay-rule gate.
