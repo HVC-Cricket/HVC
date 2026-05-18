@@ -12,6 +12,15 @@ import { ArrowLeftRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/confirm-button";
 import { BallIcon, BatIcon } from "@/components/cricket-icons";
@@ -270,14 +279,14 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   // is the unambiguous signal — between balls, the scorer's manual
   // picks are preserved.
   //
-  // At an over boundary the server already nulls `bowler_id`. HVC
-  // convention varies by the new over's category default:
-  //   - Cat 1 / Cat 3 over (over 1 / 2): clear striker + bowler so the
-  //     scorer picks Cat-matching players; keep non-striker (who was
+  // At an over boundary the server already nulls `bowler_id`, and the
+  // consecutive-over rule forces a different bowler — so the bowler
+  // slot always clears. Batters carry over from the previous over:
+  //   - Cat 1 / Cat 3 over (over 1 / 2): clear striker so the auto-pick
+  //     effect fills a Cat-matching candidate; keep non-striker (who was
   //     batting last over and is now at non-strike post-rotation).
-  //   - Cat 2 over (over 3+) or super over: clear all three slots —
-  //     "any" category, no rule guiding the auto-pick, scorer chooses
-  //     both ends fresh.
+  //   - Cat 2 over (over 3+) or super over: keep BOTH batters — no
+  //     category rule, so there's no reason to wipe the scorer's picks.
   // `state.balls.length > 0` rules out the initial-mount case where
   // `bowler_id` is null because no ball has been bowled yet.
   const ballsLengthSyncRef = useRef(state.balls.length);
@@ -290,13 +299,19 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       const newOverCategory = isSuperOver
         ? 2
         : defaultOverCategory(state.active.over_number);
-      setStrikerId("");
-      setBowlerId("");
-      // Cat 2 (or super over) = clear non-striker too; otherwise keep.
+      // Bowler: clear only if the slot still holds the bowler who just
+      // bowled the over that ended. If the scorer has already picked a
+      // new bowler — via the over-complete prompt's instant dialog, or
+      // directly on the slot tile — preserve their choice. Without this
+      // guard the sync would overwrite an optimistic pick once the
+      // server roundtrip lands.
+      const justBowled = state.balls[state.balls.length - 1]?.bowler_id;
+      setBowlerId((current) => (current === justBowled ? "" : current));
+      setNonStrikerId(state.active.non_striker_id ?? "");
       if (newOverCategory === 2) {
-        setNonStrikerId("");
+        setStrikerId(state.active.striker_id ?? "");
       } else {
-        setNonStrikerId(state.active.non_striker_id ?? "");
+        setStrikerId("");
       }
     } else {
       setStrikerId(state.active.striker_id ?? "");
@@ -321,6 +336,45 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       isSuperOver ? 2 : defaultOverCategory(state.active.over_number),
     );
   }, [state.active.over_number, isSuperOver]);
+
+  // Over-completed prompt. Two triggers:
+  //   1. Optimistic — fired inside `submit` the instant the scorer taps
+  //      the 6th legal ball, so the dialog appears with zero perceived
+  //      latency (no waiting for the recordBall roundtrip).
+  //   2. Server fallback — when `state.active.over_number` ticks up from
+  //      somewhere else (collaborative scoring, page reload mid-over).
+  // The optimistic path advances `completedOverRef` to suppress the
+  // server-fallback effect from re-opening the same dialog after dismissal.
+  type OverCompletePrompt = {
+    completedOver: number;
+    nextOverCategory: 1 | 2 | 3;
+    previousBowlerId: string;
+  };
+  const [overCompletePrompt, setOverCompletePrompt] =
+    useState<OverCompletePrompt | null>(null);
+  const completedOverRef = useRef(state.active.over_number);
+  useEffect(() => {
+    const prev = completedOverRef.current;
+    const cur = state.active.over_number;
+    if (cur === prev) return;
+    completedOverRef.current = cur;
+    if (cur > prev && !isComplete) {
+      const lastBall = state.balls[state.balls.length - 1];
+      setOverCompletePrompt({
+        completedOver: cur - 1,
+        nextOverCategory: isSuperOver ? 2 : defaultOverCategory(cur),
+        previousBowlerId: lastBall?.bowler_id ?? "",
+      });
+    }
+  }, [state.active.over_number, isComplete, isSuperOver, state.balls]);
+
+  // If the innings completes while the prompt is open (e.g. the 6th ball
+  // was the final wicket), close it — no new bowler is needed.
+  useEffect(() => {
+    if (isComplete && overCompletePrompt !== null) {
+      setOverCompletePrompt(null);
+    }
+  }, [isComplete, overCompletePrompt]);
 
   const battingXi = state.xi[innings.batting_team_id] ?? [];
   const bowlingXi = state.xi[innings.bowling_team_id] ?? [];
@@ -488,6 +542,22 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     setStrikerId(next.strikerId);
     setNonStrikerId(next.nonStrikerId);
     setBowlerId(next.bowlerId);
+    // Optimistic over-complete prompt — fire here so the scorer sees the
+    // "pick a new bowler" dialog the instant they tap the 6th ball, not
+    // after the recordBall roundtrip. Advance `completedOverRef` so the
+    // server-fallback effect doesn't re-open the same dialog once
+    // `state.active.over_number` catches up.
+    if (next.endOfOver && !isComplete) {
+      const completedOver = state.active.over_number;
+      setOverCompletePrompt({
+        completedOver,
+        nextOverCategory: isSuperOver
+          ? 2
+          : defaultOverCategory(completedOver + 1),
+        previousBowlerId: bowlerId,
+      });
+      completedOverRef.current = completedOver + 1;
+    }
     void enqueue("recordBall", input);
   };
 
@@ -1251,6 +1321,66 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog
+        open={overCompletePrompt !== null}
+        onOpenChange={(open) => {
+          if (!open) setOverCompletePrompt(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Over {overCompletePrompt?.completedOver} complete
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Pick the next over&apos;s bowler. The bowler who just
+              finished can&apos;t bowl again this over.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {overCompletePrompt && (
+            <Select
+              value={bowlerId || undefined}
+              onValueChange={setBowlerId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose bowler…" />
+              </SelectTrigger>
+              <SelectContent>
+                {bowlingXiWithOvers.map((p) => {
+                  const catMismatch =
+                    overCompletePrompt.nextOverCategory !== 2 &&
+                    p.category !== overCompletePrompt.nextOverCategory;
+                  const isPrevious =
+                    p.id === overCompletePrompt.previousBowlerId;
+                  const disabled = catMismatch || isPrevious;
+                  const suffix = isPrevious
+                    ? " — just bowled"
+                    : catMismatch
+                      ? ` — Cat ${p.category ?? "?"}, need Cat ${overCompletePrompt.nextOverCategory}`
+                      : p.meta
+                        ? ` ${p.meta}`
+                        : "";
+                  return (
+                    <SelectItem key={p.id} value={p.id} disabled={disabled}>
+                      {p.display_name}
+                      {suffix}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => setOverCompletePrompt(null)}
+              disabled={!bowlerId}
+            >
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
