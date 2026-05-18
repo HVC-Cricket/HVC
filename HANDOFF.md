@@ -35,6 +35,8 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 5 files / +400 / 0 LOC.
 
+**Follow-up (same day):** orphan list now shows a 32px thumbnail next to each path (loaded straight from the bucket's `/storage/v1/object/public/<bucket>/<path>` URL — all four buckets are public). Thumbnail doubles as a link that opens the file in a new tab so the admin can eyeball "is this safe to delete?" before clicking the big red button. Lazy-loaded so a 200-orphan list doesn't fetch every image on tab open. Single file touched.
+
 **2026-05-19 (batch 40) — `/admins`: tournament push broadcast.** New **Broadcast** tab on `/admins`. Pick a tournament, enter title + body, hit Send — every device subscribed to any match in that tournament receives one push (de-duplicated by endpoint, so a user subscribed to 5 matches doesn't get 5 copies).
 
 **Plumbing:**

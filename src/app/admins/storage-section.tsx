@@ -135,9 +135,24 @@ function OrphanList({ report }: { report: BucketReport }) {
         <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
           Show orphan paths ({report.orphans.length})
         </summary>
-        <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-md border border-foreground/10 bg-background p-2 font-mono text-[10px]">
+        <ul className="mt-2 max-h-60 space-y-1 overflow-y-auto rounded-md border border-foreground/10 bg-background p-2 font-mono text-[10px]">
           {report.orphans.map((o) => (
-            <li key={o.path} className="flex items-baseline gap-2">
+            <li key={o.path} className="flex items-center gap-2">
+              <a
+                href={publicUrl(report.bucket, o.path)}
+                target="_blank"
+                rel="noreferrer"
+                className="block size-8 shrink-0 overflow-hidden rounded border border-foreground/10 bg-muted/40"
+                title="Open file in new tab"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={publicUrl(report.bucket, o.path)}
+                  alt=""
+                  loading="lazy"
+                  className="size-full object-cover"
+                />
+              </a>
               <span className="truncate">{o.path}</span>
               <span className="ml-auto shrink-0 text-muted-foreground">
                 {formatBytes(o.size)}
@@ -189,6 +204,11 @@ function OrphanList({ report }: { report: BucketReport }) {
       </AlertDialog>
     </>
   );
+}
+
+function publicUrl(bucket: string, path: string): string {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  return `${base}/storage/v1/object/public/${bucket}/${path}`;
 }
 
 function formatBytes(bytes: number): string {
