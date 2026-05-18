@@ -114,7 +114,10 @@ export default async function MatchDetailPage(props: {
     <main className="flex-1 p-4 sm:p-6">
       <div
         className={
-          "mx-auto max-w-3xl space-y-6 " +
+          // Tight vertical rhythm on mobile (header → meta row → tab
+          // strip stack with minimal gap), restored to the original
+          // generous gap on tablets/desktop where there's more room.
+          "mx-auto max-w-3xl space-y-2 sm:space-y-6 " +
           // Reserve room at the bottom of the scrollable content so the
           // sticky CTA bar doesn't sit on top of the last card.
           (showScoringBar ? "pb-24 sm:pb-28" : "")
@@ -123,41 +126,49 @@ export default async function MatchDetailPage(props: {
         <Link
           href={`/tournaments/${tournament.slug}`}
           prefetch
-          className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1 text-base font-semibold capitalize leading-tight text-foreground transition hover:opacity-80 sm:text-xl"
+          // Single-line header that scales the font down on narrow
+          // phones so common HVC team names ("Vijayanagara Royals vs
+          // Wodeyars The Kings") stay on one row. `clamp(min, vw,
+          // max)` ties the size to viewport width, capped at the
+          // existing desktop size; `whitespace-nowrap` + `flex-nowrap`
+          // prevent the spans from wrapping.
+          className="flex flex-nowrap items-baseline gap-x-2 whitespace-nowrap font-semibold capitalize leading-tight text-foreground transition hover:opacity-80 text-[clamp(0.8125rem,3.8vw,1.25rem)]"
         >
-          <ChevronLeft className="size-4 self-center text-muted-foreground sm:size-5" />
+          <ChevronLeft className="size-4 shrink-0 self-center text-muted-foreground sm:size-5" />
           <span>{teamA?.name ?? "?"}</span>
-          <span className="text-xs font-normal text-muted-foreground sm:text-sm">
+          <span className="font-normal text-muted-foreground text-[0.7em]">
             vs
           </span>
           <span>{teamB?.name ?? "?"}</span>
         </Link>
 
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
-              <span>Match {match.match_number}</span>
-              <span aria-hidden>·</span>
-              <span className="capitalize">
-                {formatEnumLabel(match.stage)}
-              </span>
-              <span
-                className={
-                  "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium " +
-                  MATCH_STATUS_CLASSES[ms]
-                }
-              >
-                {ms === "live" && (
-                  <span className="relative flex size-1.5">
-                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-                    <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
-                  </span>
-                )}
-                {MATCH_STATUS_LABEL[ms]}
-              </span>
-            </div>
+        {/* Match meta on the left, action buttons on the right, single
+            row at every breakpoint. `flex-nowrap` keeps them aligned;
+            the left block carries `min-w-0` so the meta row inside
+            gives up space gracefully if the viewport is very narrow. */}
+        <div className="flex flex-nowrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs uppercase tracking-wide text-muted-foreground">
+            <span>Match {match.match_number}</span>
+            <span aria-hidden>·</span>
+            <span className="capitalize">
+              {formatEnumLabel(match.stage)}
+            </span>
+            <span
+              className={
+                "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium " +
+                MATCH_STATUS_CLASSES[ms]
+              }
+            >
+              {ms === "live" && (
+                <span className="relative flex size-1.5">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                  <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+                </span>
+              )}
+              {MATCH_STATUS_LABEL[ms]}
+            </span>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1">
             {(ms === "live" || ms === "innings_break") && (
               <NotifyButton matchId={match.id} />
             )}
