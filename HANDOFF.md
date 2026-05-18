@@ -39,6 +39,17 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-19 (batch 42) — Highlight reel generator (PNG via `next/og`).** New route `/api/og/match/<matchId>` streams a 1200×630 PNG summary of a match: tournament + match number header, both team scores with the winner highlighted, result pill, and a 3-card stat strip (top batter, top bowler, match boundaries/wickets). Computed at request time from `balls` (reusing `computeBowlerStats` from `src/lib/scoring/stats.ts` so wicket-credit rules stay in one place) with a 2-minute `cache-control` so subsequent fetches don't re-walk the table.
+
+Admin entry point: a new "Highlight cards" card on the **Matches** tab listing the 10 most recently completed matches with a "Highlight ↗" button that opens the PNG in a new tab. Open the URL in WhatsApp / Twitter and the OG image tags will give it a native link preview.
+
+Implementation notes:
+- ImageResponse (satori under the hood) only supports flexbox + a CSS subset — no `display: grid`, no Tailwind classes. Everything is inline styled, every parent with multiple children sets `display: flex` explicitly.
+- Matches with no `balls` rows (e.g. CricHeroes-imported historical seasons) skip the stat strip and render a "Ball-by-ball stats not available" notice instead of crashing.
+- Result line falls back through `match.win_margin` → "tie" → "no_result" → "Result pending" so we always render something coherent.
+
+3 files / +470 / 0 LOC.
+
 **2026-05-19 (batch 40) — `/admins`: tournament push broadcast.** New **Broadcast** tab on `/admins`. Pick a tournament, enter title + body, hit Send — every device subscribed to any match in that tournament receives one push (de-duplicated by endpoint, so a user subscribed to 5 matches doesn't get 5 copies).
 
 **Plumbing:**
