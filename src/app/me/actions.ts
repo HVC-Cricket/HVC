@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { PHONE_ALLOWED_RE } from "@/lib/phone";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const battingStyles = ["right_hand", "left_hand"] as const;
@@ -24,11 +26,16 @@ const schema = z.object({
     .url("Avatar URL must be a valid URL")
     .optional()
     .or(z.literal("")),
-  // Optional player-row fields. Only honored when the caller is a
-  // super-admin and has a linked player row — otherwise silently
-  // ignored. Form layer guards visibility; server still verifies.
+  // Optional player-row fields. Phone is honored for any linked user
+  // (it's their own contact info). Category / batting / bowling are
+  // additionally gated server-side on is_super_admin. Form layer hides
+  // the admin fields but the server still verifies.
   category: z.enum(["", "1", "2", "3"]).optional(),
-  phone: z.string().optional().or(z.literal("")),
+  phone: z
+    .string()
+    .regex(PHONE_ALLOWED_RE, "Phone must contain only digits and + - ( ) spaces")
+    .optional()
+    .or(z.literal("")),
   batting_style: z.enum(["", ...battingStyles]).optional(),
   bowling_style: z.enum(["", ...bowlingStyles]).optional(),
 });
@@ -117,8 +124,19 @@ export async function updateProfile(input: {
       // Only fire the UPDATE if we actually have something to write —
       // non-super-admin with no `phone` in the payload shouldn't
       // pointlessly hit the database.
+      //
+      // Use the admin client here, NOT the user-scoped one. `players`
+      // has an RLS policy (`players_update_admin`) that only permits
+      // super-admin / organizer writes, so a regular linked user
+      // updating their own phone would silently no-op (PostgREST
+      // returns success with 0 rows affected). The column whitelist
+      // above is the trust boundary: we've already confirmed
+      // `linkedPlayerId` belongs to the authenticated user
+      // (`linked_user_id = user.id`) and limited which columns are
+      // writable, so service-role here doesn't expand surface area.
       if (Object.keys(playerUpdate).length > 0) {
-        const { error: playerError } = await supabase
+        const adminClient = createAdminClient();
+        const { error: playerError } = await adminClient
           .from("players")
           .update(playerUpdate)
           .eq("id", linkedPlayerId);

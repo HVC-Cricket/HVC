@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { PHONE_ALLOWED_RE, stripPhoneInput } from "@/lib/phone";
 
 import { createPlayer } from "../actions";
 
@@ -32,7 +33,11 @@ const schema = z.object({
   category: z.enum(["1", "2", "3"], {
     errorMap: () => ({ message: "Pick a category" }),
   }),
-  phone: z.string().optional().or(z.literal("")),
+  phone: z
+    .string()
+    .regex(PHONE_ALLOWED_RE, "Digits, +, -, spaces, parens only")
+    .optional()
+    .or(z.literal("")),
   batting_style: z.enum(["", "right_hand", "left_hand"]).optional(),
   bowling_style: z
     .enum([
@@ -148,7 +153,14 @@ export function NewPlayerForm({
             <FormItem>
               <FormLabel>Phone</FormLabel>
               <FormControl>
-                <Input type="tel" {...field} />
+                <Input
+                  type="tel"
+                  inputMode="tel"
+                  {...field}
+                  onChange={(e) =>
+                    field.onChange(stripPhoneInput(e.target.value))
+                  }
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

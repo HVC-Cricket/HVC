@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireOrganizerOrSuperAdmin, requireSuperAdmin } from "@/lib/auth";
+import { PHONE_ALLOWED_RE } from "@/lib/phone";
 import { createClient } from "@/lib/supabase/server";
 
 import type { ActionResult } from "@/app/tournaments/actions";
@@ -31,10 +32,16 @@ const emailField = z
     { message: "Enter a valid email" },
   );
 
+const phoneField = z
+  .string()
+  .regex(PHONE_ALLOWED_RE, "Digits, +, -, spaces, parens only")
+  .optional()
+  .or(z.literal(""));
+
 const createPlayerSchema = z.object({
   display_name: z.string().min(2, "Name must be at least 2 characters"),
   category: z.coerce.number().int().min(1).max(3),
-  phone: z.string().optional().or(z.literal("")),
+  phone: phoneField,
   batting_style: z.enum(["", ...battingStyles]).optional(),
   bowling_style: z.enum(["", ...bowlingStyles]).optional(),
   linked_email: emailField,
@@ -112,7 +119,7 @@ const updatePlayerSchema = z.object({
   playerId: z.string().uuid(),
   display_name: z.string().min(2),
   category: z.coerce.number().int().min(1).max(3),
-  phone: z.string().optional().or(z.literal("")),
+  phone: phoneField,
   batting_style: z.enum(["", ...battingStyles]).optional(),
   bowling_style: z.enum(["", ...bowlingStyles]).optional(),
   linked_email: emailField,

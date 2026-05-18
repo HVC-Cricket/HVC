@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { LogoUploader } from "@/components/logo-uploader";
 import { Button } from "@/components/ui/button";
+import { PHONE_ALLOWED_RE, stripPhoneInput } from "@/lib/phone";
 import {
   Form,
   FormControl,
@@ -48,7 +49,10 @@ const schema = z.object({
     .optional()
     .or(z.literal("")),
   category: z.enum(["", "1", "2", "3"]).optional(),
-  phone: z.string().optional(),
+  phone: z
+    .string()
+    .regex(PHONE_ALLOWED_RE, "Digits, +, -, spaces, parens only")
+    .optional(),
   batting_style: z.enum(["", ...battingStyles]).optional(),
   bowling_style: z.enum(["", ...bowlingStyles]).optional(),
 });
@@ -210,7 +214,14 @@ export function EditProfileForm({
                 <FormItem>
                   <FormLabel>Phone</FormLabel>
                   <FormControl>
-                    <Input type="tel" {...field} />
+                    <Input
+                      type="tel"
+                      inputMode="tel"
+                      {...field}
+                      onChange={(e) =>
+                        field.onChange(stripPhoneInput(e.target.value))
+                      }
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
