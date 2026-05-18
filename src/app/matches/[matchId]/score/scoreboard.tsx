@@ -40,7 +40,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { type ScoreTask } from "@/lib/offline-queue";
-import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
+import { categoryForOver, computeBatterStats, computeBowlerStats } from "@/lib/scoring";
 
 import { recordBall, voidLastBall, voidLastN } from "./actions";
 import { applyOptimisticRotation } from "./optimistic-rotation";
@@ -116,11 +116,11 @@ function makePendingUndo(b: {
   };
 }
 
-function defaultOverCategory(overNumber: number): 1 | 2 | 3 {
-  if (overNumber === 1) return 1;
-  if (overNumber === 2) return 3;
-  return 2;
-}
+// `defaultOverCategory` now lives in `@/lib/scoring/rules` as
+// `categoryForOver(rules, overNumber)` — keeps the per-over Category
+// dropdown driven off the rule set (tournament defaults + match
+// overrides) instead of the old hard-coded over 1 = Cat 1 /
+// over 2 = Cat 3 / rest = Cat 2 mapping.
 
 export function Scoreboard({ state }: { state: ScoreboardState }) {
   const innings = state.innings!;
@@ -298,7 +298,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     if (atOverBoundary) {
       const newOverCategory = isSuperOver
         ? 2
-        : defaultOverCategory(state.active.over_number);
+        : categoryForOver(state.rules, state.active.over_number);
       // Bowler: clear only if the slot still holds the bowler who just
       // bowled the over that ended. If the scorer has already picked a
       // new bowler — via the over-complete prompt's instant dialog, or
@@ -370,16 +370,38 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   // re-default on the next over boundary. Cat 2 = open (no filter).
   // Super overs (innings 3+) have no category rule — force Cat 2.
   const [overCategory, setOverCategory] = useState<1 | 2 | 3>(
-    isSuperOver ? 2 : defaultOverCategory(state.active.over_number),
+    isSuperOver ? 2 : categoryForOver(state.rules, state.active.over_number),
   );
   const lastOverRef = useRef(state.active.over_number);
   useEffect(() => {
     if (state.active.over_number === lastOverRef.current) return;
     lastOverRef.current = state.active.over_number;
     setOverCategory(
-      isSuperOver ? 2 : defaultOverCategory(state.active.over_number),
+      isSuperOver
+        ? 2
+        : categoryForOver(state.rules, state.active.over_number),
     );
-  }, [state.active.over_number, isSuperOver]);
+  }, [state.active.over_number, isSuperOver, state.rules]);
+
+  // Which categories the per-over dropdown is allowed to offer. Cat 2
+  // is always available ("open"). Cat 1 / Cat 3 only when the
+  // effective match rules schedule them somewhere — a match that
+  // opted out of Cat 1 (cat1_overs = []) shouldn't be able to
+  // enable Cat 1 ad-hoc from the dropdown. Match settings = law.
+  const allowedCategories = useMemo(() => {
+    const set = new Set<1 | 2 | 3>([2]);
+    if (state.rules.categories.cat1_overs.length > 0) set.add(1);
+    if (state.rules.categories.cat3_overs.length > 0) set.add(3);
+    return set;
+  }, [state.rules]);
+
+  // Defensive: if a stale state value lands outside the allowed set
+  // (e.g. the organizer just disabled Cat 1 in another tab and the
+  // page re-rendered without an over boundary), downgrade to Cat 2
+  // so the toast / auto-pick / badge stay consistent.
+  useEffect(() => {
+    if (!allowedCategories.has(overCategory)) setOverCategory(2);
+  }, [allowedCategories, overCategory]);
 
   // Wicket-replacement prompt. Optimistic only — fired inside `submit`
   // the instant a wicket is recorded. Suppressed when no replacement is
@@ -422,11 +444,17 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       const lastBall = state.balls[state.balls.length - 1];
       setOverCompletePrompt({
         completedOver: cur - 1,
-        nextOverCategory: isSuperOver ? 2 : defaultOverCategory(cur),
+        nextOverCategory: isSuperOver ? 2 : categoryForOver(state.rules, cur),
         previousBowlerId: lastBall?.bowler_id ?? "",
       });
     }
-  }, [state.active.over_number, isComplete, isSuperOver, state.balls]);
+  }, [
+    state.active.over_number,
+    isComplete,
+    isSuperOver,
+    state.balls,
+    state.rules,
+  ]);
 
   // If the innings completes while the prompt is open (e.g. the 6th ball
   // was the final wicket), close it — no new bowler is needed.
@@ -661,7 +689,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
         const upcomingCategory: 1 | 2 | 3 = next.endOfOver
           ? isSuperOver
             ? 2
-            : defaultOverCategory(state.active.over_number + 1)
+            : categoryForOver(state.rules, state.active.over_number + 1)
           : overCategory;
         const newAtStriker = emptySlot === "striker";
         const requireCategory: 1 | 3 | null =
@@ -695,7 +723,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
           completedOver,
           nextOverCategory: isSuperOver
             ? 2
-            : defaultOverCategory(completedOver + 1),
+            : categoryForOver(state.rules, completedOver + 1),
           previousBowlerId: bowlerId,
         });
       }
@@ -958,39 +986,57 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-xs uppercase text-muted-foreground">
-              Category
-            </span>
-            <Select
-              value={String(overCategory)}
-              onValueChange={(v) => setOverCategory(Number(v) as 1 | 2 | 3)}
-              disabled={isSuperOver || state.currentOverBalls.length > 0}
-            >
-              <SelectTrigger
-                className="h-8 w-auto px-2"
-                aria-label="Over category"
-                title={
-                  isSuperOver
-                    ? "Super over — no category restriction"
-                    : state.currentOverBalls.length > 0
-                      ? "Category is locked once the over has started"
-                      : undefined
-                }
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">Cat 1</SelectItem>
-                <SelectItem value="2">Cat 2</SelectItem>
-                <SelectItem value="3">Cat 3</SelectItem>
-              </SelectContent>
-            </Select>
-            {state.currentOverBalls.length === 0 && !isSuperOver && (
-              <span className="text-xs text-muted-foreground">
-                {overCategory === 2
-                  ? "Any striker / any bowler"
-                  : `Striker + bowler must both be Cat ${overCategory}`}
-              </span>
+            {/* Category label + dropdown + hint only render when the
+                match rules actually expose more than one option. A
+                match where cat1_overs + cat3_overs are both empty
+                has no per-over choice to make — Cat 2 is the only
+                option, the dropdown is degenerate, and the hint
+                line would be permanent "Any striker / any bowler"
+                noise. Super-over hint + Swap button stay in this
+                row regardless. */}
+            {allowedCategories.size > 1 && (
+              <>
+                <span className="text-xs uppercase text-muted-foreground">
+                  Category
+                </span>
+                <Select
+                  value={String(overCategory)}
+                  onValueChange={(v) =>
+                    setOverCategory(Number(v) as 1 | 2 | 3)
+                  }
+                  disabled={isSuperOver || state.currentOverBalls.length > 0}
+                >
+                  <SelectTrigger
+                    className="h-8 w-auto px-2"
+                    aria-label="Over category"
+                    title={
+                      isSuperOver
+                        ? "Super over — no category restriction"
+                        : state.currentOverBalls.length > 0
+                          ? "Category is locked once the over has started"
+                          : undefined
+                    }
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allowedCategories.has(1) && (
+                      <SelectItem value="1">Cat 1</SelectItem>
+                    )}
+                    <SelectItem value="2">Cat 2</SelectItem>
+                    {allowedCategories.has(3) && (
+                      <SelectItem value="3">Cat 3</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                {state.currentOverBalls.length === 0 && !isSuperOver && (
+                  <span className="text-xs text-muted-foreground">
+                    {overCategory === 2
+                      ? "Any striker / any bowler"
+                      : `Striker + bowler must both be Cat ${overCategory}`}
+                  </span>
+                )}
+              </>
             )}
             {isSuperOver && (
               <span className="text-xs text-muted-foreground">

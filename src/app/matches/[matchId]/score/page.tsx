@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { requireTournamentAdmin } from "@/lib/auth";
 
+import { findCategoryGaps, type TeamXISummary } from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
 
 import { TossForm } from "../toss-form";
@@ -60,6 +61,40 @@ export default async function ScorePage(props: {
     xiACount >= state.match.players_per_side &&
     xiBCount >= state.match.players_per_side;
 
+  // Category pre-flight. For each over flagged Cat 1 / Cat 3 by the
+  // effective rules (tournament + match override merged in
+  // `loadScoreboardState`), every team's playing XI must include at
+  // least one player of that category. Otherwise the scoring panel
+  // would throw "Cat X over: striker and bowler must both be Category
+  // X" toasts on the first ball, with no way to satisfy.
+  const xiByTeam = new Map<string, Set<1 | 2 | 3>>();
+  for (const p of state.xi[state.teamA.id] ?? []) {
+    if (!xiByTeam.has(state.teamA.id))
+      xiByTeam.set(state.teamA.id, new Set());
+    if (p.category != null)
+      xiByTeam.get(state.teamA.id)!.add(p.category);
+  }
+  for (const p of state.xi[state.teamB.id] ?? []) {
+    if (!xiByTeam.has(state.teamB.id))
+      xiByTeam.set(state.teamB.id, new Set());
+    if (p.category != null)
+      xiByTeam.get(state.teamB.id)!.add(p.category);
+  }
+  const teamSummaries: [TeamXISummary, TeamXISummary] = [
+    {
+      team_id: state.teamA.id,
+      team_name: state.teamA.name,
+      categories_in_xi: xiByTeam.get(state.teamA.id) ?? new Set(),
+    },
+    {
+      team_id: state.teamB.id,
+      team_name: state.teamB.name,
+      categories_in_xi: xiByTeam.get(state.teamB.id) ?? new Set(),
+    },
+  ];
+  const categoryGaps = findCategoryGaps(state.rules, teamSummaries);
+  const categoryReady = categoryGaps.length === 0;
+
   return (
     <main className="flex-1 p-3">
       <div className="mx-auto max-w-3xl space-y-6">
@@ -79,9 +114,30 @@ export default async function ScorePage(props: {
               {state.tournament.name}
             </Link>
           </p>
-          <h1 className="text-2xl font-semibold">
-            {state.teamA.short_name} vs {state.teamB.short_name} — Score
-          </h1>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h1 className="text-2xl font-semibold">
+              {state.teamA.short_name} vs {state.teamB.short_name} — Score
+            </h1>
+            {/* Quick-access shortcuts so the scorer can fix the XI or
+                tweak the match rules (cat overs, players-per-side,
+                etc.) without bouncing to /matches/[id] and navigating
+                from there. requireTournamentAdmin already gates this
+                whole page, so anyone seeing it can use the link. */}
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <Link
+                href={`/matches/${state.match.id}/xi`}
+                className="hover:underline hover:text-foreground"
+              >
+                Edit XI
+              </Link>
+              <Link
+                href={`/matches/${state.match.id}/edit`}
+                className="hover:underline hover:text-foreground"
+              >
+                Match settings
+              </Link>
+            </div>
+          </div>
         </div>
 
         {/* Pre-scoring checklist. The scorer lands here from the match
@@ -144,7 +200,63 @@ export default async function ScorePage(props: {
           </div>
         )}
 
-        {hasToss && xisReady && state.phase === "pre_match" && (
+        {/* Category pre-flight gate. Renders when toss + XIs are
+            ready but the playing XIs can't satisfy the configured
+            Cat 1 / Cat 3 schedule. Lists each (team, over, missing
+            category) tuple so the organizer can either pick a Cat-N
+            player into the XI or change the rule on the match-edit
+            page. Blocks StartMatchPanel below until resolved. */}
+        {hasToss && xisReady && !categoryReady && state.phase === "pre_match" && (
+          <Card className="border-amber-500/30 bg-amber-500/5 dark:border-amber-400/20 dark:bg-amber-400/5">
+            <CardHeader>
+              <CardTitle className="text-base">
+                Category coverage missing
+              </CardTitle>
+              <CardDescription>
+                The Cat 1 / Cat 3 schedule for this match requires players
+                you haven&apos;t picked into the playing XI yet. Either pick
+                a matching player or change the rule on the match edit page.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-1.5 text-sm">
+                {categoryGaps.map((g) => (
+                  <li
+                    key={`${g.team_id}-${g.over_number}-${g.required_category}`}
+                    className="flex items-baseline gap-2"
+                  >
+                    <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                      Over {g.over_number}
+                    </span>
+                    <span>
+                      <span className="font-medium capitalize">
+                        {g.team_name}
+                      </span>{" "}
+                      has no Cat {g.required_category} player in the XI.
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-3 flex gap-2">
+                <Link
+                  href={`/matches/${state.match.id}/edit`}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Edit match rules →
+                </Link>
+                <span className="text-xs text-muted-foreground">·</span>
+                <Link
+                  href={`/matches/${state.match.id}/xi`}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Edit playing XI →
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {hasToss && xisReady && categoryReady && state.phase === "pre_match" && (
           <StartMatchPanel state={state} />
         )}
 

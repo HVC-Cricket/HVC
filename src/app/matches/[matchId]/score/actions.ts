@@ -11,11 +11,14 @@ import { type MatchPushPayload, notifyMatch } from "@/lib/push";
 import {
   advanceBowler,
   applyBall,
+  applyRulesOverride,
+  categoryForOver,
   createEnginePlayerFactory,
   getRuleSet,
   replayInnings,
   setNonStriker,
   setStriker,
+  type RulesOverride,
 } from "@/lib/scoring";
 import { computeStandings } from "@/lib/standings";
 import { createClient } from "@/lib/supabase/server";
@@ -29,22 +32,45 @@ import {
 } from "./record-ball-helpers";
 
 /**
- * HVC first-over rule: if the opening striker is Category 1, the opening
- * bowler must also be Category 1. Enforced at innings-1 and innings-2
- * start; super overs (innings 3/4) are exempt.
+ * Server-side check for the first over of innings 1 / innings 2:
+ * if the rules declare over 1 to be a Cat N over (N ∈ {1, 3}), both
+ * the striker and bowler must be Cat N. When over 1 is Cat 2 ("open"
+ * per the tournament + match override), no enforcement.
+ *
+ * Super overs (innings 3/4) are exempt entirely; categories don't
+ * apply there.
+ *
+ * Renamed from `enforceCat1FirstOverRule` once `categories.cat1_over`
+ * became an array — same idea, but now driven off
+ * `categoryForOver(rules, 1)` so a tournament can opt out of Cat
+ * overs entirely (`cat1_overs: []`, `cat3_overs: []`).
  */
-async function enforceCat1FirstOverRule(
+async function enforceFirstOverCategoryRule(
   supabase: Awaited<ReturnType<typeof createClient>>,
+  matchId: string,
   tournamentId: string,
   picks: { striker_id: string; bowler_id: string },
 ): Promise<ActionResult> {
-  const { data: tournament } = await supabase
-    .from("tournaments")
-    .select("rules")
-    .eq("id", tournamentId)
-    .single();
-  const rules = getRuleSet(tournament?.rules);
+  const [tournamentRes, matchRes] = await Promise.all([
+    supabase
+      .from("tournaments")
+      .select("rules")
+      .eq("id", tournamentId)
+      .single(),
+    supabase
+      .from("matches")
+      .select("rules_override")
+      .eq("id", matchId)
+      .maybeSingle(),
+  ]);
+  const baseRules = getRuleSet(tournamentRes.data?.rules);
+  const override =
+    (matchRes.data as { rules_override?: RulesOverride } | null)
+      ?.rules_override ?? null;
+  const rules = applyRulesOverride(baseRules, override);
   if (!rules.categories.enabled) return { ok: true, data: undefined };
+  const requiredCat = categoryForOver(rules, 1);
+  if (requiredCat === 2) return { ok: true, data: undefined };
 
   const { data: catRows } = await supabase
     .from("players")
@@ -53,10 +79,16 @@ async function enforceCat1FirstOverRule(
   const catById = new Map((catRows ?? []).map((r) => [r.id, r.category]));
   const strikerCat = catById.get(picks.striker_id);
   const bowlerCat = catById.get(picks.bowler_id);
-  if (strikerCat === 1 && bowlerCat !== 1) {
+  if (strikerCat !== requiredCat) {
     return {
       ok: false,
-      error: "First over: a Category 1 striker must face a Category 1 bowler",
+      error: `Over 1 is a Category ${requiredCat} over — the opening striker must be Category ${requiredCat}.`,
+    };
+  }
+  if (bowlerCat !== requiredCat) {
+    return {
+      ok: false,
+      error: `Over 1 is a Category ${requiredCat} over — the opening bowler must be Category ${requiredCat}.`,
     };
   }
   return { ok: true, data: undefined };
@@ -133,10 +165,15 @@ export async function startMatch(
     return { ok: false, error: "Bowler must be in the bowling-XI" };
   }
 
-  const catCheck = await enforceCat1FirstOverRule(supabase, match.tournament_id, {
-    striker_id: parsed.data.striker_id,
-    bowler_id: parsed.data.bowler_id,
-  });
+  const catCheck = await enforceFirstOverCategoryRule(
+    supabase,
+    match.id,
+    match.tournament_id,
+    {
+      striker_id: parsed.data.striker_id,
+      bowler_id: parsed.data.bowler_id,
+    },
+  );
   if (!catCheck.ok) return catCheck;
 
   // Insert innings 1. Stash the picks on the innings row so the
@@ -633,10 +670,15 @@ export async function startSecondInnings(
     return { ok: false, error: "Bowler must be in the bowling-XI" };
   }
 
-  const catCheck = await enforceCat1FirstOverRule(supabase, match.tournament_id, {
-    striker_id: parsed.data.striker_id,
-    bowler_id: parsed.data.bowler_id,
-  });
+  const catCheck = await enforceFirstOverCategoryRule(
+    supabase,
+    match.id,
+    match.tournament_id,
+    {
+      striker_id: parsed.data.striker_id,
+      bowler_id: parsed.data.bowler_id,
+    },
+  );
   if (!catCheck.ok) return catCheck;
 
   const { data: innings, error: insErr } = await supabase

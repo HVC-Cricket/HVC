@@ -5,6 +5,8 @@ import {
   type EnginePlayer,
   type InningsState,
   type RuleSet,
+  type RulesOverride,
+  applyRulesOverride,
   createEnginePlayerFactory,
   getRuleSet,
   replayInnings,
@@ -146,7 +148,17 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
 
   const tournament = tournamentRes.data;
   if (!tournament) notFound();
-  const rules = getRuleSet(tournament.rules);
+  // Merge per-match overrides over the tournament-level rule set so
+  // the scoreboard's per-over Category default, pre-flight gate, and
+  // any downstream consumer all see the effective ruleset for this
+  // specific match. The matches table's `rules_override` column is
+  // nullable and partial — `applyRulesOverride` no-ops on null.
+  const baseRules = getRuleSet(tournament.rules);
+  const matchOverride =
+    "rules_override" in match
+      ? ((match as { rules_override?: RulesOverride }).rules_override ?? null)
+      : null;
+  const rules = applyRulesOverride(baseRules, matchOverride);
 
   const teams = teamsRes.data;
   const teamA = teams?.find((t) => t.id === match.team_a_id);

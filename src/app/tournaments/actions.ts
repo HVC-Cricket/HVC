@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireOrganizer, requireSuperAdmin, requireUser } from "@/lib/auth";
-import { HVC_RULES } from "@/lib/scoring";
+import { getRuleSet, HVC_RULES } from "@/lib/scoring";
 import { slugify } from "@/lib/slug";
 import { createClient } from "@/lib/supabase/server";
 
@@ -40,6 +40,11 @@ const updateTournamentSchema = z.object({
     .min(2)
     .regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, digits, hyphens"),
   status: z.enum(tournamentStatusValues),
+  // Per-over category arrays — patched into the JSONB `rules`
+  // column. Optional so legacy callers / tests that don't manage
+  // categories pass through unchanged.
+  cat1_overs: z.array(z.number().int().positive()).optional(),
+  cat3_overs: z.array(z.number().int().positive()).optional(),
 });
 
 export type CreateTournamentInput = z.infer<typeof createTournamentSchema>;
@@ -112,6 +117,31 @@ export async function updateTournament(
   const data = parsed.data;
 
   const supabase = await createClient();
+
+  // Merge the new cat1/cat3 arrays into the existing rules JSONB
+  // (when provided). Loading the row first lets us preserve every
+  // unrelated field (super_over, extras, etc.) the form doesn't
+  // touch — a partial `jsonb_set` would work too but the
+  // round-trip is fine for what's a once-per-tournament write.
+  let rulesUpdate: Json | undefined;
+  if (data.cat1_overs !== undefined || data.cat3_overs !== undefined) {
+    const { data: existing } = await supabase
+      .from("tournaments")
+      .select("rules")
+      .eq("id", data.id)
+      .single();
+    const currentRules = getRuleSet(existing?.rules);
+    const nextRules = {
+      ...currentRules,
+      categories: {
+        ...currentRules.categories,
+        cat1_overs: data.cat1_overs ?? currentRules.categories.cat1_overs,
+        cat3_overs: data.cat3_overs ?? currentRules.categories.cat3_overs,
+      },
+    };
+    rulesUpdate = nextRules as unknown as Json;
+  }
+
   const { error } = await supabase
     .from("tournaments")
     .update({
@@ -126,6 +156,7 @@ export async function updateTournament(
       description: data.description || null,
       status: data.status,
       logo_url: data.logo_url ?? null,
+      ...(rulesUpdate !== undefined ? { rules: rulesUpdate } : {}),
     })
     .eq("id", data.id);
 

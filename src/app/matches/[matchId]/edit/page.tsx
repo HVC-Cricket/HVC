@@ -10,6 +10,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireOrganizer } from "@/lib/auth";
+import {
+  applyRulesOverride,
+  getRuleSet,
+  type RulesOverride,
+} from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
 
 import { EditMatchForm } from "./edit-match-form";
@@ -33,7 +38,7 @@ export default async function EditMatchPage(props: {
   const [tournamentRes, teamsRes] = await Promise.all([
     supabase
       .from("tournaments")
-      .select("id, slug, name, format")
+      .select("id, slug, name, format, rules")
       .eq("id", match.tournament_id)
       .single(),
     supabase
@@ -45,6 +50,15 @@ export default async function EditMatchPage(props: {
   const tournament = tournamentRes.data;
   if (!tournament) notFound();
   const teams = teamsRes.data;
+
+  // Compute the effective Cat 1 / Cat 3 schedule for this match. If
+  // `rules_override` is set we surface those arrays so the form's
+  // override toggle starts in the "On" state with current values;
+  // otherwise fall back to the tournament default.
+  const baseRules = getRuleSet(tournament.rules);
+  const matchOverride =
+    (match as { rules_override?: RulesOverride }).rules_override ?? null;
+  const effectiveRules = applyRulesOverride(baseRules, matchOverride);
 
   return (
     <main className="flex-1 p-4 sm:p-6">
@@ -76,6 +90,9 @@ export default async function EditMatchPage(props: {
                 overs_per_innings: match.overs_per_innings,
                 players_per_side: match.players_per_side,
                 status: match.status,
+                override_categories: matchOverride != null,
+                cat1_overs: effectiveRules.categories.cat1_overs,
+                cat3_overs: effectiveRules.categories.cat3_overs,
               }}
               tournamentFormat={tournament.format}
               teams={teams ?? []}

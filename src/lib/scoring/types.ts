@@ -69,10 +69,20 @@ export type RuleSet = {
   /** HVC category bowling/batting rules */
   categories: {
     enabled: boolean;
-    /** which over Cat 1 specialist bowls + Cat 1 batter must face */
-    cat1_over: number;
-    /** which over Cat 3 specialist bowls + Cat 3 batter must face */
-    cat3_over: number;
+    /**
+     * Overs where the Cat 1 specialist bats + bowls. Each entry is a
+     * 1-based over number within the innings. Empty array means no
+     * over is Cat 1 (tournament has no Cat 1 players, or Cat 1 rule
+     * is disabled for this match). Replaces the legacy scalar
+     * `cat1_over` so a single tournament can have Cat 1 in any over,
+     * multiple overs, or none at all.
+     */
+    cat1_overs: number[];
+    /**
+     * Overs where the Cat 3 specialist bats + bowls. Same semantics
+     * as `cat1_overs`.
+     */
+    cat3_overs: number[];
     /**
      * In Cat 1/3 special overs:
      *  - "first_only": only the first dismissal of the special batter counts

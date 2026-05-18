@@ -1,5 +1,60 @@
 import type { RuleSet, WicketType } from "./types";
 
+/**
+ * Look up the category required at a given over number under the
+ * supplied rules. Returns `1` / `3` if the over is on either array,
+ * otherwise `2` (open — anyone can bat / bowl). Used by the
+ * scoreboard's per-over category default + the pre-flight check
+ * that warns when an XI can't satisfy a required category.
+ */
+export function categoryForOver(
+  rules: RuleSet,
+  overNumber: number,
+): 1 | 2 | 3 {
+  if (!rules.categories.enabled) return 2;
+  if (rules.categories.cat1_overs.includes(overNumber)) return 1;
+  if (rules.categories.cat3_overs.includes(overNumber)) return 3;
+  return 2;
+}
+
+/**
+ * Shape accepted by `matches.rules_override` — partial RuleSet,
+ * with only the category-over arrays meaningful today. Anything not
+ * provided inherits from the tournament-level rules.
+ */
+export type RulesOverride = {
+  categories?: {
+    cat1_overs?: number[] | null;
+    cat3_overs?: number[] | null;
+  };
+} | null;
+
+/**
+ * Merge a per-match override into the tournament-level rules. The
+ * override is sparse — only fields present (and non-null) actually
+ * override; everything else passes through from the base.
+ */
+export function applyRulesOverride(
+  base: RuleSet,
+  override: RulesOverride,
+): RuleSet {
+  if (!override) return base;
+  const cats = override.categories;
+  if (!cats) return base;
+  return {
+    ...base,
+    categories: {
+      ...base.categories,
+      cat1_overs: Array.isArray(cats.cat1_overs)
+        ? cats.cat1_overs
+        : base.categories.cat1_overs,
+      cat3_overs: Array.isArray(cats.cat3_overs)
+        ? cats.cat3_overs
+        : base.categories.cat3_overs,
+    },
+  };
+}
+
 const STANDARD_WICKETS: WicketType[] = [
   "bowled",
   "caught",
@@ -45,8 +100,8 @@ export const HVC_RULES: RuleSet = {
 
   categories: {
     enabled: true,
-    cat1_over: 1,
-    cat3_over: 2,
+    cat1_overs: [1],
+    cat3_overs: [2],
     cat_special_dismissals: "first_only",
     cat_special_strike: "stay",
     cat_special_non_striker_lock: true,
@@ -92,8 +147,8 @@ export const STANDARD_RULES: RuleSet = {
 
   categories: {
     enabled: false,
-    cat1_over: 0,
-    cat3_over: 0,
+    cat1_overs: [],
+    cat3_overs: [],
     cat_special_dismissals: "all",
     cat_special_strike: "standard",
     cat_special_non_striker_lock: false,

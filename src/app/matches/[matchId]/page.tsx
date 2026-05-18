@@ -22,6 +22,13 @@ import {
   type MatchStatus,
 } from "@/lib/constants/match";
 import { formatEnumLabel, formatScheduledAt } from "@/lib/format";
+import {
+  applyRulesOverride,
+  findCategoryGaps,
+  getRuleSet,
+  type RulesOverride,
+  type TeamXISummary,
+} from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
 import { getTeamInitials } from "@/lib/utils";
 
@@ -70,7 +77,7 @@ export default async function MatchDetailPage(props: {
   const [tournamentRes, teamsRes] = await Promise.all([
     supabase
       .from("tournaments")
-      .select("id, slug, name")
+      .select("id, slug, name, rules")
       .eq("id", match.tournament_id)
       .single(),
     supabase
@@ -79,6 +86,7 @@ export default async function MatchDetailPage(props: {
       .in("id", [match.team_a_id, match.team_b_id]),
   ]);
   const tournament = tournamentRes.data;
+  const tournamentRulesRes = tournamentRes.data;
   if (!tournament) notFound();
   const teamRows = teamsRes.data;
   const teamA = teamRows?.find((t) => t.id === match.team_a_id);
@@ -118,21 +126,68 @@ export default async function MatchDetailPage(props: {
   let scoringBarLabel: string;
   if (ms === "scheduled" && showScoringBar) {
     const hasToss = !!match.toss_winner_id && !!match.toss_decision;
+    // Need both XI rows (for the count) AND each picked player's
+    // category so the category-coverage check can run. Single query.
     const { data: xiRows } = await supabase
       .from("match_players")
-      .select("team_id, is_substitute")
+      .select(
+        "team_id, is_substitute, player:players(category)",
+      )
       .eq("match_id", matchId);
+    type XIRow = {
+      team_id: string;
+      is_substitute: boolean;
+      player: { category: number | null } | null;
+    };
+    const rows = (xiRows ?? []) as unknown as XIRow[];
     const xiACount =
-      xiRows?.filter((r) => r.team_id === match.team_a_id && !r.is_substitute)
-        .length ?? 0;
+      rows.filter((r) => r.team_id === match.team_a_id && !r.is_substitute)
+        .length;
     const xiBCount =
-      xiRows?.filter((r) => r.team_id === match.team_b_id && !r.is_substitute)
-        .length ?? 0;
+      rows.filter((r) => r.team_id === match.team_b_id && !r.is_substitute)
+        .length;
     const xiAReady = xiACount >= match.players_per_side;
     const xiBReady = xiBCount >= match.players_per_side;
+
+    // Category coverage. Merge tournament rules + match override
+    // before checking — same logic the score page uses so both
+    // surfaces gate identically.
+    const baseRules = getRuleSet(tournamentRulesRes?.rules);
+    const matchOverride =
+      (match as { rules_override?: RulesOverride }).rules_override ?? null;
+    const effectiveRules = applyRulesOverride(baseRules, matchOverride);
+    const catsByTeam = new Map<string, Set<1 | 2 | 3>>();
+    for (const r of rows) {
+      if (r.is_substitute) continue;
+      const cat = r.player?.category;
+      if (cat == null) continue;
+      if (cat !== 1 && cat !== 2 && cat !== 3) continue;
+      let set = catsByTeam.get(r.team_id);
+      if (!set) {
+        set = new Set();
+        catsByTeam.set(r.team_id, set);
+      }
+      set.add(cat as 1 | 2 | 3);
+    }
+    const teamSummaries: [TeamXISummary, TeamXISummary] = [
+      {
+        team_id: teamA?.id ?? match.team_a_id,
+        team_name: teamA?.name ?? "",
+        categories_in_xi: catsByTeam.get(match.team_a_id) ?? new Set(),
+      },
+      {
+        team_id: teamB?.id ?? match.team_b_id,
+        team_name: teamB?.name ?? "",
+        categories_in_xi: catsByTeam.get(match.team_b_id) ?? new Set(),
+      },
+    ];
+    const categoryGaps = findCategoryGaps(effectiveRules, teamSummaries);
+
     if (!hasToss) scoringBarLabel = "Set toss to start scoring";
     else if (!xiAReady || !xiBReady)
       scoringBarLabel = "Pick playing XIs to start scoring";
+    else if (categoryGaps.length > 0)
+      scoringBarLabel = "Resolve category coverage to start scoring";
     else scoringBarLabel = "Start scoring this match";
   } else {
     scoringBarLabel = ms === "scheduled" ? "Start scoring this match" : "Continue scoring";

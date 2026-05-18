@@ -9,6 +9,7 @@ import { logMatchAuditEvent } from "@/lib/match-audit";
 import { createClient } from "@/lib/supabase/server";
 
 import type { ActionResult } from "@/app/tournaments/actions";
+import type { Json } from "@/lib/supabase/database.types";
 
 const matchStages = [
   "group",
@@ -55,6 +56,13 @@ const updateMatchSchema = z
     matchId: z.string().uuid(),
     ...baseMatchFields,
     status: z.enum(matchStatuses),
+    // Per-match rules override. When `override_categories` is true,
+    // store `{ categories: { cat1_overs, cat3_overs } }` in
+    // matches.rules_override. When false (or absent), clear the
+    // column so the match inherits the tournament default.
+    override_categories: z.boolean().optional(),
+    match_cat1_overs: z.array(z.number().int().positive()).optional(),
+    match_cat3_overs: z.array(z.number().int().positive()).optional(),
   })
   .refine((d) => d.team_a_id !== d.team_b_id, {
     message: "Team A and Team B must be different",
@@ -150,8 +158,25 @@ export async function updateMatch(
   }
   await requireOrganizer(match.tournament_id);
 
+  // Compose the rules_override payload. When the toggle is off (or
+  // absent), explicitly null it out so the match inherits the
+  // tournament default cleanly. Only categories are overridable via
+  // the UI today; other RuleSet fields stay tournament-level.
+  const rulesOverride: Json | null = parsed.data.override_categories
+    ? ({
+        categories: {
+          cat1_overs: parsed.data.match_cat1_overs ?? [],
+          cat3_overs: parsed.data.match_cat3_overs ?? [],
+        },
+      } as Json)
+    : null;
+
   const { error } = await supabase
     .from("matches")
+    // Cast: `rules_override` is a brand-new column (migration
+    // 20260518130000_*) and the generated database.types.ts is
+    // still on the previous shape. Regen via `pnpm gen:types:*`
+    // after the migration ships to drop this cast.
     .update({
       stage: parsed.data.stage,
       team_a_id: parsed.data.team_a_id,
@@ -161,7 +186,8 @@ export async function updateMatch(
       overs_per_innings: parsed.data.overs_per_innings,
       players_per_side: parsed.data.players_per_side,
       status: parsed.data.status,
-    })
+      rules_override: rulesOverride,
+    } as never)
     .eq("id", match.id);
 
   if (error) return { ok: false, error: error.message };

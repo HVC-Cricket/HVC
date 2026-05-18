@@ -3,6 +3,26 @@ import { z } from "zod";
 import { HVC_RULES } from "./rules";
 import type { RuleSet, WicketType } from "./types";
 
+/**
+ * Coerce a legacy scalar over number (or array) into the new array
+ * shape expected by `cat1_overs` / `cat3_overs`. 0 / null / undefined
+ * collapse to []. A positive integer becomes a single-element array.
+ * An already-array value passes through (with non-finite / zero
+ * entries dropped).
+ */
+function toOverArray(value: unknown): unknown {
+  if (value == null) return [];
+  if (typeof value === "number") {
+    return value > 0 && Number.isFinite(value) ? [value] : [];
+  }
+  if (Array.isArray(value)) {
+    return value.filter(
+      (n) => typeof n === "number" && n > 0 && Number.isFinite(n),
+    );
+  }
+  return value;
+}
+
 const wicketTypeSchema = z.enum([
   "bowled",
   "caught",
@@ -34,8 +54,17 @@ const ruleSetSchema = z.object({
   allowed_wicket_types: z.array(wicketTypeSchema),
   categories: z.object({
     enabled: z.boolean(),
-    cat1_over: z.number().int().nonnegative(),
-    cat3_over: z.number().int().nonnegative(),
+    // Accept legacy scalar `cat1_over` / `cat3_over` shapes by
+    // pre-processing into arrays. The 2026-05-18 migration rewrites
+    // existing rows on disk; this preprocess covers any in-memory
+    // values that haven't gone through the migration (e.g. tests,
+    // ad-hoc rule literals).
+    cat1_overs: z
+      .preprocess(toOverArray, z.array(z.number().int().positive()))
+      .default([]),
+    cat3_overs: z
+      .preprocess(toOverArray, z.array(z.number().int().positive()))
+      .default([]),
     cat_special_dismissals: z.enum(["first_only", "all"]),
     cat_special_strike: z.enum(["stay", "standard"]),
     cat_special_non_striker_lock: z.boolean(),

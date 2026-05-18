@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireOrganizer } from "@/lib/auth";
+import { getRuleSet } from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
 
 import { EditTournamentForm } from "./edit-tournament-form";
@@ -27,6 +28,8 @@ export default async function EditTournamentPage(props: {
   if (!tournament) notFound();
 
   await requireOrganizer(tournament.id);
+
+  const rules = getRuleSet(tournament.rules);
 
   return (
     <main className="flex-1 p-4 sm:p-6">
@@ -61,6 +64,8 @@ export default async function EditTournamentPage(props: {
                 description: tournament.description,
                 status: tournament.status,
                 logo_url: tournament.logo_url,
+                cat1_overs: rules.categories.cat1_overs,
+                cat3_overs: rules.categories.cat3_overs,
               }}
             />
           </CardContent>

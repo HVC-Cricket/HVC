@@ -24,6 +24,38 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-19 (batch 33) — Flexible Cat 1 / Cat 3 over scheduling + pre-flight gate + quick-access on score page.** The biggest slice landed since the cricheroes pagination fix. Replaces three hard-coded HVC-isms with a configurable rule set so tournaments / matches can skip Cat 1, skip Cat 3, skip both, or schedule them in any over.
+
+**Schema (migration `20260518130000_flexible_category_overs.sql`):**
+- `tournaments.rules.categories.cat1_over` (scalar) → `cat1_overs` (`number[]`); same for `cat3_over` → `cat3_overs`. One-shot JSONB rewrite migrates every existing row; `cat1_overs=[]` means "no Cat 1 anywhere in this match".
+- New nullable `matches.rules_override JSONB` column. Shape mirrors `tournament.rules` partial; today the UI only writes `categories.{cat1_overs,cat3_overs}` but the column is general. Null = inherit fully.
+- Applied to dev (2026-05-18) + prod (2026-05-19).
+
+**Types + helpers (`src/lib/scoring/`):**
+- `RuleSet.categories.cat1_overs: number[]` / `cat3_overs: number[]` replaces the scalar fields. Both HVC_RULES and STANDARD_RULES updated. zod parser's `toOverArray` preprocess accepts legacy scalar shapes so in-memory rule literals (tests, ad-hoc) still parse.
+- New `categoryForOver(rules, n)` → 1 / 2 / 3. Engine still keys off `striker.category` — over arrays are informational only.
+- New `applyRulesOverride(base, override)` for shallow categories merge. Used at `loadScoreboardState`, on the score page, the match page CTA, and the server-side first-over check.
+- New `RulesOverride` type for the partial override shape.
+- `enforceCat1FirstOverRule` renamed → `enforceFirstOverCategoryRule`. Now reads effective rules (tournament + override) and uses `categoryForOver(rules, 1)` — covers both Cat 1 first overs and Cat 3 first overs, and no-ops when over 1 is Cat 2.
+
+**Forms:**
+- Tournament edit form (`/tournaments/[slug]/edit`) gained a "Category overs" section: two chip rows (Cat 1 / Cat 3) with `1..overs_per_innings` toggle buttons. An over can't be both. `updateTournament` action merges the new arrays into the existing rules JSONB so untouched RuleSet fields (super_over, extras, etc.) pass through.
+- Match edit form (`/matches/[id]/edit`) gained an "Override category overs for this match" checkbox; flipping it on reveals the same `CategoryOversFields` block. `updateMatch` action stores `{ categories: { cat1_overs, cat3_overs } }` into `matches.rules_override` (or null when the toggle is off).
+- Shared `<CategoryOversFields>` component in `src/components/`.
+
+**Pre-flight gate:**
+- New `findCategoryGaps(rules, teamSummaries)` pure function: for each over in `cat1_overs` / `cat3_overs`, checks both teams' playing XI has at least one player of that category.
+- Score page (`/matches/[id]/score`) renders an amber "Category coverage missing" card when toss + XIs are ready but gaps exist, listing each `(team, over, missing-category)` triple + "Edit match rules →" / "Edit playing XI →" links. `StartMatchPanel` is blocked behind the same gate.
+- Match-page sticky CTA extended: label cycles through "Set toss to start scoring" → "Pick playing XIs to start scoring" → "Resolve category coverage to start scoring" → "Start scoring this match".
+
+**Scoreboard dropdown:**
+- Per-over Category dropdown now offers only the categories the effective rules schedule somewhere: Cat 2 always; Cat 1 only when `cat1_overs.length > 0`; Cat 3 only when `cat3_overs.length > 0`. Match settings = law. Hidden entirely when only Cat 2 is allowed (the dropdown would be degenerate). Defensive `useEffect` forces `overCategory` back to 2 if a stale state value lands outside the allowed set (e.g. organizer toggled Cat 1 off in another tab).
+- `defaultOverCategory(overNumber)` removed; all callsites now use `categoryForOver(state.rules, n)`.
+
+**Score-page quick-access (today's add-on):** small "Edit XI · Match settings" links in the header so the scorer can fix the XI or tweak match rules without bouncing through `/matches/[id]`. Visible to any user who can reach `/score` (already gated by `requireTournamentAdmin`).
+
+19 files / +600 / −80 LOC + 1 new migration + 2 new shared modules.
+
 **2026-05-18 (batch 32) — Category chip on the match XISection rows + Link Player on /admins switched to a Dialog.** Two unrelated mobile / UX nits:
 
 1. **Match-page XISection** — each player row now gets the same `C1` / `C2` / `C3` (amber / muted / sky) badge already shown on Pick XI, /players, and the player detail page. Pulled `category` through the existing `players` query in `TeamXICard` so no new round-trip.

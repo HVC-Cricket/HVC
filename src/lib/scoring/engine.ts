@@ -84,8 +84,10 @@ export function startInnings(args: {
  * over (likewise Cat 3). We therefore derive the context from the
  * striker's category alone: any over with a Cat 1 striker is a Cat 1
  * special over, any over with a Cat 3 striker is a Cat 3 special over.
- * `over_number` is no longer used and the legacy `cat1_over`/`cat3_over`
- * rule fields are now informational only.
+ * `over_number` is no longer used and the `cat1_overs` / `cat3_overs`
+ * rule fields are informational only — the UI consults them to decide
+ * the per-over Category default + pre-flight team eligibility, but the
+ * engine itself keys solely off the striker's category.
  */
 function computeSpecialOverContext(
   _over_number: number,

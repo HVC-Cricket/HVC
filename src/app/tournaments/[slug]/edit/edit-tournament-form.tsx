@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { CategoryOversFields } from "@/components/category-overs-fields";
 import { ConfirmButton } from "@/components/confirm-button";
 import { DateInput } from "@/components/ui/date-input";
 import {
@@ -50,6 +51,8 @@ const schema = z.object({
   venue: z.string().optional().or(z.literal("")),
   description: z.string().optional().or(z.literal("")),
   logo_url: z.string().url().nullable().optional(),
+  cat1_overs: z.array(z.number().int().positive()),
+  cat3_overs: z.array(z.number().int().positive()),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -72,6 +75,8 @@ type Props = {
     venue: string | null;
     description: string | null;
     logo_url: string | null;
+    cat1_overs: number[];
+    cat3_overs: number[];
   };
 };
 
@@ -92,8 +97,13 @@ export function EditTournamentForm({ tournament }: Props) {
       venue: tournament.venue ?? "",
       description: tournament.description ?? "",
       logo_url: tournament.logo_url ?? null,
+      cat1_overs: tournament.cat1_overs,
+      cat3_overs: tournament.cat3_overs,
     },
   });
+  const overs = form.watch("default_overs_per_innings");
+  const cat1Overs = form.watch("cat1_overs");
+  const cat3Overs = form.watch("cat3_overs");
 
   const onSubmit = async (values: FormValues) => {
     const result = await updateTournament({ id: tournament.id, ...values });
@@ -283,6 +293,33 @@ export function EditTournamentForm({ tournament }: Props) {
             </FormItem>
           )}
         />
+
+        {/* HVC category-over scheduling. Pick which over numbers are
+            Cat 1 (amber) / Cat 3 (sky); the rest fall through as
+            Cat 2 ("open"). Empty = no category enforcement for that
+            tier. Per-match overrides live on the match edit form. */}
+        <div className="space-y-2 rounded-md border border-foreground/10 bg-muted/20 p-3">
+          <div className="space-y-0.5">
+            <div className="text-sm font-medium">Category overs</div>
+            <p className="text-[11px] text-muted-foreground">
+              Default Cat 1 / Cat 3 schedule for every match in this
+              tournament. A single match can override via its edit form.
+            </p>
+          </div>
+          <CategoryOversFields
+            overs={Number(overs) || 1}
+            cat1Overs={cat1Overs}
+            cat3Overs={cat3Overs}
+            onChange={(next) => {
+              form.setValue("cat1_overs", next.cat1Overs, {
+                shouldDirty: true,
+              });
+              form.setValue("cat3_overs", next.cat3Overs, {
+                shouldDirty: true,
+              });
+            }}
+          />
+        </div>
 
         {/* URL slug is rarely touched and risky to change — bury it in
             an Advanced section so the main form stays focused on the

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { CategoryOversFields } from "@/components/category-overs-fields";
 import { ConfirmButton } from "@/components/confirm-button";
 import { DateInput } from "@/components/ui/date-input";
 import {
@@ -59,6 +60,12 @@ const schema = z
     venue: z.string().optional().or(z.literal("")),
     overs_per_innings: z.coerce.number().int().positive().max(50),
     players_per_side: z.coerce.number().int().min(2).max(15),
+    // When `override_categories` is false (default), this match uses
+    // the tournament-level Cat 1 / Cat 3 schedule. Flipping it on
+    // makes the two arrays below take precedence for this match only.
+    override_categories: z.boolean(),
+    match_cat1_overs: z.array(z.number().int().positive()),
+    match_cat3_overs: z.array(z.number().int().positive()),
   })
   .refine((d) => d.team_a_id !== d.team_b_id, {
     message: "Pick two different teams",
@@ -78,6 +85,13 @@ type Props = {
     venue: string | null;
     overs_per_innings: number;
     players_per_side: number;
+    /** True when `matches.rules_override` is non-null. */
+    override_categories: boolean;
+    /** The arrays the override (or the inherited tournament rules)
+     *  resolve to today — used to seed the form so flipping the
+     *  toggle on lands on the current effective schedule. */
+    cat1_overs: number[];
+    cat3_overs: number[];
   };
   tournamentFormat: TournamentFormat;
   teams: { id: string; name: string; short_name: string }[];
@@ -104,8 +118,15 @@ export function EditMatchForm({ match, tournamentFormat, teams }: Props) {
       venue: match.venue ?? "",
       overs_per_innings: match.overs_per_innings,
       players_per_side: match.players_per_side,
+      override_categories: match.override_categories,
+      match_cat1_overs: match.cat1_overs,
+      match_cat3_overs: match.cat3_overs,
     },
   });
+  const overrideCategories = form.watch("override_categories");
+  const matchOvers = form.watch("overs_per_innings");
+  const matchCat1 = form.watch("match_cat1_overs");
+  const matchCat3 = form.watch("match_cat3_overs");
 
   const onSubmit = async (values: FormValues) => {
     const result = await updateMatch({ matchId: match.id, ...values });
@@ -296,6 +317,50 @@ export function EditMatchForm({ match, tournamentFormat, teams }: Props) {
             )}
           />
         </div>
+        {/* Per-match override for Cat 1 / Cat 3 schedule. Off by
+            default; flipping it on takes the toggles below as the
+            effective rule for this match only. */}
+        <div className="space-y-2 rounded-md border border-foreground/10 bg-muted/20 p-3">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              className="mt-0.5 size-4"
+              checked={overrideCategories}
+              onChange={(e) =>
+                form.setValue("override_categories", e.target.checked, {
+                  shouldDirty: true,
+                })
+              }
+            />
+            <div className="space-y-0.5">
+              <div className="text-sm font-medium">
+                Override category overs for this match
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Off = inherit the tournament default. On = the Cat 1 / Cat 3
+                schedule below replaces the default for this match only.
+              </p>
+            </div>
+          </label>
+          {overrideCategories && (
+            <div className="pt-1">
+              <CategoryOversFields
+                overs={Number(matchOvers) || 1}
+                cat1Overs={matchCat1}
+                cat3Overs={matchCat3}
+                onChange={(next) => {
+                  form.setValue("match_cat1_overs", next.cat1Overs, {
+                    shouldDirty: true,
+                  });
+                  form.setValue("match_cat3_overs", next.cat3Overs, {
+                    shouldDirty: true,
+                  });
+                }}
+              />
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center justify-between gap-4 pt-2">
           <ConfirmButton
             title="Delete this match?"
