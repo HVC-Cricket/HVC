@@ -10,6 +10,7 @@ import { requireSuperAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 import { AuditLogSection } from "./audit-log-section";
+import { LiveMatchesCard } from "./live-matches-card";
 import { MembersTable, type MemberRow, type PlayerOption } from "./members-table";
 
 export const dynamic = "force-dynamic";
@@ -222,6 +223,8 @@ export default async function AdminsPage() {
             <Stat label="Matches" value={matchesCountRes.count ?? 0} />
           </CardContent>
         </Card>
+
+        <LiveMatchesCard />
 
         <MembersTable
           rows={rows}

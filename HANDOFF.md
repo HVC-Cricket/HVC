@@ -24,6 +24,15 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-19 (batch 37) — `/admins`: live + upcoming matches feed.** New `<LiveMatchesCard />` server component slotted between Quick stats and Members. Two sections:
+
+- **Live grid** — every `status = 'live'` or `'innings_break'` match rendered through the existing `<LiveMatchCard />` (homepage component) so visuals stay in sync. Click-through to `/matches/[id]`.
+- **Next up list** — the next 5 `status='scheduled'` matches with `scheduled_at >= now`, sorted ascending. Compact rows: team short-names + tournament + Match # + scheduled time.
+
+Empty state ("No live or upcoming matches") when both lists are empty. Service-role read so the admin sees every tournament regardless of org-membership.
+
+2 files / +185 / 0 LOC.
+
 **2026-05-19 (batch 36) — Audit follow-ups: structural-field lock + per-ball cat enforcement + live-match player warning + tests + create-form cat overs + Clear-both button.** Six items from the previous batch's deferred list. Lower individual blast radius than slice B but real correctness / UX patches.
 
 - **#3 Match-edit structural-field lock.** Once any non-voided ball is on the books, the match edit form disables `team_a_id`, `team_b_id`, `overs_per_innings`, and `players_per_side` — changing them would silently invalidate balls / innings / match_players references. Status / stage / scheduling / venue / rules override stay editable. Server `updateMatch` re-checks the same gate (reads the structural columns + `matchHasRecordedBalls`) and refuses to apply a change to any locked field.
