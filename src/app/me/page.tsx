@@ -118,13 +118,13 @@ export default async function MePage() {
           playerCategory={linkedPlayer?.category ?? null}
           playerBattingStyle={linkedPlayer?.batting_style ?? null}
           playerBowlingStyle={linkedPlayer?.bowling_style ?? null}
-          // Super-admins managing their own player record get the full
-          // edit form inline. Other roles still get the limited
-          // display-name + avatar edit; if they need to change category
-          // etc., that goes through a tournament admin like every other
-          // player. Server action re-checks the same gate.
+          // Any linked player gets the player block inside the edit
+          // form so they can update their own phone. Category /
+          // batting / bowling are only shown for super-admins (and
+          // re-checked server-side). Non-linked users still get just
+          // the display-name + avatar edit.
           editablePlayerFields={
-            isSuperAdmin && linkedPlayer
+            linkedPlayer
               ? {
                   category: linkedPlayer.category,
                   phone: linkedPlayer.phone,
@@ -133,6 +133,7 @@ export default async function MePage() {
                 }
               : null
           }
+          canEditAdminPlayerFields={isSuperAdmin}
         />
 
         {linkedPlayer ? (

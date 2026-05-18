@@ -28,11 +28,14 @@ type Props = {
   playerCategory?: number | null;
   playerBattingStyle?: string | null;
   playerBowlingStyle?: string | null;
-  /** When provided, the edit form exposes the player-row fields
-   *  (category, phone, batting/bowling) so a super-admin can manage
-   *  their own player record without leaving /me. Server action also
-   *  re-verifies super-admin + linked-player. */
+  /** When provided, the edit form renders the player block. Phone
+   *  is always editable inside that block; category/batting/bowling
+   *  gate on `canEditAdminPlayerFields`. Server action re-verifies. */
   editablePlayerFields?: PlayerFieldsInitial | null;
+  /** True when the viewer is a super-admin — exposes the admin-only
+   *  player fields (category, batting, bowling) inside the player
+   *  block. Phone shows up regardless. */
+  canEditAdminPlayerFields?: boolean;
 };
 
 /**
@@ -53,6 +56,7 @@ export function ProfileCard({
   playerBattingStyle,
   playerBowlingStyle,
   editablePlayerFields,
+  canEditAdminPlayerFields = false,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const initials = getInitials(displayName);
@@ -132,6 +136,7 @@ export function ProfileCard({
               avatar_url: avatarUrl ?? "",
             }}
             player={editablePlayerFields ?? null}
+            canEditAdminFields={canEditAdminPlayerFields}
             onCancel={() => setEditing(false)}
           />
         </CardContent>
