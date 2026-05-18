@@ -8,7 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
+import { resolvePlayerPhoto } from "@/lib/players/photo";
 import { createClient } from "@/lib/supabase/server";
+import { getInitials } from "@/lib/utils";
 
 type Team = { id: string; name: string; short_name: string };
 
@@ -65,18 +68,46 @@ async function TeamXICard({
     .order("batting_order", { ascending: true, nullsFirst: false });
 
   const playerIds = (xi ?? []).map((m) => m.player_id);
+  type PlayerRow = {
+    id: string;
+    display_name: string;
+    photo_url: string | null;
+    linked_user_id: string | null;
+  };
   const { data: players } = playerIds.length
     ? await supabase
         .from("players")
-        .select("id, display_name")
+        .select("id, display_name, photo_url, linked_user_id")
         .in("id", playerIds)
-    : { data: [] as { id: string; display_name: string }[] };
-  const byId = new Map((players ?? []).map((p) => [p.id, p]));
+    : { data: [] as PlayerRow[] };
+  // Linked-account avatar fallback — a player who linked their auth
+  // account but never uploaded a separate photo still shows their face.
+  const avatarByUserId = await fetchLinkedAvatars(supabase, players ?? []);
+  const byId = new Map(
+    ((players ?? []) as PlayerRow[]).map((p) => [
+      p.id,
+      {
+        ...p,
+        resolved_photo: resolvePlayerPhoto({
+          photo_url: p.photo_url,
+          linked_avatar_url: p.linked_user_id
+            ? (avatarByUserId.get(p.linked_user_id) ?? null)
+            : null,
+        }),
+      },
+    ]),
+  );
 
   const playing = (xi ?? []).filter((m) => !m.is_substitute);
 
   const isEmpty = (xi?.length ?? 0) === 0;
   const isComplete = playing.length === playersPerSide;
+  // Only reserve the batting-order column when at least one player in
+  // the XI has an order assigned. On Pick XI the column carries 1..N;
+  // on the spectator Squads tab the column is usually all-null and
+  // would otherwise render a row of empty dashes that just indent the
+  // names to no benefit.
+  const showOrderColumn = (xi ?? []).some((m) => m.batting_order != null);
 
   return (
     <Card>
@@ -107,18 +138,31 @@ async function TeamXICard({
           <ul className="divide-y divide-foreground/10">
             {(xi ?? []).map((m) => {
               const p = byId.get(m.player_id);
+              const name = p?.display_name ?? "(unknown)";
               return (
                 <li
                   key={m.id}
                   className="flex items-center justify-between gap-3 px-6 py-2 text-sm"
                 >
                   <span className="flex items-center gap-3">
-                    <span className="inline-flex w-6 justify-end font-mono text-muted-foreground tabular-nums">
-                      {m.batting_order ?? "—"}
-                    </span>
-                    <span className="font-medium capitalize">
-                      {p?.display_name ?? "(unknown)"}
-                    </span>
+                    {showOrderColumn && (
+                      <span className="inline-flex w-6 justify-end font-mono text-muted-foreground tabular-nums">
+                        {m.batting_order ?? ""}
+                      </span>
+                    )}
+                    {p?.resolved_photo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={p.resolved_photo}
+                        alt={name}
+                        className="size-8 shrink-0 rounded-full border border-foreground/10 object-cover"
+                      />
+                    ) : (
+                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-foreground/10 bg-primary/10 text-[10px] font-semibold text-primary">
+                        {getInitials(name)}
+                      </span>
+                    )}
+                    <span className="font-medium capitalize">{name}</span>
                     {m.is_captain && (
                       <span className="rounded bg-foreground/10 px-1 text-xs">
                         C
