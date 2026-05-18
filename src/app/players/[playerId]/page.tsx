@@ -79,7 +79,7 @@ export default async function PlayerDetailPage(props: {
                   </span>
                 )}
               </h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm capitalize text-muted-foreground">
                 {[player.batting_style, player.bowling_style]
                   .filter(Boolean)
                   .map((s) => formatEnumLabel(s!))

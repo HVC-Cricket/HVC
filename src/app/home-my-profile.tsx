@@ -53,7 +53,7 @@ export async function HomeMyProfile() {
   // strip minimal — just a "View profile" link.
   return (
     <Link
-      href={`/players/${player.id}`}
+      href="/me"
       prefetch
       className="group flex items-center gap-3 rounded-xl border border-primary/15 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-3 transition hover:border-primary/30 hover:from-primary/15"
     >

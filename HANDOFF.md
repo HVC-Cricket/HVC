@@ -24,6 +24,14 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 14) — Home "You" strip → /me + player detail title-case for style.** Two tiny polish items.
+
+Homepage `home-my-profile.tsx`: the "You" strip (avatar + name + matches/runs/wickets) was wired to `/players/${player.id}`. By construction the strip only renders for a viewer who IS the linked player, so the link is always self — hard-coded to `/me` so the signed-in user always lands on their own page rather than the public player detail. Decision was explicit: don't propagate this self-route to other surfaces (POTM card, edit-form back link, etc.) — keep it limited to the home strip and the existing `/players` list row swap.
+
+`players/[playerId]/page.tsx`: the batting/bowling-style subline under the player name was rendering "right hand · right arm spin" lowercase. The `formatEnumLabel` helper deliberately doesn't title-case (per its doc — callers pair with Tailwind's `capitalize`). Added `capitalize` to the `<p>` className so it renders "Right Hand · Right Arm Spin", matching the players-list rows.
+
+2 files / +2 / −2 LOC.
+
 **2026-05-18 (batch 13) — Squads photos + commentary full team name.** Two polish items spotted while reviewing live screenshots.
 
 `XISection` (the component behind the Squads tab + the scheduled-match XI cards) now shows player photos. Each row leads with a `size-8` circular avatar between the batting-order column and the name. Resolution reuses the existing helpers — `fetchLinkedAvatars` (batch-pulls `avatar_url` for any player who linked their auth account) + `resolvePlayerPhoto` (prefers the player's own `photo_url`, falls back to the linked-account avatar, returns null otherwise). When `resolved_photo` is null the row renders an initials chip via `getInitials()`, styled like the POTM card's fallback. Same query shape used everywhere else in the app — no new types, no new endpoints.
