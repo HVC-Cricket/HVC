@@ -91,7 +91,32 @@ export default async function TeamDetailPage(props: {
   );
 
   const onRosterIds = new Set(playerIds);
-  const availablePlayers = (allPlayers ?? []).filter((p) => !onRosterIds.has(p.id));
+
+  // Look up which OTHER team in the same tournament each player is on
+  // (if any). The "Add to squad" picker uses this to render those
+  // players as disabled rows with "Already in <team>" — strictly
+  // clearer than letting the user pick and then surfacing a server
+  // error. The server-side `addPlayerToTeam` action still re-checks,
+  // so a tampered client can't sneak through.
+  const { data: tournamentRosters } = await supabase
+    .from("team_players")
+    .select("player_id, team_id, teams!inner(name, tournament_id)")
+    .eq("teams.tournament_id", tournament.id);
+  const lockedByPlayer = new Map<string, string>();
+  for (const r of tournamentRosters ?? []) {
+    if (r.team_id === team.id) continue;
+    const teamObj = Array.isArray(r.teams) ? r.teams[0] : r.teams;
+    if (!teamObj) continue;
+    lockedByPlayer.set(r.player_id, `Already in ${teamObj.name}`);
+  }
+
+  const availablePlayers = (allPlayers ?? [])
+    .filter((p) => !onRosterIds.has(p.id))
+    .map((p) => ({
+      id: p.id,
+      display_name: p.display_name,
+      locked_reason: lockedByPlayer.get(p.id) ?? null,
+    }));
 
   return (
     <main className="flex-1 p-4 sm:p-6">

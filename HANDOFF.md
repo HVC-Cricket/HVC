@@ -24,6 +24,18 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 25) — Inline "Add player" + already-on-another-team rows disabled in every picker.** Three things landed together:
+
+1. **New shared component `src/components/add-squad-member-popover.tsx`** — small "+ Add player" button → searchable combobox of every registry player → picking one fires `addPlayerToTeam(role: "player")`. Players already on another team in the same tournament render disabled with "Already in <team>" in a muted sublabel; tapping does nothing. Captain / vice-captain still get set from the full team page; this is the lightweight "I just need a 6th squad member" path.
+2. **Match-page XISection** — renders the popover inside each team card's header (organizer rights only). Spectators skip the cross-team fetch entirely. XISection pre-loads tournament slug + all-tournament rosters in one parallel batch and threads `addCtx` into both team cards.
+3. **Pick XI page (`/matches/[id]/xi/[teamId]`)** — popover appears inside the "No squad" empty state and inside the "Squad too small" amber banner so organizers don't have to bounce to the team page just to add a 6th player. Captain / vice-captain UX still lives on the team page — the inline popover is for raw squad additions.
+
+For the existing team-page "Add to squad" picker: the player combobox now keeps already-on-another-team rows visible but renders them **disabled with the team name as a reason**, instead of letting the user pick and then surfacing a server-side error toast. Same `locked_reason` shape across all three call sites.
+
+Server-side gating unchanged — `addPlayerToTeam` still re-verifies tournament uniqueness, so a tampered client can't slip a duplicate through. The UI changes are purely about telling the truth earlier.
+
+5 files / +250 / −20 LOC.
+
 **2026-05-18 (batch 24) — XISection + Pick XI tell the truth when the squad is too small.** Pavan flagged: team squad of 5, `players_per_side = 6`, XISection still read "6 more to pick" — misleading since the user could only ever mark 5 from the available squad. Two surfaces fixed:
 
 - **`XISection.tsx` (match page card)** now also pulls `team_players` count for each team. When `squad_size < players_per_side`, the card description swaps from "N more to pick" to "Team squad has 5 of 6 — add 1 more to the team to field a full XI". The `N/6` chip in the header is unchanged (still shows the goal, not the cap) — the description handles the disambiguation.

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { AddSquadMemberPopover } from "@/components/add-squad-member-popover";
 import {
   Card,
   CardContent,
@@ -63,12 +64,54 @@ export default async function PickXIPage(props: {
     : { data: [] as { id: string; display_name: string }[] };
   const playerById = new Map((players ?? []).map((p) => [p.id, p]));
 
-  // Current XI (if any).
-  const { data: existing } = await supabase
-    .from("match_players")
-    .select("player_id, batting_order, is_captain, is_keeper, is_substitute")
-    .eq("match_id", match.id)
-    .eq("team_id", team.id);
+  // Current XI (if any) + the cross-tournament roster snapshot so we
+  // can render the inline "Add player" popover with already-taken
+  // players visibly disabled rather than letting the user pick and
+  // hit a server error.
+  const [{ data: existing }, allPlayersRes, tournamentRostersRes] =
+    await Promise.all([
+      supabase
+        .from("match_players")
+        .select("player_id, batting_order, is_captain, is_keeper, is_substitute")
+        .eq("match_id", match.id)
+        .eq("team_id", team.id),
+      supabase
+        .from("players")
+        .select("id, display_name")
+        .order("display_name", { ascending: true }),
+      supabase
+        .from("team_players")
+        .select("player_id, team_id, teams!inner(name, tournament_id)")
+        .eq("teams.tournament_id", match.tournament_id),
+    ]);
+
+  // Build the "Add player" candidate list: every player NOT already on
+  // this team, with `locked_reason` set to "Already in <team>" for
+  // anyone on a different team in this tournament. Same shape the
+  // shared popover expects.
+  const ownRoster = new Set(
+    (tournamentRostersRes.data ?? [])
+      .filter((r) => r.team_id === team.id)
+      .map((r) => r.player_id),
+  );
+  const otherTeamByPlayer = new Map<string, string>();
+  for (const r of tournamentRostersRes.data ?? []) {
+    if (r.team_id === team.id) continue;
+    const teamObj = Array.isArray(r.teams) ? r.teams[0] : r.teams;
+    if (!teamObj) continue;
+    if (!otherTeamByPlayer.has(r.player_id)) {
+      otherTeamByPlayer.set(r.player_id, teamObj.name);
+    }
+  }
+  const eligiblePlayers = (allPlayersRes.data ?? [])
+    .filter((p) => !ownRoster.has(p.id))
+    .map((p) => ({
+      id: p.id,
+      display_name: p.display_name,
+      locked_reason: otherTeamByPlayer.has(p.id)
+        ? `Already in ${otherTeamByPlayer.get(p.id)}`
+        : null,
+    }));
 
   const existingByPlayer = new Map(
     (existing ?? []).map((m) => [m.player_id, m]),
@@ -125,6 +168,14 @@ export default async function PickXIPage(props: {
                 </Link>
               </CardDescription>
             </CardHeader>
+            <CardContent>
+              <AddSquadMemberPopover
+                tournamentSlug={tournament.slug}
+                teamId={team.id}
+                players={eligiblePlayers}
+                align="start"
+              />
+            </CardContent>
           </Card>
         ) : (
           <>
@@ -138,8 +189,9 @@ export default async function PickXIPage(props: {
                     {team.name} has {rosterRows.length} player
                     {rosterRows.length === 1 ? "" : "s"} in the squad but
                     this match is {match.players_per_side}-a-side. Add{" "}
-                    {match.players_per_side - rosterRows.length} more on
-                    the team page before you can field a full XI.{" "}
+                    {match.players_per_side - rosterRows.length} more —
+                    either inline below, or via the team page (with
+                    role / captaincy controls).{" "}
                     <Link
                       href={`/tournaments/${tournament.slug}/teams/${team.id}`}
                       className="font-medium text-primary hover:underline"
@@ -148,6 +200,14 @@ export default async function PickXIPage(props: {
                     </Link>
                   </CardDescription>
                 </CardHeader>
+                <CardContent>
+                  <AddSquadMemberPopover
+                    tournamentSlug={tournament.slug}
+                    teamId={team.id}
+                    players={eligiblePlayers}
+                    align="start"
+                  />
+                </CardContent>
               </Card>
             )}
             <Card>

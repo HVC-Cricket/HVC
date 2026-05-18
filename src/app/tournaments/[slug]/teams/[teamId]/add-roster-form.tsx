@@ -50,7 +50,14 @@ type FormValues = z.infer<typeof schema>;
 type Props = {
   tournamentSlug: string;
   teamId: string;
-  players: { id: string; display_name: string }[];
+  players: {
+    id: string;
+    display_name: string;
+    /** When set, render the row disabled with this reason underneath
+     *  — used for players already on another team in this
+     *  tournament. Server `addPlayerToTeam` still re-checks. */
+    locked_reason?: string | null;
+  }[];
   /** False when the caller is a team admin (not organizer) — they
    *  can add players but not set them as captain / vice-captain. */
   canChangeCaptaincy: boolean;
@@ -145,27 +152,42 @@ export function AddRosterForm({
                       <CommandList>
                         <CommandEmpty>No player found.</CommandEmpty>
                         <CommandGroup>
-                          {players.map((p) => (
-                            <CommandItem
-                              key={p.id}
-                              value={`${p.display_name} ${p.id}`}
-                              onSelect={() => {
-                                field.onChange(p.id);
-                                setPlayerPopoverOpen(false);
-                              }}
-                              className="capitalize"
-                            >
-                              <Check
+                          {players.map((p) => {
+                            const locked = !!p.locked_reason;
+                            return (
+                              <CommandItem
+                                key={p.id}
+                                value={`${p.display_name} ${p.id}`}
+                                disabled={locked}
+                                onSelect={() => {
+                                  if (locked) return;
+                                  field.onChange(p.id);
+                                  setPlayerPopoverOpen(false);
+                                }}
                                 className={cn(
-                                  "mr-2 size-4",
-                                  field.value === p.id
-                                    ? "opacity-100"
-                                    : "opacity-0",
+                                  "flex flex-col items-start gap-0 capitalize",
+                                  locked && "opacity-60",
                                 )}
-                              />
-                              {p.display_name}
-                            </CommandItem>
-                          ))}
+                              >
+                                <span className="flex items-center gap-2">
+                                  <Check
+                                    className={cn(
+                                      "size-4",
+                                      field.value === p.id
+                                        ? "opacity-100"
+                                        : "opacity-0",
+                                    )}
+                                  />
+                                  <span>{p.display_name}</span>
+                                </span>
+                                {p.locked_reason && (
+                                  <span className="pl-6 text-[10px] normal-case text-muted-foreground">
+                                    {p.locked_reason}
+                                  </span>
+                                )}
+                              </CommandItem>
+                            );
+                          })}
                         </CommandGroup>
                       </CommandList>
                     </Command>

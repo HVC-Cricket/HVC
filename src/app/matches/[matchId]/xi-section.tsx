@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { AddSquadMemberPopover } from "@/components/add-squad-member-popover";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,9 +16,19 @@ import { getInitials } from "@/lib/utils";
 
 type Team = { id: string; name: string; short_name: string };
 
+export type EligibleAdd = {
+  tournamentSlug: string;
+  // Map of (teamId) → eligible player list with locked_reason set
+  // when the player is already on another team in this tournament.
+  playersByTeam: Record<
+    string,
+    { id: string; display_name: string; locked_reason: string | null }[]
+  >;
+};
+
 export async function XISection({
   matchId,
-  tournamentId: _tournamentId,
+  tournamentId,
   playersPerSide,
   teamA,
   teamB,
@@ -30,6 +41,13 @@ export async function XISection({
   teamB: Team;
   canManage: boolean;
 }) {
+  // Pre-compute "Add player" data for both teams when the viewer can
+  // manage the team. Spectators don't need this, so we skip the
+  // fetches entirely for them.
+  const addCtx = canManage
+    ? await loadAddPlayerContext(tournamentId, [teamA.id, teamB.id])
+    : null;
+
   return (
     <div className="space-y-3">
       <div className="grid gap-4 md:grid-cols-2">
@@ -39,6 +57,7 @@ export async function XISection({
           playersPerSide={playersPerSide}
           canManage={canManage}
           showButton={false}
+          addCtx={addCtx}
         />
         <TeamXICard
           matchId={matchId}
@@ -46,6 +65,7 @@ export async function XISection({
           playersPerSide={playersPerSide}
           canManage={canManage}
           showButton={false}
+          addCtx={addCtx}
         />
       </div>
       {/* Single combined CTA — the per-team Pick XI buttons were a
@@ -63,12 +83,89 @@ export async function XISection({
   );
 }
 
+/**
+ * Resolve the data needed by the inline "Add player" popover for
+ * each team: tournament slug (for the action's `tournamentSlug`
+ * field) + per-team eligible-player list with `locked_reason` set
+ * for anyone already in another team of this tournament.
+ *
+ * Single call to `team_players` joined to `teams` filtered by
+ * `tournament_id` — cheap; the row count is bounded by the
+ * tournament's total roster.
+ */
+async function loadAddPlayerContext(
+  tournamentId: string,
+  teamIds: string[],
+): Promise<EligibleAdd | null> {
+  const supabase = await createClient();
+  const [tournamentRes, playersRes, rostersRes] = await Promise.all([
+    supabase
+      .from("tournaments")
+      .select("slug")
+      .eq("id", tournamentId)
+      .maybeSingle(),
+    supabase
+      .from("players")
+      .select("id, display_name")
+      .order("display_name", { ascending: true }),
+    supabase
+      .from("team_players")
+      .select("player_id, team_id, teams!inner(name, tournament_id)")
+      .eq("teams.tournament_id", tournamentId),
+  ]);
+  if (!tournamentRes.data) return null;
+
+  // Per-team membership: rosterByTeam[teamId] = Set of playerIds.
+  // Also rosterByOtherTeams[teamId] = Map<playerId, otherTeamName>.
+  const rosterByTeam = new Map<string, Set<string>>();
+  const otherTeamByPlayer = new Map<string, string>();
+  for (const r of rostersRes.data ?? []) {
+    let bucket = rosterByTeam.get(r.team_id);
+    if (!bucket) {
+      bucket = new Set();
+      rosterByTeam.set(r.team_id, bucket);
+    }
+    bucket.add(r.player_id);
+    const teamObj = Array.isArray(r.teams) ? r.teams[0] : r.teams;
+    if (teamObj) {
+      // First-write-wins is fine: if a (impossible-in-practice)
+      // player is on multiple teams, we only need one reason string.
+      if (!otherTeamByPlayer.has(r.player_id)) {
+        otherTeamByPlayer.set(r.player_id, teamObj.name);
+      }
+    }
+  }
+
+  const playersByTeam: EligibleAdd["playersByTeam"] = {};
+  for (const teamId of teamIds) {
+    const ownRoster = rosterByTeam.get(teamId) ?? new Set();
+    playersByTeam[teamId] = (playersRes.data ?? [])
+      .filter((p) => !ownRoster.has(p.id))
+      .map((p) => {
+        const otherTeam = otherTeamByPlayer.get(p.id);
+        // If they're on "another" team that's not this one, lock.
+        const lockedReason =
+          otherTeam && !ownRoster.has(p.id)
+            ? `Already in ${otherTeam}`
+            : null;
+        return {
+          id: p.id,
+          display_name: p.display_name,
+          locked_reason: lockedReason,
+        };
+      });
+  }
+
+  return { tournamentSlug: tournamentRes.data.slug, playersByTeam };
+}
+
 async function TeamXICard({
   matchId,
   team,
   playersPerSide,
   canManage,
   showButton = true,
+  addCtx,
 }: {
   matchId: string;
   team: Team;
@@ -79,6 +176,9 @@ async function TeamXICard({
    *  Pick XI / Edit XI button. Lone callers (none currently, but a
    *  future single-team summary card could) leave the default true. */
   showButton?: boolean;
+  /** When the viewer can manage and we want the inline "Add player"
+   *  shortcut to render in the card header. */
+  addCtx?: EligibleAdd | null;
 }) {
   const supabase = await createClient();
   // Pull match_players for this match/team + a separate squad-size
@@ -174,6 +274,16 @@ async function TeamXICard({
                 ? "Playing XI is set."
                 : `${playersPerSide - playing.length} more to pick.`}
         </CardDescription>
+        {canManage && addCtx && (
+          <div className="pt-2">
+            <AddSquadMemberPopover
+              tournamentSlug={addCtx.tournamentSlug}
+              teamId={team.id}
+              players={addCtx.playersByTeam[team.id] ?? []}
+              align="start"
+            />
+          </div>
+        )}
       </CardHeader>
       <CardContent className="p-0">
         {!isEmpty && (
