@@ -11,6 +11,15 @@
  */
 export const LOCK_EXPIRY_SECONDS = 120;
 
+/**
+ * Seconds a pending takeover request can sit unanswered before the
+ * server treats it as abandoned and clears it. Avoids a requester
+ * being stuck on "Waiting for permission" forever if the holder has
+ * the page open but isn't watching. Symmetric with LOCK_EXPIRY for
+ * predictability.
+ */
+export const PENDING_REQUEST_EXPIRY_SECONDS = 120;
+
 export type PendingTakeoverRequest = {
   requesterId: string;
   requesterName: string | null;

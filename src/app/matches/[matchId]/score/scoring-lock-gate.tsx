@@ -125,15 +125,37 @@ export function ScoringLockGate({
         toast.success("Scoring handed over to you", { duration: 6000 });
       }
 
-      // Requester side: my pending request was denied (still held by
-      // them; myRequestPending flipped to false).
+      // Requester side: my pending request is no longer pending.
+      // Either the holder denied it OR the server lazy-cleared it
+      // after 2 min idle. From the requester's perspective both
+      // outcomes are identical (you're not in the queue anymore, you
+      // can re-request), so we use a unified message instead of
+      // pretending we can tell them apart.
       if (
         next.status === "held" &&
         !next.myRequestPending &&
         prev.status === "held" &&
         prev.myRequestPending
       ) {
-        toast.error("Your takeover request was denied", { duration: 6000 });
+        toast.error(
+          "Your takeover request is no longer pending — try again if you still need to score",
+          { duration: 6000 },
+        );
+      }
+
+      // Holder side: a pending request against me disappeared without
+      // my Allow / Deny click. (Click handlers update statusRef
+      // synchronously via setStatus, so the next poll sees the
+      // post-click state and this branch doesn't fire.) Either the
+      // requester cancelled or the server auto-expired it. Quiet
+      // info toast — the holder is scoring and doesn't need an alarm.
+      if (
+        next.status === "mine" &&
+        !next.pendingRequest &&
+        prev.status === "mine" &&
+        prev.pendingRequest
+      ) {
+        toast.info("Takeover request withdrawn", { duration: 4000 });
       }
 
       // Old holder side: I went from "mine" to anything else — lock

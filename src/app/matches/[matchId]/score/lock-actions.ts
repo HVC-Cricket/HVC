@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import {
   LOCK_EXPIRY_SECONDS,
+  PENDING_REQUEST_EXPIRY_SECONDS,
   type LockStatus,
   type PendingTakeoverRequest,
 } from "./lock-types";
@@ -46,6 +47,35 @@ async function loadLockState(
     )
     .eq("id", matchId)
     .single();
+  if (!data) return null;
+
+  // Lazy-clear stale pending takeover requests so the holder isn't
+  // pestered by an indefinitely-old banner and the requester isn't
+  // stuck on "Waiting for permission" if the holder never responds.
+  // Doing it on read keeps every caller consistent without needing a
+  // separate cron / scheduled function. The UPDATE only fires when
+  // the row is actually stale — quiet most of the time.
+  if (
+    data.pending_scorer_request_id &&
+    secondsAgo(data.pending_scorer_request_at) > PENDING_REQUEST_EXPIRY_SECONDS
+  ) {
+    await supabase
+      .from("matches")
+      .update({
+        pending_scorer_request_id: null,
+        pending_scorer_request_at: null,
+      })
+      .eq("id", matchId)
+      // Match the stale request specifically — if a fresher request
+      // raced in between SELECT and UPDATE, leave it alone.
+      .eq("pending_scorer_request_id", data.pending_scorer_request_id);
+    return {
+      ...data,
+      pending_scorer_request_id: null,
+      pending_scorer_request_at: null,
+    };
+  }
+
   return data;
 }
 
