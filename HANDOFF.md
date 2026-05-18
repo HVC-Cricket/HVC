@@ -24,6 +24,22 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 4) — Scoreboard: over-complete prompt + preserve Cat 2 batters.** Two issues surfaced during live scoring of an HVC match.
+
+First, Pavan flagged that "after the 2nd over the batsman and the bowler is getting cleared out." The balls-length sync at every over boundary was wiping all three slots — striker, non-striker, bowler — whenever the new over was Cat 2 (over 3+). The bowler clear is mandatory (consecutive-over rule), but the batters were being thrown away even though `state.active.{striker,non_striker}_id` already held the correct post-rotation values, forcing the scorer to re-pick both players when nothing about the engine state required it. Fix: at a Cat 2 boundary, set striker and non-striker from `state.active.*_id` (loader already blanks dismissed slots to null); at a Cat 1 / Cat 3 boundary, keep the prior behavior (clear striker so the auto-pick effect can fill a category-matching candidate, keep non-striker).
+
+Second: "as soon as an over is completed, there should be a prompt for the scorer stating that the bowler needs to be changed." Initial implementation fired the dialog from a server-driven `state.active.over_number` tick — visible 1–3 s after the 6th-ball tap because of the `recordBall` roundtrip. Pavan wanted instant + an inline picker, so the dialog was rebuilt around an **optimistic trigger** inside `submit`: the moment `applyOptimisticRotation` returns `endOfOver: true`, set `overCompletePrompt = { completedOver, nextOverCategory, previousBowlerId }`. Dialog opens with zero perceived latency. The previous `over_number`-effect remains as a fallback for collaborative scoring + page reloads mid-boundary. `completedOverRef` advances on the optimistic path so the server fallback doesn't re-open the same dialog after dismissal.
+
+The dialog body itself now contains a shadcn `Select` bound directly to `bowlerId`, sourcing options from `bowlingXiWithOvers` (each option shows the bowler's overs-bowled `(x.y)` annotation). Per-option disabled states:
+- Bowler who just finished the over → ` — just bowled` (consecutive-over rule).
+- Off-category bowlers on Cat 1 / Cat 3 overs → ` — Cat X, need Cat Y`.
+
+OK button is disabled until `bowlerId` is non-empty; picking from the dropdown also updates the main slot tile. Innings-complete edge case handled with a cleanup effect that closes the dialog if `isComplete` flips true while it's open (last ball of innings + over coinciding).
+
+Pick-preservation fix layered on: the balls-length sync used to unconditionally `setBowlerId("")` at an over boundary, which would clobber an optimistic dialog pick once the server roundtrip finally landed. Changed to `setBowlerId((current) => (current === justBowled ? "" : current))` — clear only if the slot still holds the just-finished bowler. Cat 1 / Cat 3 boundary auto-pick is unaffected since the dialog filter only lets the user pick a category-matching bowler.
+
+Commit `4112d0c`; 1 file / +142 / −12 LOC.
+
 **2026-05-18 (batch 3) — Scoring lock: auto-expire pending requests.** Follow-up to batch 2. Before, a takeover request sat in `pending_scorer_request_id` indefinitely until explicit Allow / Deny / Cancel. If the holder had the page open but wasn't actively watching (phone face-down on the bench between deliveries), the requester was stuck on "Waiting for permission" with no path out except cancelling and re-requesting.
 
 Implementation:
