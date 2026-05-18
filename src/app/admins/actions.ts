@@ -213,3 +213,58 @@ export async function broadcastToTournament(
 
   return { ok: true, data: result };
 }
+
+// ---------------------------------------------------------------------------
+// Storage: delete orphan objects in a bucket
+// ---------------------------------------------------------------------------
+
+const deleteOrphansSchema = z.object({
+  bucket: z.string().min(1),
+  // Paths to delete — caller is expected to supply only orphans
+  // (objects whose corresponding DB column is null). Server still
+  // re-walks the same orphan computation to make sure none of these
+  // paths are referenced by a `*_url` somewhere, so a stale client
+  // payload can't nuke a live file.
+  paths: z.array(z.string().min(1)).min(1),
+});
+
+export async function deleteOrphanStorageObjects(
+  input: z.infer<typeof deleteOrphansSchema>,
+): Promise<ActionResult<{ deleted: number }>> {
+  await requireSuperAdmin();
+  const parsed = deleteOrphansSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+  }
+
+  // Re-verify that every path supplied is genuinely orphan right
+  // now — defends against the client posting a stale orphan list
+  // after someone re-uploaded a file in another tab.
+  const { loadStorageReport } = await import("./storage-loader");
+  const report = await loadStorageReport();
+  const bucketReport = report.find((b) => b.bucket === parsed.data.bucket);
+  if (!bucketReport) {
+    return { ok: false, error: "Unknown bucket" };
+  }
+  const orphanPaths = new Set(bucketReport.orphans.map((o) => o.path));
+  const safePaths = parsed.data.paths.filter((p) => orphanPaths.has(p));
+  if (safePaths.length === 0) {
+    return {
+      ok: false,
+      error:
+        "None of the requested paths are still orphan — list may be stale, refresh and retry.",
+    };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.storage
+    .from(parsed.data.bucket)
+    .remove(safePaths);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/admins");
+  return { ok: true, data: { deleted: safePaths.length } };
+}

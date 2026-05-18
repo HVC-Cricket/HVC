@@ -2,12 +2,13 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
-type TabId = "members" | "matches" | "broadcast" | "activity";
+type TabId = "members" | "matches" | "broadcast" | "storage" | "activity";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "members", label: "Members" },
   { id: "matches", label: "Matches" },
   { id: "broadcast", label: "Broadcast" },
+  { id: "storage", label: "Storage" },
   { id: "activity", label: "Activity" },
 ];
 
@@ -25,11 +26,13 @@ export function AdminTabs({
   members,
   matches,
   broadcast,
+  storage,
   activity,
 }: {
   members: ReactNode;
   matches: ReactNode;
   broadcast: ReactNode;
+  storage: ReactNode;
   activity: ReactNode;
 }) {
   const [active, setActive] = useState<TabId>("members");
@@ -88,6 +91,9 @@ export function AdminTabs({
       <div role="tabpanel" hidden={active !== "broadcast"}>
         {broadcast}
       </div>
+      <div role="tabpanel" hidden={active !== "storage"}>
+        {storage}
+      </div>
       <div role="tabpanel" hidden={active !== "activity"}>
         {activity}
       </div>
@@ -98,6 +104,13 @@ export function AdminTabs({
 function readTabFromURL(): TabId {
   if (typeof window === "undefined") return "members";
   const t = new URL(window.location.href).searchParams.get("tab");
-  if (t === "matches" || t === "broadcast" || t === "activity") return t;
+  if (
+    t === "matches" ||
+    t === "broadcast" ||
+    t === "storage" ||
+    t === "activity"
+  ) {
+    return t;
+  }
   return "members";
 }

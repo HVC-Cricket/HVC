@@ -17,6 +17,8 @@ import {
 } from "./broadcast-section";
 import { LiveMatchesCard } from "./live-matches-card";
 import { MembersTable, type MemberRow, type PlayerOption } from "./members-table";
+import { loadStorageReport } from "./storage-loader";
+import { StorageSection } from "./storage-section";
 
 export const dynamic = "force-dynamic";
 
@@ -100,6 +102,11 @@ export default async function AdminsPage() {
     name: t.name,
     subscribers: subsByTournament.get(t.id)?.size ?? 0,
   }));
+
+  // Storage report — heavy enough (one list per bucket × two levels
+  // + one DB scan per bucket) that it sits on its own tab and only
+  // loads when the page does. Acceptable for an admin-only page.
+  const storageReports = await loadStorageReport();
 
   // Look up match → tournament summary for the audit log so each row
   // can read "Final · TWN vs MM" instead of a bare UUID. Skip the
@@ -276,6 +283,7 @@ export default async function AdminsPage() {
           }
           matches={<LiveMatchesCard />}
           broadcast={<BroadcastSection tournaments={tournamentChoices} />}
+          storage={<StorageSection reports={storageReports} />}
           activity={<AuditLogSection events={auditEvents} />}
         />
       </div>

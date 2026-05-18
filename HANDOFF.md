@@ -24,6 +24,17 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-19 (batch 41) — `/admins`: storage browser + orphan cleanup.** New **Storage** tab on `/admins`. One section per Supabase Storage bucket the app uploads to (player-photos, team-logos, tournament-logos, user-avatars) with:
+
+- **Object count + total size** computed from a two-level `storage.list` per bucket (top-level user folders → files in each).
+- **Orphan count + size** — orphan = object whose corresponding DB column (`players.photo_url`, `teams.logo_url`, `tournaments.logo_url`, `profiles.avatar_url`) doesn't reference it. URLs are matched against the bucket's `/storage/v1/object/public/<bucket>/` prefix so external CDN URLs (e.g. `media.cricheroes.in/...` left in `logo_url` by the historical import) correctly count as "no reference" without flagging the bucket file.
+- **Expandable orphan list** — collapsible details showing each orphan's path + size.
+- **"Delete all N orphans" button** with `AlertDialog` confirm. Server action re-walks the same orphan computation server-side before issuing `storage.remove`, so a stale client list can't nuke a live file.
+
+Top-level header shows aggregate totals across all buckets so the admin gets a one-glance "how much storage am I using" reading. Match-banners bucket intentionally not included — no `*_url` column points at it today.
+
+5 files / +400 / 0 LOC.
+
 **2026-05-19 (batch 40) — `/admins`: tournament push broadcast.** New **Broadcast** tab on `/admins`. Pick a tournament, enter title + body, hit Send — every device subscribed to any match in that tournament receives one push (de-duplicated by endpoint, so a user subscribed to 5 matches doesn't get 5 copies).
 
 **Plumbing:**
