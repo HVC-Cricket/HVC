@@ -37,6 +37,8 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Follow-up (same day):** orphan list now shows a 32px thumbnail next to each path (loaded straight from the bucket's `/storage/v1/object/public/<bucket>/<path>` URL — all four buckets are public). Thumbnail doubles as a link that opens the file in a new tab so the admin can eyeball "is this safe to delete?" before clicking the big red button. Lazy-loaded so a 200-orphan list doesn't fetch every image on tab open. Single file touched.
 
+**Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
+
 **2026-05-19 (batch 40) — `/admins`: tournament push broadcast.** New **Broadcast** tab on `/admins`. Pick a tournament, enter title + body, hit Send — every device subscribed to any match in that tournament receives one push (de-duplicated by endpoint, so a user subscribed to 5 matches doesn't get 5 copies).
 
 **Plumbing:**

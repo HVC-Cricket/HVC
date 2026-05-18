@@ -140,9 +140,9 @@ export function AuditLogSection({ events }: { events: AuditEvent[] }) {
             {filtered.map((e) => (
               <li
                 key={e.id}
-                className="grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-2.5 text-sm sm:px-6"
+                className="grid grid-cols-[8rem_1fr] items-center gap-3 px-4 py-2.5 text-sm sm:px-6"
               >
-                <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                <span className="truncate rounded bg-muted px-1.5 py-0.5 text-center font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
                   {e.eventType}
                 </span>
                 <div className="min-w-0">
