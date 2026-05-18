@@ -33,6 +33,13 @@ type ActiveState = {
    *  over, so we suppress the odd-runs swap for any special over —
    *  that's the safer default for Cat 1/3 overs in HVC's ruleset. */
   is_special_over: "cat1" | "cat3" | null;
+  /** Rule flag — `cat_special_strike === "stay"`. Combined with
+   *  `is_special_over` this lets us predict that a dismissed special
+   *  batter stays at the crease for the remaining balls of the over
+   *  (so we don't visually wipe the striker slot when the engine will
+   *  keep it). Under "stay", the special batter is always the current
+   *  striker (no odd-run swap, no end-of-over move mid-over). */
+  special_stay_rule: boolean;
 };
 
 export type OptimisticRotation = {
@@ -72,10 +79,22 @@ export function applyOptimisticRotation(args: {
   // Wicket: clear the dismissed slot so the scorer picks a replacement
   // immediately. Default `player_out_id` is the striker if unspecified
   // (caught / bowled / hit-wicket).
+  //
+  // Exception: in a Cat 1 / Cat 3 special over with the "stay" rule,
+  // the special batter (== current striker) keeps facing the remaining
+  // balls even after being dismissed. Don't wipe the striker slot in
+  // that case — mirrors `stillSpecialStay` in state.ts so the server
+  // reconciliation is a no-op instead of a visible flash.
   if (ball.is_wicket) {
     const dismissed = ball.player_out_id ?? strikerId;
-    if (dismissed === strikerId) strikerId = "";
-    else if (dismissed === nonStrikerId) nonStrikerId = "";
+    const stayAtCrease =
+      active.is_special_over !== null &&
+      active.special_stay_rule &&
+      dismissed === strikerId;
+    if (!stayAtCrease) {
+      if (dismissed === strikerId) strikerId = "";
+      else if (dismissed === nonStrikerId) nonStrikerId = "";
+    }
   }
 
   // Odd-run swap, suppressed in last-man mode (lone batter stays) and

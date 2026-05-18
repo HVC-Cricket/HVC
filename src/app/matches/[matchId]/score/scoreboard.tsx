@@ -307,15 +307,28 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       // server roundtrip lands.
       const justBowled = state.balls[state.balls.length - 1]?.bowler_id;
       setBowlerId((current) => (current === justBowled ? "" : current));
-      setNonStrikerId(state.active.non_striker_id ?? "");
+      // Preserve any optimistic batter pick from the wicket prompt:
+      // when the server has a value, sync to it; when it's null
+      // (dismissed slot, no engine-side replacement yet), keep the
+      // local pick.
+      setNonStrikerId(
+        (current) => state.active.non_striker_id ?? current,
+      );
       if (newOverCategory === 2) {
-        setStrikerId(state.active.striker_id ?? "");
+        setStrikerId((current) => state.active.striker_id ?? current);
       } else {
-        setStrikerId("");
+        // Cat 1 / Cat 3 boundary: original behavior was to clear the
+        // striker so the auto-pick effect could fill a Cat-matching
+        // candidate. Preserve a non-empty pick (came from the wicket
+        // dialog, already category-filtered).
+        setStrikerId((current) => current || "");
       }
     } else {
-      setStrikerId(state.active.striker_id ?? "");
-      setNonStrikerId(state.active.non_striker_id ?? "");
+      // Non-boundary sync — same null-preserves-local rule so a wicket
+      // prompt pick on a mid-over dismissal isn't clobbered when the
+      // server reconciliation lands.
+      setStrikerId((current) => state.active.striker_id ?? current);
+      setNonStrikerId((current) => state.active.non_striker_id ?? current);
       setBowlerId(state.active.bowler_id ?? "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -336,6 +349,22 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       isSuperOver ? 2 : defaultOverCategory(state.active.over_number),
     );
   }, [state.active.over_number, isSuperOver]);
+
+  // Wicket-replacement prompt. Optimistic only — fired inside `submit`
+  // the instant a wicket is recorded. Suppressed when no replacement is
+  // needed (innings ends, last-man rule, or a Cat 1/3 special-batter
+  // "stay" dismissal where the engine keeps the dismissed batter at the
+  // crease for the remaining balls of the over).
+  type WicketPrompt = {
+    emptySlot: "striker" | "non_striker";
+    dismissedPlayerId: string;
+    /** Cat 1 / Cat 3 means the upcoming striker must match the over's
+     *  category. `null` = any (Cat 2 or new batter at non-strike end). */
+    requireCategory: 1 | 3 | null;
+    /** The live batter at the other end — excluded from the dropdown. */
+    otherBatterId: string;
+  };
+  const [wicketPrompt, setWicketPrompt] = useState<WicketPrompt | null>(null);
 
   // Over-completed prompt. Two triggers:
   //   1. Optimistic — fired inside `submit` the instant the scorer taps
@@ -358,7 +387,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     const cur = state.active.over_number;
     if (cur === prev) return;
     completedOverRef.current = cur;
-    if (cur > prev && !isComplete) {
+    if (cur > prev && !isComplete && cur - 1 >= 2) {
       const lastBall = state.balls[state.balls.length - 1];
       setOverCompletePrompt({
         completedOver: cur - 1,
@@ -537,25 +566,86 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       active: {
         last_man_mode: state.active.last_man_mode,
         is_special_over: state.active.is_special_over,
+        special_stay_rule:
+          state.rules.categories?.cat_special_strike === "stay",
       },
     });
     setStrikerId(next.strikerId);
     setNonStrikerId(next.nonStrikerId);
     setBowlerId(next.bowlerId);
+    // Optimistic wicket-replacement prompt. Skip when the wicket ends
+    // the innings, when the last-man rule kicks in (lone batter keeps
+    // batting), or when a Cat 1/3 "stay" rule keeps the dismissed
+    // special batter at the crease — in all three cases the engine
+    // doesn't free up a batter slot.
+    if (input.is_wicket && !isComplete) {
+      const dismissedId =
+        (input as { player_out_id?: string | null }).player_out_id ??
+        strikerId;
+      const isSpecialStay =
+        state.active.is_special_over !== null &&
+        state.rules.categories?.cat_special_strike === "stay" &&
+        dismissedId === strikerId;
+      const willEnterLastMan =
+        state.rules.last_man_standing &&
+        !isSuperOver &&
+        state.active.dismissed_ids.length + 1 >=
+          state.rules.players_per_side - 1;
+      const emptySlot: "striker" | "non_striker" | null =
+        next.strikerId === ""
+          ? "striker"
+          : next.nonStrikerId === ""
+            ? "non_striker"
+            : null;
+      if (
+        emptySlot !== null &&
+        !state.active.last_man_mode &&
+        !isSpecialStay &&
+        !willEnterLastMan
+      ) {
+        const otherBatterId =
+          emptySlot === "striker" ? next.nonStrikerId : next.strikerId;
+        const upcomingCategory: 1 | 2 | 3 = next.endOfOver
+          ? isSuperOver
+            ? 2
+            : defaultOverCategory(state.active.over_number + 1)
+          : overCategory;
+        const newAtStriker = emptySlot === "striker";
+        const requireCategory: 1 | 3 | null =
+          newAtStriker && upcomingCategory !== 2
+            ? (upcomingCategory as 1 | 3)
+            : null;
+        setWicketPrompt({
+          emptySlot,
+          dismissedPlayerId: dismissedId,
+          requireCategory,
+          otherBatterId,
+        });
+      }
+    }
     // Optimistic over-complete prompt — fire here so the scorer sees the
     // "pick a new bowler" dialog the instant they tap the 6th ball, not
     // after the recordBall roundtrip. Advance `completedOverRef` so the
     // server-fallback effect doesn't re-open the same dialog once
     // `state.active.over_number` catches up.
+    //
+    // Skip after over 1: the over 1 → over 2 boundary is Cat 1 → Cat 3,
+    // and the auto-pick effect on category change already fills the
+    // bowler slot with a Cat 3 candidate — the dialog would just ask the
+    // scorer to confirm an auto-pick, which is friction with no signal.
+    // From over 2 onwards (entering Cat 2 overs, or super overs) there's
+    // no auto-pick to lean on, so the prompt earns its keep.
     if (next.endOfOver && !isComplete) {
       const completedOver = state.active.over_number;
-      setOverCompletePrompt({
-        completedOver,
-        nextOverCategory: isSuperOver
-          ? 2
-          : defaultOverCategory(completedOver + 1),
-        previousBowlerId: bowlerId,
-      });
+      if (completedOver >= 2) {
+        setOverCompletePrompt({
+          completedOver,
+          nextOverCategory: isSuperOver
+            ? 2
+            : defaultOverCategory(completedOver + 1),
+          previousBowlerId: bowlerId,
+        });
+      }
       completedOverRef.current = completedOver + 1;
     }
     void enqueue("recordBall", input);
@@ -1323,7 +1413,90 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       )}
 
       <AlertDialog
-        open={overCompletePrompt !== null}
+        open={wicketPrompt !== null}
+        onOpenChange={(open) => {
+          if (!open) setWicketPrompt(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Wicket — pick the next batter</AlertDialogTitle>
+            <AlertDialogDescription>
+              {wicketPrompt && (
+                <>
+                  Replace{" "}
+                  <span className="font-medium capitalize text-foreground">
+                    {playersById.get(wicketPrompt.dismissedPlayerId)
+                      ?.display_name ?? "the dismissed batter"}
+                  </span>
+                  . The new batter comes in at{" "}
+                  {wicketPrompt.emptySlot === "striker"
+                    ? "strike"
+                    : "the non-striker end"}
+                  .
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {wicketPrompt && (
+            <Select
+              value={
+                (wicketPrompt.emptySlot === "striker"
+                  ? strikerId
+                  : nonStrikerId) || undefined
+              }
+              onValueChange={(v) => {
+                if (wicketPrompt.emptySlot === "striker") setStrikerId(v);
+                else setNonStrikerId(v);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose batter…" />
+              </SelectTrigger>
+              <SelectContent>
+                {battingXi.map((p) => {
+                  const isDismissed =
+                    state.active.dismissed_ids.includes(p.id) ||
+                    p.id === wicketPrompt.dismissedPlayerId;
+                  const isOther = p.id === wicketPrompt.otherBatterId;
+                  const catMismatch =
+                    wicketPrompt.requireCategory !== null &&
+                    p.category !== wicketPrompt.requireCategory;
+                  const disabled = isDismissed || isOther || catMismatch;
+                  const suffix = isDismissed
+                    ? " — out"
+                    : isOther
+                      ? " — at other end"
+                      : catMismatch
+                        ? ` — Cat ${p.category ?? "?"}, need Cat ${wicketPrompt.requireCategory}`
+                        : "";
+                  return (
+                    <SelectItem key={p.id} value={p.id} disabled={disabled}>
+                      {p.display_name}
+                      {suffix}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={() => setWicketPrompt(null)}
+              disabled={
+                !(wicketPrompt?.emptySlot === "striker"
+                  ? strikerId
+                  : nonStrikerId)
+              }
+            >
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={overCompletePrompt !== null && wicketPrompt === null}
         onOpenChange={(open) => {
           if (!open) setOverCompletePrompt(null);
         }}
