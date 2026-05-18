@@ -24,6 +24,15 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 9) — Fold Commentary into Live; drop the Commentary tab.** Pavan wanted the commentary feed always-visible on the default tab instead of behind its own click. Two edits do the work:
+
+- `match-tabs.tsx`: dropped `"commentary"` from the `TabId` union and the `TABS` array, removed the `commentary` prop + its `<div role="tabpanel">`, and updated the doc-comment to point at Live as the new home. `readTabFromURL` now folds an old `?tab=commentary` query param onto Live so existing bookmarks / shared links don't 404 the tab silently.
+- `page.tsx`: moved `<CommentaryFeed matchId={match.id} />` (with its existing `<Suspense fallback={<SectionSkeleton lines={3} />}>` wrapper) into the `live` slot, after the `LiveScorePanel` and the completed-match `MatchAwards` block. The `commentary={...}` prop on `<MatchTabs>` is gone.
+
+Spectators on the match page now see score + (POTM on completed) + commentary on the same panel, without losing the Scorecard / Info tabs.
+
+Commit `e245302`; 2 files / +11 / −16 LOC.
+
 **2026-05-18 (batch 8) — Commentary narration + Live-panel over-strip order.** Two small UX adds.
 
 The auto-generated commentary feed (`/lib/commentary.ts`) now emits short narration lines between the ball-by-ball entries to give the feed a broadcast-style flow:
