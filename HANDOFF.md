@@ -24,6 +24,18 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 23) — Scoring CTA + score-page gate honour the playing-XI count.** Pavan flagged a match with no XI picked still showed "Start scoring this match" in the sticky bar; clicking landed on `/score`, which fell through to the inline pick-XI step (working as intended, per §19), but the misleading label made it look like scoring had begun. Two fixes:
+
+- **Match page (`/matches/[id]`):** the sticky CTA label now reflects the next required step. When `status='scheduled'` and the scoring bar is going to render, the page now pulls `match_players` rows for the match (one tiny extra query — only when the bar is actually visible, so spectators don't pay for it) and labels the button:
+  - `Set toss to start scoring` when toss isn't set.
+  - `Pick playing XIs to start scoring` when either team's non-sub count is below `players_per_side`.
+  - `Start scoring this match` only once both gates pass.
+- **Score page (`/matches/[id]/score`):** the existing `xisReady` gate counted `state.xi[teamId].length`, which includes substitutes — a team with 5 subs and 0 picked would pass `length >= 2` even though the playing XI was empty. Replaced with a direct `match_players` count filtering `is_substitute = false` and required the count to hit `players_per_side` on each side. Same shape of query as the match page, so the two stay aligned (label says "Pick XIs" iff the score-page gate would also stop you).
+
+Net: the bar tells the truth about the next step, and the score page's `StartMatchPanel` won't render until both teams actually have a full playing XI of `players_per_side` (default 6 for box cricket). The "you can pick the XI inline on /score" flow from batch 19 is unaffected — the pre-match checklist still renders when toss / XI aren't ready.
+
+2 files / +44 / −5 LOC.
+
 **2026-05-18 (batch 22) — Searchable comboboxes for the remaining user/player pickers.** Three more Select fields converted to the same Popover + Command (cmdk) combobox pattern already shipped on `add-roster-form` (batch 15) and the `/admins` members table (batch 19):
 
 1. **`/tournaments/[slug]/admins`** — "Pick a user" for adding a tournament admin (organizer / scorer). The screenshot trigger.

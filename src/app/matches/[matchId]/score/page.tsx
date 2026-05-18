@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/card";
 import { requireTournamentAdmin } from "@/lib/auth";
 
+import { createClient } from "@/lib/supabase/server";
+
 import { TossForm } from "../toss-form";
 import { XISection } from "../xi-section";
 import { InningsBreakPanel } from "./innings-break-panel";
@@ -34,11 +36,29 @@ export default async function ScorePage(props: {
   // refines this on mount and keeps it fresh via heartbeat.
   const initialLockStatus = await getScoringLockStatus(matchId);
 
-  // Gating: toss set + both XIs picked.
+  // Gating: toss set + both XIs picked. `state.xi` includes every
+  // match_players row (subs too), so its length isn't a faithful
+  // "playing XI count" — a team with 5 subs + 0 picked would pass a
+  // `length >= 2` check even though the playing XI is empty. Pull a
+  // strict non-sub count straight from `match_players` instead, and
+  // require it to hit the configured `players_per_side`.
+  const supabaseForCounts = await createClient();
+  const { data: xiCountRows } = await supabaseForCounts
+    .from("match_players")
+    .select("team_id, is_substitute")
+    .eq("match_id", matchId);
+  const xiACount =
+    xiCountRows?.filter(
+      (r) => r.team_id === state.teamA.id && !r.is_substitute,
+    ).length ?? 0;
+  const xiBCount =
+    xiCountRows?.filter(
+      (r) => r.team_id === state.teamB.id && !r.is_substitute,
+    ).length ?? 0;
   const hasToss = !!state.match.toss_winner_id && !!state.match.toss_decision;
-  const xiACount = state.xi[state.teamA.id]?.length ?? 0;
-  const xiBCount = state.xi[state.teamB.id]?.length ?? 0;
-  const xisReady = xiACount >= 2 && xiBCount >= 2;
+  const xisReady =
+    xiACount >= state.match.players_per_side &&
+    xiBCount >= state.match.players_per_side;
 
   return (
     <main className="flex-1 p-3">

@@ -107,8 +107,36 @@ export default async function MatchDetailPage(props: {
   const showScoringBar =
     canScore &&
     (ms === "scheduled" || ms === "live" || ms === "innings_break");
-  const scoringBarLabel =
-    ms === "scheduled" ? "Start scoring this match" : "Continue scoring";
+
+  // Pre-flight check for the CTA label. The score page already blocks
+  // the actual scoring panel when toss / XIs aren't complete (it
+  // shows the pick-XI form inline instead), but the bar used to
+  // unconditionally read "Start scoring this match", which misled
+  // scorers who hadn't picked an XI yet. Surface the next step in
+  // the label so the button stays honest. Only run when we're about
+  // to render the bar — saves one query for spectators.
+  let scoringBarLabel: string;
+  if (ms === "scheduled" && showScoringBar) {
+    const hasToss = !!match.toss_winner_id && !!match.toss_decision;
+    const { data: xiRows } = await supabase
+      .from("match_players")
+      .select("team_id, is_substitute")
+      .eq("match_id", matchId);
+    const xiACount =
+      xiRows?.filter((r) => r.team_id === match.team_a_id && !r.is_substitute)
+        .length ?? 0;
+    const xiBCount =
+      xiRows?.filter((r) => r.team_id === match.team_b_id && !r.is_substitute)
+        .length ?? 0;
+    const xiAReady = xiACount >= match.players_per_side;
+    const xiBReady = xiBCount >= match.players_per_side;
+    if (!hasToss) scoringBarLabel = "Set toss to start scoring";
+    else if (!xiAReady || !xiBReady)
+      scoringBarLabel = "Pick playing XIs to start scoring";
+    else scoringBarLabel = "Start scoring this match";
+  } else {
+    scoringBarLabel = ms === "scheduled" ? "Start scoring this match" : "Continue scoring";
+  }
 
   return (
     <main className="flex-1 p-4 sm:p-6">
