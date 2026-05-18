@@ -24,6 +24,26 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 2) — Scoring lock: faster + louder takeover-request UX.** Audit prompted by Pavan: "after request how does current scorer in match get request from other scorer? i think it's not handled properly." The mechanism (request → holder card → Allow / Deny) was correct, but the surface was slow and quiet:
+
+- Status was refreshed on a 30 s tick — Scorer A could be a full over deep before noticing Scorer B's request banner.
+- The banner was a `<Card>` rendered inline above `children` (despite the comment claiming "sticky"); scrolling past it inside the long scoreboard hid the request entirely.
+- Polling only updated state silently — no toast on transitions. The explicit click handlers fired toasts (Approve / Deny / Request), but the *other* side discovered events via polling and got nothing.
+- Heartbeat + status share the same tick — shortening one would have wastefully sped up the other.
+
+Fixes:
+
+1. **Split tick into two intervals.** `HEARTBEAT_MS = 30_000` (only when status === "mine"), `POLL_MS = 5_000` (always, both sides). Both sides now see takeover events within 5 s — one cheap SELECT per tick.
+2. **Transition-aware toasts** via a new `announceTransitions(prev, next)` helper called from the poll:
+   - Holder: `toast.warning("X wants to take over scoring")` + short Web Audio API beep at 880 Hz for 180 ms (silent fallback if autoplay blocked / context unavailable).
+   - Requester: `toast.success("Scoring handed over to you")` when the holder taps Allow remotely.
+   - Requester: `toast.error("Your takeover request was denied")` on denial.
+   - Old holder: `toast.error("You're no longer the active scorer")` on any "mine" → not-mine transition (covers both heartbeat-expiry takeover and explicit Allow).
+3. **Sticky banner.** Yellow request card now `sticky top-2 z-30` with backdrop-blur + shadow, so it follows the scorer down the scoreboard. Added `role="alert"` + `aria-live="polite"` for screen readers.
+4. **Heartbeat path is silent on failure.** Previously fired its own "You lost the scoring lock" toast — now lets the poll's transition announcer own all user-facing transitions (avoids duplicate toasts when both detect the same loss).
+
+Net: a request that previously took up to 30 s to surface, with a card that could be off-screen and no toast, now hits within 5 s, with toast + beep + sticky banner. Commit `be3d579`; 1 file / +107 / −22 LOC.
+
 **2026-05-18 — Push notifications: pre-launch UX hardening.** Audit of the Notify-me flow ahead of the tournament group announcement. The pipeline (subscribe → DB upsert → SW push handler → notification with deep link) is intact, but three rough edges would have shown up during the rollout:
 
 1. **Dev hang.** `RegisterSW` skips registration when `NODE_ENV !== "production"` (intentional — Turbopack HMR conflicts with a SW intercepting requests). The Notify-me button still rendered though, since the browser APIs (`serviceWorker`, `PushManager`, `Notification`) exist regardless. Clicking it kicked off `await navigator.serviceWorker.ready` which waits forever when no registration exists. Fix: `getRegistration()` in the initial effect — if `undefined`, flip `setSupported(false)` and the button never renders.
