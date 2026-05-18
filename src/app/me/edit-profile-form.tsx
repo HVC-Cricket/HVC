@@ -97,8 +97,10 @@ export function EditProfileForm({
    *  renders the player block. Phone is editable for anyone with a
    *  link; the admin fields below it are gated separately. */
   player: PlayerFieldsInitial | null;
-  /** True when the viewer is a super-admin — exposes category +
-   *  batting + bowling. Server re-checks the same flag. */
+  /** True when the viewer is a super-admin — exposes the **category**
+   *  picker. Batting + bowling are self-service for any linked
+   *  player; only category remains admin-only since it drives the
+   *  HVC special-over rules. Server re-checks the same flag. */
   canEditAdminFields: boolean;
   onCancel: () => void;
 }) {
@@ -124,16 +126,18 @@ export function EditProfileForm({
     const res = await updateProfile({
       display_name: values.display_name,
       avatar_url: values.avatar_url ?? "",
-      // Phone goes through whenever the user has a linked player.
-      // Admin fields only when the viewer is a super-admin — keeps
-      // accidental over-posting from the client honest.
-      ...(player ? { phone: values.phone ?? "" } : {}),
-      ...(player && canEditAdminFields
+      // Phone + batting + bowling go through for any linked user
+      // (these are personal). Category is admin-only — kept gated
+      // here AND in the server action.
+      ...(player
         ? {
-            category: values.category ?? "",
+            phone: values.phone ?? "",
             batting_style: values.batting_style ?? "",
             bowling_style: values.bowling_style ?? "",
           }
+        : {}),
+      ...(player && canEditAdminFields
+        ? { category: values.category ?? "" }
         : {}),
     });
     setPending(false);
@@ -237,80 +241,78 @@ export function EditProfileForm({
                 </FormItem>
               )}
             />
-            {canEditAdminFields && (
-              <div className="grid grid-cols-2 gap-3">
-                <FormField
-                  control={form.control}
-                  name="batting_style"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Batting</FormLabel>
-                      <Select
-                        value={field.value || undefined}
-                        onValueChange={field.onChange}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="—" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="right_hand">Right hand</SelectItem>
-                          <SelectItem value="left_hand">Left hand</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="bowling_style"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Bowling</FormLabel>
-                      <Select
-                        value={field.value || undefined}
-                        onValueChange={field.onChange}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="—" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="right_arm_fast">
-                            Right arm fast
-                          </SelectItem>
-                          <SelectItem value="right_arm_medium">
-                            Right arm medium
-                          </SelectItem>
-                          <SelectItem value="right_arm_off_spin">
-                            Right arm off-spin
-                          </SelectItem>
-                          <SelectItem value="right_arm_leg_spin">
-                            Right arm leg-spin
-                          </SelectItem>
-                          <SelectItem value="left_arm_fast">
-                            Left arm fast
-                          </SelectItem>
-                          <SelectItem value="left_arm_medium">
-                            Left arm medium
-                          </SelectItem>
-                          <SelectItem value="left_arm_orthodox">
-                            Left arm orthodox
-                          </SelectItem>
-                          <SelectItem value="left_arm_chinaman">
-                            Left arm chinaman
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="batting_style"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Batting</FormLabel>
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="—" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="right_hand">Right hand</SelectItem>
+                        <SelectItem value="left_hand">Left hand</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="bowling_style"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bowling</FormLabel>
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="—" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="right_arm_fast">
+                          Right arm fast
+                        </SelectItem>
+                        <SelectItem value="right_arm_medium">
+                          Right arm medium
+                        </SelectItem>
+                        <SelectItem value="right_arm_off_spin">
+                          Right arm off-spin
+                        </SelectItem>
+                        <SelectItem value="right_arm_leg_spin">
+                          Right arm leg-spin
+                        </SelectItem>
+                        <SelectItem value="left_arm_fast">
+                          Left arm fast
+                        </SelectItem>
+                        <SelectItem value="left_arm_medium">
+                          Left arm medium
+                        </SelectItem>
+                        <SelectItem value="left_arm_orthodox">
+                          Left arm orthodox
+                        </SelectItem>
+                        <SelectItem value="left_arm_chinaman">
+                          Left arm chinaman
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
-            )}
           </div>
         )}
         <div className="flex items-center justify-end gap-2 pt-1">

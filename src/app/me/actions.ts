@@ -77,11 +77,12 @@ export async function updateProfile(input: {
 
   if (error) return { ok: false, error: error.message };
 
-  // Player-row update. Phone is editable by any linked user (it's
-  // their own contact info). Category / batting / bowling are
-  // additionally gated on is_super_admin — those are admin fields,
-  // not self-service. Either gate failing silently skips that subset
-  // of the update; the profile write still went through.
+  // Player-row update. Phone + batting_style + bowling_style are
+  // self-service for any linked user (they're personal). `category`
+  // is the only field that remains admin-only — it drives the HVC
+  // special-over rules, so a player shouldn't pick their own. Either
+  // gate failing silently skips that subset of the update; the
+  // profile write still went through.
   const hasPlayerFields =
     parsed.data.category != null ||
     parsed.data.phone != null ||
@@ -112,18 +113,16 @@ export async function updateProfile(input: {
       if (parsed.data.phone !== undefined) {
         playerUpdate.phone = parsed.data.phone || null;
       }
-      if (isSuperAdmin) {
-        if (parsed.data.category !== undefined) {
-          playerUpdate.category = parsed.data.category
-            ? (Number(parsed.data.category) as 1 | 2 | 3)
-            : null;
-        }
-        if (parsed.data.batting_style !== undefined) {
-          playerUpdate.batting_style = parsed.data.batting_style || null;
-        }
-        if (parsed.data.bowling_style !== undefined) {
-          playerUpdate.bowling_style = parsed.data.bowling_style || null;
-        }
+      if (parsed.data.batting_style !== undefined) {
+        playerUpdate.batting_style = parsed.data.batting_style || null;
+      }
+      if (parsed.data.bowling_style !== undefined) {
+        playerUpdate.bowling_style = parsed.data.bowling_style || null;
+      }
+      if (isSuperAdmin && parsed.data.category !== undefined) {
+        playerUpdate.category = parsed.data.category
+          ? (Number(parsed.data.category) as 1 | 2 | 3)
+          : null;
       }
       // Only fire the UPDATE if we actually have something to write —
       // non-super-admin with no `phone` in the payload shouldn't

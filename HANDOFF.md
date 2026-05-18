@@ -24,6 +24,14 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 21) — `/me` lets any linked player edit batting/bowling; `/players/[id]` self-redirects.** Two tweaks layered onto the earlier batches:
+
+1. **Batting & bowling style** are now self-service in the `/me` edit form for any linked player — only **Category** stays gated to super-admins (it drives the special-over rules). Server action lifts the same gate: `phone` + `batting_style` + `bowling_style` write through whenever there's a linked player; only `category` requires `is_super_admin`.
+
+2. **`/players/[playerId]` self-redirects** when the player IS the signed-in user's linked record. Earlier (batch 14) only the homepage "You" strip and the `/players` row swap pointed at `/me`; navigating to `/players/[id]` directly (POTM card, search result, deep link, etc.) still rendered the public detail view. The redirect lives at the top of the page server component, after the player fetch — catches every entry path, no per-link rewiring needed. Reverses the earlier "don't propagate self-route everywhere" call, because reaching the public view by accident keeps causing confusion ("why doesn't Edit work the same way as on /me?").
+
+3 files / +24 / −56 LOC.
+
 **2026-05-18 (batch 20) — `/admins` members table: live search by name or email.** Single input above the members list filters rows where `displayName` OR `email` contains the query (case-insensitive substring). Same search shell as `players-search-list.tsx` — flex-row with `Search` icon + clearable `X`, `useDeferredValue` keeps typing responsive once the membership list grows. Header chip shows `N of M` while a query is active, `M total` otherwise. Empty state reads "No members match …". Client-side only — every member row is already loaded, no need to round-trip the server.
 
 1 file / +66 / −6 LOC.

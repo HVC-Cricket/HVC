@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { PlayerCareerSection } from "@/components/player-career-section";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,15 @@ export default async function PlayerDetailPage(props: {
     .eq("id", playerId)
     .single();
   if (!player) notFound();
+
+  // If this player is the signed-in user's own linked record, kick
+  // them over to /me — that's their canonical profile page and has
+  // the editable controls. Catches every navigation path (POTM
+  // card, search results, direct URL, etc.) so behaviour stays
+  // consistent.
+  if (ctx?.user.id && player.linked_user_id === ctx.user.id) {
+    redirect("/me");
+  }
 
   let linkedEmail: string | null = null;
   let linkedAvatarUrl: string | null = null;
