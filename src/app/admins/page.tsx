@@ -11,6 +11,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 import { AdminTabs } from "./admin-tabs";
 import { AuditLogSection } from "./audit-log-section";
+import {
+  BroadcastSection,
+  type TournamentChoice,
+} from "./broadcast-section";
 import { LiveMatchesCard } from "./live-matches-card";
 import { MembersTable, type MemberRow, type PlayerOption } from "./members-table";
 
@@ -59,6 +63,43 @@ export default async function AdminsPage() {
       .order("created_at", { ascending: false })
       .limit(30),
   ]);
+
+  // Tournaments + per-tournament push subscriber counts for the
+  // Broadcast tab. The count comes from push_subscriptions joined
+  // through matches; one row per (subscription, match) is fine for
+  // a rough subscriber count — the actual broadcast de-dupes by
+  // endpoint inside notifyTournament.
+  const [tournamentsListRes, allSubsRes] = await Promise.all([
+    adminClient
+      .from("tournaments")
+      .select("id, name")
+      .order("created_at", { ascending: false }),
+    adminClient
+      .from("push_subscriptions")
+      .select("endpoint, matches!inner(tournament_id)"),
+  ]);
+  type SubRow = {
+    endpoint: string;
+    matches: { tournament_id: string } | null;
+  };
+  const subsByTournament = new Map<string, Set<string>>();
+  for (const s of (allSubsRes.data ?? []) as unknown as SubRow[]) {
+    const tid = s.matches?.tournament_id;
+    if (!tid) continue;
+    let set = subsByTournament.get(tid);
+    if (!set) {
+      set = new Set();
+      subsByTournament.set(tid, set);
+    }
+    set.add(s.endpoint);
+  }
+  const tournamentChoices: TournamentChoice[] = (
+    tournamentsListRes.data ?? []
+  ).map((t) => ({
+    id: t.id,
+    name: t.name,
+    subscribers: subsByTournament.get(t.id)?.size ?? 0,
+  }));
 
   // Look up match → tournament summary for the audit log so each row
   // can read "Final · TWN vs MM" instead of a bare UUID. Skip the
@@ -234,6 +275,7 @@ export default async function AdminsPage() {
             />
           }
           matches={<LiveMatchesCard />}
+          broadcast={<BroadcastSection tournaments={tournamentChoices} />}
           activity={<AuditLogSection events={auditEvents} />}
         />
       </div>

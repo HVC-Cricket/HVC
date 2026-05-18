@@ -24,6 +24,16 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-19 (batch 40) — `/admins`: tournament push broadcast.** New **Broadcast** tab on `/admins`. Pick a tournament, enter title + body, hit Send — every device subscribed to any match in that tournament receives one push (de-duplicated by endpoint, so a user subscribed to 5 matches doesn't get 5 copies).
+
+**Plumbing:**
+- New `notifyTournament(tournamentId, payload)` in `src/lib/push.ts`. Pulls `push_subscriptions` joined through `matches.tournament_id`, dedupes by endpoint, sends via `webpush.sendNotification` with TTL 3600. Returns `{ sent, pruned }` so the UI can report counts. Dead subscriptions (404 / 410) are pruned the same way `notifyMatch` already does.
+- New `broadcastToTournament` server action gated on `requireSuperAdmin`. Validates `title` 2–80 chars + `body` 2–240 chars via zod. Looks up the tournament slug for the notification deep-link (`/tournaments/[slug]`). De-dup tag `tournament-<id>-broadcast` so a rapid second broadcast replaces the first on the device.
+- `BroadcastSection` client component with a tournament select (showing the per-tournament subscriber count), title + body fields with live character counters, and a Send button. Toast on success reports devices reached + dead subscriptions cleared.
+- Admin page pre-computes per-tournament subscriber counts (one extra `push_subscriptions` join, deduped client-side) and passes them as `TournamentChoice[]`.
+
+5 files / +250 / 0 LOC.
+
 **2026-05-19 (batch 39) — `/admins`: tabs.** Page was scrolling past several screens (stats → live feed → members → audit log) to find recent activity. New `<AdminTabs />` client component (same pattern as `MatchTabs`) splits it into **Members / Matches / Activity**. Page header + Quick stats stay above the tabs as a permanent strip; everything below switches instantly with no refetch.
 
 URL mirrors the active tab via `history.replaceState` (`?tab=matches`, `?tab=activity`), so refresh / shareable links retain position. Default tab is Members.

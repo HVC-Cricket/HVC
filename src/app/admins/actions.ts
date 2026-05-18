@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 import { requireSuperAdmin } from "@/lib/auth";
+import { notifyTournament } from "@/lib/push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -158,4 +160,56 @@ export async function deleteUser(
 
   revalidatePath("/admins");
   return { ok: true, data: null };
+}
+
+// ---------------------------------------------------------------------------
+// Tournament push broadcast
+// ---------------------------------------------------------------------------
+
+const broadcastSchema = z.object({
+  tournament_id: z.string().uuid(),
+  title: z.string().min(2, "Title too short").max(80, "Title too long"),
+  body: z.string().min(2, "Message too short").max(240, "Message too long"),
+});
+
+/**
+ * Send a push notification to every device subscribed to any match
+ * in the given tournament (de-duplicated by endpoint). Returns the
+ * number of devices that received it and the number of dead
+ * subscriptions pruned in the process.
+ */
+export async function broadcastToTournament(
+  input: z.infer<typeof broadcastSchema>,
+): Promise<ActionResult<{ sent: number; pruned: number }>> {
+  await requireSuperAdmin();
+  const parsed = broadcastSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid input",
+    };
+  }
+
+  // Look up the tournament slug so the deep-link inside the
+  // notification opens the tournament page (the per-match notifyMatch
+  // payload uses `/matches/[id]`; for tournament-wide broadcasts the
+  // matching destination is the tournament page).
+  const supabase = await createClient();
+  const { data: tournament } = await supabase
+    .from("tournaments")
+    .select("slug")
+    .eq("id", parsed.data.tournament_id)
+    .single();
+  if (!tournament) return { ok: false, error: "Tournament not found" };
+
+  const result = await notifyTournament(parsed.data.tournament_id, {
+    title: parsed.data.title,
+    body: parsed.data.body,
+    url: `/tournaments/${tournament.slug}`,
+    // De-dup tag so a rapid second broadcast replaces the first on
+    // the device, rather than stacking up.
+    tag: `tournament-${parsed.data.tournament_id}-broadcast`,
+  });
+
+  return { ok: true, data: result };
 }
