@@ -253,7 +253,17 @@ Pick-preservation fix layered on: the balls-length sync used to unconditionally 
 
 Commit `4112d0c`; 1 file / +142 / −12 LOC.
 
-**2026-05-18 (batch 5) — Pick XI: combined two-team picker with tabs.** Pavan flagged: "for pick players in team, can we select both in one section. currently the scorer experience is not good while picking the players in team. its confusing." Audit confirmed four nav events for one task — score page shows two cards with two "Pick XI" buttons; each opens a full-page picker; save bounces back via `router.back()`; rinse and repeat. Easy to forget the second team and start the match in a broken state.
+**2026-05-18 (batch 5b) — Pick XI follow-ups: visual polish + correct "Save & done" + deterministic navigation.** Three small fixes after the initial combined picker shipped (batch 5a below). Pavan tested it and flagged each one live:
+
+1. **"Something messy"** — first cut's pill-style segmented tabs looked cramped and the Save button was tucked in the bottom-right corner like a tertiary action. Switched tabs to underline style matching `MatchTabs` (each tab stacks full team name on top, `{shortName} · {playing}/{target}` line below, primary-coloured underline on the active tab, emerald ✓ once saved or already-complete). Save area moved into a sticky bottom bar inside `PickXIForm` — full-width primary button + centred status line above. `-mx-4` / `px-4` trick bleeds it edge-to-edge of the surrounding `CardContent`. Sticky so the button stays in thumb reach when the roster scrolls past viewport. Per-team route inherits the same bar since it reuses `PickXIForm`.
+
+2. **"When both is already selected it should show save and done"** — the button label was checking only the session-level `savedA` / `savedB` booleans, so an edit flow on a match whose XIs were already locked in from a previous session still read "Save & next team" on each tab (which made no sense — the other team had nothing to add). Derived a per-team `complete = saved || playingCount === target` flag and used it for both the button label and the post-save action (go back vs. switch tabs).
+
+3. **"After click on save and done it should not go to home page"** — `router.back()` is coupled to browser history. Users reaching `/xi` via a direct URL, redirect chain, or post-auth navigation that wiped the stack ended up on home after save. Switched both code paths (`PickXIForm` default + `PickXITabs` "Save & done" branch) to explicit `router.push(\`/matches/\${matchId}\`)`. The match page is the canonical parent of `/xi` and is readable by every role (super-admin / organizer / scorer / anonymous spectator), so it's always a safe destination. Trade-off: scorers who came from `/score` now need one extra tap to get back there via "Continue scoring", but zero ambiguity about where they'll land.
+
+Commits `605dc10` (visual polish) + `867319f` ("Save & done" logic) + `291f05a` (deterministic nav).
+
+**2026-05-18 (batch 5a) — Pick XI: combined two-team picker with tabs.** Pavan flagged: "for pick players in team, can we select both in one section. currently the scorer experience is not good while picking the players in team. its confusing." Audit confirmed four nav events for one task — score page shows two cards with two "Pick XI" buttons; each opens a full-page picker; save bounces back via `router.back()`; rinse and repeat. Easy to forget the second team and start the match in a broken state.
 
 After offering three options (tabs / stacked / inline on score page), Pavan picked tabs. Implementation:
 
