@@ -26,10 +26,15 @@ import {
 } from "./lock-actions";
 import type { LockStatus } from "./lock-types";
 
-// 30 s tick handles both heartbeat (only when "mine") and status
-// refresh (always). Server expiry is 120 s — 4× the tick gives
-// generous network slack.
-const TICK_MS = 30_000;
+// Heartbeat keeps the lock fresh on the holder's side — runs only when
+// status === "mine". Server expiry is 120 s, so 30 s gives a 4× buffer.
+const HEARTBEAT_MS = 30_000;
+
+// Status poll is more aggressive — both sides need to see takeover
+// requests / approvals / denials quickly, otherwise the holder can be
+// mid-over before they notice a request banner appeared. 5 s feels
+// instant in practice and the request is one cheap SELECT.
+const POLL_MS = 5_000;
 
 function formatAgo(seconds: number): string {
   if (seconds < 60) return `${seconds} sec ago`;
@@ -66,6 +71,81 @@ export function ScoringLockGate({
   const statusRef = useRef(status);
   statusRef.current = status;
 
+  /**
+   * Compare prev → next and surface transitions the user would
+   * otherwise miss. Without this, both sides rely on a card silently
+   * appearing / disappearing, which is easy to miss mid-keypad.
+   */
+  const announceTransitions = useCallback(
+    (prev: LockStatus, next: LockStatus) => {
+      // Holder side: a fresh request arrived (or a different requester
+      // replaced the previous one).
+      if (
+        next.status === "mine" &&
+        next.pendingRequest &&
+        (prev.status !== "mine" ||
+          !prev.pendingRequest ||
+          prev.pendingRequest.requesterId !== next.pendingRequest.requesterId)
+      ) {
+        const who = next.pendingRequest.requesterName ?? "Another scorer";
+        toast.warning(`${who} wants to take over scoring`, {
+          duration: 8000,
+        });
+        // Short beep so the holder notices even if their eyes are on
+        // the keypad. Falls back silently if autoplay is blocked.
+        try {
+          const ctx = new (window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext })
+              .webkitAudioContext)();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.frequency.value = 880;
+          gain.gain.value = 0.05;
+          osc.start();
+          setTimeout(() => {
+            osc.stop();
+            ctx.close();
+          }, 180);
+        } catch {
+          /* autoplay blocked or AudioContext unavailable — silent */
+        }
+      }
+
+      // Requester side: my pending request was approved (I'm now
+      // holder). Distinct from a click-driven success toast — this
+      // covers the case where I'm just polling and the holder taps
+      // Allow on their phone.
+      if (
+        next.status === "mine" &&
+        prev.status === "held" &&
+        prev.myRequestPending
+      ) {
+        toast.success("Scoring handed over to you", { duration: 6000 });
+      }
+
+      // Requester side: my pending request was denied (still held by
+      // them; myRequestPending flipped to false).
+      if (
+        next.status === "held" &&
+        !next.myRequestPending &&
+        prev.status === "held" &&
+        prev.myRequestPending
+      ) {
+        toast.error("Your takeover request was denied", { duration: 6000 });
+      }
+
+      // Old holder side: I went from "mine" to anything else — lock
+      // was claimed (heartbeat expired) or transferred. One toast,
+      // owned by the poll so we don't race the heartbeat path.
+      if (prev.status === "mine" && next.status !== "mine") {
+        toast.error("You're no longer the active scorer");
+      }
+    },
+    [],
+  );
+
   // On mount: try to claim the lock (succeeds if free / mine / expired).
   useEffect(() => {
     if (status.status === "mine") return;
@@ -79,33 +159,32 @@ export function ScoringLockGate({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchId]);
 
-  // Periodic tick: heartbeat (if mine) + refresh status (always).
+  // Fast poll for status transitions (5 s). Cheap — one SELECT per tick.
   useEffect(() => {
     const tick = setInterval(async () => {
       const current = statusRef.current;
-      if (current.status === "mine") {
-        const r = await heartbeatScoringLock({ matchId });
-        if (!r.ok) {
-          // Lost the lock — re-check status.
-          const next = await getScoringLockStatus(matchId);
-          setStatus(next);
-          if (next.status !== "mine") {
-            toast.error("You lost the scoring lock");
-          }
-          return;
-        }
-      }
       const next = await getScoringLockStatus(matchId);
-      // Only push state if something meaningful changed — avoids the
-      // server-action call triggering an extra render on each tick.
       if (
         next.status !== current.status ||
         JSON.stringify(next) !== JSON.stringify(current)
       ) {
+        announceTransitions(current, next);
         setStatus(next);
       }
-    }, TICK_MS);
+    }, POLL_MS);
     return () => clearInterval(tick);
+  }, [matchId, announceTransitions]);
+
+  // Slow heartbeat (30 s) — only fires when I hold the lock. Detached
+  // from the status poll so shortening one doesn't blow up the other.
+  // Failures are silent here; the poll above detects the state
+  // transition and owns the user-facing toast.
+  useEffect(() => {
+    const beat = setInterval(() => {
+      if (statusRef.current.status !== "mine") return;
+      void heartbeatScoringLock({ matchId });
+    }, HEARTBEAT_MS);
+    return () => clearInterval(beat);
   }, [matchId]);
 
   // Release on unmount (best-effort).
@@ -172,12 +251,18 @@ export function ScoringLockGate({
   }, [matchId]);
 
   // I hold the lock. Render the scoreboard; if someone has a pending
-  // request against me, slot a sticky banner above with Allow / Deny.
+  // request against me, slot a sticky banner above with Allow / Deny
+  // — sticky positioning so it follows the scorer down the long
+  // scoreboard instead of disappearing once they scroll.
   if (status.status === "mine") {
     return (
       <>
         {status.pendingRequest && (
-          <Card className="border-yellow-500/40 bg-yellow-500/10">
+          <Card
+            className="sticky top-2 z-30 border-yellow-500/40 bg-yellow-500/15 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-yellow-500/10"
+            role="alert"
+            aria-live="polite"
+          >
             <CardHeader>
               <CardTitle className="text-base">Takeover request</CardTitle>
               <CardDescription>
