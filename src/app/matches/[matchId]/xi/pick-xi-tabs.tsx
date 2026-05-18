@@ -8,6 +8,7 @@ import { PickXIForm } from "./[teamId]/pick-xi-form";
 type Row = {
   player_id: string;
   display_name: string;
+  category: 1 | 2 | 3 | null;
   roster_role: string;
   included: boolean;
   batting_order: number | null;

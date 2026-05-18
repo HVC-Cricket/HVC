@@ -67,9 +67,15 @@ export default async function PickXICombinedPage(props: {
   const { data: players } = allPlayerIds.length
     ? await supabase
         .from("players")
-        .select("id, display_name")
+        .select("id, display_name, category")
         .in("id", allPlayerIds)
-    : { data: [] as { id: string; display_name: string }[] };
+    : {
+        data: [] as {
+          id: string;
+          display_name: string;
+          category: number | null;
+        }[],
+      };
   const playerById = new Map((players ?? []).map((p) => [p.id, p]));
 
   const buildRows = (teamId: string) => {
@@ -85,6 +91,7 @@ export default async function PickXICombinedPage(props: {
       return {
         player_id: r.player_id,
         display_name: p?.display_name ?? "(unknown)",
+        category: (p?.category as 1 | 2 | 3 | null) ?? null,
         roster_role: r.role,
         included: !!ex,
         batting_order: ex?.batting_order ?? null,

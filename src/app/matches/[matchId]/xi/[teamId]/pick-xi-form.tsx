@@ -11,6 +11,7 @@ import { savePlayingXI } from "./actions";
 type Row = {
   player_id: string;
   display_name: string;
+  category: 1 | 2 | 3 | null;
   roster_role: string;
   included: boolean;
   batting_order: number | null;
@@ -160,7 +161,12 @@ export function PickXIForm({
                   }
                 />
               </td>
-              <td className="px-2 py-2">{r.display_name}</td>
+              <td className="px-2 py-2">
+                <span className="flex items-center gap-1.5">
+                  <span className="capitalize">{r.display_name}</span>
+                  <CategoryBadge category={r.category} />
+                </span>
+              </td>
               <td className="px-2 py-2">
                 <input
                   type="checkbox"
@@ -192,5 +198,34 @@ export function PickXIForm({
         </Button>
       </div>
     </div>
+  );
+}
+
+function CategoryBadge({ category }: { category: 1 | 2 | 3 | null }) {
+  // Same accents the rest of the app uses — amber Cat 1, sky Cat 3,
+  // muted Cat 2, destructive "no cat" so an uncategorised player
+  // sticks out (organisers should fix that on /players/[id]/edit).
+  if (category == null) {
+    return (
+      <span className="rounded-full border border-destructive/30 bg-destructive/10 px-1.5 py-px text-[9px] font-medium uppercase tracking-wide text-destructive">
+        no cat
+      </span>
+    );
+  }
+  const cls =
+    category === 1
+      ? "border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-300"
+      : category === 3
+        ? "border-sky-500/40 bg-sky-500/15 text-sky-700 dark:text-sky-300"
+        : "border-foreground/15 bg-muted text-muted-foreground";
+  return (
+    <span
+      className={
+        "shrink-0 rounded-full border px-1.5 py-px font-mono text-[10px] " +
+        cls
+      }
+    >
+      C{category}
+    </span>
   );
 }
