@@ -24,6 +24,15 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-19 (batch 38) — `/admins`: audit-log filters (chip-row + text search).** `AuditLogSection` converted to a client component with two filters that stack:
+
+- **Event-type chips** computed from the loaded set, ordered by frequency descending so the most common types lead. Each chip shows its count. "All" resets. Click an active chip to clear.
+- **Text search** over actor name, tournament name, and team short-names (case-insensitive substring). `useDeferredValue` keeps typing responsive.
+
+Header count flips to `N of M` while a filter is active; empty state copy adapts ("No match audit events recorded yet." vs "No events match the current filter."). Same search shell shape as the members + players searches.
+
+1 file / +120 / −35 LOC.
+
 **2026-05-19 (batch 37) — `/admins`: live + upcoming matches feed.** New `<LiveMatchesCard />` server component slotted between Quick stats and Members. Two sections:
 
 - **Live grid** — every `status = 'live'` or `'innings_break'` match rendered through the existing `<LiveMatchCard />` (homepage component) so visuals stay in sync. Click-through to `/matches/[id]`.
