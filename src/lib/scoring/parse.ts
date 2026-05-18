@@ -39,10 +39,12 @@ const ruleSetSchema = z.object({
   overs_per_innings: z.number().int().positive(),
   players_per_side: z.number().int().min(2),
   max_overs_per_bowler: z.number().int().positive(),
-  // Optional + default false so older `tournaments.rules` JSONB rows
-  // that pre-date the flag still parse cleanly. HVC_RULES sets it
-  // explicitly to true.
-  last_man_standing: z.boolean().default(false),
+  // Optional + default true so older `tournaments.rules` JSONB rows
+  // that pre-date the flag (and therefore lack the key entirely) get
+  // box-cricket-correct behaviour. Strict-cricket tournaments must set
+  // the field to `false` explicitly. HVC_RULES sets it to `true`;
+  // STANDARD_RULES sets it to `false`.
+  last_man_standing: z.boolean().default(true),
   strike_rotation: z.literal("standard"),
   extras: z.object({
     byes: z.boolean(),

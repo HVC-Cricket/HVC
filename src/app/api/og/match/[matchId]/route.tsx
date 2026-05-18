@@ -84,7 +84,12 @@ export async function GET(
   const { matchId } = await params;
   const supabase = createAdminClient();
 
-  const { data: rawMatch } = await supabase
+  // The matches table has two FKs touching `innings`:
+  //   1. innings.match_id → matches.id  (the "innings of this match")
+  //   2. matches.current_innings_id → innings.id  (the live cursor)
+  // PostgREST refuses to embed without an explicit hint, so we name
+  // the FK we actually want.
+  const { data: rawMatch, error: matchErr } = await supabase
     .from("matches")
     .select(
       `
@@ -92,14 +97,52 @@ export async function GET(
       team_a:teams!matches_team_a_id_fkey(id, name, short_name),
       team_b:teams!matches_team_b_id_fkey(id, name, short_name),
       tournament:tournaments(name),
-      innings(id, innings_number, batting_team_id, total_runs, total_wickets, total_legal_balls)
+      innings!innings_match_id_fkey(id, innings_number, batting_team_id, total_runs, total_wickets, total_legal_balls)
       `,
     )
     .eq("id", matchId)
     .maybeSingle();
 
-  const match = rawMatch as unknown as MatchRow | null;
-  if (!match || !match.team_a || !match.team_b || !match.tournament) {
+  if (matchErr) {
+    console.error("[og/match] embed query failed", matchErr);
+    return errorImage("Failed to load match", 500);
+  }
+  if (!rawMatch) {
+    return errorImage("Match not found");
+  }
+  // PostgREST sometimes returns embed-by-FK as a single object and
+  // sometimes as a 1-element array depending on schema detection.
+  // Normalize so the renderer can rely on plain objects.
+  type Raw = Omit<MatchRow, "team_a" | "team_b" | "tournament"> & {
+    team_a:
+      | { id: string; name: string; short_name: string }
+      | Array<{ id: string; name: string; short_name: string }>
+      | null;
+    team_b:
+      | { id: string; name: string; short_name: string }
+      | Array<{ id: string; name: string; short_name: string }>
+      | null;
+    tournament: { name: string } | Array<{ name: string }> | null;
+  };
+  const raw = rawMatch as unknown as Raw;
+  const oneOf = <T,>(v: T | T[] | null): T | null =>
+    Array.isArray(v) ? (v[0] ?? null) : v;
+  const match: MatchRow = {
+    ...raw,
+    team_a: oneOf(raw.team_a),
+    team_b: oneOf(raw.team_b),
+    tournament: oneOf(raw.tournament),
+  };
+
+  if (!match.team_a || !match.team_b || !match.tournament) {
+    console.error("[og/match] embed missing", {
+      id: matchId,
+      team_a: !!match.team_a,
+      team_b: !!match.team_b,
+      tournament: !!match.tournament,
+      raw_team_a: raw.team_a,
+      raw_tournament: raw.tournament,
+    });
     return errorImage("Match not found");
   }
 

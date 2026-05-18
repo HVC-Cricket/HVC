@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
@@ -672,6 +673,17 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
         !isSuperOver &&
         state.active.dismissed_ids.length + 1 >=
           state.rules.players_per_side - 1;
+      // Innings-ending wicket — when last_man_standing is OFF, the
+      // innings ends at N-1 wickets, so the very wicket that brings
+      // the total to N-1 must not prompt for a replacement (there
+      // isn't one — the innings is over). Mirrors the wicketsCap
+      // logic in the engine.
+      const wicketsCap =
+        state.rules.last_man_standing && !isSuperOver
+          ? state.rules.players_per_side
+          : state.rules.players_per_side - 1;
+      const willInningsEnd =
+        state.active.dismissed_ids.length + 1 >= wicketsCap;
       const emptySlot: "striker" | "non_striker" | null =
         next.strikerId === ""
           ? "striker"
@@ -682,7 +694,8 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
         emptySlot !== null &&
         !state.active.last_man_mode &&
         !isSpecialStay &&
-        !willEnterLastMan
+        !willEnterLastMan &&
+        !willInningsEnd
       ) {
         const otherBatterId =
           emptySlot === "striker" ? next.nonStrikerId : next.strikerId;
@@ -1583,6 +1596,9 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             </Select>
           )}
           <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setWicketPrompt(null)}>
+              Skip
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => setWicketPrompt(null)}
               disabled={

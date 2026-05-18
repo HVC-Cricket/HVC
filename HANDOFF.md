@@ -50,6 +50,15 @@ Implementation notes:
 
 3 files / +470 / 0 LOC.
 
+**Follow-up (same day) — two bugs caught during dogfood:**
+
+1. **OG route was returning "Match not found" for every valid match.** PostgREST has two FKs between `matches` and `innings` (`innings.match_id → matches.id` for the inning-of-match relation, and `matches.current_innings_id → innings.id` for the live cursor) and refuses to embed without a disambiguating hint. Fixed by changing `innings(...)` → `innings!innings_match_id_fkey(...)`. The Supabase JS client surfaces this as `error.code === "PGRST201"` with a helpful `hint` field — the original handler swallowed it, so I also rewrote the error path to surface the PostgREST message instead of falling through to "not found".
+
+2. **Wicket dialog was un-dismissable on the innings-ending wicket.** With `last_man_standing = false` and N-1 wickets fallen, the optimistic wicket-prompt would fire even though the innings was over and there's no batter to pick — every option in the Select is disabled, and there was no Cancel button so the scorer was stuck. Two-part fix:
+   - Added a `willInningsEnd` check (mirrors the engine's `wicketsCap` logic) to the optimistic prompt's skip conditions, so the prompt is suppressed on the innings-ending wicket regardless of the rule flag.
+   - Added an `AlertDialogCancel` ("Skip") button so the scorer always has an escape hatch.
+   - Changed the `last_man_standing` parse default from `false` to `true` in `src/lib/scoring/parse.ts`. Older tournaments whose stored `rules` JSONB lacks the field were getting strict-cricket behaviour (innings ends at N-1) when the user-facing expectation in box cricket is last-man-standing. HVC_RULES already set this to `true`; STANDARD_RULES explicitly sets `false`, so the only behaviour change is for legacy rows that pre-date the flag — now matching the actual house rule.
+
 **2026-05-19 (batch 40) — `/admins`: tournament push broadcast.** New **Broadcast** tab on `/admins`. Pick a tournament, enter title + body, hit Send — every device subscribed to any match in that tournament receives one push (de-duplicated by endpoint, so a user subscribed to 5 matches doesn't get 5 copies).
 
 **Plumbing:**
