@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { formatEnumLabel } from "@/lib/format";
 import { getInitials } from "@/lib/utils";
 
-import { EditProfileForm } from "./edit-profile-form";
+import { EditProfileForm, type PlayerFieldsInitial } from "./edit-profile-form";
 
 type Props = {
   displayName: string;
@@ -28,6 +28,11 @@ type Props = {
   playerCategory?: number | null;
   playerBattingStyle?: string | null;
   playerBowlingStyle?: string | null;
+  /** When provided, the edit form exposes the player-row fields
+   *  (category, phone, batting/bowling) so a super-admin can manage
+   *  their own player record without leaving /me. Server action also
+   *  re-verifies super-admin + linked-player. */
+  editablePlayerFields?: PlayerFieldsInitial | null;
 };
 
 /**
@@ -47,6 +52,7 @@ export function ProfileCard({
   playerCategory,
   playerBattingStyle,
   playerBowlingStyle,
+  editablePlayerFields,
 }: Props) {
   const [editing, setEditing] = useState(false);
   const initials = getInitials(displayName);
@@ -125,6 +131,7 @@ export function ProfileCard({
               display_name: displayName,
               avatar_url: avatarUrl ?? "",
             }}
+            player={editablePlayerFields ?? null}
             onCancel={() => setEditing(false)}
           />
         </CardContent>

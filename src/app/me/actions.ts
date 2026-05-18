@@ -5,6 +5,18 @@ import { z } from "zod";
 
 import { createClient } from "@/lib/supabase/server";
 
+const battingStyles = ["right_hand", "left_hand"] as const;
+const bowlingStyles = [
+  "right_arm_fast",
+  "right_arm_medium",
+  "right_arm_off_spin",
+  "right_arm_leg_spin",
+  "left_arm_fast",
+  "left_arm_medium",
+  "left_arm_orthodox",
+  "left_arm_chinaman",
+] as const;
+
 const schema = z.object({
   display_name: z.string().min(2, "Name must be at least 2 characters"),
   avatar_url: z
@@ -12,11 +24,22 @@ const schema = z.object({
     .url("Avatar URL must be a valid URL")
     .optional()
     .or(z.literal("")),
+  // Optional player-row fields. Only honored when the caller is a
+  // super-admin and has a linked player row — otherwise silently
+  // ignored. Form layer guards visibility; server still verifies.
+  category: z.enum(["", "1", "2", "3"]).optional(),
+  phone: z.string().optional().or(z.literal("")),
+  batting_style: z.enum(["", ...battingStyles]).optional(),
+  bowling_style: z.enum(["", ...bowlingStyles]).optional(),
 });
 
 export async function updateProfile(input: {
   display_name: string;
   avatar_url: string;
+  category?: string;
+  phone?: string;
+  batting_style?: string;
+  bowling_style?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const supabase = await createClient();
   const {
@@ -42,6 +65,58 @@ export async function updateProfile(input: {
     .eq("id", user.id);
 
   if (error) return { ok: false, error: error.message };
+
+  // Player-row update — gated server-side on (a) caller is super-admin
+  // and (b) caller has a linked player row. If either fails, silently
+  // skip the player update; the profile write still went through.
+  const hasPlayerFields =
+    parsed.data.category != null ||
+    parsed.data.phone != null ||
+    parsed.data.batting_style != null ||
+    parsed.data.bowling_style != null;
+  if (hasPlayerFields) {
+    const [profileRes, playerRes] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("is_super_admin")
+        .eq("id", user.id)
+        .single(),
+      supabase
+        .from("players")
+        .select("id")
+        .eq("linked_user_id", user.id)
+        .maybeSingle(),
+    ]);
+    const isSuperAdmin = profileRes.data?.is_super_admin === true;
+    const linkedPlayerId = playerRes.data?.id ?? null;
+    if (isSuperAdmin && linkedPlayerId) {
+      const playerUpdate: {
+        category?: 1 | 2 | 3 | null;
+        phone?: string | null;
+        batting_style?: string | null;
+        bowling_style?: string | null;
+      } = {};
+      if (parsed.data.category !== undefined) {
+        playerUpdate.category = parsed.data.category
+          ? (Number(parsed.data.category) as 1 | 2 | 3)
+          : null;
+      }
+      if (parsed.data.phone !== undefined) {
+        playerUpdate.phone = parsed.data.phone || null;
+      }
+      if (parsed.data.batting_style !== undefined) {
+        playerUpdate.batting_style = parsed.data.batting_style || null;
+      }
+      if (parsed.data.bowling_style !== undefined) {
+        playerUpdate.bowling_style = parsed.data.bowling_style || null;
+      }
+      const { error: playerError } = await supabase
+        .from("players")
+        .update(playerUpdate)
+        .eq("id", linkedPlayerId);
+      if (playerError) return { ok: false, error: playerError.message };
+    }
+  }
 
   revalidatePath("/me");
   return { ok: true };

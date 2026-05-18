@@ -43,7 +43,7 @@ export default async function MePage() {
       .single(),
     supabase
       .from("players")
-      .select("id, display_name, category, batting_style, bowling_style")
+      .select("id, display_name, category, batting_style, bowling_style, phone")
       .eq("linked_user_id", user.id)
       .maybeSingle(),
     supabase
@@ -118,6 +118,21 @@ export default async function MePage() {
           playerCategory={linkedPlayer?.category ?? null}
           playerBattingStyle={linkedPlayer?.batting_style ?? null}
           playerBowlingStyle={linkedPlayer?.bowling_style ?? null}
+          // Super-admins managing their own player record get the full
+          // edit form inline. Other roles still get the limited
+          // display-name + avatar edit; if they need to change category
+          // etc., that goes through a tournament admin like every other
+          // player. Server action re-checks the same gate.
+          editablePlayerFields={
+            isSuperAdmin && linkedPlayer
+              ? {
+                  category: linkedPlayer.category,
+                  phone: linkedPlayer.phone,
+                  batting_style: linkedPlayer.batting_style,
+                  bowling_style: linkedPlayer.bowling_style,
+                }
+              : null
+          }
         />
 
         {linkedPlayer ? (

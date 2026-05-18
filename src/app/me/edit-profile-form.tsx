@@ -11,14 +11,34 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { updateProfile } from "./actions";
+
+const battingStyles = ["right_hand", "left_hand"] as const;
+const bowlingStyles = [
+  "right_arm_fast",
+  "right_arm_medium",
+  "right_arm_off_spin",
+  "right_arm_leg_spin",
+  "left_arm_fast",
+  "left_arm_medium",
+  "left_arm_orthodox",
+  "left_arm_chinaman",
+] as const;
 
 const schema = z.object({
   display_name: z.string().min(2, "Name must be at least 2 characters"),
@@ -27,23 +47,41 @@ const schema = z.object({
     .url("Avatar URL must be a valid URL")
     .optional()
     .or(z.literal("")),
+  category: z.enum(["", "1", "2", "3"]).optional(),
+  phone: z.string().optional(),
+  batting_style: z.enum(["", ...battingStyles]).optional(),
+  bowling_style: z.enum(["", ...bowlingStyles]).optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
 
+export type PlayerFieldsInitial = {
+  category: number | null;
+  phone: string | null;
+  batting_style: string | null;
+  bowling_style: string | null;
+};
+
 /**
- * Inline edit form for the /me profile. Two fields — display name and
- * avatar URL — wrapped in a "Save" / "Cancel" pair so the user has to
- * commit explicitly. Display name is required; avatar URL is optional.
+ * Inline edit form for the /me profile. Two always-shown fields —
+ * display name + avatar URL — plus, when the viewer is a super-admin
+ * with a linked player, a Player block exposing category / phone /
+ * batting / bowling. The server action additionally gates the player
+ * write on is_super_admin so a tampered client can't bypass.
  *
  * Hidden by default — parent renders an "Edit" button that flips a
  * useState bool. Keeps the read view clean.
  */
 export function EditProfileForm({
   initial,
+  player,
   onCancel,
 }: {
   initial: { display_name: string; avatar_url: string };
+  /** When provided, renders the player-row fields. Caller is
+   *  responsible for only passing this for super-admins with a linked
+   *  player; the server still enforces the same gate. */
+  player: PlayerFieldsInitial | null;
   onCancel: () => void;
 }) {
   const [pending, setPending] = useState(false);
@@ -52,6 +90,14 @@ export function EditProfileForm({
     defaultValues: {
       display_name: initial.display_name,
       avatar_url: initial.avatar_url,
+      category: (player?.category
+        ? String(player.category)
+        : "") as FormValues["category"],
+      phone: player?.phone ?? "",
+      batting_style:
+        (player?.batting_style as FormValues["batting_style"]) ?? "",
+      bowling_style:
+        (player?.bowling_style as FormValues["bowling_style"]) ?? "",
     },
   });
 
@@ -60,6 +106,14 @@ export function EditProfileForm({
     const res = await updateProfile({
       display_name: values.display_name,
       avatar_url: values.avatar_url ?? "",
+      ...(player
+        ? {
+            category: values.category ?? "",
+            phone: values.phone ?? "",
+            batting_style: values.batting_style ?? "",
+            bowling_style: values.bowling_style ?? "",
+          }
+        : {}),
     });
     setPending(false);
     if (!res.ok) {
@@ -105,6 +159,126 @@ export function EditProfileForm({
             </FormItem>
           )}
         />
+        {player && (
+          <div className="space-y-3 rounded-md border border-foreground/10 bg-muted/20 p-3">
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Player profile
+            </div>
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Category</FormLabel>
+                  <Select
+                    value={field.value || undefined}
+                    onValueChange={field.onChange}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select category…" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="1">Category 1</SelectItem>
+                      <SelectItem value="2">Category 2</SelectItem>
+                      <SelectItem value="3">Category 3</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormDescription>
+                    Drives bowling-order rules in HVC matches.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone</FormLabel>
+                  <FormControl>
+                    <Input type="tel" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="batting_style"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Batting</FormLabel>
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="—" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="right_hand">Right hand</SelectItem>
+                        <SelectItem value="left_hand">Left hand</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="bowling_style"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Bowling</FormLabel>
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="—" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="right_arm_fast">
+                          Right arm fast
+                        </SelectItem>
+                        <SelectItem value="right_arm_medium">
+                          Right arm medium
+                        </SelectItem>
+                        <SelectItem value="right_arm_off_spin">
+                          Right arm off-spin
+                        </SelectItem>
+                        <SelectItem value="right_arm_leg_spin">
+                          Right arm leg-spin
+                        </SelectItem>
+                        <SelectItem value="left_arm_fast">
+                          Left arm fast
+                        </SelectItem>
+                        <SelectItem value="left_arm_medium">
+                          Left arm medium
+                        </SelectItem>
+                        <SelectItem value="left_arm_orthodox">
+                          Left arm orthodox
+                        </SelectItem>
+                        <SelectItem value="left_arm_chinaman">
+                          Left arm chinaman
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+        )}
         <div className="flex items-center justify-end gap-2 pt-1">
           <Button
             type="button"
