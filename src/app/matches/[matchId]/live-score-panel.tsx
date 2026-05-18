@@ -1,6 +1,8 @@
 import { Trophy } from "lucide-react";
 
 import { LiveRefresh } from "@/components/live-refresh";
+
+import { BallCelebration } from "./ball-celebration";
 import {
   Card,
   CardContent,
@@ -36,12 +38,28 @@ export async function LiveScorePanel({ matchId }: { matchId: string }) {
   const teamName = (id: string) =>
     id === state.teamA.id ? state.teamA.name : state.teamB.name;
 
+  const latestBall = state.balls[state.balls.length - 1] ?? null;
+
   return (
     <>
       {/* Live updates via Supabase Realtime while the match is in flight;
           once completed, no subscriber is needed. */}
       {(live || state.match.status === "innings_break") && (
         <LiveRefresh matchId={state.match.id} />
+      )}
+
+      {/* Full-screen FOUR! / SIX! / WICKET! flash on the next live
+          delivery. Skipped on completed matches — there's no new
+          ball arriving. */}
+      {(live || state.match.status === "innings_break") && latestBall && (
+        <BallCelebration
+          latestBall={{
+            id: latestBall.id,
+            runs_off_bat: latestBall.runs_off_bat,
+            is_wicket: latestBall.is_wicket,
+            scored_at: latestBall.scored_at,
+          }}
+        />
       )}
 
       {completed && (
