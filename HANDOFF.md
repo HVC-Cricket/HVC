@@ -24,6 +24,20 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 — Push notifications: pre-launch UX hardening.** Audit of the Notify-me flow ahead of the tournament group announcement. The pipeline (subscribe → DB upsert → SW push handler → notification with deep link) is intact, but three rough edges would have shown up during the rollout:
+
+1. **Dev hang.** `RegisterSW` skips registration when `NODE_ENV !== "production"` (intentional — Turbopack HMR conflicts with a SW intercepting requests). The Notify-me button still rendered though, since the browser APIs (`serviceWorker`, `PushManager`, `Notification`) exist regardless. Clicking it kicked off `await navigator.serviceWorker.ready` which waits forever when no registration exists. Fix: `getRegistration()` in the initial effect — if `undefined`, flip `setSupported(false)` and the button never renders.
+
+2. **iOS Safari without PWA install.** iOS 16.4+ supports web push, but only inside apps installed via Share → Add to Home Screen. Regular Safari tabs can subscribe (the API doesn't reject) but never receive pushes. Detect with `/iPad|iPhone|iPod/.test(userAgent)` + `navigator.standalone !== true && !matchMedia('(display-mode: standalone)')` and show a toast guiding the user to install first.
+
+3. **No subscribe confirmation.** Users couldn't tell whether the subscription actually worked until a real wicket fell. Now `subscribePush` fires a one-off confirmation push via the new `notifyOne(sub, payload)` helper in `src/lib/push.ts`. Dispatched via `next/server`'s `after()` so the action returns immediately and the test push runs after the response. Short TTL (60s) so an offline device doesn't get a stale "you're subscribed" 10 minutes later.
+
+Bonus: button now surfaces a disabled "🔕 Blocked" state when `Notification.permission === 'denied'` instead of letting the user click into a re-prompt that immediately returns denied.
+
+**Queued for later** (added to §11): tournament-wide subscribe button, scheduled "starting in 15 min" pushes, notification preference toggles per category (wickets / milestones / innings break / match end).
+
+Commit `d3bd330`; 3 files / +119 / −4 LOC.
+
 **2026-05-17 (late, batch 6) — "Continue scoring" CTA on live matches.** Same tab-strip ambiguity that batch 2 fixed for scheduled matches resurfaced on live / innings_break: the header rendered a primary `Score` button alongside the ghost `Notify me` / `Activity` / `Edit` buttons, immediately above the Live / Scorecard / Commentary / Info tab strip — the primary pill read like a selected tab. Pavan flagged it after live testing Qualifier 1 of Appi's Tournament. Same fix as scheduled: drop the inline Score button, promote to a full-width sticky CTA card at the viewport bottom (`showScoringBar` now fires for scheduled OR live OR innings_break), and parameterise the copy via `scoringBarLabel` — `Start scoring this match` when `ms === "scheduled"`, `Continue scoring` otherwise. Notify / Activity / Edit retain their header slots since they're peer ghost actions. Bottom-padding reservation (`pb-24 sm:pb-28`) extended to all three states so the last card isn't covered by the sticky bar. Edit-only in `src/app/matches/[matchId]/page.tsx`; +24 / −27 LOC.
 
 **2026-05-17 (late, batch 5) — Page-level refactor pass.** Audit across all 22 pages under `src/app/`. No functional changes; verified with `tsc --noEmit`, `vitest run` (21/21), `next build`, and `eslint src/app` (baseline 27 problems / 14 errors / 13 warnings — all pre-existing, unchanged after the refactor). Extracted helpers that hit the "≥2 callers, ≥10 LOC each" bar:
@@ -693,6 +707,15 @@ If/when the user asks for these, the schema may need extension:
 - **Match awards beyond Player of the Match** — add `match_awards` table.
 - **Database backups** — Pro tier ($25/mo) for daily backups; for now, manual `pg_dump` from dashboard.
 - **Seed data file** — none yet; will add `seed.sql` once first tournament is decided.
+
+### Push notifications: nice-to-haves (queued, 2026-05-18)
+
+The pre-launch fixes shipped (see batch above). These are the next-tier improvements — none block the tournament:
+
+- **Tournament-wide subscribe.** Today you subscribe per match — 15 matches in a tournament means 15 separate opt-ins. A "Follow tournament" button on `/tournaments/[slug]` would auto-subscribe to every live match. Implementation: tournament-level subscription row + cron / DB trigger that materialises per-match subscriptions when matches go live.
+- **Match-starting push (T-15 min).** No pre-match notification today; spectators have to remember to open the app. Needs a scheduled job (GitHub Actions cron or Supabase Edge Function with `pg_cron`) that scans `scheduled_at` and fires a "starts in 15 min" push.
+- **Per-category preferences.** Subscribe today is all-or-nothing — users get wickets, milestones, innings break, and match-end pushes. Some viewers may want only wickets. Add `{wickets, milestones, innings_break, match_end}` boolean columns on `push_subscriptions` and filter the dispatch loop accordingly.
+- **Batch unsubscribe.** Users with subscriptions across many matches can't bulk-unsubscribe; would need a "Manage notifications" panel on `/me`.
 
 ### Super-over: ICC compliance gaps (queued, 2026-05-17)
 
