@@ -161,6 +161,20 @@ Pick-preservation fix layered on: the balls-length sync used to unconditionally 
 
 Commit `4112d0c`; 1 file / +142 / −12 LOC.
 
+**2026-05-18 (batch 5) — Pick XI: combined two-team picker with tabs.** Pavan flagged: "for pick players in team, can we select both in one section. currently the scorer experience is not good while picking the players in team. its confusing." Audit confirmed four nav events for one task — score page shows two cards with two "Pick XI" buttons; each opens a full-page picker; save bounces back via `router.back()`; rinse and repeat. Easy to forget the second team and start the match in a broken state.
+
+After offering three options (tabs / stacked / inline on score page), Pavan picked tabs. Implementation:
+
+- New combined route `src/app/matches/[matchId]/xi/page.tsx` loads both teams' rosters + existing `match_players` in one parallel wave (teams + team_players + match_players via three concurrent `await`s).
+- New `pick-xi-tabs.tsx` client component renders a two-tab strip with progress badges (`{playing}/{playersPerSide}` + ✓ once saved). Save buttons relabel based on state: "Save & next team" until one tab is saved, "Save & done" once the other is also saved (drops the scorer back via `router.back()`).
+- `PickXIForm` (existing per-team picker) gained two optional props — `saveLabel` and `onSaveSuccess` — so the tabs page reuses the same table + state code instead of duplicating it. Defaults preserve the per-team route's behaviour (button reads "Save XI", saves call `router.back()`).
+- `XISection` on the score page swaps the two per-team Pick XI / Edit XI buttons for one combined "Pick playing XIs" CTA below both team summary cards. `TeamXICard` gained a `showButton` prop (default true; XISection passes false). There's now exactly one path into the picker — the tabs flow — so a scorer literally can't end up halfway done.
+- The per-team route `/xi/[teamId]/page.tsx` still works (kept as a deep-link escape hatch).
+
+Bonus tweak considered and skipped: disabling the "Start scoring" CTA until both XIs are full. The score page already renders inline toss + XI prompts when not ready (batch 19 from 2026-05-17 late) — leading the scorer there is more useful than a dead button.
+
+Commit `f2015b2`; 4 files / +388 / −20 LOC.
+
 **2026-05-18 (batch 4) — Player ↔ profile sync now fires on the link event.** Bharath Foundry pinged Pavan: he updated his profile name to "BHARATH G S AGASTHYA" but the `/players` list still showed "Bharath Foundry". Root cause: the existing sync triggers (`20260516040000_sync_avatar_photo` + `20260516050000_sync_display_name`) fire on `AFTER UPDATE OF display_name`/`photo_url`. They do NOT fire on changes to `players.linked_user_id`. So this sequence falls through every guard:
 
 1. Player row imported from CricHeroes with no linked user.
