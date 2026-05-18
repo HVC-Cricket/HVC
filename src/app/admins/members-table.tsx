@@ -401,13 +401,17 @@ function SuperAdminToggle({
           size="sm"
           variant={row.isSuperAdmin ? "outline" : "default"}
           disabled={disabled}
+          // Compact label — "Promote to super-admin" was wider than
+          // the rest of the row controls and broke alignment on
+          // smaller screens. The AlertDialog title spells it out.
+          className="h-8 px-2.5 text-xs"
         >
           {disabled ? (
             <Loader2 className="size-3.5 animate-spin" />
           ) : row.isSuperAdmin ? (
             "Demote"
           ) : (
-            "Promote to super-admin"
+            "Promote"
           )}
         </Button>
       </AlertDialogTrigger>
