@@ -33,7 +33,11 @@ export async function CommentaryFeed({ matchId }: { matchId: string }) {
   // innings IDs upfront; players come from match_players so we don't
   // wait on the balls result either.
   type EmbeddedXIRow = {
-    player: { id: string; display_name: string } | null;
+    player: {
+      id: string;
+      display_name: string;
+      category: number | null;
+    } | null;
   };
   const [inningsRes, ballsRes, teamsRes, xiRes] = await Promise.all([
     supabase
@@ -53,7 +57,7 @@ export async function CommentaryFeed({ matchId }: { matchId: string }) {
       .in("id", [match.team_a_id, match.team_b_id]),
     supabase
       .from("match_players")
-      .select("player:players(id, display_name)")
+      .select("player:players(id, display_name, category)")
       .eq("match_id", matchId),
   ]);
 
@@ -64,8 +68,15 @@ export async function CommentaryFeed({ matchId }: { matchId: string }) {
   if (balls.length === 0) return null;
 
   const playerNames = new Map<string, string>();
+  const playerCats = new Map<string, 1 | 2 | 3 | null>();
   for (const r of (xiRes.data as EmbeddedXIRow[] | null) ?? []) {
-    if (r.player) playerNames.set(r.player.id, r.player.display_name);
+    if (!r.player) continue;
+    playerNames.set(r.player.id, r.player.display_name);
+    const c = r.player.category;
+    playerCats.set(
+      r.player.id,
+      c === 1 || c === 2 || c === 3 ? c : null,
+    );
   }
 
   const teamShort = new Map(
@@ -82,7 +93,11 @@ export async function CommentaryFeed({ matchId }: { matchId: string }) {
   for (const inn of inningsRows) {
     const inningsBalls = balls.filter((b) => b.innings_id === inn.id);
     if (inningsBalls.length === 0) continue;
-    const lines = buildCommentaryLines({ balls: inningsBalls, playerNames });
+    const lines = buildCommentaryLines({
+      balls: inningsBalls,
+      playerNames,
+      playerCats,
+    });
     lines.forEach((l) => (l.inningsNumber = inn.innings_number));
     const team = teamShort.get(inn.batting_team_id) ?? "?";
     const isSuperOver = inn.innings_number > 2;
@@ -117,7 +132,10 @@ export async function CommentaryFeed({ matchId }: { matchId: string }) {
               {[...section.lines].reverse().map((line) => (
                 <li
                   key={line.key}
-                  className="flex items-start gap-3 px-4 py-2.5 text-sm"
+                  className={
+                    "flex items-start gap-3 px-4 py-2.5 text-sm " +
+                    (line.isNarration ? "bg-muted/20" : "")
+                  }
                 >
                   <span
                     className={
@@ -135,7 +153,9 @@ export async function CommentaryFeed({ matchId }: { matchId: string }) {
                         ? "font-medium text-destructive"
                         : line.isBoundary
                           ? "font-medium"
-                          : ""
+                          : line.isNarration
+                            ? "italic text-muted-foreground"
+                            : ""
                     }
                   >
                     {line.text}
