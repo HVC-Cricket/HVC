@@ -13,6 +13,7 @@ type Props = {
   user: {
     displayName: string;
     initial: string;
+    isSuperAdmin: boolean;
   } | null;
   signOutAction: SignOutAction;
 };
@@ -131,6 +132,7 @@ export function SiteNavDrawer({ user, signOutAction }: Props) {
               {navLink("/tournaments", "Tournaments")}
               {navLink("/players", "Players")}
               {user && navLink("/me", "My profile")}
+              {user?.isSuperAdmin && navLink("/admins", "Admin")}
             </nav>
 
             <div className="space-y-2 border-t border-foreground/10 p-3">

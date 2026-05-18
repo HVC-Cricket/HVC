@@ -24,6 +24,25 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 19) — `/admins` v1: members + promote/demote + link/unlink + audit log + quick stats.** New super-admin-only landing page at `/admins` for ops self-service. Gated via `requireSuperAdmin` in the page itself; the drawer hides the nav link from non-super-admins (one extra single-row `profiles.is_super_admin` query in `site-nav.tsx` so the link only shows when relevant). Direct URL access still bounces non-super-admins via the redirect inside `requireSuperAdmin`.
+
+Sections shipped:
+
+- **Quick stats** — count of users, super-admins, players, tournaments, matches. Five tiny tiles at the top.
+- **Members table** — every signed-up user (one row each), with avatar / display name / email / role badge (super-admin > organizer > scorer > player > member) / joined date / **linked player picker** (searchable combobox; only un-linked players + the currently-linked one are selectable) / **promote-or-demote button** (AlertDialog confirm). Sort: super-admins → organizers → alphabetical.
+- **Recent activity** — last 30 rows from `match_audit_events` (which has RLS with no policies, so the admin client is required). Each row links to its match and shows actor + relative time.
+
+Actions (`src/app/admins/actions.ts`):
+
+- `setSuperAdmin(userId, value)` — calls `requireSuperAdmin`, then a normal UPDATE on `profiles.is_super_admin`. The `prevent_self_promote` trigger (db.sql:374) only blocks the change when the caller is NOT super, so a super-admin can promote / demote anyone including themselves. App-level safeguard: refuses to demote the last remaining super-admin so the org never ends up locked out.
+- `setLinkedPlayer(userId, playerId | null)` — two-step write because `players.linked_user_id` carries a partial unique index (1 player per user): clear any existing link from this user, then set the new one (if `playerId` is non-null). The existing `20260518000000_sync_player_on_link` trigger fires on the second UPDATE and auto-pulls `display_name` + `avatar_url` from the profile.
+
+Data plumbing uses the service-role client because `auth.users` + `match_audit_events` need to be readable, and a wide join over `profiles` / `players` / `tournament_admins` is easier from a service-role context than chasing RLS edges. Trust boundary is the `requireSuperAdmin` gate at the top of the page and on every action.
+
+Deferred for follow-ups (each its own future batch): storage browser, push broadcast, force-finalize match, recompute innings, cricheroes re-import UI, bulk player ops, tournament-admin roll-up view, migration-status / deploy info tile.
+
+4 new files + 2 modified (site-nav.tsx + drawer) / ~520 LOC.
+
 **2026-05-18 (batch 18) — Phone fields cap length + validate Indian format.** Batch 17 stripped letters from phone inputs but left two holes: (a) `maxLength` wasn't set, so a user could type / paste an unbounded number string (one tester ended up with 50+ digits in the field), and (b) the only format check was "characters look phone-ish" — no Indian-mobile shape gate. Both fixed across the three phone surfaces (`/me`, `/players/new`, `/players/[id]/edit`).
 
 `src/lib/phone.ts` now exports:
