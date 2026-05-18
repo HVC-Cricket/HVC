@@ -65,20 +65,28 @@ export function PickXITabs({
     (r) => r.included && !r.is_substitute,
   ).length;
 
+  // "Other team is done" — either already saved this session OR loaded
+  // in already at the full XI count (edit flow where both XIs were
+  // picked in a previous session). Drives both the save-button label
+  // ("Save & next team" vs "Save & done") and the post-save action
+  // (auto-switch to the other tab vs. drop the scorer back).
+  const teamAComplete = savedA || playingCountA === playersPerSide;
+  const teamBComplete = savedB || playingCountB === playersPerSide;
+
   const onSaveA = () => {
     setSavedA(true);
-    if (!savedB) {
-      setActive("B");
-    } else {
+    if (teamBComplete) {
       router.back();
+    } else {
+      setActive("B");
     }
   };
   const onSaveB = () => {
     setSavedB(true);
-    if (!savedA) {
-      setActive("A");
-    } else {
+    if (teamAComplete) {
       router.back();
+    } else {
+      setActive("A");
     }
   };
 
@@ -119,7 +127,7 @@ export function PickXITabs({
           teamId={teamA.teamId}
           playersPerSide={playersPerSide}
           rows={teamA.rows}
-          saveLabel={savedB ? "Save & done" : "Save & next team"}
+          saveLabel={teamBComplete ? "Save & done" : "Save & next team"}
           onSaveSuccess={onSaveA}
         />
       </div>
@@ -129,7 +137,7 @@ export function PickXITabs({
           teamId={teamB.teamId}
           playersPerSide={playersPerSide}
           rows={teamB.rows}
-          saveLabel={savedA ? "Save & done" : "Save & next team"}
+          saveLabel={teamAComplete ? "Save & done" : "Save & next team"}
           onSaveSuccess={onSaveB}
         />
       </div>
