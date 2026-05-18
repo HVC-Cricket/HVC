@@ -549,6 +549,12 @@ function RecentBalls({
   if (current.length === 0 && previous.length === 0) return null;
   return (
     <div className="space-y-1.5 border-t border-foreground/10 pt-3">
+      <div className="flex items-start gap-2">
+        <span className="w-16 shrink-0 pt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          This over
+        </span>
+        <div className="flex flex-wrap gap-1">{current.map(renderBall)}</div>
+      </div>
       {previous.length > 0 && (
         <div className="flex items-start gap-2">
           <span className="w-16 shrink-0 pt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -557,12 +563,6 @@ function RecentBalls({
           <div className="flex flex-wrap gap-1">{previous.map(renderBall)}</div>
         </div>
       )}
-      <div className="flex items-start gap-2">
-        <span className="w-16 shrink-0 pt-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          This over
-        </span>
-        <div className="flex flex-wrap gap-1">{current.map(renderBall)}</div>
-      </div>
     </div>
   );
 }
