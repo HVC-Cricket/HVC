@@ -24,9 +24,25 @@ type Props = {
   teamId: string;
   playersPerSide: number;
   rows: Row[];
+  /** Label for the save button. Defaults to "Save XI". */
+  saveLabel?: string;
+  /**
+   * Override what happens after a successful save. Defaults to
+   * `router.back()` (returns the scorer to the page they came from).
+   * The combined Pick-XI-tabs flow uses this to switch to the next
+   * team's tab instead of leaving.
+   */
+  onSaveSuccess?: () => void;
 };
 
-export function PickXIForm({ matchId, teamId, playersPerSide, rows }: Props) {
+export function PickXIForm({
+  matchId,
+  teamId,
+  playersPerSide,
+  rows,
+  saveLabel = "Save XI",
+  onSaveSuccess,
+}: Props) {
   const router = useRouter();
   const [state, setState] = useState<Row[]>(rows);
   const [pending, startTransition] = useTransition();
@@ -87,10 +103,14 @@ export function PickXIForm({ matchId, teamId, playersPerSide, rows }: Props) {
         return;
       }
       toast.success("XI saved");
-      // Drop the scorer back where they came from (score page or
-      // match page) so they don't have to navigate manually after
-      // saving each side's XI.
-      router.back();
+      if (onSaveSuccess) {
+        onSaveSuccess();
+      } else {
+        // Default: drop the scorer back where they came from (score
+        // page or match page) so they don't have to navigate manually
+        // after saving each side's XI.
+        router.back();
+      }
     });
   };
 
@@ -160,7 +180,7 @@ export function PickXIForm({ matchId, teamId, playersPerSide, rows }: Props) {
           {underFilled && ` · need ${playersPerSide - includedRows.length} more`}
         </span>
         <Button onClick={onSave} disabled={pending}>
-          {pending ? "Saving…" : "Save XI"}
+          {pending ? "Saving…" : saveLabel}
         </Button>
       </div>
     </div>

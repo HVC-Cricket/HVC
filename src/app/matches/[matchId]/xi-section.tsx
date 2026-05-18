@@ -31,19 +31,34 @@ export async function XISection({
   canManage: boolean;
 }) {
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <TeamXICard
-        matchId={matchId}
-        team={teamA}
-        playersPerSide={playersPerSide}
-        canManage={canManage}
-      />
-      <TeamXICard
-        matchId={matchId}
-        team={teamB}
-        playersPerSide={playersPerSide}
-        canManage={canManage}
-      />
+    <div className="space-y-3">
+      <div className="grid gap-4 md:grid-cols-2">
+        <TeamXICard
+          matchId={matchId}
+          team={teamA}
+          playersPerSide={playersPerSide}
+          canManage={canManage}
+          showButton={false}
+        />
+        <TeamXICard
+          matchId={matchId}
+          team={teamB}
+          playersPerSide={playersPerSide}
+          canManage={canManage}
+          showButton={false}
+        />
+      </div>
+      {/* Single combined CTA — the per-team Pick XI buttons were a
+          source of confusion (scorers would set one team and start a
+          match with the other still empty). Funnel everyone through
+          the tabs flow which makes both teams' progress obvious. */}
+      {canManage && (
+        <div className="flex justify-end">
+          <Link href={`/matches/${matchId}/xi`} prefetch>
+            <Button size="sm">Pick playing XIs</Button>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }
@@ -53,11 +68,17 @@ async function TeamXICard({
   team,
   playersPerSide,
   canManage,
+  showButton = true,
 }: {
   matchId: string;
   team: Team;
   playersPerSide: number;
   canManage: boolean;
+  /** When XISection renders both teams together it owns the single
+   *  combined CTA below and asks each card to hide its own per-team
+   *  Pick XI / Edit XI button. Lone callers (none currently, but a
+   *  future single-team summary card could) leave the default true. */
+  showButton?: boolean;
 }) {
   const supabase = await createClient();
   const { data: xi } = await supabase
@@ -184,7 +205,7 @@ async function TeamXICard({
             })}
           </ul>
         )}
-        {canManage && (
+        {canManage && showButton && (
           <div
             className={
               (isEmpty ? "" : "border-t border-foreground/10 ") +
