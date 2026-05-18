@@ -266,11 +266,12 @@ async function TeamXICard({
     display_name: string;
     photo_url: string | null;
     linked_user_id: string | null;
+    category: 1 | 2 | 3 | null;
   };
   const { data: players } = playerIds.length
     ? await supabase
         .from("players")
-        .select("id, display_name, photo_url, linked_user_id")
+        .select("id, display_name, photo_url, linked_user_id, category")
         .in("id", playerIds)
     : { data: [] as PlayerRow[] };
   // Linked-account avatar fallback — a player who linked their auth
@@ -386,6 +387,20 @@ async function TeamXICard({
                       </span>
                     )}
                     <span className="font-medium capitalize">{name}</span>
+                    {p?.category != null && (
+                      <span
+                        className={
+                          "shrink-0 rounded-full border px-1.5 py-px font-mono text-[10px] " +
+                          (p.category === 1
+                            ? "border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                            : p.category === 3
+                              ? "border-sky-500/40 bg-sky-500/15 text-sky-700 dark:text-sky-300"
+                              : "border-foreground/15 bg-muted text-muted-foreground")
+                        }
+                      >
+                        C{p.category}
+                      </span>
+                    )}
                     {r.is_captain && (
                       <span className="rounded bg-foreground/10 px-1 text-xs">
                         C

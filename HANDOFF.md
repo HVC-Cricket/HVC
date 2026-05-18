@@ -24,6 +24,14 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 32) — Category chip on the match XISection rows + Link Player on /admins switched to a Dialog.** Two unrelated mobile / UX nits:
+
+1. **Match-page XISection** — each player row now gets the same `C1` / `C2` / `C3` (amber / muted / sky) badge already shown on Pick XI, /players, and the player detail page. Pulled `category` through the existing `players` query in `TeamXICard` so no new round-trip.
+
+2. **/admins Link Player popover → Dialog.** Earlier attempt (batch 27) clamped width + flipped `align="start"`, but the scroll-up still reproduced on mobile when the trigger row sat near the viewport bottom: base-ui's collision avoidance flipped the popup above the trigger, the auto-focused `CommandInput` then pulled the browser viewport up to the off-screen input. Centered Dialog sidesteps positioning entirely — modal sits at the viewport centre regardless of trigger location, so the focused input is always in view. Same Command (cmdk) UI inside; only the chrome changes.
+
+2 files / +57 / −41 LOC.
+
 **2026-05-18 (batch 31) — Pick XI rows show the player's category.** Each player row on the Pick XI form (both `/matches/[id]/xi/[teamId]` single-team and the two-tab `/matches/[id]/xi` page) now renders a small `C1` / `C2` / `C3` chip next to the name. Same accents the rest of the app uses — amber Cat 1, sky Cat 3, muted Cat 2, destructive "no cat" for an uncategorised player so it's obvious the row needs fixing on `/players/[id]/edit`. Plumbed `category` through both row builders + the shared `Row` type in `pick-xi-tabs.tsx`.
 
 4 files / +50 / −8 LOC.

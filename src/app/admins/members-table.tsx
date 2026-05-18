@@ -39,11 +39,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { cn, getInitials } from "@/lib/utils";
 
 import { deleteUser, setLinkedPlayer, setSuperAdmin } from "./actions";
@@ -486,8 +482,18 @@ function PlayerLinkControl({
 
   return (
     <div className="flex items-center gap-1.5">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger
+      {/* Previously a Popover anchored to the trigger. base-ui's
+          collision avoidance was flipping the popup to a position
+          above the trigger on mobile rows near the bottom of the
+          viewport, and the auto-focused CommandInput then pulled
+          the browser's viewport up to the off-screen input —
+          surfaced as "tapping Link player scrolls the page up and
+          hides the dropdown". A centered Dialog sidesteps the
+          positioning entirely: the modal sits at the viewport
+          centre regardless of where the trigger lives, so the
+          focused input is always already in view. */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger
           render={(props) => (
             <Button
               {...props}
@@ -512,18 +518,9 @@ function PlayerLinkControl({
             </Button>
           )}
         />
-        <PopoverContent
-          // Mobile-safe sizing: never wider than the viewport (minus
-          // a small inset) and capped vertically so the popup can
-          // always fit inside the visible area. `align="start"`
-          // anchors the popup's left edge to the trigger's left
-          // edge, which keeps it on-screen when the trigger sits on
-          // the right side of a narrow row — `align="end"` was
-          // causing the page to scroll up when base-ui's auto-focus
-          // moved focus to a CommandInput that had ended up
-          // off-screen above the trigger after a collision flip.
-          className="w-[min(280px,calc(100vw-1.5rem))] max-h-[60vh] overflow-hidden p-0"
-          align="start"
+        <DialogContent
+          showCloseButton={false}
+          className="max-h-[80vh] w-full max-w-[min(360px,calc(100vw-2rem))] overflow-hidden p-0"
         >
           <Command
             // See add-roster-form.tsx for the same trick: cmdk dedupes
@@ -564,8 +561,8 @@ function PlayerLinkControl({
               </CommandGroup>
             </CommandList>
           </Command>
-        </PopoverContent>
-      </Popover>
+        </DialogContent>
+      </Dialog>
       {row.linkedPlayer && (
         <Button
           type="button"
