@@ -1,10 +1,4 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { buildCommentaryLines, type CommentaryLine } from "@/lib/commentary";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
@@ -116,12 +110,6 @@ export async function CommentaryFeed({ matchId }: { matchId: string }) {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Commentary</CardTitle>
-        <CardDescription>
-          Latest balls at the top. Auto-generated from each delivery.
-        </CardDescription>
-      </CardHeader>
       <CardContent className="space-y-4 p-0">
         {sections.map((section) => (
           <div key={section.inningsNumber}>
