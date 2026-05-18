@@ -141,6 +141,23 @@ Pick-preservation fix layered on: the balls-length sync used to unconditionally 
 
 Commit `4112d0c`; 1 file / +142 / −12 LOC.
 
+**2026-05-18 (batch 4) — Player ↔ profile sync now fires on the link event.** Bharath Foundry pinged Pavan: he updated his profile name to "BHARATH G S AGASTHYA" but the `/players` list still showed "Bharath Foundry". Root cause: the existing sync triggers (`20260516040000_sync_avatar_photo` + `20260516050000_sync_display_name`) fire on `AFTER UPDATE OF display_name`/`photo_url`. They do NOT fire on changes to `players.linked_user_id`. So this sequence falls through every guard:
+
+1. Player row imported from CricHeroes with no linked user.
+2. User signs up — profile created. Trigger checks for linked player → none → no sync.
+3. User updates profile name — same story, still no link.
+4. Organizer links the player to the user later — the linking UPDATE only sets `linked_user_id`, not `display_name`, so no sync trigger fires.
+
+Result: profile and player permanently out of sync.
+
+Migration `20260518000000_sync_player_on_link.sql`:
+
+- `BEFORE UPDATE OF linked_user_id ON players` — when the link is set or changed to a different user, pull `display_name` + `avatar_url` from the now-linked profile and mutate `NEW.display_name` / `NEW.photo_url` directly. BEFORE-trigger means no second UPDATE, no chance of triggering recursion through the existing AFTER triggers.
+- `BEFORE INSERT ON players` — same logic for player rows created already-linked (bulk import paths that map to existing users).
+- Idempotent backfill `UPDATE` at the end fixes every already-linked-but-mismatched player. Profile wins, matching the convention from the earlier migrations.
+
+Applied to dev + prod. Bharath's row now reads "BHARATH G S AGASTHYA " (matching his profile; trailing space preserved). Audit across all 5 linked players on prod: 0 mismatches. Commit `39acfef`.
+
 **2026-05-18 (batch 3) — Scoring lock: auto-expire pending requests.** Follow-up to batch 2. Before, a takeover request sat in `pending_scorer_request_id` indefinitely until explicit Allow / Deny / Cancel. If the holder had the page open but wasn't actively watching (phone face-down on the bench between deliveries), the requester was stuck on "Waiting for permission" with no path out except cancelling and re-requesting.
 
 Implementation:
