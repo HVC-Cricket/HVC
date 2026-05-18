@@ -55,6 +55,30 @@ export function applyRulesOverride(
   };
 }
 
+/**
+ * Layer the per-match scalar columns (`players_per_side`,
+ * `overs_per_innings`) on top of the merged tournament + override
+ * rules. These columns live on the `matches` table — not in
+ * `rules_override` — and are first-class per-match config: the match
+ * edit form writes directly to them. They MUST win over the
+ * tournament defaults, otherwise the engine ends innings using the
+ * tournament's player count even when the specific match was scored
+ * with fewer players.
+ *
+ * Use this everywhere effective rules are needed for a specific
+ * match (state derivation, recordBall validation, preflight, etc.).
+ */
+export function applyMatchScalarRules(
+  rules: RuleSet,
+  match: { players_per_side: number; overs_per_innings: number },
+): RuleSet {
+  return {
+    ...rules,
+    players_per_side: match.players_per_side,
+    overs_per_innings: match.overs_per_innings,
+  };
+}
+
 const STANDARD_WICKETS: WicketType[] = [
   "bowled",
   "caught",

@@ -6,6 +6,7 @@ import {
   type InningsState,
   type RuleSet,
   type RulesOverride,
+  applyMatchScalarRules,
   applyRulesOverride,
   createEnginePlayerFactory,
   getRuleSet,
@@ -158,7 +159,17 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
     "rules_override" in match
       ? ((match as { rules_override?: RulesOverride }).rules_override ?? null)
       : null;
-  const rules = applyRulesOverride(baseRules, matchOverride);
+  // Effective rules = tournament defaults < category override <
+  // per-match scalar columns (players_per_side, overs_per_innings).
+  // Without the scalar layer, a 6-player match scored under HVC's
+  // 7-player tournament rules would end the innings at 7 wickets.
+  const rules = applyMatchScalarRules(
+    applyRulesOverride(baseRules, matchOverride),
+    {
+      players_per_side: match.players_per_side,
+      overs_per_innings: match.overs_per_innings,
+    },
+  );
 
   const teams = teamsRes.data;
   const teamA = teams?.find((t) => t.id === match.team_a_id);

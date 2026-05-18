@@ -11,6 +11,7 @@ import { type MatchPushPayload, notifyMatch } from "@/lib/push";
 import {
   advanceBowler,
   applyBall,
+  applyMatchScalarRules,
   applyRulesOverride,
   categoryForOver,
   createEnginePlayerFactory,
@@ -297,13 +298,16 @@ export async function recordBall(
   // the row shape here. Drop the cast once we re-run gen:types.
   const { data: match } = (await supabase
     .from("matches")
-    .select("id, tournament_id, players_per_side, rules_override")
+    .select(
+      "id, tournament_id, players_per_side, overs_per_innings, rules_override",
+    )
     .eq("id", parsed.data.matchId)
     .single()) as unknown as {
     data: {
       id: string;
       tournament_id: string;
       players_per_side: number;
+      overs_per_innings: number;
       rules_override: unknown;
     } | null;
   };
@@ -318,19 +322,25 @@ export async function recordBall(
   });
   if (!lock.ok) return lock;
 
-  // Load rules for engine validation. The engine itself keys off
-  // striker.category for special-over mechanics, so the per-tournament
-  // RuleSet is sufficient here. The match-level cat override only
-  // matters for the per-ball Cat-N enforcement below.
+  // Effective rules = tournament defaults < per-match categories override
+  // < per-match scalar columns (players_per_side, overs_per_innings).
+  // The scalar layer is what makes a 6-player match end the innings at
+  // 6 wickets under HVC's 7-player tournament rules instead of 7.
   const { data: tournament } = await supabase
     .from("tournaments")
     .select("rules")
     .eq("id", match.tournament_id)
     .single();
   const rules = getRuleSet(tournament?.rules);
-  const effectiveRules = applyRulesOverride(
-    rules,
-    (match.rules_override as RulesOverride) ?? null,
+  const effectiveRules = applyMatchScalarRules(
+    applyRulesOverride(
+      rules,
+      (match.rules_override as RulesOverride) ?? null,
+    ),
+    {
+      players_per_side: match.players_per_side,
+      overs_per_innings: match.overs_per_innings,
+    },
   );
 
   // Load existing balls to compute current state.

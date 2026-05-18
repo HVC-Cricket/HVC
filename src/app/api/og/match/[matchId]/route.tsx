@@ -254,7 +254,7 @@ export async function GET(
           background: BG,
           color: TEXT,
           fontFamily: "system-ui, sans-serif",
-          padding: 56,
+          padding: 36,
         }}
       >
         {/* HEADER */}
@@ -268,7 +268,7 @@ export async function GET(
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span
               style={{
-                fontSize: 22,
+                fontSize: 20,
                 color: MUTED,
                 textTransform: "uppercase",
                 letterSpacing: 3,
@@ -276,7 +276,7 @@ export async function GET(
             >
               {match.tournament.name}
             </span>
-            <span style={{ fontSize: 18, color: MUTED, marginTop: 4 }}>
+            <span style={{ fontSize: 16, color: MUTED, marginTop: 2 }}>
               Match {match.match_number} · {match.overs_per_innings} overs
             </span>
           </div>
@@ -284,10 +284,10 @@ export async function GET(
             style={{
               display: "flex",
               alignItems: "center",
-              padding: "8px 16px",
+              padding: "6px 14px",
               border: `2px solid ${ACCENT}`,
               borderRadius: 8,
-              fontSize: 22,
+              fontSize: 18,
               fontWeight: 800,
               color: ACCENT,
               letterSpacing: 2,
@@ -303,8 +303,8 @@ export async function GET(
             display: "flex",
             alignItems: "center",
             justifyContent: "space-around",
-            marginTop: 30,
-            marginBottom: 24,
+            marginTop: 18,
+            marginBottom: 14,
           }}
         >
           <TeamBlock
@@ -313,7 +313,7 @@ export async function GET(
             innings={teamAInn}
             isWinner={isAWinner}
           />
-          <span style={{ fontSize: 36, color: MUTED, fontWeight: 700 }}>
+          <span style={{ fontSize: 30, color: MUTED, fontWeight: 700 }}>
             vs
           </span>
           <TeamBlock
@@ -329,16 +329,16 @@ export async function GET(
           style={{
             display: "flex",
             alignSelf: "center",
-            padding: "14px 36px",
+            padding: "10px 28px",
             background: ACCENT_SOFT,
             border: `1px solid ${ACCENT}`,
             borderRadius: 999,
-            marginBottom: 24,
+            marginBottom: 16,
           }}
         >
           <span
             style={{
-              fontSize: 28,
+              fontSize: 24,
               fontWeight: 700,
               color: ACCENT,
             }}
@@ -352,7 +352,7 @@ export async function GET(
           <div
             style={{
               display: "flex",
-              gap: 16,
+              gap: 12,
               marginTop: "auto",
             }}
           >
@@ -369,13 +369,13 @@ export async function GET(
                 label="Top Bowler"
                 title={nameById.get(topBowler.id) ?? "Unknown"}
                 value={`${topBowler.stats.wickets}/${topBowler.stats.runs_conceded}`}
-                sub={`${oversFromBalls(topBowler.stats.legal_balls)} overs · ${topBowler.stats.dots} dots`}
+                sub={`${oversFromBalls(topBowler.stats.legal_balls)} ov · ${topBowler.stats.dots} dots`}
               />
             )}
             <StatCard
               label="Match"
               title={`${total4 + total6} boundaries`}
-              value={`${total4}·4  +  ${total6}·6`}
+              value={`${total4}×4 · ${total6}×6`}
               sub={`${totalWkts} wickets fell`}
             />
           </div>
@@ -385,13 +385,13 @@ export async function GET(
             style={{
               display: "flex",
               marginTop: "auto",
-              padding: 18,
+              padding: 14,
               borderRadius: 12,
               background: "rgba(148, 163, 184, 0.08)",
               border: "1px solid rgba(148, 163, 184, 0.2)",
             }}
           >
-            <span style={{ fontSize: 18, color: MUTED }}>
+            <span style={{ fontSize: 16, color: MUTED }}>
               Ball-by-ball stats not available for this match.
             </span>
           </div>
@@ -429,9 +429,9 @@ function TeamBlock({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        padding: 20,
-        minWidth: 320,
-        borderRadius: 16,
+        padding: 14,
+        minWidth: 300,
+        borderRadius: 14,
         background: isWinner ? ACCENT_SOFT : "rgba(255,255,255,0.04)",
         border: isWinner
           ? `2px solid ${ACCENT}`
@@ -440,7 +440,7 @@ function TeamBlock({
     >
       <span
         style={{
-          fontSize: 56,
+          fontSize: 46,
           fontWeight: 800,
           color: isWinner ? ACCENT : TEXT,
           letterSpacing: 2,
@@ -451,9 +451,9 @@ function TeamBlock({
       </span>
       <span
         style={{
-          fontSize: 16,
+          fontSize: 14,
           color: MUTED,
-          marginTop: 2,
+          marginTop: 0,
           textTransform: "uppercase",
           letterSpacing: 2,
         }}
@@ -462,16 +462,16 @@ function TeamBlock({
       </span>
       <span
         style={{
-          fontSize: 64,
+          fontSize: 52,
           fontWeight: 800,
           color: TEXT,
-          marginTop: 8,
+          marginTop: 4,
           fontVariantNumeric: "tabular-nums",
         }}
       >
         {scoreLine}
       </span>
-      <span style={{ fontSize: 20, color: MUTED, marginTop: -4 }}>
+      <span style={{ fontSize: 18, color: MUTED, marginTop: -2 }}>
         {oversLine}
       </span>
     </div>
@@ -495,7 +495,7 @@ function StatCard({
         flex: 1,
         display: "flex",
         flexDirection: "column",
-        padding: 18,
+        padding: 14,
         borderRadius: 12,
         background: "rgba(255,255,255,0.04)",
         border: "1px solid rgba(255,255,255,0.08)",
@@ -503,7 +503,7 @@ function StatCard({
     >
       <span
         style={{
-          fontSize: 13,
+          fontSize: 12,
           color: MUTED,
           textTransform: "uppercase",
           letterSpacing: 2,
@@ -513,17 +513,17 @@ function StatCard({
       </span>
       <span
         style={{
-          fontSize: 24,
+          fontSize: 22,
           fontWeight: 700,
           color: TEXT,
-          marginTop: 6,
+          marginTop: 4,
         }}
       >
         {title}
       </span>
       <span
         style={{
-          fontSize: 28,
+          fontSize: 26,
           fontWeight: 800,
           color: ACCENT,
           marginTop: 2,
@@ -532,7 +532,7 @@ function StatCard({
       >
         {value}
       </span>
-      <span style={{ fontSize: 14, color: MUTED, marginTop: 2 }}>{sub}</span>
+      <span style={{ fontSize: 13, color: MUTED, marginTop: 2 }}>{sub}</span>
     </div>
   );
 }

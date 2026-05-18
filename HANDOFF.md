@@ -50,7 +50,19 @@ Implementation notes:
 
 3 files / +470 / 0 LOC.
 
-**Follow-up (same day) — two bugs caught during dogfood:**
+**Follow-up #2 (same day) — match scalar columns now drive engine rules.**
+
+`matches.players_per_side` and `matches.overs_per_innings` are first-class per-match config (the match-edit form writes directly to them) but the engine was reading `rules.players_per_side` from the tournament default — meaning a 6-player match scored under HVC's 7-player tournament rules ended the innings at 7 wickets instead of 6. Added an `applyMatchScalarRules(rules, match)` helper to `src/lib/scoring/rules.ts` that layers the scalar columns on top of `applyRulesOverride`'s output. Wired into both:
+- `src/app/matches/[matchId]/score/state.ts` (client state derivation)
+- `src/app/matches/[matchId]/score/actions.ts` (server-side `recordBall` — the authoritative path that drives `total_wickets`, `is_complete`, and innings-end detection)
+
+After the fix, a 6-player match with `last_man_standing = true` correctly ends at 6 wickets (5 + last man standing → 6th dismissal = all out).
+
+**Follow-up #3 (same day) — highlight card content was clipped at the bottom.**
+
+The PNG composition's total height exceeded 630px so the stat strip's bottom row was cropped off. Tightened everything: outer padding 56→36, header / team / stat font sizes scaled down ~20%, gaps and margins reduced. The whole card now fits comfortably with breathing room.
+
+**Follow-up #1 (same day) — two bugs caught during dogfood:**
 
 1. **OG route was returning "Match not found" for every valid match.** PostgREST has two FKs between `matches` and `innings` (`innings.match_id → matches.id` for the inning-of-match relation, and `matches.current_innings_id → innings.id` for the live cursor) and refuses to embed without a disambiguating hint. Fixed by changing `innings(...)` → `innings!innings_match_id_fkey(...)`. The Supabase JS client surfaces this as `error.code === "PGRST201"` with a helpful `hint` field — the original handler swallowed it, so I also rewrote the error path to surface the PostgREST message instead of falling through to "not found".
 
