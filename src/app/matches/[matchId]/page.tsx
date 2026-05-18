@@ -110,10 +110,13 @@ export default async function MatchDetailPage(props: {
 
   // XI lock: once any non-voided ball is recorded, "Pick playing XIs"
   // and the inline Add-player surfaces are frozen. Undoing every
-  // ball back to the start unlocks (voiding clears the gate). Cheap
-  // skip when the match is still scheduled — no balls possible.
-  const xiLocked =
-    ms !== "scheduled" ? await matchHasRecordedBalls(supabase, match.id) : false;
+  // ball back to the start unlocks (voiding clears the gate).
+  // Always do the actual count check — the previous shortcut
+  // `ms !== 'scheduled'` was wrong when an organizer reverted
+  // status from live/completed back to scheduled via the edit form;
+  // we'd report xiLocked=false while balls still existed and the
+  // server action would then reject confusingly.
+  const xiLocked = await matchHasRecordedBalls(supabase, match.id);
 
   // Promote the Score CTA to a full-width sticky card whenever the scorer
   // can act: scheduled (start), live (continue), or innings_break

@@ -193,18 +193,30 @@ export default async function PickXIPage(props: {
                 </Link>
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <AddSquadMemberPopover
-                tournamentSlug={tournament.slug}
-                teamId={team.id}
-                players={eligiblePlayers}
-                align="start"
-              />
-            </CardContent>
+            {/* Don't surface the inline Add player popover when the
+                XI is locked — squad additions can't enter the XI
+                while balls are on the books, so the control would
+                just be a frustration. The Manage-squad link above
+                still works for future matches. */}
+            {!xiLocked && (
+              <CardContent>
+                <AddSquadMemberPopover
+                  tournamentSlug={tournament.slug}
+                  teamId={team.id}
+                  players={eligiblePlayers}
+                  align="start"
+                />
+              </CardContent>
+            )}
           </Card>
         ) : (
           <>
-            {rosterRows.length < match.players_per_side && (
+            {/* Squad-too-small banner is suppressed when the XI is
+                locked — there's nothing actionable mid-match, and
+                stacking it under the "XI locked" card above just
+                creates clutter. The XI-locked card already tells
+                the scorer to undo back to the start to make changes. */}
+            {!xiLocked && rosterRows.length < match.players_per_side && (
               <Card className="border-amber-500/30 bg-amber-500/5 dark:border-amber-400/20 dark:bg-amber-400/5">
                 <CardHeader>
                   <CardTitle className="text-base">

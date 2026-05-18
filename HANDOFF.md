@@ -24,6 +24,14 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-19 (batch 35) — Audit pass: pre-flight false-negative, xiLocked UI lie, Pick-XI banner clutter.** Four issues surfaced in a self-audit after the slice B + XI-lock work landed:
+
+1. **Score-page `findCategoryGaps` was counting substitutes as XI members.** It iterated `state.xi[teamId]` which includes both XI and subs, and the engine's `EnginePlayer` type drops `is_substitute` so the filter wasn't possible. A team with the only Cat 1 player marked as sub passed the pre-flight gate. Fix: re-fetch `match_players` with the embedded `player.category` and filter `is_substitute = false` before computing per-team category sets. Same data also powers the playing-XI count (single query for both).
+2. **`xiLocked` short-circuited to `false` when `match.status === 'scheduled'`.** Pre-existing optimisation but wrong after the match-edit form started allowing status reversion (live/completed → scheduled). UI would say "XI is editable" while the server rejected the save. Removed the shortcut; always do the count check.
+3. + 4. **Pick XI page (single-team) was stacking "XI locked" card with the "Squad too small" amber banner + the `AddSquadMemberPopover`.** Once locked, neither is actionable. Suppressed the squad banner + popover when `xiLocked`; the locked card alone tells the scorer to undo back to the start.
+
+3 files / +57 / −40 LOC.
+
 **2026-05-19 (batch 34) — XI locks once scoring starts; unlocks again on a full undo.** Pavan flagged that "Edit XI" stayed clickable after the first ball — changing the XI mid-match would silently invalidate `match_players` references from already-recorded balls. Gate added across every entry point + server action.
 
 **Rule:** XI is locked iff the match has at least one non-voided ball. `recordBall` flips `is_voided=true` on undo (never deletes), so undoing every ball back to the start unlocks the form again — exactly the rollback path the user described.

@@ -44,18 +44,27 @@ export default async function ScorePage(props: {
   // strict non-sub count straight from `match_players` instead, and
   // require it to hit the configured `players_per_side`.
   const supabaseForCounts = await createClient();
+  // Pull both the count fields AND the player's category in one query
+  // so the playing-XI count and the category-coverage check stay
+  // consistent. `state.xi` would have worked for the count but it
+  // also includes substitutes, and EnginePlayer drops `is_substitute`
+  // so we can't filter — re-fetch and filter properly here.
   const { data: xiCountRows } = await supabaseForCounts
     .from("match_players")
-    .select("team_id, is_substitute")
+    .select("team_id, is_substitute, player:players(category)")
     .eq("match_id", matchId);
-  const xiACount =
-    xiCountRows?.filter(
-      (r) => r.team_id === state.teamA.id && !r.is_substitute,
-    ).length ?? 0;
-  const xiBCount =
-    xiCountRows?.filter(
-      (r) => r.team_id === state.teamB.id && !r.is_substitute,
-    ).length ?? 0;
+  type XICountRow = {
+    team_id: string;
+    is_substitute: boolean;
+    player: { category: number | null } | null;
+  };
+  const rows = (xiCountRows ?? []) as unknown as XICountRow[];
+  const xiACount = rows.filter(
+    (r) => r.team_id === state.teamA.id && !r.is_substitute,
+  ).length;
+  const xiBCount = rows.filter(
+    (r) => r.team_id === state.teamB.id && !r.is_substitute,
+  ).length;
   const hasToss = !!state.match.toss_winner_id && !!state.match.toss_decision;
   const xisReady =
     xiACount >= state.match.players_per_side &&
@@ -63,33 +72,31 @@ export default async function ScorePage(props: {
 
   // Category pre-flight. For each over flagged Cat 1 / Cat 3 by the
   // effective rules (tournament + match override merged in
-  // `loadScoreboardState`), every team's playing XI must include at
-  // least one player of that category. Otherwise the scoring panel
-  // would throw "Cat X over: striker and bowler must both be Category
-  // X" toasts on the first ball, with no way to satisfy.
-  const xiByTeam = new Map<string, Set<1 | 2 | 3>>();
-  for (const p of state.xi[state.teamA.id] ?? []) {
-    if (!xiByTeam.has(state.teamA.id))
-      xiByTeam.set(state.teamA.id, new Set());
-    if (p.category != null)
-      xiByTeam.get(state.teamA.id)!.add(p.category);
-  }
-  for (const p of state.xi[state.teamB.id] ?? []) {
-    if (!xiByTeam.has(state.teamB.id))
-      xiByTeam.set(state.teamB.id, new Set());
-    if (p.category != null)
-      xiByTeam.get(state.teamB.id)!.add(p.category);
+  // `loadScoreboardState`), every team's PLAYING XI (subs excluded)
+  // must include at least one player of that category. Subs intentionally
+  // don't count — they aren't on the field at innings start.
+  const catsByTeam = new Map<string, Set<1 | 2 | 3>>();
+  for (const r of rows) {
+    if (r.is_substitute) continue;
+    const cat = r.player?.category;
+    if (cat !== 1 && cat !== 2 && cat !== 3) continue;
+    let set = catsByTeam.get(r.team_id);
+    if (!set) {
+      set = new Set();
+      catsByTeam.set(r.team_id, set);
+    }
+    set.add(cat as 1 | 2 | 3);
   }
   const teamSummaries: [TeamXISummary, TeamXISummary] = [
     {
       team_id: state.teamA.id,
       team_name: state.teamA.name,
-      categories_in_xi: xiByTeam.get(state.teamA.id) ?? new Set(),
+      categories_in_xi: catsByTeam.get(state.teamA.id) ?? new Set(),
     },
     {
       team_id: state.teamB.id,
       team_name: state.teamB.name,
-      categories_in_xi: xiByTeam.get(state.teamB.id) ?? new Set(),
+      categories_in_xi: catsByTeam.get(state.teamB.id) ?? new Set(),
     },
   ];
   const categoryGaps = findCategoryGaps(state.rules, teamSummaries);
