@@ -192,16 +192,14 @@ export default async function MatchDetailPage(props: {
                     <MatchAwards matchId={match.id} canManage={canScore} />
                   </Suspense>
                 )}
+                <Suspense fallback={<SectionSkeleton lines={3} />}>
+                  <CommentaryFeed matchId={match.id} />
+                </Suspense>
               </div>
             }
             scorecard={
               <Suspense fallback={<SectionSkeleton lines={6} />}>
                 <FullScorecard matchId={match.id} />
-              </Suspense>
-            }
-            commentary={
-              <Suspense fallback={<SectionSkeleton lines={3} />}>
-                <CommentaryFeed matchId={match.id} />
               </Suspense>
             }
             info={
