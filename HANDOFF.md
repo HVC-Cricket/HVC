@@ -24,6 +24,12 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-19 (batch 39) — `/admins`: tabs.** Page was scrolling past several screens (stats → live feed → members → audit log) to find recent activity. New `<AdminTabs />` client component (same pattern as `MatchTabs`) splits it into **Members / Matches / Activity**. Page header + Quick stats stay above the tabs as a permanent strip; everything below switches instantly with no refetch.
+
+URL mirrors the active tab via `history.replaceState` (`?tab=matches`, `?tab=activity`), so refresh / shareable links retain position. Default tab is Members.
+
+3 files / +97 / −15 LOC.
+
 **2026-05-19 (batch 38) — `/admins`: audit-log filters (chip-row + text search).** `AuditLogSection` converted to a client component with two filters that stack:
 
 - **Event-type chips** computed from the loaded set, ordered by frequency descending so the most common types lead. Each chip shows its count. "All" resets. Click an active chip to clear.

@@ -9,6 +9,7 @@ import {
 import { requireSuperAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+import { AdminTabs } from "./admin-tabs";
 import { AuditLogSection } from "./audit-log-section";
 import { LiveMatchesCard } from "./live-matches-card";
 import { MembersTable, type MemberRow, type PlayerOption } from "./members-table";
@@ -224,15 +225,17 @@ export default async function AdminsPage() {
           </CardContent>
         </Card>
 
-        <LiveMatchesCard />
-
-        <MembersTable
-          rows={rows}
-          playerOptions={playerOptions}
-          currentUserId={ctx.user.id}
+        <AdminTabs
+          members={
+            <MembersTable
+              rows={rows}
+              playerOptions={playerOptions}
+              currentUserId={ctx.user.id}
+            />
+          }
+          matches={<LiveMatchesCard />}
+          activity={<AuditLogSection events={auditEvents} />}
         />
-
-        <AuditLogSection events={auditEvents} />
       </div>
     </main>
   );
