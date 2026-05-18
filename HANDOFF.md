@@ -24,6 +24,20 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 22) — Searchable comboboxes for the remaining user/player pickers.** Three more Select fields converted to the same Popover + Command (cmdk) combobox pattern already shipped on `add-roster-form` (batch 15) and the `/admins` members table (batch 19):
+
+1. **`/tournaments/[slug]/admins`** — "Pick a user" for adding a tournament admin (organizer / scorer). The screenshot trigger.
+2. **`/players/[id]/edit`** — "Linked user account (optional)". Includes a "Not linked" option at the top of the list.
+3. **`/players/new`** — same "Linked user account (optional)" field as edit.
+
+For the linked-user pickers the search matches **name OR email** — the cmdk `value` packs `${display_name} ${email} ${id}` so typing either substring matches the same row, while the `id` suffix keeps duplicate display-names distinct (cmdk dedupes by value). The custom `filter` strips the trailing id token before matching so multi-word names stay searchable.
+
+Trigger renders display-name as the main label with email in a muted monospace line below (mirrors the original Select option layout).
+
+**Not extracted as a shared component yet.** Five combobox call sites now — `add-roster-form`, members-table linker, `add-admin-form`, `edit-player-form` linker, `new-player-form` linker — but the variations (avatars vs initials chip, name-only vs name+email, "Not linked" sentinel option vs not, fixed-width vs flex trigger) are different enough that a shared `Combobox` with renderer-slot props would end up being almost as much code as the inline versions. Revisit if a 6th call site shows up with the same shape.
+
+3 files / +320 / −76 LOC.
+
 **2026-05-18 (batch 21) — `/me` lets any linked player edit batting/bowling; `/players/[id]` self-redirects.** Two tweaks layered onto the earlier batches:
 
 1. **Batting & bowling style** are now self-service in the `/me` edit form for any linked player — only **Category** stays gated to super-admins (it drives the special-over rules). Server action lifts the same gate: `phone` + `batting_style` + `bowling_style` write through whenever there's a linked player; only `category` requires `is_super_admin`.

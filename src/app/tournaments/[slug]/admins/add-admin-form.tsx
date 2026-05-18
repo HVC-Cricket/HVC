@@ -1,11 +1,21 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Form,
   FormControl,
@@ -15,13 +25,18 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getInitials } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 
 import { addAdmin } from "./actions";
 
@@ -45,6 +60,7 @@ type Props = {
 };
 
 export function AddAdminForm({ tournamentSlug, allowOrganizer, users }: Props) {
+  const [userPopoverOpen, setUserPopoverOpen] = useState(false);
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { userId: "", role: "scorer" },
@@ -76,33 +92,92 @@ export function AddAdminForm({ tournamentSlug, allowOrganizer, users }: Props) {
         <FormField
           control={form.control}
           name="userId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>User</FormLabel>
-              <Select
-                value={field.value || undefined}
-                onValueChange={field.onChange}
-              >
-                <FormControl>
-                  <SelectTrigger className="capitalize">
-                    <SelectValue placeholder="Pick a user…" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {users.map((u) => (
-                    <SelectItem
-                      key={u.id}
-                      value={u.id}
-                      className="capitalize"
+          render={({ field }) => {
+            const selected = users.find((u) => u.id === field.value);
+            return (
+              <FormItem>
+                <FormLabel>User</FormLabel>
+                <Popover
+                  open={userPopoverOpen}
+                  onOpenChange={setUserPopoverOpen}
+                >
+                  <PopoverTrigger
+                    render={(props) => (
+                      <Button
+                        {...props}
+                        type="button"
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={userPopoverOpen}
+                        className={cn(
+                          "w-full justify-between capitalize",
+                          !selected && "text-muted-foreground",
+                        )}
+                      >
+                        {selected ? (
+                          <UserOptionLabel user={selected} />
+                        ) : (
+                          <span>Pick a user…</span>
+                        )}
+                        <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                      </Button>
+                    )}
+                  />
+                  <PopoverContent
+                    className="w-[var(--radix-popover-trigger-width)] p-0"
+                    align="start"
+                  >
+                    <Command
+                      // cmdk de-dupes items by `value`, so suffix it
+                      // with the id (two users with the same display
+                      // name would otherwise collapse). The custom
+                      // filter strips the trailing id token before
+                      // matching so multi-word names stay searchable.
+                      filter={(value, search) => {
+                        const lastSpace = value.lastIndexOf(" ");
+                        const name =
+                          lastSpace >= 0 ? value.slice(0, lastSpace) : value;
+                        return name
+                          .toLowerCase()
+                          .includes(search.toLowerCase())
+                          ? 1
+                          : 0;
+                      }}
                     >
-                      <UserOptionLabel user={u} />
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
+                      <CommandInput placeholder="Search users…" />
+                      <CommandList>
+                        <CommandEmpty>No user found.</CommandEmpty>
+                        <CommandGroup>
+                          {users.map((u) => (
+                            <CommandItem
+                              key={u.id}
+                              value={`${u.display_name} ${u.id}`}
+                              onSelect={() => {
+                                field.onChange(u.id);
+                                setUserPopoverOpen(false);
+                              }}
+                              className="capitalize"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 size-4",
+                                  field.value === u.id
+                                    ? "opacity-100"
+                                    : "opacity-0",
+                                )}
+                              />
+                              <UserOptionLabel user={u} />
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
         <FormField
           control={form.control}
@@ -136,13 +211,14 @@ export function AddAdminForm({ tournamentSlug, allowOrganizer, users }: Props) {
 }
 
 /**
- * Avatar + display name row used inside the Select option. Renders an
- * initials chip when the user has no avatar uploaded so each option is
- * still visually distinct.
+ * Avatar + display name row used inside the combobox option and
+ * inside the trigger button when a user is picked. Renders an
+ * initials chip when the user has no avatar uploaded so each option
+ * is still visually distinct.
  */
 function UserOptionLabel({ user }: { user: UserOption }) {
   return (
-    <span className="flex items-center gap-2">
+    <span className="flex min-w-0 items-center gap-2">
       {user.avatar_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -155,7 +231,7 @@ function UserOptionLabel({ user }: { user: UserOption }) {
           {getInitials(user.display_name)}
         </span>
       )}
-      <span>{user.display_name}</span>
+      <span className="truncate">{user.display_name}</span>
     </span>
   );
 }

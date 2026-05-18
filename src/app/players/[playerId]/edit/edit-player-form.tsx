@@ -1,14 +1,23 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Check, ChevronsUpDown } from "lucide-react";
 import Link from "next/link";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmButton } from "@/components/confirm-button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Form,
   FormControl,
@@ -21,6 +30,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { LogoUploader } from "@/components/logo-uploader";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -32,6 +46,7 @@ import {
   PHONE_MAX_LENGTH,
   stripPhoneInput,
 } from "@/lib/phone";
+import { cn } from "@/lib/utils";
 
 import { deletePlayer, updatePlayer } from "../../actions";
 
@@ -100,6 +115,7 @@ type Props = {
 
 export function EditPlayerForm({ player, canDelete, linkableUsers }: Props) {
   const [deleting, startDelete] = useTransition();
+  const [linkPopoverOpen, setLinkPopoverOpen] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -205,49 +221,128 @@ export function EditPlayerForm({ player, canDelete, linkableUsers }: Props) {
         <FormField
           control={form.control}
           name="linked_email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Linked user account (optional)</FormLabel>
-              <Select
-                value={field.value || "__none__"}
-                onValueChange={(v) =>
-                  field.onChange(v === "__none__" ? "" : v)
-                }
-              >
-                <FormControl>
-                  <SelectTrigger className="capitalize">
-                    <SelectValue placeholder="Not linked" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="__none__">
-                    <span className="text-muted-foreground">
-                      Not linked
-                    </span>
-                  </SelectItem>
-                  {linkableUsers.map((u) => (
-                    <SelectItem
-                      key={u.id}
-                      value={u.email}
-                      className="capitalize"
+          render={({ field }) => {
+            const selected = linkableUsers.find((u) => u.email === field.value);
+            return (
+              <FormItem>
+                <FormLabel>Linked user account (optional)</FormLabel>
+                <Popover
+                  open={linkPopoverOpen}
+                  onOpenChange={setLinkPopoverOpen}
+                >
+                  <PopoverTrigger
+                    render={(props) => (
+                      <Button
+                        {...props}
+                        type="button"
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={linkPopoverOpen}
+                        className={cn(
+                          "w-full justify-between capitalize",
+                          !selected && "text-muted-foreground",
+                        )}
+                      >
+                        {selected ? (
+                          <span className="flex min-w-0 flex-col items-start">
+                            <span className="truncate">
+                              {selected.display_name}
+                            </span>
+                            <span className="font-mono text-[10px] normal-case text-muted-foreground">
+                              {selected.email}
+                            </span>
+                          </span>
+                        ) : (
+                          <span>Not linked</span>
+                        )}
+                        <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+                      </Button>
+                    )}
+                  />
+                  <PopoverContent
+                    className="w-[var(--radix-popover-trigger-width)] p-0"
+                    align="start"
+                  >
+                    <Command
+                      // cmdk filters on `value`. Stash both display
+                      // name + email into the value so typing either
+                      // matches the same row. The id is suffixed so
+                      // two users sharing a display name don't
+                      // collapse — strip the trailing id token before
+                      // the substring match.
+                      filter={(value, search) => {
+                        const lastSpace = value.lastIndexOf(" ");
+                        const haystack =
+                          lastSpace >= 0 ? value.slice(0, lastSpace) : value;
+                        return haystack
+                          .toLowerCase()
+                          .includes(search.toLowerCase())
+                          ? 1
+                          : 0;
+                      }}
                     >
-                      <span className="flex flex-col">
-                        <span>{u.display_name}</span>
-                        <span className="font-mono text-[10px] normal-case text-muted-foreground">
-                          {u.email}
-                        </span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                Pick the auth account this player record represents. Pick
-                &ldquo;Not linked&rdquo; to unlink an existing link.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
+                      <CommandInput placeholder="Search by name or email…" />
+                      <CommandList>
+                        <CommandEmpty>No user found.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="__none__"
+                            onSelect={() => {
+                              field.onChange("");
+                              setLinkPopoverOpen(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 size-4",
+                                !field.value ? "opacity-100" : "opacity-0",
+                              )}
+                            />
+                            <span className="text-muted-foreground">
+                              Not linked
+                            </span>
+                          </CommandItem>
+                          {linkableUsers.map((u) => (
+                            <CommandItem
+                              key={u.id}
+                              value={`${u.display_name} ${u.email} ${u.id}`}
+                              onSelect={() => {
+                                field.onChange(u.email);
+                                setLinkPopoverOpen(false);
+                              }}
+                              className="capitalize"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 size-4",
+                                  field.value === u.email
+                                    ? "opacity-100"
+                                    : "opacity-0",
+                                )}
+                              />
+                              <span className="flex min-w-0 flex-col">
+                                <span className="truncate">
+                                  {u.display_name}
+                                </span>
+                                <span className="font-mono text-[10px] normal-case text-muted-foreground">
+                                  {u.email}
+                                </span>
+                              </span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <FormDescription>
+                  Pick the auth account this player record represents. Pick
+                  &ldquo;Not linked&rdquo; to unlink an existing link.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
         <div className="grid grid-cols-2 gap-4">
           <FormField
