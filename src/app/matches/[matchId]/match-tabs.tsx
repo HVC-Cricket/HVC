@@ -2,16 +2,17 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
-type TabId = "live" | "scorecard" | "info";
+type TabId = "live" | "scorecard" | "squads" | "info";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "live", label: "Live" },
   { id: "scorecard", label: "Scorecard" },
+  { id: "squads", label: "Squads" },
   { id: "info", label: "Info" },
 ];
 
 /**
- * Tabbed sections for the match detail page — Cricbuzz-style. All three
+ * Tabbed sections for the match detail page — Cricbuzz-style. All four
  * panels are rendered server-side (so their data fetches happen in
  * parallel during initial render) and we toggle visibility on the client,
  * so tab switching is instant with no refetch.
@@ -30,10 +31,12 @@ const TABS: { id: TabId; label: string }[] = [
 export function MatchTabs({
   live,
   scorecard,
+  squads,
   info,
 }: {
   live: ReactNode;
   scorecard: ReactNode;
+  squads: ReactNode;
   info: ReactNode;
 }) {
   // Default to "live" on both server and first-client render to keep
@@ -94,6 +97,9 @@ export function MatchTabs({
       <div role="tabpanel" hidden={active !== "scorecard"}>
         {scorecard}
       </div>
+      <div role="tabpanel" hidden={active !== "squads"}>
+        {squads}
+      </div>
       <div role="tabpanel" hidden={active !== "info"}>
         {info}
       </div>
@@ -104,7 +110,7 @@ export function MatchTabs({
 function readTabFromURL(): TabId {
   if (typeof window === "undefined") return "live";
   const t = new URL(window.location.href).searchParams.get("tab");
-  if (t === "scorecard" || t === "info") return t;
+  if (t === "scorecard" || t === "squads" || t === "info") return t;
   // Old `?tab=commentary` links land on the Live tab now that the
   // commentary feed lives there.
   return "live";

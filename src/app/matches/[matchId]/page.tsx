@@ -202,6 +202,20 @@ export default async function MatchDetailPage(props: {
                 <FullScorecard matchId={match.id} />
               </Suspense>
             }
+            squads={
+              teamA && teamB ? (
+                <Suspense fallback={<SectionSkeleton lines={4} />}>
+                  <XISection
+                    matchId={match.id}
+                    tournamentId={tournament.id}
+                    playersPerSide={match.players_per_side}
+                    teamA={teamA}
+                    teamB={teamB}
+                    canManage={canManage}
+                  />
+                </Suspense>
+              ) : null
+            }
             info={
               <div className="space-y-4">
                 <Card>
@@ -268,18 +282,6 @@ export default async function MatchDetailPage(props: {
                   )}
                 </Card>
 
-                {teamA && teamB && (
-                  <Suspense fallback={<SectionSkeleton lines={4} />}>
-                    <XISection
-                      matchId={match.id}
-                      tournamentId={tournament.id}
-                      playersPerSide={match.players_per_side}
-                      teamA={teamA}
-                      teamB={teamB}
-                      canManage={canManage}
-                    />
-                  </Suspense>
-                )}
               </div>
             }
           />
