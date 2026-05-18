@@ -24,6 +24,22 @@ We are building **HVC Scoring**, a web app for live scoring and spectating a **b
 
 **2026-05-17 (late, batch 2).** Sticky bottom CTA on the match page — "Start scoring this match" is now pinned to the viewport bottom for scheduled matches (was inline under the header; required scrolling back up after reading Details / Toss / squad). Sudharshan added a **pending-finalize gate for innings 1** (`commit df6db21`) — mirrors the match-complete pattern: `recordBall` flags `is_complete=true` but leaves `ended_at` null at the natural end of innings 1, surfacing a new `InningsFinishPanel` with Finish innings + Undo last ball; `finalizeInnings` stamps `ended_at` on confirm. Same day: **Cat-matching auto-pick on category change** (`commit e20febd`) — when the over-Category dropdown flips to Cat 1 or Cat 3, the striker and bowler slot tiles auto-fill with an eligible player of that category (first non-dismissed XI member; first bowler not in `disabledBowlerIds`). Cat 2 is "any", no-op. See §20.
 
+**2026-05-18 (batch 3) — Scoring lock: auto-expire pending requests.** Follow-up to batch 2. Before, a takeover request sat in `pending_scorer_request_id` indefinitely until explicit Allow / Deny / Cancel. If the holder had the page open but wasn't actively watching (phone face-down on the bench between deliveries), the requester was stuck on "Waiting for permission" with no path out except cancelling and re-requesting.
+
+Implementation:
+
+- New `PENDING_REQUEST_EXPIRY_SECONDS = 120` in `lock-types.ts`. Symmetric with `LOCK_EXPIRY_SECONDS` so the two timeouts behave predictably together.
+- `loadLockState` now lazy-clears: any read that finds `pending_scorer_request_at` older than the expiry runs an `UPDATE` to clear it (matched on `pending_scorer_request_id` so a fresher request that raced in between SELECT and UPDATE isn't clobbered). Lazy-on-read keeps every caller — `getScoringLockStatus`, `acquireScoringLock`, `enforceScoringLock`, etc. — automatically consistent without a separate cron job / scheduled function.
+- Client toasts on poll-detected transitions (added to `announceTransitions` in `scoring-lock-gate.tsx`):
+  - **Holder**: `toast.info("Takeover request withdrawn")` (4 s) when pending disappears without their Allow / Deny click — covers both `cancelScoringTakeoverRequest` from the requester and server-side auto-expiry. Low-key info toast since the holder is busy scoring.
+  - **Requester**: replaced the old "Your takeover request was denied" toast with `toast.error("Your takeover request is no longer pending — try again if you still need to score")` (6 s). The poll can't reliably distinguish denial-by-holder from server-side expiry (both result in identical DB state: `pending_scorer_request_id = NULL`), and the actionable outcome is identical, so a unified message is more honest than a wrong "denied" claim 5% of the time.
+
+Edge cases considered:
+- Concurrent: holder hits Allow at the same instant the server lazy-clears on expiry → `approveScoringTakeover` checks `if (!current.pending_scorer_request_id) return getScoringLockStatus(matchId)` and no-ops. Same with Deny. Safe.
+- Holder explicit click vs poll: click handlers call `setStatus(next)` which updates `statusRef.current` on the next render, so subsequent polls don't double-fire the "withdrawn" toast for the click case.
+
+Commit `9d59b47`; 3 files / +64 / −3 LOC.
+
 **2026-05-18 (batch 2) — Scoring lock: faster + louder takeover-request UX.** Audit prompted by Pavan: "after request how does current scorer in match get request from other scorer? i think it's not handled properly." The mechanism (request → holder card → Allow / Deny) was correct, but the surface was slow and quiet:
 
 - Status was refreshed on a 30 s tick — Scorer A could be a full over deep before noticing Scorer B's request banner.
