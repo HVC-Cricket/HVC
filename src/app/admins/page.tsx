@@ -15,7 +15,6 @@ import {
   BroadcastSection,
   type TournamentChoice,
 } from "./broadcast-section";
-import { CompletedMatchesCard } from "./completed-matches-card";
 import { LiveMatchesCard } from "./live-matches-card";
 import { MembersTable, type MemberRow, type PlayerOption } from "./members-table";
 import { loadStorageReport } from "./storage-loader";
@@ -282,12 +281,7 @@ export default async function AdminsPage() {
               currentUserId={ctx.user.id}
             />
           }
-          matches={
-            <div className="space-y-4">
-              <LiveMatchesCard />
-              <CompletedMatchesCard />
-            </div>
-          }
+          matches={<LiveMatchesCard />}
           broadcast={<BroadcastSection tournaments={tournamentChoices} />}
           storage={<StorageSection reports={storageReports} />}
           activity={<AuditLogSection events={auditEvents} />}

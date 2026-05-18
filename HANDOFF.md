@@ -58,6 +58,10 @@ Implementation notes:
 
 After the fix, a 6-player match with `last_man_standing = true` correctly ends at 6 wickets (5 + last man standing → 6th dismissal = all out).
 
+**Follow-up #4 (same day) — Highlight button moved from /admins to the public match page.**
+
+The Highlight Cards section under `/admins` Matches tab was admin-gated, but the OG image route itself was always public (no auth). Moved the entry point to the match header on `/matches/<id>` (visible only when `match.status === 'completed'`) so any spectator can grab the card. Deleted `src/app/admins/completed-matches-card.tsx` and the import/slot wiring on the admin page.
+
 **Follow-up #3 (same day) — highlight card content was clipped at the bottom.**
 
 The PNG composition's total height exceeded 630px so the stat strip's bottom row was cropped off. Tightened everything: outer padding 56→36, header / team / stat font sizes scaled down ~20%, gaps and margins reduced. The whole card now fits comfortably with breathing room.

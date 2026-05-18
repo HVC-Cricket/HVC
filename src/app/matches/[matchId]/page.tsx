@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -265,6 +265,18 @@ export default async function MatchDetailPage(props: {
           <div className="flex shrink-0 items-center gap-1">
             {(ms === "live" || ms === "innings_break") && (
               <NotifyButton matchId={match.id} />
+            )}
+            {ms === "completed" && (
+              <a
+                href={`/api/og/match/${match.id}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <Button variant="ghost" size="sm">
+                  <Sparkles className="mr-1.5 size-4" />
+                  Highlight
+                </Button>
+              </a>
             )}
             {canScore && (
               <Link href={`/matches/${match.id}/activity`}>
