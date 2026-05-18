@@ -81,12 +81,25 @@ async function TeamXICard({
   showButton?: boolean;
 }) {
   const supabase = await createClient();
-  const { data: xi } = await supabase
-    .from("match_players")
-    .select("id, player_id, batting_order, is_captain, is_keeper, is_substitute")
-    .eq("match_id", matchId)
-    .eq("team_id", team.id)
-    .order("batting_order", { ascending: true, nullsFirst: false });
+  // Pull match_players for this match/team + a separate squad-size
+  // count from team_players. The squad size is needed so we can
+  // distinguish "user just hasn't picked the XI yet" from "the team
+  // squad is too small to field a full XI" — the second case has to
+  // be fixed on the team page, not on Pick XI.
+  const [xiRes, squadCountRes] = await Promise.all([
+    supabase
+      .from("match_players")
+      .select("id, player_id, batting_order, is_captain, is_keeper, is_substitute")
+      .eq("match_id", matchId)
+      .eq("team_id", team.id)
+      .order("batting_order", { ascending: true, nullsFirst: false }),
+    supabase
+      .from("team_players")
+      .select("player_id", { count: "exact", head: true })
+      .eq("team_id", team.id),
+  ]);
+  const xi = xiRes.data;
+  const squadSize = squadCountRes.count ?? 0;
 
   const playerIds = (xi ?? []).map((m) => m.player_id);
   type PlayerRow = {
@@ -123,6 +136,12 @@ async function TeamXICard({
 
   const isEmpty = (xi?.length ?? 0) === 0;
   const isComplete = playing.length === playersPerSide;
+  // Squad-vs-side mismatch: the team can't field a full XI because
+  // the squad is below players_per_side. Show a different copy here
+  // and on Pick XI so the user is told to add squad members first
+  // (and where) instead of staring at "6 more to pick" while only 5
+  // players are available.
+  const squadShortBy = Math.max(0, playersPerSide - squadSize);
   // Only reserve the batting-order column when at least one player in
   // the XI has an order assigned. On Pick XI the column carries 1..N;
   // on the spectator Squads tab the column is usually all-null and
@@ -147,11 +166,13 @@ async function TeamXICard({
           </span>
         </div>
         <CardDescription>
-          {isEmpty
-            ? "No XI selected yet."
-            : isComplete
-              ? "Playing XI is set."
-              : `${playersPerSide - playing.length} more to pick.`}
+          {squadShortBy > 0
+            ? `Team squad has ${squadSize} of ${playersPerSide} — add ${squadShortBy} more to the team to field a full XI.`
+            : isEmpty
+              ? "No XI selected yet."
+              : isComplete
+                ? "Playing XI is set."
+                : `${playersPerSide - playing.length} more to pick.`}
         </CardDescription>
       </CardHeader>
       <CardContent className="p-0">

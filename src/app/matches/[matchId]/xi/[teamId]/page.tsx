@@ -29,12 +29,24 @@ export default async function PickXIPage(props: {
 
   await requireTournamentAdmin(match.tournament_id);
 
-  const { data: team } = await supabase
-    .from("teams")
-    .select("id, name, short_name")
-    .eq("id", teamId)
-    .single();
-  if (!team) notFound();
+  // Tournament slug — needed so we can deep-link to the team squad
+  // page when the user has to add more players. Fetched in parallel
+  // with the team row below.
+  const [teamRes, tournamentRes] = await Promise.all([
+    supabase
+      .from("teams")
+      .select("id, name, short_name")
+      .eq("id", teamId)
+      .single(),
+    supabase
+      .from("tournaments")
+      .select("slug")
+      .eq("id", match.tournament_id)
+      .single(),
+  ]);
+  const team = teamRes.data;
+  const tournament = tournamentRes.data;
+  if (!team || !tournament) notFound();
 
   // Roster of the team (with player display names).
   const { data: roster } = await supabase
@@ -104,21 +116,51 @@ export default async function PickXIPage(props: {
             <CardHeader>
               <CardTitle>No squad</CardTitle>
               <CardDescription>
-                Add players to the team squad first.
+                Add players to the team squad first.{" "}
+                <Link
+                  href={`/tournaments/${tournament.slug}/teams/${team.id}`}
+                  className="font-medium text-primary hover:underline"
+                >
+                  Manage squad →
+                </Link>
               </CardDescription>
             </CardHeader>
           </Card>
         ) : (
-          <Card>
-            <CardContent className="p-4">
-              <PickXIForm
-                matchId={match.id}
-                teamId={team.id}
-                playersPerSide={match.players_per_side}
-                rows={rosterRows}
-              />
-            </CardContent>
-          </Card>
+          <>
+            {rosterRows.length < match.players_per_side && (
+              <Card className="border-amber-500/30 bg-amber-500/5 dark:border-amber-400/20 dark:bg-amber-400/5">
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    Squad too small for a full XI
+                  </CardTitle>
+                  <CardDescription>
+                    {team.name} has {rosterRows.length} player
+                    {rosterRows.length === 1 ? "" : "s"} in the squad but
+                    this match is {match.players_per_side}-a-side. Add{" "}
+                    {match.players_per_side - rosterRows.length} more on
+                    the team page before you can field a full XI.{" "}
+                    <Link
+                      href={`/tournaments/${tournament.slug}/teams/${team.id}`}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      Manage squad →
+                    </Link>
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            )}
+            <Card>
+              <CardContent className="p-4">
+                <PickXIForm
+                  matchId={match.id}
+                  teamId={team.id}
+                  playersPerSide={match.players_per_side}
+                  rows={rosterRows}
+                />
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
     </main>
