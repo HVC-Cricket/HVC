@@ -9,6 +9,7 @@ import {
   type BatAgg,
   type BowlAgg,
   type FieldAgg,
+  type MiscAgg,
   type PerInnBat,
   type PerInnBowl,
 } from "@/lib/stats/aggregate";
@@ -34,10 +35,12 @@ export async function TournamentStats({
   const supabase = await createClient();
 
   // 1. Matches in this tournament (only ones that have started — no
-  //    point pulling rows for scheduled fixtures).
+  //    point pulling rows for scheduled fixtures). Pull
+  //    player_of_match_id alongside so the MISC leaderboards can
+  //    count POM awards without a second round-trip.
   const { data: matches } = await supabase
     .from("matches")
-    .select("id, status")
+    .select("id, status, player_of_match_id")
     .eq("tournament_id", tournamentId)
     .in("status", ["live", "innings_break", "completed"]);
 
@@ -96,7 +99,7 @@ export async function TournamentStats({
     // data; per-innings aggregates live in historical_match_batting /
     // historical_match_bowling instead. Compute the same leaderboards
     // from those rows so the Stats tab works for S1–S6.
-    return loadHistoricalStats(supabase, matchIds, innings);
+    return loadHistoricalStats(supabase, matches, innings);
   }
 
   // 4. All player IDs we touched + the team they bat for, derived from
@@ -118,7 +121,51 @@ export async function TournamentStats({
     }
   }
 
-  const playerIds = [...new Set(playerToTeam.keys())];
+  // Pull match_players in parallel — drives the MISC "matches
+  //  played" leaderboard. A player who was selected but didn't bat /
+  //  bowl in any innings (DNB or unused 12th man) still gets counted.
+  const { data: mpRows } = await supabase
+    .from("match_players")
+    .select("match_id, player_id")
+    .in("match_id", matchIds);
+
+  // Widen playerIds to cover anyone in match_players or named POM
+  // who isn't already in playerToTeam (e.g. a 12th man or a DNB
+  // batter who got POM for fielding only).
+  const matchesByPlayer = new Map<string, Set<string>>();
+  for (const r of mpRows ?? []) {
+    if (!r.player_id) continue;
+    let s = matchesByPlayer.get(r.player_id);
+    if (!s) {
+      s = new Set();
+      matchesByPlayer.set(r.player_id, s);
+    }
+    s.add(r.match_id);
+  }
+  for (const b of allBalls) {
+    const inn = inningsById.get(b.innings_id);
+    if (!inn) continue;
+    for (const pid of [b.batter_id, b.non_striker_id, b.bowler_id]) {
+      let s = matchesByPlayer.get(pid);
+      if (!s) {
+        s = new Set();
+        matchesByPlayer.set(pid, s);
+      }
+      s.add(inn.match_id);
+    }
+  }
+  const pomByPlayer = new Map<string, number>();
+  for (const m of matches) {
+    if (!m.player_of_match_id) continue;
+    pomByPlayer.set(
+      m.player_of_match_id,
+      (pomByPlayer.get(m.player_of_match_id) ?? 0) + 1,
+    );
+  }
+  const playerIdSet = new Set<string>(playerToTeam.keys());
+  for (const pid of matchesByPlayer.keys()) playerIdSet.add(pid);
+  for (const pid of pomByPlayer.keys()) playerIdSet.add(pid);
+  const playerIds = [...playerIdSet];
   const teamIds = [...new Set(playerToTeam.values())];
 
   const [{ data: players }, { data: teams }] = await Promise.all([
@@ -328,6 +375,27 @@ export async function TournamentStats({
   const bowlRows = [...bowlPerPlayer.values()];
   const fieldRows = [...fieldPerPlayer.values()];
 
+  // MiscAgg rows — matches played + POM awards, one per player that
+  // appears in match_players or holds a POM credit.
+  const miscPlayerIds = new Set<string>([
+    ...matchesByPlayer.keys(),
+    ...pomByPlayer.keys(),
+  ]);
+  const miscRows: MiscAgg[] = [];
+  for (const pid of miscPlayerIds) {
+    const p = playerById.get(pid);
+    if (!p) continue;
+    const teamId = playerToTeam.get(pid);
+    miscRows.push({
+      player_id: pid,
+      name: p.display_name,
+      team: teamId ? (teamShortById.get(teamId) ?? "?") : "?",
+      cat: p.category,
+      matches: matchesByPlayer.get(pid)?.size ?? 0,
+      pom: pomByPlayer.get(pid) ?? 0,
+    });
+  }
+
   // Bowling-team short per innings → used by the Highest scores card
   // to show who the batter scored against ("vs").
   const bowlingTeamShortByInnings = new Map<string, string>();
@@ -342,24 +410,33 @@ export async function TournamentStats({
   //    per HVC category so the client can flip between them instantly.
   //    Fielding included here (live-scored seasons only).
   const lookups = { batByInn, bowlingTeamShortByInnings };
-  const all = buildLeaderboards(batRows, bowlRows, fieldRows, lookups);
+  const all = buildLeaderboards(
+    batRows,
+    bowlRows,
+    fieldRows,
+    lookups,
+    miscRows,
+  );
   const cat1 = buildLeaderboards(
     batRows.filter((r) => r.cat === 1),
     bowlRows.filter((r) => r.cat === 1),
     fieldRows.filter((r) => r.cat === 1),
     lookups,
+    miscRows.filter((r) => r.cat === 1),
   );
   const cat2 = buildLeaderboards(
     batRows.filter((r) => r.cat === 2),
     bowlRows.filter((r) => r.cat === 2),
     fieldRows.filter((r) => r.cat === 2),
     lookups,
+    miscRows.filter((r) => r.cat === 2),
   );
   const cat3 = buildLeaderboards(
     batRows.filter((r) => r.cat === 3),
     bowlRows.filter((r) => r.cat === 3),
     fieldRows.filter((r) => r.cat === 3),
     lookups,
+    miscRows.filter((r) => r.cat === 3),
   );
 
   return (
@@ -385,7 +462,7 @@ export async function TournamentStats({
  */
 async function loadHistoricalStats(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  matchIds: string[],
+  matches: Array<{ id: string; player_of_match_id?: string | null }>,
   innings: Array<{
     id: string;
     match_id: string;
@@ -394,20 +471,26 @@ async function loadHistoricalStats(
     bowling_team_id: string;
   }>,
 ) {
-  const [{ data: hbRows }, { data: hwRows }] = await Promise.all([
-    supabase
-      .from("historical_match_batting")
-      .select(
-        "match_id, innings_number, batting_team_id, player_id, runs, balls_faced, fours, sixes, is_out",
-      )
-      .in("match_id", matchIds),
-    supabase
-      .from("historical_match_bowling")
-      .select(
-        "match_id, innings_number, bowling_team_id, player_id, wickets, runs, dots, maidens, overs",
-      )
-      .in("match_id", matchIds),
-  ]);
+  const matchIds = matches.map((m) => m.id);
+  const [{ data: hbRows }, { data: hwRows }, { data: mpRows }] =
+    await Promise.all([
+      supabase
+        .from("historical_match_batting")
+        .select(
+          "match_id, innings_number, batting_team_id, player_id, runs, balls_faced, fours, sixes, is_out",
+        )
+        .in("match_id", matchIds),
+      supabase
+        .from("historical_match_bowling")
+        .select(
+          "match_id, innings_number, bowling_team_id, player_id, wickets, runs, dots, maidens, overs",
+        )
+        .in("match_id", matchIds),
+      supabase
+        .from("match_players")
+        .select("match_id, player_id")
+        .in("match_id", matchIds),
+    ]);
 
   const hbBat = hbRows ?? [];
   const hbBowl = hwRows ?? [];
@@ -563,24 +646,92 @@ async function loadHistoricalStats(
   // Fielding stays empty for historical seasons — cricheroes commentary
   // doesn't expose per-ball fielder credits.
   const fieldRowsAll: FieldAgg[] = [];
-  const all = buildLeaderboards(batRowsAll, bowlRowsAll, fieldRowsAll, lookups);
+
+  // MISC — matches played + POM. match_players rows are present for
+  // historical seasons too (imported alongside the per-match
+  // aggregates); POM comes from matches.player_of_match_id.
+  const matchesByPlayer = new Map<string, Set<string>>();
+  for (const r of mpRows ?? []) {
+    if (!r.player_id) continue;
+    let s = matchesByPlayer.get(r.player_id);
+    if (!s) {
+      s = new Set();
+      matchesByPlayer.set(r.player_id, s);
+    }
+    s.add(r.match_id);
+  }
+  for (const r of hbBat) {
+    if (!r.player_id) continue;
+    let s = matchesByPlayer.get(r.player_id);
+    if (!s) {
+      s = new Set();
+      matchesByPlayer.set(r.player_id, s);
+    }
+    s.add(r.match_id);
+  }
+  for (const r of hbBowl) {
+    if (!r.player_id) continue;
+    let s = matchesByPlayer.get(r.player_id);
+    if (!s) {
+      s = new Set();
+      matchesByPlayer.set(r.player_id, s);
+    }
+    s.add(r.match_id);
+  }
+  const pomByPlayer = new Map<string, number>();
+  for (const m of matches) {
+    if (!m.player_of_match_id) continue;
+    pomByPlayer.set(
+      m.player_of_match_id,
+      (pomByPlayer.get(m.player_of_match_id) ?? 0) + 1,
+    );
+  }
+  const miscPlayerIds = new Set<string>([
+    ...matchesByPlayer.keys(),
+    ...pomByPlayer.keys(),
+  ]);
+  const miscRows: MiscAgg[] = [];
+  for (const pid of miscPlayerIds) {
+    const p = playerById.get(pid);
+    if (!p) continue;
+    const teamId = playerToTeam.get(pid);
+    miscRows.push({
+      player_id: pid,
+      name: p.display_name,
+      team: teamId ? (teamShortById.get(teamId) ?? "?") : "?",
+      cat: p.category,
+      matches: matchesByPlayer.get(pid)?.size ?? 0,
+      pom: pomByPlayer.get(pid) ?? 0,
+    });
+  }
+
+  const all = buildLeaderboards(
+    batRowsAll,
+    bowlRowsAll,
+    fieldRowsAll,
+    lookups,
+    miscRows,
+  );
   const cat1 = buildLeaderboards(
     batRowsAll.filter((r) => r.cat === 1),
     bowlRowsAll.filter((r) => r.cat === 1),
     fieldRowsAll,
     lookups,
+    miscRows.filter((r) => r.cat === 1),
   );
   const cat2 = buildLeaderboards(
     batRowsAll.filter((r) => r.cat === 2),
     bowlRowsAll.filter((r) => r.cat === 2),
     fieldRowsAll,
     lookups,
+    miscRows.filter((r) => r.cat === 2),
   );
   const cat3 = buildLeaderboards(
     batRowsAll.filter((r) => r.cat === 3),
     bowlRowsAll.filter((r) => r.cat === 3),
     fieldRowsAll,
     lookups,
+    miscRows.filter((r) => r.cat === 3),
   );
 
   return (

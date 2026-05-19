@@ -9,6 +9,7 @@ import {
   type BatAgg,
   type BowlAgg,
   type FieldAgg,
+  type MiscAgg,
   type PerInnBat,
   type PerInnBowl,
 } from "@/lib/stats/aggregate";
@@ -58,10 +59,12 @@ export async function CareerStats() {
   const supabase = await createClient();
 
   // 1. Every match that has started — schedule-only fixtures contribute
-  //    nothing to stats.
+  //    nothing to stats. Pull player_of_match_id alongside so the MISC
+  //    leaderboards (matches played + POM count) don't need a second
+  //    round-trip.
   const { data: matches } = await supabase
     .from("matches")
-    .select("id, status")
+    .select("id, status, player_of_match_id")
     .in("status", ["live", "innings_break", "completed"]);
 
   if (!matches || matches.length === 0) {
@@ -89,11 +92,13 @@ export async function CareerStats() {
   const inningsIds = innings.map((i) => i.id);
 
   // 3. Pull both data sources in parallel: live-scored balls + the
-  //    two historical per-match aggregate tables. Each is paginated
-  //    so the server-side 1000-row cap doesn't silently truncate —
-  //    historical_match_batting alone has 1600+ rows on prod and the
-  //    naive single-request approach was dropping ~600 of them.
-  const [allBalls, hbBat, hbBowl] = await Promise.all([
+  //    two historical per-match aggregate tables + match_players
+  //    (drives the MISC "matches played" leaderboard). Each is
+  //    paginated so the server-side 1000-row cap doesn't silently
+  //    truncate — historical_match_batting alone has 1600+ rows on
+  //    prod and the naive single-request approach was dropping ~600
+  //    of them.
+  const [allBalls, hbBat, hbBowl, mpRows] = await Promise.all([
     fetchAllRows<BallRow>((from, to) =>
       supabase
         .from("balls")
@@ -143,6 +148,18 @@ export async function CareerStats() {
         .select(
           "match_id, innings_number, bowling_team_id, player_id, wickets, runs, dots, maidens, overs",
         )
+        .in("match_id", matchIds)
+        .range(from, to),
+    ),
+    fetchAllRows<{
+      match_id: string;
+      team_id: string;
+      player_id: string;
+      is_substitute: boolean;
+    }>((from, to) =>
+      supabase
+        .from("match_players")
+        .select("match_id, team_id, player_id, is_substitute")
         .in("match_id", matchIds)
         .range(from, to),
     ),
@@ -279,6 +296,48 @@ export async function CareerStats() {
     });
   }
 
+  // 4b. MISC pre-aggregation — distinct matches per player + POM
+  //     counts. Match presence pulled from match_players (canonical),
+  //     supplemented with the union of all per-ball / per-historical
+  //     rows so a player who's in the data but missing a
+  //     match_players row (rare, but possible for legacy imports)
+  //     still gets counted.
+  const matchesByPlayer = new Map<string, Set<string>>();
+  const addMatch = (playerId: string | null | undefined, matchId: string) => {
+    if (!playerId) return;
+    let s = matchesByPlayer.get(playerId);
+    if (!s) {
+      s = new Set();
+      matchesByPlayer.set(playerId, s);
+    }
+    s.add(matchId);
+    // Ensure they show up in playerToTeam at least with no team — the
+    // team-line is hidden on /stats anyway. Lookup by player_id later.
+    if (!playerToTeam.has(playerId)) {
+      // No team info yet; leave unset. The render path falls back to
+      // "?" but the all-time view hides the team line entirely.
+    }
+  };
+  for (const r of mpRows) addMatch(r.player_id, r.match_id);
+  for (const b of allBalls) {
+    const inn = inningsById.get(b.innings_id);
+    if (!inn) continue;
+    addMatch(b.batter_id, inn.match_id);
+    addMatch(b.non_striker_id, inn.match_id);
+    addMatch(b.bowler_id, inn.match_id);
+  }
+  for (const r of hbBat) addMatch(r.player_id, r.match_id);
+  for (const r of hbBowl) addMatch(r.player_id, r.match_id);
+
+  const pomByPlayer = new Map<string, number>();
+  for (const m of matches) {
+    if (!m.player_of_match_id) continue;
+    pomByPlayer.set(
+      m.player_of_match_id,
+      (pomByPlayer.get(m.player_of_match_id) ?? 0) + 1,
+    );
+  }
+
   // 5. Player + team metadata. Team IDs must include every innings'
   //    both teams (not just the ones reachable via playerToTeam) —
   //    historical S1–S6 rows sometimes carry player_id = null for a
@@ -286,7 +345,14 @@ export async function CareerStats() {
   //    table. Without this widening, the "vs" column on the Highest
   //    Scores leaderboard renders "?" for any innings whose bowling
   //    XI was entirely null-player-id.
-  const playerIds = [...playerToTeam.keys()];
+  // Player IDs need to cover BOTH the bat/bowl/field paths (via
+  // playerToTeam) AND the misc paths (matchesByPlayer / pomByPlayer)
+  // so we don't drop names from the matches-played / POM
+  // leaderboards.
+  const playerIdSet = new Set<string>(playerToTeam.keys());
+  for (const pid of matchesByPlayer.keys()) playerIdSet.add(pid);
+  for (const pid of pomByPlayer.keys()) playerIdSet.add(pid);
+  const playerIds = [...playerIdSet];
   const teamIdSet = new Set<string>(playerToTeam.values());
   for (const inn of innings) {
     teamIdSet.add(inn.batting_team_id);
@@ -425,6 +491,28 @@ export async function CareerStats() {
   const bowlRows = [...bowlPerPlayer.values()];
   const fieldRows = [...fieldPerPlayer.values()];
 
+  // MiscAgg rows — one per player who appears in either
+  // matchesByPlayer or pomByPlayer. team column is irrelevant on the
+  // all-time view (showTeam={false}); pass a placeholder.
+  const miscPlayerIds = new Set<string>([
+    ...matchesByPlayer.keys(),
+    ...pomByPlayer.keys(),
+  ]);
+  const miscRows: MiscAgg[] = [];
+  for (const pid of miscPlayerIds) {
+    const p = playerById.get(pid);
+    if (!p) continue;
+    const teamId = playerToTeam.get(pid);
+    miscRows.push({
+      player_id: pid,
+      name: p.display_name,
+      team: teamId ? (teamShortById.get(teamId) ?? "?") : "?",
+      cat: p.category,
+      matches: matchesByPlayer.get(pid)?.size ?? 0,
+      pom: pomByPlayer.get(pid) ?? 0,
+    });
+  }
+
   // Per-innings bowling-team short — drives the "vs X" column on the
   // "Highest scores" leaderboard.
   const bowlingTeamShortByInnings = new Map<string, string>();
@@ -436,24 +524,33 @@ export async function CareerStats() {
   }
 
   const lookups = { batByInn, bowlingTeamShortByInnings };
-  const all = buildLeaderboards(batRows, bowlRows, fieldRows, lookups);
+  const all = buildLeaderboards(
+    batRows,
+    bowlRows,
+    fieldRows,
+    lookups,
+    miscRows,
+  );
   const cat1 = buildLeaderboards(
     batRows.filter((r) => r.cat === 1),
     bowlRows.filter((r) => r.cat === 1),
     fieldRows.filter((r) => r.cat === 1),
     lookups,
+    miscRows.filter((r) => r.cat === 1),
   );
   const cat2 = buildLeaderboards(
     batRows.filter((r) => r.cat === 2),
     bowlRows.filter((r) => r.cat === 2),
     fieldRows.filter((r) => r.cat === 2),
     lookups,
+    miscRows.filter((r) => r.cat === 2),
   );
   const cat3 = buildLeaderboards(
     batRows.filter((r) => r.cat === 3),
     bowlRows.filter((r) => r.cat === 3),
     fieldRows.filter((r) => r.cat === 3),
     lookups,
+    miscRows.filter((r) => r.cat === 3),
   );
 
   return (

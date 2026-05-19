@@ -91,6 +91,22 @@ export type FieldAgg = {
   stumpings: number;
 };
 
+/**
+ * Per-player misc stats — matches selected for + player-of-the-match
+ * awards. Lives outside BatAgg / BowlAgg / FieldAgg because it
+ * counts presence (match_players) and a one-per-match credit
+ * (matches.player_of_match_id), neither of which derives from
+ * per-innings batting / bowling rollup.
+ */
+export type MiscAgg = {
+  player_id: string;
+  name: string;
+  team: string;
+  cat: number | null;
+  matches: number;
+  pom: number;
+};
+
 export type BuildLookups = {
   batByInn: Map<string, PerInnBat>;
   bowlingTeamShortByInnings: Map<string, string>;
@@ -223,6 +239,7 @@ export function buildLeaderboards(
   bowlRows: BowlAgg[],
   fieldRows: FieldAgg[],
   lookups: BuildLookups,
+  miscRows: MiscAgg[] = [],
 ): Leaderboards {
   const oversStr = (legalBalls: number) =>
     `${Math.floor(legalBalls / 6)}.${legalBalls % 6}`;
@@ -248,6 +265,12 @@ export function buildLeaderboards(
     values,
   });
   const mkFieldRow = (r: FieldAgg, values: string[]): LeaderRow => ({
+    name: r.name,
+    team: r.team,
+    cat: r.cat,
+    values,
+  });
+  const mkMiscRow = (r: MiscAgg, values: string[]): LeaderRow => ({
     name: r.name,
     team: r.team,
     cat: r.cat,
@@ -551,6 +574,33 @@ export function buildLeaderboards(
       }
     : undefined;
 
+  // ----- MISC (matches played + Player-of-the-Match awards) -----
+  const hasMisc = miscRows.length > 0;
+  const topMatches: LeaderboardTable | undefined = hasMisc
+    ? {
+        cols: ["M"],
+        rows: [...miscRows]
+          .filter((r) => r.matches > 0)
+          .sort((a, b) =>
+            b.matches === a.matches ? b.pom - a.pom : b.matches - a.matches,
+          )
+          .slice(0, TOP_N)
+          .map((r) => mkMiscRow(r, [String(r.matches)])),
+      }
+    : undefined;
+  const topPOM: LeaderboardTable | undefined = hasMisc
+    ? {
+        cols: ["POM", "M"],
+        rows: [...miscRows]
+          .filter((r) => r.pom > 0)
+          .sort((a, b) =>
+            b.pom === a.pom ? b.matches - a.matches : b.pom - a.pom,
+          )
+          .slice(0, TOP_N)
+          .map((r) => mkMiscRow(r, [String(r.pom), String(r.matches)])),
+      }
+    : undefined;
+
   return {
     topRuns,
     topHighestScores,
@@ -569,5 +619,7 @@ export function buildLeaderboards(
     topCatches,
     topRunOuts,
     topStumpings,
+    topMatches,
+    topPOM,
   };
 }

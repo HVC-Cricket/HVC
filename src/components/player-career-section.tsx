@@ -7,6 +7,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  loadCareerRankBadges,
+  type CareerRankBadge,
+} from "@/lib/stats/career-ranks";
 import { createClient } from "@/lib/supabase/server";
 
 type StatRow = {
@@ -53,6 +57,7 @@ export async function PlayerCareerSection({
     { data: ballsAsBatter },
     { data: ballsAsNonStriker },
     { data: historicalBattingRows },
+    badges,
   ] = await Promise.all([
     supabase
       .from("v_player_tournament_stats" as never)
@@ -76,6 +81,10 @@ export async function PlayerCareerSection({
       .from("historical_match_batting")
       .select("match_id, innings_number, matches!inner(tournament_id)")
       .eq("player_id", playerId),
+    // Career-rank badges: pulled in parallel with the per-player
+    // career fetches so the extra ranking pass doesn't bottleneck
+    // the render.
+    loadCareerRankBadges(playerId),
   ]);
 
   const stats = (rows as unknown as StatRow[] | null) ?? [];
@@ -221,6 +230,24 @@ export async function PlayerCareerSection({
         </CardContent>
       </Card>
 
+      {badges.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">All-time ranks</CardTitle>
+            <CardDescription>
+              Where this player ranks across every HVC season. Top 10
+              only — anyone outside the top 10 in a metric doesn&apos;t
+              show a badge for it.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {badges.map((b) => (
+              <RankBadge key={b.metric} badge={b} />
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">By tournament</CardTitle>
@@ -334,5 +361,28 @@ function Stat({
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="font-mono text-base">{value}</div>
     </div>
+  );
+}
+
+function RankBadge({ badge }: { badge: CareerRankBadge }) {
+  // Rank 1 gets a gold accent (primary), rank 2-3 silver-ish
+  // (foreground), rank 4-10 muted. Same visual hierarchy as
+  // CricHeroes' "Top N" pills.
+  const tone =
+    badge.rank === 1
+      ? "border-primary/40 bg-primary/15 text-primary"
+      : badge.rank <= 3
+        ? "border-foreground/20 bg-foreground/5 text-foreground"
+        : "border-foreground/10 bg-muted/40 text-muted-foreground";
+  return (
+    <span
+      className={
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium " +
+        tone
+      }
+    >
+      <span className="font-mono tabular-nums">#{badge.rank}</span>
+      <span>{badge.label}</span>
+    </span>
   );
 }

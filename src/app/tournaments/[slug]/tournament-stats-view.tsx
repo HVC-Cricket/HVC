@@ -56,9 +56,12 @@ export type Leaderboards = {
   topCatches?: LeaderboardTable;
   topRunOuts?: LeaderboardTable;
   topStumpings?: LeaderboardTable;
+  // MISC — matches played + player-of-the-match awards
+  topMatches?: LeaderboardTable;
+  topPOM?: LeaderboardTable;
 };
 
-type Section = "bat" | "bowl" | "field";
+type Section = "bat" | "bowl" | "field" | "misc";
 
 type StyleOption = {
   id: keyof Leaderboards;
@@ -87,6 +90,9 @@ const STYLE_OPTIONS: StyleOption[] = [
   { id: "topCatches", label: "Most Catches", section: "field" },
   { id: "topRunOuts", label: "Most Run Outs", section: "field" },
   { id: "topStumpings", label: "Most Stumpings", section: "field" },
+  // MISC
+  { id: "topMatches", label: "Most Matches Played", section: "misc" },
+  { id: "topPOM", label: "Most Player-of-the-Match", section: "misc" },
 ];
 
 type CategoryFilter = "all" | "1" | "2" | "3";
@@ -102,6 +108,7 @@ const SECTION_CHIPS: { id: Section; label: string }[] = [
   { id: "bat", label: "BAT" },
   { id: "bowl", label: "BOWL" },
   { id: "field", label: "FIELD" },
+  { id: "misc", label: "MISC" },
 ];
 
 export function TournamentStatsView({
@@ -139,11 +146,15 @@ export function TournamentStatsView({
 
   // Hide FIELD entirely when the dataset has no fielding tables
   // (cricheroes-imported seasons). FIELD becomes available again the
-  // moment a season is scored in our app.
+  // moment a season is scored in our app. Same for MISC — when the
+  // caller didn't pass match-played / POM data, hide the section.
   const hasFielding = Boolean(all.topCatches);
-  const sections = SECTION_CHIPS.filter(
-    (s) => s.id !== "field" || hasFielding,
-  );
+  const hasMisc = Boolean(all.topMatches);
+  const sections = SECTION_CHIPS.filter((s) => {
+    if (s.id === "field") return hasFielding;
+    if (s.id === "misc") return hasMisc;
+    return true;
+  });
 
   // Style options filtered to the current section, omitting any
   // optional (fielding) tables the dataset doesn't include.
