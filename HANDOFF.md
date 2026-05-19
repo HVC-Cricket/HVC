@@ -734,6 +734,12 @@ Pick-preservation fix layered on: the balls-length sync used to unconditionally 
 
 Commit `4112d0c`; 1 file / +142 / −12 LOC.
 
+**2026-05-20 (later) — Nav rename ("HVC Heroes" → "Leaderboard") + manifest icon `?v=2` cache-buster.** Two small UX fixes shipped together.
+
+1. **Drawer nav item + `/stats` page H1 + page metadata title** all renamed from "HVC Heroes" to "Leaderboard". The drawer brand header *already* shows "HVC Heroes" at the top, AND the same string was the page H1 — three identical labels on the same screen made the nav row feel like a duplicate of the brand row. Brand-level identity stays on the brand header; the functional label ("this is the leaderboard page") moves to where it belongs. Files: `src/components/site-nav-drawer.tsx`, `src/app/stats/page.tsx`.
+
+2. **Manifest icon URLs gained a `?v=2` cache-buster.** After the HVC batter logo replaced the placeholder text icons (batch 45 below), already-installed PWAs were still showing the old home-screen icon — the OS captures it at install time. Android Chrome's WebAPK refresh runs a periodic manifest poll (typically within a day) and treats the icons as new only when the URLs change, so the manifest now suffixes each icon URL (`/icon`, `/apple-icon`, `/icon1`, `/icon2`) with `?v=2`. A new `ICON_VERSION` constant at the top of `src/app/manifest.ts` documents the policy: bump it whenever the rendered icon output changes. iOS Safari ignores manifest changes for installed PWAs entirely — iOS users still need to remove + re-add the app to pick up new artwork; new installs on either platform always get the latest. File: `src/app/manifest.ts`.
+
 **2026-05-20 — Player photos on leaderboards + team squad rows.** Pavan: "in teams squad add the profile photo" and a separate ask earlier for the leaderboard. Three surfaces gained the same avatar treatment used everywhere else (player list, XI cards, profile header):
 
 1. **`/stats` leaderboards (all-time + per-tournament).** 28px avatar slotted between the rank circle and the player name. `BatAgg` / `BowlAgg` / `FieldAgg` / `MiscAgg` gained optional `photo: string | null`; `newBatAgg` / `newBowlAgg` / `newFieldAgg` take it as a default-null trailing arg (backward-compatible). `LeaderRow.photo` propagates from agg → row.

@@ -7,7 +7,7 @@ import { CareerStats } from "./career-stats";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "HVC Heroes — all-time records",
+  title: "Leaderboard — all-time HVC records",
   description:
     "All-time HVC leaderboards across every season — most runs, most wickets, best averages, biggest hits.",
 };
@@ -17,7 +17,7 @@ export default function StatsPage() {
     <main className="flex-1 p-4 sm:p-6">
       <div className="mx-auto max-w-5xl space-y-6">
         <header className="space-y-1">
-          <h1 className="text-2xl font-semibold">HVC Heroes</h1>
+          <h1 className="text-2xl font-semibold">Leaderboard</h1>
           <p className="text-sm text-muted-foreground">
             Career leaderboards across every HVC season. Combines historical
             CricHeroes data (S1–S6) with new tournaments scored in-app.
