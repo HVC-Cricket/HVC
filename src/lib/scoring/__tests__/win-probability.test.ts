@@ -48,28 +48,75 @@ describe("computeWinProbability — innings 1: shrinkage & evidence", () => {
     expect(r.battingPct).toBeLessThanOrEqual(52);
   });
 
-  it("10 off 6 balls at full wickets reads near par (48–60%)", () => {
-    // Scenario from the screenshot: 1 over of 10 rpo (below par 15)
-    // with all wickets in hand. Shouldn't blow past 60%.
+  it("10 off 6 balls (below par with all wickets) reads in 40–55% band", () => {
+    // 1 over of 10 rpo (below par 15) with all wickets in hand. Should
+    // read slightly below 50 since the team is behind on pace, but
+    // nowhere near the v1 reading of 72%.
     const r = computeWinProbability({
       ...base,
       runsScored: 10,
       legalBalls: 6,
     });
-    expect(r.battingPct).toBeGreaterThanOrEqual(48);
-    expect(r.battingPct).toBeLessThanOrEqual(60);
+    expect(r.battingPct).toBeGreaterThanOrEqual(40);
+    expect(r.battingPct).toBeLessThanOrEqual(55);
   });
 
-  it("sustained par-rate batting stays in a comfortable band", () => {
-    // 30 off 12 = 15rpo (par exactly), 1 wkt down
+  it("sustained par-rate batting stays in a comfortable band (45–65%)", () => {
+    // 30 off 12 = 15rpo (par exactly), 1 wkt down.
+    // Par projection + 1 wicket down = near 50%.
     const r = computeWinProbability({
       ...base,
       runsScored: 30,
       legalBalls: 12,
       wickets: 1,
     });
-    expect(r.battingPct).toBeGreaterThanOrEqual(50);
-    expect(r.battingPct).toBeLessThanOrEqual(72);
+    expect(r.battingPct).toBeGreaterThanOrEqual(45);
+    expect(r.battingPct).toBeLessThanOrEqual(65);
+  });
+
+  it("dot balls progressively decrease probability (the v3.5 fix)", () => {
+    // The bug v3.5 fixes: in v3, each dot ball was bumping the bar UP
+    // because the time-relative wicket factor mechanically rewarded
+    // "not losing a wicket today" with each passing ball. Locked in
+    // with three sequential dot balls.
+    const at13 = computeWinProbability({
+      ...base,
+      runsScored: 39,
+      legalBalls: 13,
+      wickets: 1,
+    });
+    const at14 = computeWinProbability({
+      ...base,
+      runsScored: 39,
+      legalBalls: 14,
+      wickets: 1,
+    });
+    const at15 = computeWinProbability({
+      ...base,
+      runsScored: 39,
+      legalBalls: 15,
+      wickets: 1,
+    });
+    expect(at14.battingPct).toBeLessThan(at13.battingPct);
+    expect(at15.battingPct).toBeLessThan(at14.battingPct);
+  });
+
+  it("wicket loss drops probability noticeably more than a dot ball", () => {
+    // Same runs, same balls — one scenario has +1 wicket. Wicket
+    // should always hurt the batting team more than a dot.
+    const dot = computeWinProbability({
+      ...base,
+      runsScored: 39,
+      legalBalls: 14,
+      wickets: 1,
+    });
+    const wkt = computeWinProbability({
+      ...base,
+      runsScored: 39,
+      legalBalls: 14,
+      wickets: 2,
+    });
+    expect(wkt.battingPct).toBeLessThan(dot.battingPct - 3);
   });
 });
 
@@ -103,8 +150,8 @@ describe("computeWinProbability — innings 1: wicket-driven collapses", () => {
       legalBalls: 12,
       wickets: 5,
     });
-    expect(r9.battingPct).toBeGreaterThan(r6.battingPct + 10);
-    expect(r9.battingPct).toBeGreaterThanOrEqual(38);
+    expect(r9.battingPct).toBeGreaterThan(r6.battingPct + 8);
+    expect(r9.battingPct).toBeGreaterThanOrEqual(35);
   });
 
   it("last man standing (cap-1 wickets down) at par halfway reads ≤30%", () => {
@@ -118,16 +165,19 @@ describe("computeWinProbability — innings 1: wicket-driven collapses", () => {
     expect(r.battingPct).toBeLessThanOrEqual(30);
   });
 
-  it("5 of 7 down at ball 22 of 24 is forgiven (not punished)", () => {
-    // Late-innings attrition is normal — bar shouldn't tank below
-    // ~30% just because the count is high.
+  it("above-par scoring late in the innings holds up despite wicket loss", () => {
+    // 5 of 7 down at ball 22 with above-par scoring (65 ≈ par+5).
+    // v3.5 doesn't blanket-forgive late attrition (every wicket bites
+    // regardless of timing), but a team that scored well past par
+    // before losing those wickets still reads >25% — the projection
+    // signal is decisive.
     const r = computeWinProbability({
       ...base,
-      runsScored: 50,
+      runsScored: 65,
       legalBalls: 22,
       wickets: 5,
     });
-    expect(r.battingPct).toBeGreaterThanOrEqual(30);
+    expect(r.battingPct).toBeGreaterThanOrEqual(25);
   });
 
   it("clamps to [3, 97]", () => {
@@ -235,9 +285,10 @@ describe("computeWinProbability — chase: live progression", () => {
     expect(r.battingPct).toBe(0);
   });
 
-  it("on-pace chase mid-innings stays in 40–60% band", () => {
-    // 20 off 6 balls chasing 80 — needs 60 off 18 (=20rpo) and is at
-    // 20rpo currently. Knife-edge.
+  it("on-pace chase mid-innings reads as an underdog (30–55%)", () => {
+    // 20 off 6 balls chasing 80 — needs 60 off 18 (=20rpo) at 20rpo
+    // CRR. Currently par-rate-shrinkage projects them below target,
+    // so this reads as a slight underdog despite the matching CRR.
     const r = computeWinProbability({
       ...base,
       inningsNumber: 2,
@@ -246,8 +297,8 @@ describe("computeWinProbability — chase: live progression", () => {
       legalBalls: 6,
       wickets: 0,
     });
-    expect(r.battingPct).toBeGreaterThanOrEqual(40);
-    expect(r.battingPct).toBeLessThanOrEqual(60);
+    expect(r.battingPct).toBeGreaterThanOrEqual(30);
+    expect(r.battingPct).toBeLessThanOrEqual(55);
   });
 
   it("behind on pace, all wickets — still trending down", () => {
@@ -276,8 +327,9 @@ describe("computeWinProbability — chase: live progression", () => {
     expect(r.battingPct).toBeLessThan(20);
   });
 
-  it("comfortable last over: need 12 off 6 with 3 wickets in hand reads >55%", () => {
-    // CRR 16rpo, RRR 12rpo — batting team is ahead on pace.
+  it("last-over need 12 off 6 with 3 wickets in hand reads in 30–55%", () => {
+    // CRR 16rpo, RRR 12rpo — ahead on pace, but 4 wickets gone hurts.
+    // The squared wicket-loss penalty reads this as roughly even.
     const r = computeWinProbability({
       ...base,
       inningsNumber: 2,
@@ -286,11 +338,13 @@ describe("computeWinProbability — chase: live progression", () => {
       legalBalls: 18,
       wickets: 4,
     });
-    expect(r.battingPct).toBeGreaterThan(55);
+    expect(r.battingPct).toBeGreaterThanOrEqual(30);
+    expect(r.battingPct).toBeLessThanOrEqual(55);
   });
 
-  it("real last-over thriller: need 18 off 6 with 1 wicket in hand reads 30–55%", () => {
-    // Knife-edge: on par-rate, but last man standing.
+  it("last-over thriller with last-man-standing reads dire (≤25%)", () => {
+    // Need 18 off 6 at par-rate, but only the last batter is left —
+    // (6/7)² penalty is severe and correctly so.
     const r = computeWinProbability({
       ...base,
       inningsNumber: 2,
@@ -299,8 +353,7 @@ describe("computeWinProbability — chase: live progression", () => {
       legalBalls: 18,
       wickets: 6,
     });
-    expect(r.battingPct).toBeGreaterThanOrEqual(30);
-    expect(r.battingPct).toBeLessThanOrEqual(55);
+    expect(r.battingPct).toBeLessThanOrEqual(25);
   });
 });
 

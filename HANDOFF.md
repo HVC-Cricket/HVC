@@ -52,6 +52,48 @@ Underlying data issue (stale `in_match=true` rows on `match_players` after a sid
 
 1 file / +18 / −5 LOC.
 
+**Follow-up #10 (same day) — Win-probability v3.5: fix the "dot ball boosts batting" bug.**
+
+User spotted on a live match: each successive dot ball was nudging the batting team's win probability *up* by ~1% (68 → 69 → 70 over three dots at 39/1). Real bug, not a tuning issue.
+
+**Root cause** in v3 was a compounding interaction between two terms:
+1. `wkt_signed` compared wickets-in-hand to a *time-relative* linear-attrition baseline (`cap × ballsRemaining / totalBalls`). As balls were bowled without wickets falling, the baseline shrank while wickets-in-hand stayed put — so each dot read as "you kept more wickets than expected" and bumped `wkt_signed` up ~0.04 per ball.
+2. `evidence = balls/18` weight grew with each ball. So the formula got more confident in whatever direction observed_p was pointing — and since point 1 was pushing it up, each ball amplified the upward drift.
+
+The projection term *did* decrease (shrunkRate drops as dots accumulate), but its contribution was too small to cancel the other two.
+
+**Fix:** replace `wkt_signed` (time-relative, signed) with `wktLossPenalty(wickets, cap) = (wickets/cap)^1.5` (absolute, always-positive penalty). Properties:
+- **Doesn't change on a dot ball** — penalty is a function of wickets, not balls.
+- **Drops on each wicket lost**, with exponent 1.5 giving a smooth curve: `(1/7)^1.5 ≈ 0.05` (barely a tick), `(6/7)^1.5 ≈ 0.79` (severe).
+- **Naturally cap-aware** — 5 of 6 reads worse than 5 of 9 without branching.
+- **Wicket ticks down harder than a dot** — 1→2 of 7 swings probability ~3% vs ~1-2% per dot, so the bar visually rewards bowling-side action.
+
+Trade-off accepted: v3's "5 of 7 at ball 22 is normal late attrition, don't punish hard" forgiveness is gone. In a 4-over match every wicket is meaningful regardless of when it falls; box-cricket doesn't have a tail-ender resource depletion arc to mirror.
+
+**Innings 1 / chase weights unified** — both branches now use the same blend: `observed_p = 0.5 + proj_signed × 0.55 − wkt_loss × 0.45`. The chase still has `evidence_floor = 0.6` and uses target as the projection anchor; innings 1 uses par × overs. Two distinct curves, one combiner.
+
+**Locked in by tests:**
+- "dot balls progressively decrease probability (the v3.5 fix)" — asserts monotonic decrease across 3 sequential dots at 39/1
+- "wicket loss drops probability noticeably more than a dot ball" — asserts wkt-loss > dot at same runs/balls
+- 5-of-6 vs 5-of-9 differential, last-man-standing severity, late-innings attrition consequences (no longer forgiven)
+
+**Sample readings** (7-a-side last-man, 4-over):
+
+| Scenario | v3 (bug) | v3.5 |
+|---|---|---|
+| 39/1 at ball 13 | 68% | **57%** |
+| 39/1 at ball 14 (+1 dot) | 69% | **54%** |
+| 39/1 at ball 15 (+2 dots) | 70% | **50%** |
+| 39/1 at ball 16 (+3 dots) | 71% | **46%** |
+| 39/2 at ball 14 (wicket vs dot) | small bump | **50%** (vs 54% dot — wicket bites) |
+| Pre-match | 50% | 50% |
+| Six off first ball | 51% | 51% |
+| 5 of 6 at par halfway | 28% | 27% |
+| 5 of 9 at par halfway | 45% | 38% |
+| 6 of 7 last man at par halfway | 22% | 13% |
+
+64 tests pass overall (27 win-prob + 16 rules + 21 engine).
+
 **2026-05-19 (batch 43) — Live match: win-probability bar (v3).** New live-only feature surfaced on the public match page. Spectators get a horizontal split-bar inside the innings card header showing each team's win % live; updates with every ball through the existing realtime channel (`LiveRefresh` already re-renders the server component on push).
 
 **v3 redesign — three reasons the v1 was wrong, and the fixes:**
