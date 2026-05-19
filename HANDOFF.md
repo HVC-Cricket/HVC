@@ -52,16 +52,53 @@ Underlying data issue (stale `in_match=true` rows on `match_players` after a sid
 
 1 file / +18 / −5 LOC.
 
-**2026-05-19 (batch 43) — Live match: win-probability bar.** New live-only feature surfaced on the public match page. Spectators get a horizontal split-bar inside the innings card header showing each team's win % live; updates with every ball through the existing realtime channel (`LiveRefresh` already re-renders the server component on push).
+**2026-05-19 (batch 43) — Live match: win-probability bar (v3).** New live-only feature surfaced on the public match page. Spectators get a horizontal split-bar inside the innings card header showing each team's win % live; updates with every ball through the existing realtime channel (`LiveRefresh` already re-renders the server component on push).
 
-**Helper:** `src/lib/scoring/win-probability.ts` — pure function `computeWinProbability(inputs)` returns `{ mode, battingPct, bowlingPct }` where `mode` is one of `pre_match | innings_1 | innings_2 | complete`. Two formulas, both clamped so the bar never goes flat:
+**v3 redesign — three reasons the v1 was wrong, and the fixes:**
 
-- **Innings 1:** projection-based. Project the final total from `runsScored + ballsRemaining * runRate / 6`, compare against `PAR_RUN_RATE * oversCap` (par = 8.5 rpo, empirical HVC mean). Run through `sigmoid` with a 4× slope so 25% above par lands near 70%, 25% below near 30%. Combined 55/30/extra-15-batting-edge with a concave wickets-in-hand factor (`^0.4`). Clamped to [8, 92].
-- **Innings 2:** chase-based. `paceFactor = sigmoid((runRate - rrr) * 0.5)` — each rpo of margin shifts ~25 points. `wktFactor = (wicketsInHand / cap) ^ 0.5` — concave so the first couple of losses don't crater the probability but the last two do. Combined 60/40 pace/wickets. Clamped to [3, 97]. Terminal cases (runsNeeded ≤ 0, balls exhausted, all out) return exact 100/0 or 0/100 with `mode = complete`.
+1. **Par rate was 8.5 rpo (long-format cricket).** HVC box-cricket averages ~15 rpo. Anything above par read as "way above". `PAR_RUN_RATE = 15` now, doc-commented as empirical and revisable per season.
 
-`wicketsCap` honours the same rules as the engine: super overs → 2 wickets, last-man-standing → N, otherwise N-1.
+2. **Raw CRR extrapolation amplified tiny samples.** A six on the first ball was extrapolated as 36rpo for 23 remaining balls → "144 projected total" → 90% batting. Replaced with **Bayesian shrinkage**: `shrunkRate = (runsScored + K × par/6) / (legalBalls + K) × 6` with `K = 18` pseudo-balls of par-rate prior. At ball 0 the shrunk rate is exactly par; at ball K it's a 50/50 mix; beyond that the observed rate dominates. A six off ball 1 now nudges shrunk rate from 15 → 16.1, not 15 → 36.
 
-Not a Duckworth–Lewis port; the doc comment is explicit that this is a "narrative number" for the live spectator vibe, not a calibrated probability. 12 unit tests cover the edge cases (pre-match, comfortable chase, steep RRR, terminal states, wicket-cap rules).
+3. **Wicket factor was flat across the innings.** Losing 5 of 7 at ball 6 read the same as 5 of 7 at ball 22. Replaced with **signed advantage against linear-attrition baseline**: `expected_wktInHand = cap × (ballsRemaining / totalBalls)`, `wkt_signed = tanh((wktInHand − expected) / cap × 2)`. Same code handles 6-, 7-, 9-a-side without branching because everything routes through `cap`. Losing 5 wickets in a 6-side match is a collapse; losing 5 in 9-side is normal attrition.
+
+**Combined formula** (one expression per branch):
+
+```
+// Innings 1 (no target)
+observed_p = 0.5 + proj_signed × 0.35 + wkt_signed × 0.50
+probability = 0.5 + (observed_p − 0.5) × min(1, balls/18)
+
+// Chase (target != null)
+observed_p = 0.5 + proj_signed × 0.55 + wkt_signed × 0.30
+probability = 0.5 + (observed_p − 0.5) × max(0.6, min(1, balls/18))
+```
+
+Innings 1 weights wickets heavier than projection — the "in trouble" signal is wicket loss, not projection (you still have time). Chase weights projection heavier — the target equation is the dominant story; wickets are secondary. Chase has an `evidence_floor = 0.6` because the target itself is real information from ball 0; the 50/50 prior shouldn't swallow a pre-chase of 80-in-4-overs.
+
+`proj_signed` in innings 1 compares projected_final vs `par × overs`; in chase it compares projected_final vs `target`. Both transformed through `tanh` for smooth bounded output. Terminal states (`runsNeeded ≤ 0` → 100/0; `ballsRemaining = 0` or `wktInHand = 0` → 0/100) short-circuit before any math runs.
+
+**Cat 1 / Cat 3 over wicket-collapse rule is honoured implicitly:** `Inputs.wickets` is sourced from `innings.total_wickets`, which the 2026-05-13 trigger recomputes from only `balls` rows where `counts_for_innings_total = true`. So a bunch of physical wickets inside a single cat-N over still increments by 1 — matching the final scorecard. Doc-commented in the helper so a future refactor doesn't replace it with `balls.filter(is_wicket).length`.
+
+**Sample readings** (7-a-side, 4-over, par=15):
+
+| Scenario | v1 | v3 |
+|---|---|---|
+| Pre-match | 52% | 50% |
+| 6 off 1 ball, 0 wkts | 90% | **51%** |
+| 10 off 6 balls, 0 wkts | 72% | **55%** |
+| 30 off 12 balls, 0 wkts, par-rate | 75% | **66%** |
+| 30 off 12 balls, **5 of 6 down** at par | 47% | **~28%** |
+| 30 off 12 balls, **5 of 9 down** at par | 47% | **~45%** |
+| 6 of 7 down (last man) at par halfway | crash | **~22%** |
+| 5 of 7 down at ball 22 of 24 (normal late attrition) | 12% | **~37%** |
+| Pre-chase, target 40 (easy) | 50% | **~77%** |
+| Pre-chase, target 60 (= par) | 50% | **50%** |
+| Pre-chase, target 80 (hard) | 50% | **~33%** |
+| Pre-chase, target 100 (brutal) | 50% | **~25%** |
+| Last-over thriller: need 18 off 6, 1 wkt left | ~30% | **~43%** |
+
+Not a Duckworth–Lewis port; doc comment is explicit that this is a calibrated narrative number for the live spectator vibe, not a published probability. **25 unit tests** cover edge cases including the cap-aware "5 wickets in 6-side vs 9-side reads differently" assertion.
 
 **UI:** `WinProbabilityBar` lives at the bottom of `src/app/matches/[matchId]/live-score-panel.tsx`. Renders as a 24px-tall flex bar where the two halves share width via `flex-grow: <pct>`, with a 500ms width transition so the shift each ball feels alive. Leading team gets `bg-primary` (cricket blue), trailing team gets a muted fill. Team short-name + percentage only shows when its half is ≥18% wide (avoids text overflow when the bar gets lopsided). `role="meter"` + `aria-valuenow` for screen readers. Eyebrow row above carries "Win probability" + an outlook label (`Match starts even / Innings 1 outlook / Chase outlook / Final`).
 

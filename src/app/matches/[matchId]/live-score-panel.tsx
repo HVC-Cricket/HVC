@@ -560,7 +560,9 @@ function WinProbabilityBar({
         ? "Innings 1 outlook"
         : mode === "innings_2"
           ? "Chase outlook"
-          : "Final";
+          : mode === "super_over"
+            ? "Super over"
+            : "Final";
 
   // Round once for display; keep raw value for the bar width so the
   // split is faithful to the calc even when the displayed numbers
