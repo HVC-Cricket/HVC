@@ -1,7 +1,10 @@
 /* HVC Scoring — service worker */
 /* eslint-disable no-restricted-globals */
 
-const CACHE = "hvc-scoring-v3";
+// Bumped to v4 on 2026-05-19 to flush old PWA icons cached by users who
+// installed before the round HVC artwork landed. Bump again any time we
+// need to evict every stale response across all installed clients.
+const CACHE = "hvc-scoring-v4";
 
 self.addEventListener("install", () => {
   // Skip the waiting state so a fresh SW takes over straight away.
@@ -34,6 +37,20 @@ self.addEventListener("fetch", (event) => {
   // app already retries them via the offline queue.
   if (url.pathname.startsWith("/_next/data/")) return;
   if (url.searchParams.has("_rsc")) return;
+
+  // Skip the PWA icon + manifest routes. These are tiny, server-rendered,
+  // and we want every new install to fetch fresh — otherwise the SW
+  // serves the cached versions from a prior install during the "Add to
+  // Home Screen" flow and the home-screen icon never updates.
+  if (
+    url.pathname === "/manifest.webmanifest" ||
+    url.pathname === "/icon" ||
+    url.pathname === "/icon1" ||
+    url.pathname === "/icon2" ||
+    url.pathname === "/apple-icon"
+  ) {
+    return;
+  }
 
   // Treat the navigation HTML as network-first, everything else as
   // stale-while-revalidate (assets rarely change once hashed).
