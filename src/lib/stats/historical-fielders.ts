@@ -75,8 +75,14 @@ const STUMPED_RE = /^st\s+†?\s*(.+?)\s+b\s+/i;
 const RUN_OUT_RE = /^run\s*-?\s*out(?:\s+(.+?))?\s*(?:\(.*\))?$/i;
 
 /**
- * Lower-case, trim, collapse whitespace, strip the cricheroes
- * keeper-marker dagger AND any leading "(sub)" / "sub " prefix.
+ * Lower-case, trim, collapse whitespace, strip cricheroes annotations:
+ *   - the keeper-marker dagger `†`
+ *   - leading "(sub)" / "sub " prefix (substitute fielders)
+ *   - trailing parenthetical suffixes like "(wk)", "(5a)" that
+ *     appear in cricheroes' roster names but NOT in the dismissal
+ *     text (so "Yashu  (wk)" in the roster and "Yashu" in the
+ *     dismissal both normalise to "yashu" → match).
+ *
  * Both the lookup keys AND the parsed dismissal name go through
  * this — no asymmetry.
  */
@@ -84,6 +90,9 @@ function normalize(name: string): string {
   return name
     .replace(/†/g, "")
     .replace(/^\(?sub\)?\s+/i, "")
+    // Strip ANY trailing parenthetical group (and the whitespace
+    // before it). Catches "(wk)", "(5a)", "(c)", "(VC)", etc.
+    .replace(/\s*\([^)]*\)\s*$/g, "")
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
@@ -133,35 +142,70 @@ export function buildMatchRosters(
 }
 
 /**
- * Global `normalised display_name -> player UUID` lookup, used as
- * the fallback when per-match resolution misses (typically a
- * pure-fielder who didn't bat or bowl in the match). Same
- * normalisation as the per-match path so a hit on either side
- * means the same thing.
+ * Global lookup used as the fallback when per-match resolution
+ * misses. Two index types:
+ *
+ *   - `byFullName`: exact normalised display_name → UUID. Same as
+ *     the per-match map; if a player's full name appears in the
+ *     dismissal text, this hits first.
+ *   - `byFirstName`: first-token-of-name → UUID, BUT only when
+ *     that first token unambiguously points to a single player.
+ *     Cricheroes often shortens to first names ("Amith" vs the
+ *     player record "Amith P"); when our roster has only one
+ *     player whose name starts with that token, we can credit
+ *     them. If two players share a first name, the token is
+ *     `"ambiguous"` and we skip.
+ *
+ * Both share the same normalisation as the per-match path so a
+ * hit on either side means the same thing.
  */
+export type GlobalLookup = {
+  byFullName: Map<string, string | "ambiguous">;
+  byFirstName: Map<string, string | "ambiguous">;
+};
+
 export function buildPlayerNameLookup(
   players: { id: string; display_name: string }[],
-): Map<string, string | "ambiguous"> {
-  const lookup = new Map<string, string | "ambiguous">();
+): GlobalLookup {
+  const byFullName = new Map<string, string | "ambiguous">();
+  const byFirstName = new Map<string, string | "ambiguous">();
   for (const p of players) {
     if (!p.display_name) continue;
     const key = normalize(p.display_name);
     if (!key) continue;
-    const existing = lookup.get(key);
+    const existing = byFullName.get(key);
     if (existing === undefined) {
-      lookup.set(key, p.id);
+      byFullName.set(key, p.id);
     } else if (existing !== p.id) {
-      lookup.set(key, "ambiguous");
+      byFullName.set(key, "ambiguous");
+    }
+    const firstToken = key.split(" ")[0];
+    if (firstToken && firstToken !== key) {
+      const fe = byFirstName.get(firstToken);
+      if (fe === undefined) {
+        byFirstName.set(firstToken, p.id);
+      } else if (fe !== p.id) {
+        byFirstName.set(firstToken, "ambiguous");
+      }
+    } else if (firstToken === key) {
+      // Single-token names (like "Yashu") count both as full name AND
+      // first-token; only seed byFirstName if no longer-name player
+      // already claimed this token.
+      if (!byFirstName.has(firstToken)) {
+        byFirstName.set(firstToken, p.id);
+      } else if (byFirstName.get(firstToken) !== p.id) {
+        byFirstName.set(firstToken, "ambiguous");
+      }
     }
   }
-  return lookup;
+  return { byFullName, byFirstName };
 }
 
 function resolve(
   name: string,
   matchId: string,
   rosters: MatchRosters,
-  globalLookup: Map<string, string | "ambiguous">,
+  globalLookup: GlobalLookup,
 ): string | null {
   const key = normalize(name);
   if (!key) return null;
@@ -177,12 +221,23 @@ function resolve(
     if (v) return v;
   }
 
-  // Fallback — global display_name match. A few credits land here
-  // (e.g. fielders who never batted in any S1–S6 match but did
-  // field). Still strict: ambiguous global keys also skip.
-  const g = globalLookup.get(key);
+  // Global exact-name fallback — fielder existed globally but
+  // didn't appear in this match's batting or bowling roster
+  // (typically a sub, or a fielder credited in the commentary that
+  // cricheroes never linked to a roster slot).
+  const g = globalLookup.byFullName.get(key);
   if (g === "ambiguous") return null;
   if (g) return g;
+
+  // First-name token fallback — cricheroes commentary often
+  // shortens to a first name ("Amith" → our record "Amith P").
+  // Only credits when exactly one global player matches that
+  // first-token; ambiguous tokens skip. Single-token search names
+  // hit this branch too (handled symmetrically in
+  // buildPlayerNameLookup).
+  const ft = globalLookup.byFirstName.get(key);
+  if (ft === "ambiguous") return null;
+  if (ft) return ft;
 
   return null;
 }
@@ -190,7 +245,7 @@ function resolve(
 export function parseHistoricalFielders(
   rows: DismissalRow[],
   rosters: MatchRosters,
-  globalLookup: Map<string, string | "ambiguous">,
+  globalLookup: GlobalLookup,
 ): ParsedFielderCredit[] {
   const credits: ParsedFielderCredit[] = [];
   for (const r of rows) {
