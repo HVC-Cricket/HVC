@@ -39,6 +39,20 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**Follow-up #8 (same day) — Highlight dialog: loader state while the PNG is rendering.**
+
+The preview modal opened instantly but the image area stayed blank for the 1–3s satori took to render the card cold — looked like the dialog was broken. Added a three-state load tracker (`loading | ready | error`) driven by the `<img>` element's `onLoad` / `onError`. While loading, an overlay sits above the (still-mounted-but-invisible) image with:
+
+- A pinging blue sparkles ring (matches the highlight card's `#3b82f6` accent).
+- "Generating highlight…" headline + a rotating sub-message picked from a 5-item list (`Picking the top batter… → Counting boundaries… → …`) cycled every 900ms via `setInterval`, cleaned up on state change.
+- A 300ms opacity transition on the image so it fades in cleanly once `onLoad` fires.
+
+Download button text flips Generating… → Download PNG and the button is disabled until the image is ready (otherwise you could trigger a `fetch` for a still-rendering route and get a redundant blob). On error, the overlay swaps to an amber `TriangleAlert` with "Couldn't render the highlight" copy + a hint to use Open-in-new-tab.
+
+State resets on each open so a re-open after a score edit always replays the messages in order.
+
+1 file / +80 / −5 LOC.
+
 **Follow-up #7 (same day) — Highlight card redesign + in-app preview modal with download.**
 
 Two issues with the v1 highlight: (a) the OG image used a green accent that didn't match the app's cricket-blue theme, (b) clicking the Highlight button popped the PNG into a raw new tab — no preview affordance, no obvious way to save the file other than right-click on a bare image.
