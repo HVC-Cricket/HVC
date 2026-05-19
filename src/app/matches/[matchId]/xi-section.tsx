@@ -321,6 +321,13 @@ async function TeamXICard({
   // (and where) instead of staring at "6 more to pick" while only 5
   // players are available.
   const squadShortBy = Math.max(0, playersPerSide - squadSize);
+  // Reverse mismatch: there are *more* players flagged `in_match`
+  // than the per-side cap allows. Usually happens when an admin
+  // saved a 9-a-side XI and later edited the match down to a smaller
+  // side without re-running Pick XI, leaving stale in_match=true
+  // rows. The old copy here printed "-N more to pick from squad."
+  // which read as nonsense.
+  const xiOverBy = Math.max(0, playing.length - playersPerSide);
   // Only reserve the batting-order column when at least one player in
   // the XI has an order assigned. On Pick XI the column carries 1..N;
   // on the spectator Squads tab the column is usually all-null and
@@ -344,7 +351,9 @@ async function TeamXICard({
               className={
                 isComplete
                   ? "text-emerald-700 dark:text-emerald-300"
-                  : "text-muted-foreground"
+                  : xiOverBy > 0
+                    ? "text-amber-700 dark:text-amber-300"
+                    : "text-muted-foreground"
               }
             >
               {playing.length} / {playersPerSide}
@@ -359,11 +368,13 @@ async function TeamXICard({
             ? `Team squad has ${squadSize} of ${playersPerSide} — add ${squadShortBy} more to the team to field a full XI.`
             : isEmpty
               ? "No XI selected yet."
-              : isComplete
-                ? squadSize > playersPerSide
-                  ? `Playing XI is set · ${squadSize - playersPerSide} on the bench.`
-                  : "Playing XI is set."
-                : `${playersPerSide - playing.length} more to pick from squad.`}
+              : xiOverBy > 0
+                ? `Playing XI has ${playing.length} — ${xiOverBy} too many for a ${playersPerSide}-a-side match. Re-pick the XI to fit the limit.`
+                : isComplete
+                  ? squadSize > playersPerSide
+                    ? `Playing XI is set · ${squadSize - playersPerSide} on the bench.`
+                    : "Playing XI is set."
+                  : `${playersPerSide - playing.length} more to pick from squad.`}
         </CardDescription>
         {canManage && addCtx && (
           <div className="pt-2">

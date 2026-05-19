@@ -39,6 +39,36 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**Follow-up #9 (same day) — XI section: fix "-N more to pick from squad" copy.**
+
+When `playing.length > playersPerSide` (e.g. an XI was saved at 9-a-side then the match was edited down to 6-a-side without re-running Pick XI), the section description was rendering `${playersPerSide - playing.length} more to pick from squad.` — which evaluates to `-3 more to pick from squad.` and reads as nonsense. The chip stayed in the muted "incomplete" colour so the over-supplied state wasn't visually flagged either.
+
+Fix in `src/app/matches/[matchId]/xi-section.tsx`:
+- New `xiOverBy = max(0, playing.length - playersPerSide)` local.
+- Conditional chain now branches on `xiOverBy > 0` with copy: "Playing XI has 9 — 3 too many for a 6-a-side match. Re-pick the XI to fit the limit."
+- The progress chip ("9 / 6") flips to amber when over so the mismatch is obvious at a glance, matching the existing emerald-on-complete pattern.
+
+Underlying data issue (stale `in_match=true` rows on `match_players` after a side-size reduction) isn't fixed here — that needs either a Pick-XI flow that prunes on save or a migration. Surfacing the correct UI state is the priority; the admin can re-run Pick XI to clear the over-supply.
+
+1 file / +18 / −5 LOC.
+
+**2026-05-19 (batch 43) — Live match: win-probability bar.** New live-only feature surfaced on the public match page. Spectators get a horizontal split-bar inside the innings card header showing each team's win % live; updates with every ball through the existing realtime channel (`LiveRefresh` already re-renders the server component on push).
+
+**Helper:** `src/lib/scoring/win-probability.ts` — pure function `computeWinProbability(inputs)` returns `{ mode, battingPct, bowlingPct }` where `mode` is one of `pre_match | innings_1 | innings_2 | complete`. Two formulas, both clamped so the bar never goes flat:
+
+- **Innings 1:** projection-based. Project the final total from `runsScored + ballsRemaining * runRate / 6`, compare against `PAR_RUN_RATE * oversCap` (par = 8.5 rpo, empirical HVC mean). Run through `sigmoid` with a 4× slope so 25% above par lands near 70%, 25% below near 30%. Combined 55/30/extra-15-batting-edge with a concave wickets-in-hand factor (`^0.4`). Clamped to [8, 92].
+- **Innings 2:** chase-based. `paceFactor = sigmoid((runRate - rrr) * 0.5)` — each rpo of margin shifts ~25 points. `wktFactor = (wicketsInHand / cap) ^ 0.5` — concave so the first couple of losses don't crater the probability but the last two do. Combined 60/40 pace/wickets. Clamped to [3, 97]. Terminal cases (runsNeeded ≤ 0, balls exhausted, all out) return exact 100/0 or 0/100 with `mode = complete`.
+
+`wicketsCap` honours the same rules as the engine: super overs → 2 wickets, last-man-standing → N, otherwise N-1.
+
+Not a Duckworth–Lewis port; the doc comment is explicit that this is a "narrative number" for the live spectator vibe, not a calibrated probability. 12 unit tests cover the edge cases (pre-match, comfortable chase, steep RRR, terminal states, wicket-cap rules).
+
+**UI:** `WinProbabilityBar` lives at the bottom of `src/app/matches/[matchId]/live-score-panel.tsx`. Renders as a 24px-tall flex bar where the two halves share width via `flex-grow: <pct>`, with a 500ms width transition so the shift each ball feels alive. Leading team gets `bg-primary` (cricket blue), trailing team gets a muted fill. Team short-name + percentage only shows when its half is ≥18% wide (avoids text overflow when the bar gets lopsided). `role="meter"` + `aria-valuenow` for screen readers. Eyebrow row above carries "Win probability" + an outlook label (`Match starts even / Innings 1 outlook / Chase outlook / Final`).
+
+Slot sits inside the `CardHeader`, below the amber chase strip — only when `!completed` (the trophy card already covers the post-match state, so a flat 100/0 bar there would be dead weight).
+
+3 files / +220 / 0 LOC + 1 new test file (`win-probability.test.ts`, 12 tests).
+
 **Follow-up #8 (same day) — Highlight dialog: loader state while the PNG is rendering.**
 
 The preview modal opened instantly but the image area stayed blank for the 1–3s satori took to render the card cold — looked like the dialog was broken. Added a three-state load tracker (`loading | ready | error`) driven by the `<img>` element's `onLoad` / `onError`. While loading, an overlay sits above the (still-mounted-but-invisible) image with:
