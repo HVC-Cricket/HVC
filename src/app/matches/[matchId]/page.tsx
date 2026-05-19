@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, Play, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -35,6 +35,7 @@ import { getTeamInitials } from "@/lib/utils";
 
 import { CommentaryFeed } from "./commentary-feed";
 import { FullScorecard } from "./full-scorecard";
+import { HighlightDialog } from "./highlight-dialog";
 import { LiveScorePanel } from "./live-score-panel";
 import { MatchTabs } from "./match-tabs";
 import { NotifyButton } from "./notify/notify-button";
@@ -267,16 +268,12 @@ export default async function MatchDetailPage(props: {
               <NotifyButton matchId={match.id} />
             )}
             {ms === "completed" && (
-              <a
-                href={`/api/og/match/${match.id}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <Button variant="ghost" size="sm">
-                  <Sparkles className="mr-1.5 size-4" />
-                  Highlight
-                </Button>
-              </a>
+              <HighlightDialog
+                matchId={match.id}
+                matchNumber={match.match_number}
+                teamAShort={teamA?.short_name ?? ""}
+                teamBShort={teamB?.short_name ?? ""}
+              />
             )}
             {canScore && (
               <Link href={`/matches/${match.id}/activity`}>

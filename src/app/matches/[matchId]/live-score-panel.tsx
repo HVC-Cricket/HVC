@@ -11,6 +11,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
+import {
+  computeProjectedScore,
+  computeWinProbability,
+} from "@/lib/scoring/win-probability";
 import { cn } from "@/lib/utils";
 
 import type { ScoreboardState } from "./score/state";
@@ -209,6 +213,24 @@ function InningsCard({
   // (or from the start of the innings if there hasn't been one).
   const partnership = computeCurrentPartnership(balls);
 
+  // Projected final score for innings 1 only. For innings 2 the target
+  // is already on the card and projection during a chase is just "will
+  // they get there", which the win-probability bar already shows.
+  const projected =
+    !completed && innings.innings_number === 1
+      ? computeProjectedScore({
+          inningsNumber: innings.innings_number,
+          runsScored: innings.total_runs,
+          wickets: innings.total_wickets,
+          legalBalls: innings.total_legal_balls,
+          target: null,
+          oversCap: inningsOversCap,
+          playersPerSide: state.rules.players_per_side,
+          lastManStanding: state.rules.last_man_standing,
+          isSuperOver,
+        })
+      : null;
+
   return (
     <Card>
       <CardHeader className="px-3 sm:px-4">
@@ -264,6 +286,32 @@ function InningsCard({
               <ChaseStat label="Req RR" value={reqRR ?? "—"} />
             </div>
           )}
+
+        {/* Live win-probability bar — only while the match is in
+            flight. Completed matches already get the trophy / winner
+            card above, and a fixed 100/0 reading there would feel
+            like dead weight. */}
+        {!completed && (
+          <WinProbabilityBar
+            battingShort={teamShort(innings.batting_team_id)}
+            bowlingShort={teamShort(
+              innings.batting_team_id === state.teamA.id
+                ? state.teamB.id
+                : state.teamA.id,
+            )}
+            probability={computeWinProbability({
+              inningsNumber: innings.innings_number,
+              runsScored: innings.total_runs,
+              wickets: innings.total_wickets,
+              legalBalls: innings.total_legal_balls,
+              target,
+              oversCap: inningsOversCap,
+              playersPerSide: state.rules.players_per_side,
+              lastManStanding: state.rules.last_man_standing,
+              isSuperOver,
+            })}
+          />
+        )}
       </CardHeader>
       {/* Live-only sections — striker/bowler/balls are meaningless once
           the match is over. Completed matches use the scorecard tab
@@ -277,7 +325,8 @@ function InningsCard({
           {(partnership.runs > 0 ||
             partnership.balls > 0 ||
             oversFloat > 0 ||
-            target != null) && (
+            target != null ||
+            projected != null) && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
               {(partnership.runs > 0 || partnership.balls > 0) && (
                 <span className="text-muted-foreground">
@@ -296,6 +345,14 @@ function InningsCard({
                 <span className="text-muted-foreground">
                   <span className="font-medium uppercase">CRR:</span>{" "}
                   <span className="font-mono text-foreground">{runRate}</span>
+                </span>
+              )}
+              {projected != null && (
+                <span className="text-muted-foreground">
+                  <span className="font-medium uppercase">
+                    Predicted score:
+                  </span>{" "}
+                  <span className="font-mono text-foreground">{projected}</span>
                 </span>
               )}
               {target != null && (
@@ -512,6 +569,92 @@ function ChaseStat({ label, value }: { label: string; value: string | number }) 
       <span className="font-mono text-sm font-semibold tabular-nums">
         {value}
       </span>
+    </div>
+  );
+}
+
+function WinProbabilityBar({
+  battingShort,
+  bowlingShort,
+  probability,
+}: {
+  battingShort: string;
+  bowlingShort: string;
+  probability: ReturnType<typeof computeWinProbability>;
+}) {
+  const { battingPct, bowlingPct, mode } = probability;
+  const label =
+    mode === "pre_match"
+      ? "Match starts even"
+      : mode === "innings_1"
+        ? "Innings 1 outlook"
+        : mode === "innings_2"
+          ? "Chase outlook"
+          : mode === "super_over"
+            ? "Super over"
+            : "Final";
+
+  // Round once for display; keep raw value for the bar width so the
+  // split is faithful to the calc even when the displayed numbers
+  // would sum to 99 or 101.
+  const battingDisplay = Math.round(battingPct);
+  const bowlingDisplay = Math.round(bowlingPct);
+  const battingAhead = battingPct >= bowlingPct;
+
+  return (
+    <div className="mt-2 flex flex-col gap-1.5">
+      <div className="flex items-center justify-between text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        <span>Win probability</span>
+        <span className="opacity-70">{label}</span>
+      </div>
+      <div
+        className="relative flex h-6 overflow-hidden rounded-md border border-foreground/10"
+        // The two halves share the bar via flex-grow; transition on
+        // width makes the shift between balls feel alive rather than
+        // jumping discretely.
+        role="meter"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={battingDisplay}
+        aria-label={`${battingShort} win probability`}
+      >
+        <div
+          className={cn(
+            "flex items-center justify-start gap-1.5 px-2 text-[11px] font-semibold tabular-nums transition-[flex-grow] duration-500 ease-out",
+            battingAhead
+              ? "bg-primary text-primary-foreground"
+              : "bg-primary/30 text-foreground",
+          )}
+          style={{ flexGrow: battingPct }}
+        >
+          {battingPct >= 18 && (
+            <>
+              <span className="truncate uppercase opacity-90">
+                {battingShort}
+              </span>
+              <span className="ml-auto">{battingDisplay}%</span>
+            </>
+          )}
+        </div>
+        <div
+          className={cn(
+            "flex items-center justify-end gap-1.5 px-2 text-[11px] font-semibold tabular-nums transition-[flex-grow] duration-500 ease-out",
+            !battingAhead
+              ? "bg-foreground text-background"
+              : "bg-foreground/15 text-foreground",
+          )}
+          style={{ flexGrow: bowlingPct }}
+        >
+          {bowlingPct >= 18 && (
+            <>
+              <span>{bowlingDisplay}%</span>
+              <span className="ml-auto truncate uppercase opacity-90">
+                {bowlingShort}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

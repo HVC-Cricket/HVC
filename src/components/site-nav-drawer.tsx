@@ -131,6 +131,7 @@ export function SiteNavDrawer({ user, signOutAction }: Props) {
             <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2 py-3">
               {navLink("/tournaments", "Tournaments")}
               {navLink("/players", "Players")}
+              {navLink("/stats", "HVC Heroes")}
               {user && navLink("/me", "My profile")}
               {user?.isSuperAdmin && navLink("/admins", "Admin")}
             </nav>
