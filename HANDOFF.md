@@ -52,6 +52,12 @@ Underlying data issue (stale `in_match=true` rows on `match_players` after a sid
 
 1 file / +18 / −5 LOC.
 
+**Follow-up #11 (same day) — Win-probability: drop par rate to 14 rpo.**
+
+User dialed in `PAR_RUN_RATE = 15 → 14` based on actual HVC averages. Single-line constant change in `src/lib/scoring/win-probability.ts`. Updated the file-header doc comment to note the revision was from observed season data, and bumped one chase test (was "target=60 ≈ par", now uses target=56 which is the new par_total for a 4-over match).
+
+Knock-on effects on the sample readings — par dropping means projected totals look slightly more above-par, so most innings-1 batting numbers shift up 2-4% (e.g. 39/1 at 13 balls of a 7-side last-man match was 57% under par=15, now ~60%). All 64 tests still pass — bounds were already wide enough to absorb the par shift.
+
 **Follow-up #10 (same day) — Win-probability v3.5: fix the "dot ball boosts batting" bug.**
 
 User spotted on a live match: each successive dot ball was nudging the batting team's win probability *up* by ~1% (68 → 69 → 70 over three dots at 39/1). Real bug, not a tuning issue.

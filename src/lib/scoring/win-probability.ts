@@ -26,8 +26,9 @@
 //
 // v3 par/shrinkage/evidence design notes still apply:
 //
-// 1. **PAR_RUN_RATE = 15.** Empirical HVC box-cricket mean, not the
-//    8.5 rpo of long-format cricket.
+// 1. **PAR_RUN_RATE = 14.** Empirical HVC box-cricket mean, not the
+//    8.5 rpo of long-format cricket. Revised from 15 once enough
+//    season data was in.
 //
 // 2. **Bayesian shrinkage on observed run rate.** `shrunkRate =
 //    (runsScored + K × par/6) / (legalBalls + K) × 6` with K = 18.
@@ -49,7 +50,7 @@
 //
 // Not a DLS port. Treat single-point readings as ±10% wide.
 
-const PAR_RUN_RATE = 15;
+const PAR_RUN_RATE = 14;
 const SHRINKAGE_K = 18;
 const EVIDENCE_BALLS = 18;
 

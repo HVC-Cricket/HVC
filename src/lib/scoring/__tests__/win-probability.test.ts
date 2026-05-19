@@ -198,11 +198,13 @@ describe("computeWinProbability — innings 1: wicket-driven collapses", () => {
 // ─────────────────────────────────────────────────────────────────
 
 describe("computeWinProbability — chase: target difficulty", () => {
-  it("pre-chase of par total (60 in 4 overs) reads near 50%", () => {
+  it("pre-chase of par total (56 in 4 overs) reads near 50%", () => {
+    // Par is 14rpo × 4 overs = 56. Chasing exactly par should be
+    // a coin flip with no other information.
     const r = computeWinProbability({
       ...base,
       inningsNumber: 2,
-      target: 60,
+      target: 56,
       runsScored: 0,
       legalBalls: 0,
     });
