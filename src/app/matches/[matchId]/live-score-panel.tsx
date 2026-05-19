@@ -349,7 +349,9 @@ function InningsCard({
               )}
               {projected != null && (
                 <span className="text-muted-foreground">
-                  <span className="font-medium uppercase">Proj:</span>{" "}
+                  <span className="font-medium uppercase">
+                    Predicted score:
+                  </span>{" "}
                   <span className="font-mono text-foreground">{projected}</span>
                 </span>
               )}
