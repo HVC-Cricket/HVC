@@ -23,11 +23,31 @@
  *   lbw Prasanna                     → no fielder credit
  *   retired hurt / not out / ""      → no fielder credit
  *
- * Name matching is case-insensitive exact. Ambiguous names (multiple
- * players normalise to the same key) silently skip — better to miss
- * a few credits than to attribute wrong ones. Unmatched names also
- * skip silently. Both cases are acceptable: the FIELD leaderboards
- * are "best-effort historical" rather than "complete".
+ * Name matching strategy — TWO PASSES:
+ *
+ *   1. **Per-match roster** (primary). For each dismissal, look up
+ *      the parsed name inside the SAME match's rosters — the
+ *      cricheroes-original `player_name` columns on
+ *      historical_match_batting + historical_match_bowling. Both
+ *      tables preserve cricheroes' canonical naming at import time
+ *      AND point at the player's current UUID (which is the merged
+ *      survivor when dupes were dedupe'd in our app). This handles
+ *      every case where the player got renamed in our app or
+ *      multiple cricheroes IDs were merged into one UUID — the
+ *      cricheroes name still resolves through historical_match_*.
+ *
+ *   2. **Global fallback** (secondary). If the per-match lookup
+ *      finds nothing — typically because the fielder didn't bat OR
+ *      bowl in this match (only fielded) — fall back to a
+ *      case-insensitive exact match against the whole players
+ *      table's display_name. Captures the few edge cases the
+ *      per-match path misses.
+ *
+ * Ambiguous names (multiple rows in the same match normalise to
+ * the same key, OR multiple global players do) silently skip
+ * rather than risk a wrong credit. "sub" / "subs" / "substitute"
+ * fielders skip too — cricheroes doesn't credit them to a real
+ * player.
  */
 
 export type ParsedFielderCredit = {
@@ -43,6 +63,12 @@ type DismissalRow = {
   how_to_out: string | null;
 };
 
+type RosterRow = {
+  match_id: string;
+  player_id: string | null;
+  player_name: string;
+};
+
 const CATCH_RE = /^c\s+†?\s*(.+?)\s+b\s+/i;
 const C_AND_B_RE = /^c&b\s+(.+)$/i;
 const STUMPED_RE = /^st\s+†?\s*(.+?)\s+b\s+/i;
@@ -50,21 +76,68 @@ const RUN_OUT_RE = /^run\s*-?\s*out(?:\s+(.+?))?\s*(?:\(.*\))?$/i;
 
 /**
  * Lower-case, trim, collapse whitespace, strip the cricheroes
- * keeper-marker dagger. Both the players-table key AND the parsed
- * dismissal name go through this — no asymmetry.
+ * keeper-marker dagger AND any leading "(sub)" / "sub " prefix.
+ * Both the lookup keys AND the parsed dismissal name go through
+ * this — no asymmetry.
  */
 function normalize(name: string): string {
   return name
     .replace(/†/g, "")
+    .replace(/^\(?sub\)?\s+/i, "")
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
 }
 
 /**
- * Build a `normalised name -> player_id` index. When two players
- * normalise to the same key (e.g., two "Sridhar"s), the entry is
- * `"ambiguous"` and downstream resolution skips that name entirely.
+ * Per-match lookup of `normalised cricheroes name -> player UUID`.
+ * Built from both teams' historical_match_batting + bowling rosters
+ * (so a fielder who only bowled in the innings still resolves, and
+ * a fielder who batted in the other innings still resolves). When
+ * two rows in the same match normalise to the same key, the entry
+ * is `"ambiguous"` and downstream resolution skips it.
+ */
+export type MatchRosters = Map<string, Map<string, string | "ambiguous">>;
+
+export function buildMatchRosters(
+  battingRows: RosterRow[],
+  bowlingRows: RosterRow[],
+): MatchRosters {
+  const out: MatchRosters = new Map();
+  const set = (
+    matchId: string,
+    name: string | null | undefined,
+    pid: string | null | undefined,
+  ) => {
+    if (!name || !pid) return;
+    const key = normalize(name);
+    if (!key) return;
+    let m = out.get(matchId);
+    if (!m) {
+      m = new Map();
+      out.set(matchId, m);
+    }
+    const existing = m.get(key);
+    if (existing === undefined) {
+      m.set(key, pid);
+    } else if (existing !== pid) {
+      // Two different player_ids share this name within the match —
+      // marks the key ambiguous so we don't guess wrong.
+      m.set(key, "ambiguous");
+    }
+    // Same pid twice (bat + bowl roster overlap) is fine; keep the value.
+  };
+  for (const r of battingRows) set(r.match_id, r.player_name, r.player_id);
+  for (const r of bowlingRows) set(r.match_id, r.player_name, r.player_id);
+  return out;
+}
+
+/**
+ * Global `normalised display_name -> player UUID` lookup, used as
+ * the fallback when per-match resolution misses (typically a
+ * pure-fielder who didn't bat or bowl in the match). Same
+ * normalisation as the per-match path so a hit on either side
+ * means the same thing.
  */
 export function buildPlayerNameLookup(
   players: { id: string; display_name: string }[],
@@ -74,10 +147,11 @@ export function buildPlayerNameLookup(
     if (!p.display_name) continue;
     const key = normalize(p.display_name);
     if (!key) continue;
-    if (lookup.has(key)) {
-      lookup.set(key, "ambiguous");
-    } else {
+    const existing = lookup.get(key);
+    if (existing === undefined) {
       lookup.set(key, p.id);
+    } else if (existing !== p.id) {
+      lookup.set(key, "ambiguous");
     }
   }
   return lookup;
@@ -85,32 +159,53 @@ export function buildPlayerNameLookup(
 
 function resolve(
   name: string,
-  lookup: Map<string, string | "ambiguous">,
+  matchId: string,
+  rosters: MatchRosters,
+  globalLookup: Map<string, string | "ambiguous">,
 ): string | null {
   const key = normalize(name);
   if (!key) return null;
-  const v = lookup.get(key);
-  if (v === undefined || v === "ambiguous") return null;
-  return v;
+  if (key === "sub" || key === "subs" || key === "substitute") return null;
+
+  // Per-match first — handles renames + merges since
+  // historical_match_*.player_name preserves cricheroes' original
+  // naming and player_id already points at the merged UUID.
+  const matchMap = rosters.get(matchId);
+  if (matchMap) {
+    const v = matchMap.get(key);
+    if (v === "ambiguous") return null;
+    if (v) return v;
+  }
+
+  // Fallback — global display_name match. A few credits land here
+  // (e.g. fielders who never batted in any S1–S6 match but did
+  // field). Still strict: ambiguous global keys also skip.
+  const g = globalLookup.get(key);
+  if (g === "ambiguous") return null;
+  if (g) return g;
+
+  return null;
 }
 
 export function parseHistoricalFielders(
   rows: DismissalRow[],
-  lookup: Map<string, string | "ambiguous">,
+  rosters: MatchRosters,
+  globalLookup: Map<string, string | "ambiguous">,
 ): ParsedFielderCredit[] {
   const credits: ParsedFielderCredit[] = [];
   for (const r of rows) {
     const how = (r.how_to_out ?? "").trim();
     if (!how) continue;
     const lc = how.toLowerCase();
-    if (lc === "not out" || lc === "retired hurt") continue;
+    if (lc === "not out" || lc === "retired hurt" || lc === "retired")
+      continue;
 
     // Catch — checked before run-out / stumped because "c Foo b Bar"
     // is the most common shape. CATCH_RE doesn't match "c&b X"
     // because `c\s+` requires whitespace, not an ampersand.
     let m = CATCH_RE.exec(how);
     if (m) {
-      const pid = resolve(m[1], lookup);
+      const pid = resolve(m[1], r.match_id, rosters, globalLookup);
       if (pid) {
         credits.push({
           match_id: r.match_id,
@@ -125,7 +220,7 @@ export function parseHistoricalFielders(
     // Caught and bowled — the bowler gets the catch credit.
     m = C_AND_B_RE.exec(how);
     if (m) {
-      const pid = resolve(m[1], lookup);
+      const pid = resolve(m[1], r.match_id, rosters, globalLookup);
       if (pid) {
         credits.push({
           match_id: r.match_id,
@@ -140,7 +235,7 @@ export function parseHistoricalFielders(
     // Stumped — only the keeper gets the credit.
     m = STUMPED_RE.exec(how);
     if (m) {
-      const pid = resolve(m[1], lookup);
+      const pid = resolve(m[1], r.match_id, rosters, globalLookup);
       if (pid) {
         credits.push({
           match_id: r.match_id,
@@ -159,7 +254,7 @@ export function parseHistoricalFielders(
     if (m && m[1]) {
       const names = m[1].split(/\s*\/\s*/);
       for (const name of names) {
-        const pid = resolve(name, lookup);
+        const pid = resolve(name, r.match_id, rosters, globalLookup);
         if (pid) {
           credits.push({
             match_id: r.match_id,

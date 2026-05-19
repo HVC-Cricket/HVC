@@ -14,6 +14,7 @@ import {
   type PerInnBowl,
 } from "@/lib/stats/aggregate";
 import {
+  buildMatchRosters,
   buildPlayerNameLookup,
   parseHistoricalFielders,
 } from "@/lib/stats/historical-fielders";
@@ -122,6 +123,7 @@ export async function CareerStats() {
       innings_number: number;
       batting_team_id: string;
       player_id: string | null;
+      player_name: string;
       runs: number;
       balls_faced: number;
       fours: number;
@@ -132,7 +134,10 @@ export async function CareerStats() {
       supabase
         .from("historical_match_batting")
         .select(
-          "match_id, innings_number, batting_team_id, player_id, runs, balls_faced, fours, sixes, is_out, how_to_out",
+          // player_name preserves the cricheroes-original spelling
+          // (used by the per-match fielder lookup to bridge renames
+          // and merges in our players table).
+          "match_id, innings_number, batting_team_id, player_id, player_name, runs, balls_faced, fours, sixes, is_out, how_to_out",
         )
         .in("match_id", matchIds)
         .range(from, to),
@@ -142,6 +147,7 @@ export async function CareerStats() {
       innings_number: number;
       bowling_team_id: string;
       player_id: string | null;
+      player_name: string;
       wickets: number;
       runs: number;
       dots: number;
@@ -151,7 +157,7 @@ export async function CareerStats() {
       supabase
         .from("historical_match_bowling")
         .select(
-          "match_id, innings_number, bowling_team_id, player_id, wickets, runs, dots, maidens, overs",
+          "match_id, innings_number, bowling_team_id, player_id, player_name, wickets, runs, dots, maidens, overs",
         )
         .in("match_id", matchIds)
         .range(from, to),
@@ -462,13 +468,27 @@ export async function CareerStats() {
     if (agg) agg.matches = s.size;
   }
 
-  // Historical fielding — parse the cricheroes dismissal text out of
-  // `historical_match_batting.how_to_out` and credit fielders by
-  // name. Names are matched case-insensitive exact against
-  // `players.display_name`; ambiguous / unmatched names silently
-  // skip (best-effort historical). Same FieldAgg shape so the
-  // downstream leaderboard builder treats live and historical
-  // credits identically.
+  // Historical fielding — parse the cricheroes dismissal text out
+  // of `historical_match_batting.how_to_out` and credit fielders by
+  // name. PRIMARY lookup is per-match: the same match's
+  // historical_match_batting + bowling rosters map cricheroes-
+  // original `player_name` to the current `player_id` UUID, which
+  // already accounts for any renames or merges that happened in
+  // our players table since import. Global display_name lookup is
+  // a fallback for the rare fielder who never batted or bowled in
+  // the match.
+  const matchRosters = buildMatchRosters(
+    hbBat.map((r) => ({
+      match_id: r.match_id,
+      player_id: r.player_id,
+      player_name: r.player_name,
+    })),
+    hbBowl.map((r) => ({
+      match_id: r.match_id,
+      player_id: r.player_id,
+      player_name: r.player_name,
+    })),
+  );
   const nameLookup = buildPlayerNameLookup(
     Array.from(playerById.values()).map((p) => ({
       id: p.id,
@@ -481,6 +501,7 @@ export async function CareerStats() {
       innings_number: r.innings_number,
       how_to_out: r.how_to_out ?? null,
     })),
+    matchRosters,
     nameLookup,
   );
   // Track distinct matches per fielder for the "M" column on the
