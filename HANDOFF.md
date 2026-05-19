@@ -39,6 +39,27 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**Follow-up #7 (same day) — Highlight card redesign + in-app preview modal with download.**
+
+Two issues with the v1 highlight: (a) the OG image used a green accent that didn't match the app's cricket-blue theme, (b) clicking the Highlight button popped the PNG into a raw new tab — no preview affordance, no obvious way to save the file other than right-click on a bare image.
+
+**Visual refresh** (`src/app/api/og/match/[matchId]/route.tsx`):
+- Palette switched from green (`#22c55e`) to the app's cricket-blue family — primary `#3b82f6` for stat accents + secondary glow, deep `#1e4fa3` for the HVC monogram block, gold `#f5c451` for the winner treatment (winner pill + WINNER ribbon above the winning team card).
+- Background is now a layered composition: 135° navy gradient `#0b1730 → #13244a → #0b1730` plus two soft radial glows (top-left blue, bottom-right gold) and a 4px gradient rule along the top edge that fades blue → gold so the brand colours read even at thumbnail sizes.
+- Header restructured into a 3-line block (`MATCH HIGHLIGHT` micro-eyebrow → tournament name in bold → "Match N · M overs a side" caption) on the left and an HVC monogram tile + "HEROES / Box Cricket" lockup on the right — replaces the bare uppercase-letterspaced tournament-name strip.
+- Team cards: 18px-radius pills with a subtle 155° gradient fill (blue tint for non-winner, gold tint for winner), a floating "WINNER" chip on the winner card, a centered round `vs` pip between them, and a 64pt tabular-numeric score that's noticeably more legible than the previous 52pt.
+- Stat cards gained a left accent bar (blue for batter/bowler, gold for Match Pulse) and the label text now picks up the accent colour so each card carries its own visual identity instead of three identical surfaces.
+
+**Preview modal** (`src/app/matches/[matchId]/highlight-dialog.tsx`, new):
+- Replaces the inline `<a target="_blank">` wrapper with a `Dialog` triggered by the same Sparkles button. Dialog body locks a 1200/630 aspect-ratio container and renders the OG PNG via plain `<img>` (no `next/image` — the route is dynamic and we don't want optimisation rewriting the URL).
+- Two action buttons in the footer: **Download PNG** (fetches the route with `cache: "no-store"`, builds a Blob, triggers a synthetic `<a download>` click, revokes the object URL after) + **Open in new tab** (fallback for users who want the bare URL to share or right-click). The download filename is built from `hvc-match-<N>-<a_short>-vs-<b_short>-highlight.png`.
+- Each time the dialog opens, the `src` is cache-busted with a `?v=<n>` counter so a re-record-and-reopen always shows the freshest render rather than the route's 2-minute `s-maxage` copy.
+- Trigger uses `DialogTrigger render={(props) => <Button {...props}>}` — the Base UI pattern already in use at `src/app/admins/members-table.tsx:495`. Not the `<a>` wrapper anymore, so no new tab.
+
+`src/app/matches/[matchId]/page.tsx` swaps the anchor for `<HighlightDialog matchId={...} matchNumber={...} teamAShort={...} teamBShort={...} />` and drops the now-unused `Sparkles` import.
+
+3 files / +280 / −15 LOC.
+
 **2026-05-19 (batch 42) — Highlight reel generator (PNG via `next/og`).** New route `/api/og/match/<matchId>` streams a 1200×630 PNG summary of a match: tournament + match number header, both team scores with the winner highlighted, result pill, and a 3-card stat strip (top batter, top bowler, match boundaries/wickets). Computed at request time from `balls` (reusing `computeBowlerStats` from `src/lib/scoring/stats.ts` so wicket-credit rules stay in one place) with a 2-minute `cache-control` so subsequent fetches don't re-walk the table.
 
 Admin entry point: a new "Highlight cards" card on the **Matches** tab listing the 10 most recently completed matches with a "Highlight ↗" button that opens the PNG in a new tab. Open the URL in WhatsApp / Twitter and the OG image tags will give it a native link preview.

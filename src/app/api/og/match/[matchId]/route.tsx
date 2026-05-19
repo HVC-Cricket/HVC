@@ -7,11 +7,27 @@ export const dynamic = "force-dynamic";
 
 const WIDTH = 1200;
 const HEIGHT = 630;
-const BG = "linear-gradient(135deg, #0a0f1f 0%, #0f1f3a 100%)";
-const ACCENT = "#22c55e";
-const ACCENT_SOFT = "rgba(34, 197, 94, 0.12)";
-const MUTED = "#94a3b8";
+
+// Cricket-blue palette tuned to match the app's --primary token. The
+// satori subset can't read CSS variables, so the OKLCH values from
+// globals.css are converted to fixed hex/rgba here.
+const BG_DEEP = "#0b1730";
+const BG_MID = "#13244a";
+const BG = `linear-gradient(135deg, ${BG_DEEP} 0%, ${BG_MID} 55%, ${BG_DEEP} 100%)`;
+
+const BLUE = "#3b82f6";
+const BLUE_DEEP = "#1e4fa3";
+const BLUE_SOFT = "rgba(59, 130, 246, 0.15)";
+const BLUE_LINE = "rgba(59, 130, 246, 0.45)";
+
+const GOLD = "#f5c451";
+const GOLD_SOFT = "rgba(245, 196, 81, 0.16)";
+const GOLD_LINE = "rgba(245, 196, 81, 0.55)";
+
 const TEXT = "#f1f5f9";
+const MUTED = "#94a3b8";
+const SURFACE = "rgba(255,255,255,0.04)";
+const SURFACE_LINE = "rgba(255,255,255,0.10)";
 
 type MatchRow = {
   id: string;
@@ -240,6 +256,7 @@ export async function GET(
         : match.result_type === "no_result"
           ? "No result"
           : "Result pending";
+  const hasWinner = Boolean(winnerShort);
 
   const hasStats = balls.length > 0;
 
@@ -254,148 +271,306 @@ export async function GET(
           background: BG,
           color: TEXT,
           fontFamily: "system-ui, sans-serif",
-          padding: 36,
+          position: "relative",
         }}
       >
-        {/* HEADER */}
+        {/* Soft radial glow — gives the canvas some depth instead of a flat gradient. */}
+        <div
+          style={{
+            position: "absolute",
+            top: -260,
+            left: -180,
+            width: 720,
+            height: 720,
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgba(59,130,246,0.25) 0%, rgba(59,130,246,0) 70%)",
+            display: "flex",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: -300,
+            right: -200,
+            width: 720,
+            height: 720,
+            borderRadius: "50%",
+            background:
+              "radial-gradient(circle, rgba(245,196,81,0.18) 0%, rgba(245,196,81,0) 70%)",
+            display: "flex",
+          }}
+        />
+        {/* Thin accent rule along the top edge. */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 4,
+            background: `linear-gradient(90deg, ${BLUE_DEEP} 0%, ${BLUE} 50%, ${GOLD} 100%)`,
+            display: "flex",
+          }}
+        />
+
         <div
           style={{
             display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
+            flexDirection: "column",
+            width: "100%",
+            height: "100%",
+            padding: "32px 44px 32px 44px",
+            position: "relative",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <span
-              style={{
-                fontSize: 20,
-                color: MUTED,
-                textTransform: "uppercase",
-                letterSpacing: 3,
-              }}
-            >
-              {match.tournament.name}
-            </span>
-            <span style={{ fontSize: 16, color: MUTED, marginTop: 2 }}>
-              Match {match.match_number} · {match.overs_per_innings} overs
-            </span>
-          </div>
+          {/* HEADER */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              padding: "6px 14px",
-              border: `2px solid ${ACCENT}`,
-              borderRadius: 8,
-              fontSize: 18,
-              fontWeight: 800,
-              color: ACCENT,
-              letterSpacing: 2,
+              justifyContent: "space-between",
             }}
           >
-            HVC HEROES
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <span
+                style={{
+                  fontSize: 13,
+                  color: BLUE,
+                  textTransform: "uppercase",
+                  letterSpacing: 4,
+                  fontWeight: 700,
+                }}
+              >
+                Match Highlight
+              </span>
+              <span
+                style={{
+                  fontSize: 26,
+                  color: TEXT,
+                  marginTop: 2,
+                  fontWeight: 700,
+                  letterSpacing: 0.3,
+                }}
+              >
+                {match.tournament.name}
+              </span>
+              <span
+                style={{
+                  fontSize: 14,
+                  color: MUTED,
+                  marginTop: 2,
+                  letterSpacing: 1,
+                }}
+              >
+                Match {match.match_number} · {match.overs_per_innings} overs a side
+              </span>
+            </div>
+
+            {/* HVC monogram badge */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 56,
+                  height: 56,
+                  borderRadius: 12,
+                  background: BLUE_DEEP,
+                  border: `1px solid ${BLUE_LINE}`,
+                  fontSize: 22,
+                  fontWeight: 800,
+                  color: TEXT,
+                  letterSpacing: -1,
+                }}
+              >
+                HVC
+              </div>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <span
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 800,
+                    color: TEXT,
+                    letterSpacing: 1,
+                  }}
+                >
+                  HEROES
+                </span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: MUTED,
+                    textTransform: "uppercase",
+                    letterSpacing: 2,
+                    marginTop: 1,
+                  }}
+                >
+                  Box Cricket
+                </span>
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* SCORES */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-around",
-            marginTop: 18,
-            marginBottom: 14,
-          }}
-        >
-          <TeamBlock
-            shortName={match.team_a.short_name}
-            fullName={match.team_a.name}
-            innings={teamAInn}
-            isWinner={isAWinner}
-          />
-          <span style={{ fontSize: 30, color: MUTED, fontWeight: 700 }}>
-            vs
-          </span>
-          <TeamBlock
-            shortName={match.team_b.short_name}
-            fullName={match.team_b.name}
-            innings={teamBInn}
-            isWinner={isBWinner}
-          />
-        </div>
-
-        {/* RESULT */}
-        <div
-          style={{
-            display: "flex",
-            alignSelf: "center",
-            padding: "10px 28px",
-            background: ACCENT_SOFT,
-            border: `1px solid ${ACCENT}`,
-            borderRadius: 999,
-            marginBottom: 16,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 24,
-              fontWeight: 700,
-              color: ACCENT,
-            }}
-          >
-            {resultLine}
-          </span>
-        </div>
-
-        {/* STAT STRIP */}
-        {hasStats && (
+          {/* SCORES */}
           <div
             style={{
               display: "flex",
-              gap: 12,
-              marginTop: "auto",
+              alignItems: "stretch",
+              justifyContent: "center",
+              gap: 22,
+              marginTop: 24,
             }}
           >
-            {topBatter && (
-              <StatCard
-                label="Top Batter"
-                title={nameById.get(topBatter[0]) ?? "Unknown"}
-                value={`${topBatter[1].runs} (${topBatter[1].balls_faced})`}
-                sub={`${topBatter[1].fours}×4 · ${topBatter[1].sixes}×6`}
-              />
-            )}
-            {topBowler && (
-              <StatCard
-                label="Top Bowler"
-                title={nameById.get(topBowler.id) ?? "Unknown"}
-                value={`${topBowler.stats.wickets}/${topBowler.stats.runs_conceded}`}
-                sub={`${oversFromBalls(topBowler.stats.legal_balls)} ov · ${topBowler.stats.dots} dots`}
-              />
-            )}
-            <StatCard
-              label="Match"
-              title={`${total4 + total6} boundaries`}
-              value={`${total4}×4 · ${total6}×6`}
-              sub={`${totalWkts} wickets fell`}
+            <TeamBlock
+              shortName={match.team_a.short_name}
+              fullName={match.team_a.name}
+              innings={teamAInn}
+              isWinner={isAWinner}
+            />
+
+            {/* Center "vs" pip */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 80,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 56,
+                  height: 56,
+                  borderRadius: "50%",
+                  background: SURFACE,
+                  border: `1px solid ${SURFACE_LINE}`,
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: MUTED,
+                  letterSpacing: 1,
+                }}
+              >
+                vs
+              </div>
+            </div>
+
+            <TeamBlock
+              shortName={match.team_b.short_name}
+              fullName={match.team_b.name}
+              innings={teamBInn}
+              isWinner={isBWinner}
             />
           </div>
-        )}
-        {!hasStats && (
+
+          {/* RESULT */}
           <div
             style={{
               display: "flex",
-              marginTop: "auto",
-              padding: 14,
-              borderRadius: 12,
-              background: "rgba(148, 163, 184, 0.08)",
-              border: "1px solid rgba(148, 163, 184, 0.2)",
+              alignSelf: "center",
+              alignItems: "center",
+              gap: 12,
+              padding: "10px 24px",
+              background: hasWinner ? GOLD_SOFT : SURFACE,
+              border: `1px solid ${hasWinner ? GOLD_LINE : SURFACE_LINE}`,
+              borderRadius: 999,
+              marginTop: 18,
             }}
           >
-            <span style={{ fontSize: 16, color: MUTED }}>
-              Ball-by-ball stats not available for this match.
+            {hasWinner && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 22,
+                  height: 22,
+                  borderRadius: "50%",
+                  background: GOLD,
+                  color: BG_DEEP,
+                  fontSize: 13,
+                  fontWeight: 900,
+                }}
+              >
+                ★
+              </div>
+            )}
+            <span
+              style={{
+                fontSize: 22,
+                fontWeight: 800,
+                color: hasWinner ? GOLD : TEXT,
+                letterSpacing: 0.5,
+              }}
+            >
+              {resultLine}
             </span>
           </div>
-        )}
+
+          {/* STAT STRIP */}
+          {hasStats && (
+            <div
+              style={{
+                display: "flex",
+                gap: 14,
+                marginTop: "auto",
+              }}
+            >
+              {topBatter && (
+                <StatCard
+                  label="Top Batter"
+                  title={nameById.get(topBatter[0]) ?? "Unknown"}
+                  value={`${topBatter[1].runs} (${topBatter[1].balls_faced})`}
+                  sub={`${topBatter[1].fours}×4 · ${topBatter[1].sixes}×6`}
+                  accent={BLUE}
+                />
+              )}
+              {topBowler && (
+                <StatCard
+                  label="Top Bowler"
+                  title={nameById.get(topBowler.id) ?? "Unknown"}
+                  value={`${topBowler.stats.wickets}/${topBowler.stats.runs_conceded}`}
+                  sub={`${oversFromBalls(topBowler.stats.legal_balls)} ov · ${topBowler.stats.dots} dots`}
+                  accent={BLUE}
+                />
+              )}
+              <StatCard
+                label="Match Pulse"
+                title={`${total4 + total6} boundaries`}
+                value={`${total4}×4 · ${total6}×6`}
+                sub={`${totalWkts} wickets fell`}
+                accent={GOLD}
+              />
+            </div>
+          )}
+          {!hasStats && (
+            <div
+              style={{
+                display: "flex",
+                marginTop: "auto",
+                padding: 14,
+                borderRadius: 12,
+                background: SURFACE,
+                border: `1px solid ${SURFACE_LINE}`,
+              }}
+            >
+              <span style={{ fontSize: 16, color: MUTED }}>
+                Ball-by-ball stats not available for this match.
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     ),
     {
@@ -422,28 +597,55 @@ function TeamBlock({
   const scoreLine = innings
     ? `${innings.total_runs}/${innings.total_wickets}`
     : "—";
-  const oversLine = innings ? `(${oversFromBalls(innings.total_legal_balls)})` : "";
+  const oversLine = innings
+    ? `${oversFromBalls(innings.total_legal_balls)} ov`
+    : "";
+  const borderColor = isWinner ? GOLD_LINE : SURFACE_LINE;
+  const bg = isWinner
+    ? `linear-gradient(155deg, ${GOLD_SOFT} 0%, rgba(245,196,81,0.04) 100%)`
+    : `linear-gradient(155deg, ${BLUE_SOFT} 0%, rgba(59,130,246,0.02) 100%)`;
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        padding: 14,
-        minWidth: 300,
-        borderRadius: 14,
-        background: isWinner ? ACCENT_SOFT : "rgba(255,255,255,0.04)",
-        border: isWinner
-          ? `2px solid ${ACCENT}`
-          : "1px solid rgba(255,255,255,0.08)",
+        justifyContent: "center",
+        padding: "18px 26px",
+        minWidth: 360,
+        borderRadius: 18,
+        background: bg,
+        border: `1.5px solid ${borderColor}`,
+        position: "relative",
       }}
     >
+      {isWinner && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            position: "absolute",
+            top: -12,
+            padding: "3px 12px",
+            background: GOLD,
+            color: BG_DEEP,
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: 2,
+            borderRadius: 999,
+            textTransform: "uppercase",
+          }}
+        >
+          Winner
+        </div>
+      )}
       <span
         style={{
-          fontSize: 46,
+          fontSize: 44,
           fontWeight: 800,
-          color: isWinner ? ACCENT : TEXT,
-          letterSpacing: 2,
+          color: isWinner ? GOLD : TEXT,
+          letterSpacing: 3,
           textTransform: "uppercase",
         }}
       >
@@ -451,29 +653,40 @@ function TeamBlock({
       </span>
       <span
         style={{
-          fontSize: 14,
+          fontSize: 12,
           color: MUTED,
-          marginTop: 0,
           textTransform: "uppercase",
           letterSpacing: 2,
+          marginTop: -2,
         }}
       >
         {fullName}
       </span>
       <span
         style={{
-          fontSize: 52,
-          fontWeight: 800,
+          fontSize: 64,
+          fontWeight: 900,
           color: TEXT,
-          marginTop: 4,
+          marginTop: 6,
           fontVariantNumeric: "tabular-nums",
+          letterSpacing: -1,
         }}
       >
         {scoreLine}
       </span>
-      <span style={{ fontSize: 18, color: MUTED, marginTop: -2 }}>
-        {oversLine}
-      </span>
+      {oversLine && (
+        <span
+          style={{
+            fontSize: 14,
+            color: MUTED,
+            marginTop: 0,
+            letterSpacing: 1,
+            textTransform: "uppercase",
+          }}
+        >
+          {oversLine}
+        </span>
+      )}
     </div>
   );
 }
@@ -483,11 +696,13 @@ function StatCard({
   title,
   value,
   sub,
+  accent,
 }: {
   label: string;
   title: string;
   value: string;
   sub: string;
+  accent: string;
 }) {
   return (
     <div
@@ -495,25 +710,41 @@ function StatCard({
         flex: 1,
         display: "flex",
         flexDirection: "column",
-        padding: 14,
-        borderRadius: 12,
-        background: "rgba(255,255,255,0.04)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        padding: "14px 18px",
+        borderRadius: 14,
+        background: SURFACE,
+        border: `1px solid ${SURFACE_LINE}`,
+        position: "relative",
+        overflow: "hidden",
       }}
     >
+      {/* Left accent bar */}
+      <div
+        style={{
+          position: "absolute",
+          top: 14,
+          bottom: 14,
+          left: 0,
+          width: 3,
+          background: accent,
+          borderRadius: 999,
+          display: "flex",
+        }}
+      />
       <span
         style={{
-          fontSize: 12,
-          color: MUTED,
+          fontSize: 11,
+          color: accent,
           textTransform: "uppercase",
           letterSpacing: 2,
+          fontWeight: 700,
         }}
       >
         {label}
       </span>
       <span
         style={{
-          fontSize: 22,
+          fontSize: 20,
           fontWeight: 700,
           color: TEXT,
           marginTop: 4,
@@ -525,14 +756,15 @@ function StatCard({
         style={{
           fontSize: 26,
           fontWeight: 800,
-          color: ACCENT,
+          color: TEXT,
           marginTop: 2,
           fontVariantNumeric: "tabular-nums",
+          letterSpacing: -0.5,
         }}
       >
         {value}
       </span>
-      <span style={{ fontSize: 13, color: MUTED, marginTop: 2 }}>{sub}</span>
+      <span style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{sub}</span>
     </div>
   );
 }
