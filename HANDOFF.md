@@ -734,6 +734,20 @@ Pick-preservation fix layered on: the balls-length sync used to unconditionally 
 
 Commit `4112d0c`; 1 file / +142 / −12 LOC.
 
+**2026-05-20 — Player photos on leaderboards + team squad rows.** Pavan: "in teams squad add the profile photo" and a separate ask earlier for the leaderboard. Three surfaces gained the same avatar treatment used everywhere else (player list, XI cards, profile header):
+
+1. **`/stats` leaderboards (all-time + per-tournament).** 28px avatar slotted between the rank circle and the player name. `BatAgg` / `BowlAgg` / `FieldAgg` / `MiscAgg` gained optional `photo: string | null`; `newBatAgg` / `newBowlAgg` / `newFieldAgg` take it as a default-null trailing arg (backward-compatible). `LeaderRow.photo` propagates from agg → row.
+
+2. **Mobile layout fix.** With the avatar added, long HVC names like "Pradhdhyumna Kashyap HP (Wk)" started wrapping to 4 lines and misaligning rows against their stat columns. Player column widened (140 → 170px mobile, 200 → 220px sm+) and name wrapped in `line-clamp-2`. Full name still shown on the player profile (one tap from the leaderboard row, since rows are now `<Link>` into `/players/[id]`).
+
+3. **Team squad page** `/tournaments/[slug]/teams/[teamId]`. 36px avatar before each roster row. Reads more like a people page than a database list.
+
+Resolution chain everywhere: `players.photo_url` → linked-user `profiles.avatar_url` via `fetchLinkedAvatars` → initials via `getInitials`. Player fetches in `career-stats.tsx`, `tournament-stats.tsx loadHistoricalStats` + balls-path, and the team page all select `photo_url + linked_user_id`, batch-fetch linked avatars in parallel, and resolve via the existing `resolvePlayerPhoto` helper.
+
+Coverage on prod today: 7% photo_url, 12% linked accounts. Rest render initials and fill in as sign-ups + linking happen during the tournament.
+
+Side fix from earlier: leaderboard rows are now `<Link>` into `/players/[id]` so the All-time ranks card (from batch 2 below) is discoverable from the rank list, not just from the players directory.
+
 **2026-05-19 (batch 3) — Historical fielder accuracy refinement: 84.5% → 100%.** Pavan flagged the first cut of dismissal-text parsing felt inaccurate. Three rounds tightened it to perfect coverage on prod:
 
 1. **Per-match roster lookup (84.5% → 98.9%).** The initial parser matched fielder names against `players.display_name` globally. That misses every player whose name changed in our app (renames) or who was merged from multiple cricheroes IDs into one UUID — "Bharath G S Agasthya" in cricheroes commentary doesn't equal "Bharath Foundry" in our players table, and "Ajith P" + "Ajith P" merged into one row globally registers as ambiguous. Key insight: `historical_match_batting.player_name` AND `historical_match_bowling.player_name` preserve the cricheroes-original name from import time, AND their `player_id` columns already point at the current merged UUID. So `buildMatchRosters(battingRows, bowlingRows)` builds a per-match `match_id → { normalized cricheroes name → UUID }` lookup that handles both renames and merges automatically — no schema change needed. The aggregator falls back to the existing global lookup for fielders absent from both rosters (subs).
