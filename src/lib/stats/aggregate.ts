@@ -49,6 +49,7 @@ export type BatAgg = {
   name: string;
   team: string;
   cat: number | null;
+  photo: string | null;
   matches: number;
   innings: number;
   runs: number;
@@ -69,6 +70,7 @@ export type BowlAgg = {
   name: string;
   team: string;
   cat: number | null;
+  photo: string | null;
   matches: number;
   innings: number;
   wickets: number;
@@ -85,6 +87,7 @@ export type FieldAgg = {
   name: string;
   team: string;
   cat: number | null;
+  photo: string | null;
   matches: number;
   catches: number;
   run_outs: number;
@@ -103,6 +106,7 @@ export type MiscAgg = {
   name: string;
   team: string;
   cat: number | null;
+  photo: string | null;
   matches: number;
   pom: number;
 };
@@ -136,12 +140,14 @@ export function newBatAgg(
   name: string,
   team: string,
   cat: number | null,
+  photo: string | null = null,
 ): BatAgg {
   return {
     player_id,
     name,
     team,
     cat,
+    photo,
     matches: 0,
     innings: 0,
     runs: 0,
@@ -160,12 +166,14 @@ export function newBowlAgg(
   name: string,
   team: string,
   cat: number | null,
+  photo: string | null = null,
 ): BowlAgg {
   return {
     player_id,
     name,
     team,
     cat,
+    photo,
     matches: 0,
     innings: 0,
     wickets: 0,
@@ -183,12 +191,14 @@ export function newFieldAgg(
   name: string,
   team: string,
   cat: number | null,
+  photo: string | null = null,
 ): FieldAgg {
   return {
     player_id,
     name,
     team,
     cat,
+    photo,
     matches: 0,
     catches: 0,
     run_outs: 0,
@@ -257,6 +267,7 @@ export function buildLeaderboards(
     name: r.name,
     team: r.team,
     cat: r.cat,
+    photo: r.photo,
     values,
   });
   const mkBowlRow = (r: BowlAgg, values: string[]): LeaderRow => ({
@@ -264,6 +275,7 @@ export function buildLeaderboards(
     name: r.name,
     team: r.team,
     cat: r.cat,
+    photo: r.photo,
     values,
   });
   const mkFieldRow = (r: FieldAgg, values: string[]): LeaderRow => ({
@@ -271,6 +283,7 @@ export function buildLeaderboards(
     name: r.name,
     team: r.team,
     cat: r.cat,
+    photo: r.photo,
     values,
   });
   const mkMiscRow = (r: MiscAgg, values: string[]): LeaderRow => ({
@@ -278,6 +291,7 @@ export function buildLeaderboards(
     name: r.name,
     team: r.team,
     cat: r.cat,
+    photo: r.photo,
     values,
   });
 

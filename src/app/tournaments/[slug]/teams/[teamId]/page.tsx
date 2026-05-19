@@ -16,7 +16,10 @@ import {
   isTournamentOrganizer,
 } from "@/lib/auth";
 import { formatEnumLabel } from "@/lib/format";
+import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
+import { resolvePlayerPhoto } from "@/lib/players/photo";
 import { createClient } from "@/lib/supabase/server";
+import { getInitials } from "@/lib/utils";
 
 import { AddRosterForm } from "./add-roster-form";
 import { RemoveRosterButton } from "./remove-roster-button";
@@ -58,7 +61,7 @@ export default async function TeamDetailPage(props: {
         : Promise.resolve(false),
       supabase
         .from("players")
-        .select("id, display_name, category")
+        .select("id, display_name, category, photo_url, linked_user_id")
         .order("display_name", { ascending: true }),
       supabase
         .from("team_players")
@@ -84,10 +87,27 @@ export default async function TeamDetailPage(props: {
   // Roster players come from the same `players` table we just fetched
   // wholesale for the picker — no extra query needed.
   const playerIds = (roster ?? []).map((r) => r.player_id);
+  const rosterPlayers = (allPlayers ?? []).filter((p) =>
+    playerIds.includes(p.id),
+  );
+  // Resolve photos for the squad — player_photo OR linked-user
+  // profile.avatar_url, with initials fallback in the row render.
+  const avatarByUserId = await fetchLinkedAvatars(supabase, rosterPlayers);
   const playersById = new Map(
-    (allPlayers ?? [])
-      .filter((p) => playerIds.includes(p.id))
-      .map((p) => [p.id, p]),
+    rosterPlayers.map((p) => [
+      p.id,
+      {
+        id: p.id,
+        display_name: p.display_name,
+        category: p.category,
+        photo: resolvePlayerPhoto({
+          photo_url: p.photo_url,
+          linked_avatar_url: p.linked_user_id
+            ? (avatarByUserId.get(p.linked_user_id) ?? null)
+            : null,
+        }),
+      },
+    ]),
   );
 
   const onRosterIds = new Set(playerIds);
@@ -190,7 +210,23 @@ export default async function TeamDetailPage(props: {
                   const player = playersById.get(r.player_id);
                   return (
                     <li key={r.id} className="flex items-center justify-between gap-3 p-4 text-sm">
-                      <span className="flex items-center gap-2">
+                      <span className="flex min-w-0 items-center gap-3">
+                        {/* Avatar — uploaded player photo OR linked
+                            user's profile avatar OR initials. Same
+                            treatment used on the /players list, XI
+                            cards, leaderboards, etc. */}
+                        {player?.photo ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={player.photo}
+                            alt=""
+                            className="size-9 shrink-0 rounded-full border border-foreground/10 object-cover"
+                          />
+                        ) : (
+                          <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-foreground/10 bg-primary/10 text-xs font-semibold text-primary">
+                            {getInitials(player?.display_name ?? "")}
+                          </span>
+                        )}
                         <span className="font-medium">{player?.display_name ?? "(unknown)"}</span>
                         {player?.category && (
                           <span

@@ -18,6 +18,8 @@ import {
   buildPlayerNameLookup,
   parseHistoricalFielders,
 } from "@/lib/stats/historical-fielders";
+import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
+import { resolvePlayerPhoto } from "@/lib/players/photo";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
 
@@ -176,14 +178,31 @@ export async function TournamentStats({
   const [{ data: players }, { data: teams }] = await Promise.all([
     supabase
       .from("players")
-      .select("id, display_name, category")
+      .select("id, display_name, category, photo_url, linked_user_id")
       .in("id", playerIds),
     supabase
       .from("teams")
       .select("id, short_name")
       .in("id", teamIds),
   ]);
-  const playerById = new Map((players ?? []).map((p) => [p.id, p]));
+  const playerRows = players ?? [];
+  const avatarByUserId = await fetchLinkedAvatars(supabase, playerRows);
+  const playerById = new Map(
+    playerRows.map((p) => [
+      p.id,
+      {
+        id: p.id,
+        display_name: p.display_name,
+        category: p.category,
+        photo: resolvePlayerPhoto({
+          photo_url: p.photo_url,
+          linked_avatar_url: p.linked_user_id
+            ? (avatarByUserId.get(p.linked_user_id) ?? null)
+            : null,
+        }),
+      },
+    ]),
+  );
   const teamShortById = new Map(
     (teams ?? []).map((t) => [t.id, t.short_name]),
   );
@@ -286,7 +305,7 @@ export async function TournamentStats({
     let agg = batPerPlayer.get(pid);
     if (!agg) {
       const teamId = playerToTeam.get(pid)!;
-      agg = newBatAgg(pid, p.display_name, teamShortById.get(teamId) ?? "?", p.category);
+      agg = newBatAgg(pid, p.display_name, teamShortById.get(teamId) ?? "?", p.category, p.photo);
       batPerPlayer.set(pid, agg);
     }
     accumulateBatInnings(agg, b, inningsId);
@@ -300,7 +319,7 @@ export async function TournamentStats({
     let agg = bowlPerPlayer.get(pid);
     if (!agg) {
       const teamId = playerToTeam.get(pid)!;
-      agg = newBowlAgg(pid, p.display_name, teamShortById.get(teamId) ?? "?", p.category);
+      agg = newBowlAgg(pid, p.display_name, teamShortById.get(teamId) ?? "?", p.category, p.photo);
       bowlPerPlayer.set(pid, agg);
     }
     accumulateBowlInnings(agg, b);
@@ -329,7 +348,7 @@ export async function TournamentStats({
       // their innings.bowling_team_id for the team label.
       const teamId =
         playerToTeam.get(creditedTo) ?? inn.bowling_team_id;
-      agg = newFieldAgg(creditedTo, p.display_name, teamShortById.get(teamId) ?? "?", p.category);
+      agg = newFieldAgg(creditedTo, p.display_name, teamShortById.get(teamId) ?? "?", p.category, p.photo);
       fieldPerPlayer.set(creditedTo, agg);
     }
     if (b.wicket_type === "caught" || b.wicket_type === "caught_and_bowled")
@@ -396,6 +415,7 @@ export async function TournamentStats({
       name: p.display_name,
       team: teamId ? (teamShortById.get(teamId) ?? "?") : "?",
       cat: p.category,
+      photo: p.photo,
       matches: matchesByPlayer.get(pid)?.size ?? 0,
       pom: pomByPlayer.get(pid) ?? 0,
     });
@@ -577,11 +597,28 @@ async function loadHistoricalStats(
   const [{ data: players }, { data: teams }] = await Promise.all([
     supabase
       .from("players")
-      .select("id, display_name, category")
+      .select("id, display_name, category, photo_url, linked_user_id")
       .limit(5000),
     supabase.from("teams").select("id, short_name").in("id", teamIds),
   ]);
-  const playerById = new Map((players ?? []).map((p) => [p.id, p]));
+  const playerRows = players ?? [];
+  const avatarByUserId = await fetchLinkedAvatars(supabase, playerRows);
+  const playerById = new Map(
+    playerRows.map((p) => [
+      p.id,
+      {
+        id: p.id,
+        display_name: p.display_name,
+        category: p.category,
+        photo: resolvePlayerPhoto({
+          photo_url: p.photo_url,
+          linked_avatar_url: p.linked_user_id
+            ? (avatarByUserId.get(p.linked_user_id) ?? null)
+            : null,
+        }),
+      },
+    ]),
+  );
   const teamShortById = new Map(
     (teams ?? []).map((t) => [t.id, t.short_name]),
   );
@@ -600,7 +637,7 @@ async function loadHistoricalStats(
     let agg = batPerPlayer.get(pid);
     if (!agg) {
       const teamId = playerToTeam.get(pid)!;
-      agg = newBatAgg(pid, p.display_name, teamShortById.get(teamId) ?? "?", p.category);
+      agg = newBatAgg(pid, p.display_name, teamShortById.get(teamId) ?? "?", p.category, p.photo);
       batPerPlayer.set(pid, agg);
     }
     accumulateBatInnings(agg, b, inningsId);
@@ -613,7 +650,7 @@ async function loadHistoricalStats(
     let agg = bowlPerPlayer.get(pid);
     if (!agg) {
       const teamId = playerToTeam.get(pid)!;
-      agg = newBowlAgg(pid, p.display_name, teamShortById.get(teamId) ?? "?", p.category);
+      agg = newBowlAgg(pid, p.display_name, teamShortById.get(teamId) ?? "?", p.category, p.photo);
       bowlPerPlayer.set(pid, agg);
     }
     accumulateBowlInnings(agg, b);
@@ -703,6 +740,7 @@ async function loadHistoricalStats(
         p.display_name,
         teamId ? (teamShortById.get(teamId) ?? "?") : "?",
         p.category,
+        p.photo,
       );
       fieldPerPlayer.set(c.player_id, agg);
     }
@@ -775,6 +813,7 @@ async function loadHistoricalStats(
       name: p.display_name,
       team: teamId ? (teamShortById.get(teamId) ?? "?") : "?",
       cat: p.category,
+      photo: p.photo,
       matches: matchesByPlayer.get(pid)?.size ?? 0,
       pom: pomByPlayer.get(pid) ?? 0,
     });

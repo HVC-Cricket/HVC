@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { getInitials } from "@/lib/utils";
+
 import {
   Card,
   CardContent,
@@ -20,6 +22,11 @@ export type LeaderRow = {
   name: string;
   team: string;
   cat: number | null;
+  /** Resolved player photo (own upload OR linked profile avatar)
+   *  for the avatar circle. Null falls back to initials. Resolved
+   *  by the caller via `resolvePlayerPhoto` so the view doesn't
+   *  need to know about the linked-user lookup. */
+  photo: string | null;
   /** Stat values, one per column in the parent table's `cols` array. */
   values: string[];
 };
@@ -316,7 +323,7 @@ function LeaderTable({
                   <tr className="border-b border-foreground/10 text-[10px] uppercase tracking-wide text-muted-foreground">
                     <th
                       scope="col"
-                      className="sticky left-0 z-10 w-[140px] max-w-[140px] bg-card px-3 py-2 text-left font-medium sm:w-[200px] sm:max-w-[200px]"
+                      className="sticky left-0 z-10 w-[170px] max-w-[170px] bg-card px-3 py-2 text-left font-medium sm:w-[220px] sm:max-w-[220px]"
                     >
                       Player
                     </th>
@@ -341,9 +348,9 @@ function LeaderTable({
                       >
                         <th
                           scope="row"
-                          className="sticky left-0 z-10 w-[140px] max-w-[140px] bg-card px-3 py-2 text-left font-normal sm:w-[200px] sm:max-w-[200px]"
+                          className="sticky left-0 z-10 w-[170px] max-w-[170px] bg-card px-3 py-2 text-left font-normal sm:w-[220px] sm:max-w-[220px]"
                         >
-                          <div className="flex items-start gap-2">
+                          <div className="flex items-start gap-1.5">
                             <span
                               className={
                                 "mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-semibold tabular-nums " +
@@ -354,12 +361,36 @@ function LeaderTable({
                             >
                               {globalRank}
                             </span>
+                            {/* Avatar — uploaded player_photo OR linked-
+                                user avatar OR initials fallback. Same
+                                visual treatment as everywhere else in
+                                the app (player list, XI cards, profile
+                                header) so the leaderboard feels at home
+                                with the rest of the UI. */}
+                            {r.photo ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={r.photo}
+                                alt=""
+                                className="size-7 shrink-0 rounded-full border border-foreground/10 object-cover"
+                              />
+                            ) : (
+                              <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-foreground/10 bg-primary/10 text-[9px] font-semibold text-primary">
+                                {getInitials(r.name)}
+                              </span>
+                            )}
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0">
                                 <Link
                                   href={`/players/${r.player_id}`}
                                   prefetch
-                                  className="font-medium capitalize leading-tight break-words hover:underline"
+                                  // Two-line clamp keeps rows
+                                  // visually aligned even when names
+                                  // like "Pradhdhyumna Kashyap HP
+                                  // (Wk)" overflow — full name
+                                  // remains readable inside the
+                                  // profile link.
+                                  className="line-clamp-2 break-words font-medium capitalize leading-tight hover:underline"
                                 >
                                   {r.name}
                                 </Link>

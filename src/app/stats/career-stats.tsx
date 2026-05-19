@@ -18,6 +18,8 @@ import {
   buildPlayerNameLookup,
   parseHistoricalFielders,
 } from "@/lib/stats/historical-fielders";
+import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
+import { resolvePlayerPhoto } from "@/lib/players/photo";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
 
@@ -373,11 +375,30 @@ export async function CareerStats() {
   const [{ data: players }, { data: teams }] = await Promise.all([
     supabase
       .from("players")
-      .select("id, display_name, category")
+      .select("id, display_name, category, photo_url, linked_user_id")
       .limit(5000),
     supabase.from("teams").select("id, short_name").in("id", teamIds),
   ]);
-  const playerById = new Map((players ?? []).map((p) => [p.id, p]));
+  const playerRows = players ?? [];
+  // Batch-fetch linked-account avatars so a signed-up player without
+  // their own photo_url still gets their face on the leaderboard.
+  const avatarByUserId = await fetchLinkedAvatars(supabase, playerRows);
+  const playerById = new Map(
+    playerRows.map((p) => [
+      p.id,
+      {
+        id: p.id,
+        display_name: p.display_name,
+        category: p.category,
+        photo: resolvePlayerPhoto({
+          photo_url: p.photo_url,
+          linked_avatar_url: p.linked_user_id
+            ? (avatarByUserId.get(p.linked_user_id) ?? null)
+            : null,
+        }),
+      },
+    ]),
+  );
   const teamShortById = new Map(
     (teams ?? []).map((t) => [t.id, t.short_name]),
   );
@@ -399,6 +420,7 @@ export async function CareerStats() {
         p.display_name,
         teamShortById.get(teamId) ?? "?",
         p.category,
+        p.photo,
       );
       batPerPlayer.set(pid, agg);
     }
@@ -417,6 +439,7 @@ export async function CareerStats() {
         p.display_name,
         teamShortById.get(teamId) ?? "?",
         p.category,
+        p.photo,
       );
       bowlPerPlayer.set(pid, agg);
     }
@@ -449,6 +472,7 @@ export async function CareerStats() {
         p.display_name,
         teamShortById.get(teamId) ?? "?",
         p.category,
+        p.photo,
       );
       fieldPerPlayer.set(creditedTo, agg);
     }
@@ -517,6 +541,7 @@ export async function CareerStats() {
         p.display_name,
         teamId ? (teamShortById.get(teamId) ?? "?") : "?",
         p.category,
+        p.photo,
       );
       fieldPerPlayer.set(c.player_id, agg);
     }
@@ -588,6 +613,7 @@ export async function CareerStats() {
       name: p.display_name,
       team: teamId ? (teamShortById.get(teamId) ?? "?") : "?",
       cat: p.category,
+      photo: p.photo,
       matches: matchesByPlayer.get(pid)?.size ?? 0,
       pom: pomByPlayer.get(pid) ?? 0,
     });
