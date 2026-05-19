@@ -734,6 +734,20 @@ Pick-preservation fix layered on: the balls-length sync used to unconditionally 
 
 Commit `4112d0c`; 1 file / +142 / −12 LOC.
 
+**2026-05-19 (batch 3) — Historical fielder accuracy refinement: 84.5% → 100%.** Pavan flagged the first cut of dismissal-text parsing felt inaccurate. Three rounds tightened it to perfect coverage on prod:
+
+1. **Per-match roster lookup (84.5% → 98.9%).** The initial parser matched fielder names against `players.display_name` globally. That misses every player whose name changed in our app (renames) or who was merged from multiple cricheroes IDs into one UUID — "Bharath G S Agasthya" in cricheroes commentary doesn't equal "Bharath Foundry" in our players table, and "Ajith P" + "Ajith P" merged into one row globally registers as ambiguous. Key insight: `historical_match_batting.player_name` AND `historical_match_bowling.player_name` preserve the cricheroes-original name from import time, AND their `player_id` columns already point at the current merged UUID. So `buildMatchRosters(battingRows, bowlingRows)` builds a per-match `match_id → { normalized cricheroes name → UUID }` lookup that handles both renames and merges automatically — no schema change needed. The aggregator falls back to the existing global lookup for fielders absent from both rosters (subs).
+
+2. **Strip cricheroes parenthetical suffixes (98.9% → 99.8%).** Roster names carry annotations like "Yashu  (wk)" (wicketkeeper) and "Badri (5a)" (batting slot), but the dismissal text drops the suffix. `normalize()` updated to strip any trailing `(...)` group on both sides via `replace(/\s*\([^)]*\)\s*$/g, "")` — both lookup keys and parsed dismissal names normalise consistently.
+
+3. **First-name token fallback (99.8% → 100%).** After Pavan merged duplicate "Amith" records into the single "Amith P" UUID, the dismissal text "run out Amith" still doesn't match because the merged record's display_name is "Amith P". Added `byFirstName` map to `GlobalLookup` — seeded with the first token of every player's display_name, marked `"ambiguous"` when two players share a first name. Resolution now tries per-match → global-full-name → global-first-token in order. Cricheroes commentary often shortens to first names; this catches those without false positives because ambiguous tokens still skip.
+
+Verification: Python simulation against the cricheroes CSVs walked the regex + lookup chain against all 626 fielder-bearing dismissals on prod. Coverage chain: 84.5% → 98.9% → 99.8% → **100% (626/626)**. The remaining "edge cases" all resolved at each stage.
+
+**Rename safety for the upcoming tournament.** Documented in conversation as Pavan asked: per-match path uses `historical_match_batting.player_name` (frozen at import time) + `player_id` (live FK, follows merges). So renaming in the app post-import doesn't break credits — they continue to flow to whatever UUID the original cricheroes player_id currently points at. Global first-name fallback only fires for subs and is mostly unaffected by renames (first name usually stays).
+
+Commits `e0d326e` (per-match roster), patches `(b)` and `(c)` rolled into `ded55a6` after Pavan flagged "Amith and Amith P we have merged."
+
 **2026-05-19 (batch 2) — HVC Heroes follow-ups: AWARDS / OTHER split + profile rank badges + historical fielding + Vercel deploy unblock.** Four threads on top of yesterday's `/stats` page (batch 1 below).
 
 1. **AWARDS / OTHER replaces MISC.** Pavan: "MISC is cryptic." Split the catch-all into two purposeful tabs. **AWARDS** holds Most Player-of-the-Match today; future home for Most Player-of-the-Tournament. **OTHER** holds Most Matches Played; future home for any cross-discipline metric. Each section auto-hides when its data is missing — `hasAwards = Boolean(all.topPOM)`, `hasOther = Boolean(all.topMatches)` — independent of FIELD's existing visibility rule.
