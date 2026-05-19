@@ -61,7 +61,7 @@ export type Leaderboards = {
   topPOM?: LeaderboardTable;
 };
 
-type Section = "bat" | "bowl" | "field" | "misc";
+type Section = "bat" | "bowl" | "field" | "awards" | "other";
 
 type StyleOption = {
   id: keyof Leaderboards;
@@ -90,9 +90,11 @@ const STYLE_OPTIONS: StyleOption[] = [
   { id: "topCatches", label: "Most Catches", section: "field" },
   { id: "topRunOuts", label: "Most Run Outs", section: "field" },
   { id: "topStumpings", label: "Most Stumpings", section: "field" },
-  // MISC
-  { id: "topMatches", label: "Most Matches Played", section: "misc" },
-  { id: "topPOM", label: "Most Player-of-the-Match", section: "misc" },
+  // AWARDS — earned recognition. Just POM today; add Player-of-the-
+  // Tournament here later if/when we surface that.
+  { id: "topPOM", label: "Most Player-of-the-Match", section: "awards" },
+  // OTHER — player-level totals that don't fit anywhere else.
+  { id: "topMatches", label: "Most Matches Played", section: "other" },
 ];
 
 type CategoryFilter = "all" | "1" | "2" | "3";
@@ -108,7 +110,8 @@ const SECTION_CHIPS: { id: Section; label: string }[] = [
   { id: "bat", label: "BAT" },
   { id: "bowl", label: "BOWL" },
   { id: "field", label: "FIELD" },
-  { id: "misc", label: "MISC" },
+  { id: "awards", label: "AWARDS" },
+  { id: "other", label: "OTHER" },
 ];
 
 export function TournamentStatsView({
@@ -146,13 +149,16 @@ export function TournamentStatsView({
 
   // Hide FIELD entirely when the dataset has no fielding tables
   // (cricheroes-imported seasons). FIELD becomes available again the
-  // moment a season is scored in our app. Same for MISC — when the
-  // caller didn't pass match-played / POM data, hide the section.
+  // moment a season is scored in our app. AWARDS / OTHER hide
+  // independently — AWARDS needs topPOM data, OTHER needs
+  // topMatches data.
   const hasFielding = Boolean(all.topCatches);
-  const hasMisc = Boolean(all.topMatches);
+  const hasAwards = Boolean(all.topPOM);
+  const hasOther = Boolean(all.topMatches);
   const sections = SECTION_CHIPS.filter((s) => {
     if (s.id === "field") return hasFielding;
-    if (s.id === "misc") return hasMisc;
+    if (s.id === "awards") return hasAwards;
+    if (s.id === "other") return hasOther;
     return true;
   });
 

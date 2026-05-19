@@ -13,6 +13,10 @@ import {
   type PerInnBat,
   type PerInnBowl,
 } from "@/lib/stats/aggregate";
+import {
+  buildPlayerNameLookup,
+  parseHistoricalFielders,
+} from "@/lib/stats/historical-fielders";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
 
@@ -477,7 +481,11 @@ async function loadHistoricalStats(
       supabase
         .from("historical_match_batting")
         .select(
-          "match_id, innings_number, batting_team_id, player_id, runs, balls_faced, fours, sixes, is_out",
+          // how_to_out drives the historical-fielder parser — same
+          // FIELD leaderboards that live-scored matches get, just
+          // derived from cricheroes' dismissal text rather than from
+          // structured fielder_id columns we don't have.
+          "match_id, innings_number, batting_team_id, player_id, runs, balls_faced, fours, sixes, is_out, how_to_out",
         )
         .in("match_id", matchIds),
       supabase
@@ -558,14 +566,18 @@ async function loadHistoricalStats(
     });
   }
 
-  // Player + team metadata.
-  const playerIds = [...playerToTeam.keys()];
+  // Player + team metadata. Pull EVERY player (not just those in
+  // playerToTeam) so the historical fielder parser can resolve
+  // dismissal-text names against the whole roster — a player who
+  // only fielded in S5 (never batted/bowled) would otherwise be
+  // missed. HVC roster is small (~150 across all seasons) so the
+  // extra rows are negligible.
   const teamIds = [...new Set(playerToTeam.values())];
   const [{ data: players }, { data: teams }] = await Promise.all([
     supabase
       .from("players")
       .select("id, display_name, category")
-      .in("id", playerIds),
+      .limit(5000),
     supabase.from("teams").select("id, short_name").in("id", teamIds),
   ]);
   const playerById = new Map((players ?? []).map((p) => [p.id, p]));
@@ -643,9 +655,58 @@ async function loadHistoricalStats(
   const batRowsAll = [...batPerPlayer.values()];
   const bowlRowsAll = [...bowlPerPlayer.values()];
   const lookups = { batByInn, bowlingTeamShortByInnings };
-  // Fielding stays empty for historical seasons — cricheroes commentary
-  // doesn't expose per-ball fielder credits.
-  const fieldRowsAll: FieldAgg[] = [];
+
+  // Historical fielding — parse the cricheroes dismissal text
+  // (`historical_match_batting.how_to_out`) and credit fielders by
+  // name against `players.display_name` (case-insensitive exact;
+  // ambiguous / unmatched names silently skip). Best-effort
+  // historical: a few credits may be missed for unusual name
+  // spellings but the leaderboards finally light up for S1–S6.
+  const nameLookup = buildPlayerNameLookup(
+    Array.from(playerById.values()).map((p) => ({
+      id: p.id,
+      display_name: p.display_name,
+    })),
+  );
+  const histFieldCredits = parseHistoricalFielders(
+    hbBat.map((r) => ({
+      match_id: r.match_id,
+      innings_number: r.innings_number,
+      how_to_out: r.how_to_out ?? null,
+    })),
+    nameLookup,
+  );
+  const fieldPerPlayer = new Map<string, FieldAgg>();
+  const fielderMatches = new Map<string, Set<string>>();
+  for (const c of histFieldCredits) {
+    const p = playerById.get(c.player_id);
+    if (!p) continue;
+    let agg = fieldPerPlayer.get(c.player_id);
+    if (!agg) {
+      const teamId = playerToTeam.get(c.player_id);
+      agg = newFieldAgg(
+        c.player_id,
+        p.display_name,
+        teamId ? (teamShortById.get(teamId) ?? "?") : "?",
+        p.category,
+      );
+      fieldPerPlayer.set(c.player_id, agg);
+    }
+    if (c.kind === "catch") agg.catches += 1;
+    else if (c.kind === "run_out") agg.run_outs += 1;
+    else if (c.kind === "stumped") agg.stumpings += 1;
+    let s = fielderMatches.get(c.player_id);
+    if (!s) {
+      s = new Set();
+      fielderMatches.set(c.player_id, s);
+    }
+    s.add(c.match_id);
+  }
+  for (const [pid, s] of fielderMatches) {
+    const agg = fieldPerPlayer.get(pid);
+    if (agg) agg.matches = s.size;
+  }
+  const fieldRowsAll = [...fieldPerPlayer.values()];
 
   // MISC — matches played + POM. match_players rows are present for
   // historical seasons too (imported alongside the per-match

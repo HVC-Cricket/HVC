@@ -13,6 +13,10 @@ import {
   type PerInnBat,
   type PerInnBowl,
 } from "@/lib/stats/aggregate";
+import {
+  buildPlayerNameLookup,
+  parseHistoricalFielders,
+} from "@/lib/stats/historical-fielders";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
 
@@ -123,11 +127,12 @@ export async function CareerStats() {
       fours: number;
       sixes: number;
       is_out: boolean;
+      how_to_out: string | null;
     }>((from, to) =>
       supabase
         .from("historical_match_batting")
         .select(
-          "match_id, innings_number, batting_team_id, player_id, runs, balls_faced, fours, sixes, is_out",
+          "match_id, innings_number, batting_team_id, player_id, runs, balls_faced, fours, sixes, is_out, how_to_out",
         )
         .in("match_id", matchIds)
         .range(from, to),
@@ -345,25 +350,25 @@ export async function CareerStats() {
   //    table. Without this widening, the "vs" column on the Highest
   //    Scores leaderboard renders "?" for any innings whose bowling
   //    XI was entirely null-player-id.
-  // Player IDs need to cover BOTH the bat/bowl/field paths (via
-  // playerToTeam) AND the misc paths (matchesByPlayer / pomByPlayer)
-  // so we don't drop names from the matches-played / POM
-  // leaderboards.
-  const playerIdSet = new Set<string>(playerToTeam.keys());
-  for (const pid of matchesByPlayer.keys()) playerIdSet.add(pid);
-  for (const pid of pomByPlayer.keys()) playerIdSet.add(pid);
-  const playerIds = [...playerIdSet];
+  // Team IDs cover every innings' both teams (historical players
+  // with null linkages still need their team lookup populated so
+  // the "vs" column doesn't render "?").
   const teamIdSet = new Set<string>(playerToTeam.values());
   for (const inn of innings) {
     teamIdSet.add(inn.batting_team_id);
     teamIdSet.add(inn.bowling_team_id);
   }
   const teamIds = [...teamIdSet];
+  // Pull EVERY player (no per-id filter) — the historical fielder
+  // parser matches dismissal-text names against the whole roster,
+  // including players who never batted / bowled / appeared in
+  // match_players. The HVC roster is small (~150 across all
+  // seasons) so the row count is negligible.
   const [{ data: players }, { data: teams }] = await Promise.all([
     supabase
       .from("players")
       .select("id, display_name, category")
-      .in("id", playerIds),
+      .limit(5000),
     supabase.from("teams").select("id, short_name").in("id", teamIds),
   ]);
   const playerById = new Map((players ?? []).map((p) => [p.id, p]));
@@ -452,6 +457,60 @@ export async function CareerStats() {
     }
     s.add(inn.match_id);
   }
+  for (const [pid, s] of fielderMatches) {
+    const agg = fieldPerPlayer.get(pid);
+    if (agg) agg.matches = s.size;
+  }
+
+  // Historical fielding — parse the cricheroes dismissal text out of
+  // `historical_match_batting.how_to_out` and credit fielders by
+  // name. Names are matched case-insensitive exact against
+  // `players.display_name`; ambiguous / unmatched names silently
+  // skip (best-effort historical). Same FieldAgg shape so the
+  // downstream leaderboard builder treats live and historical
+  // credits identically.
+  const nameLookup = buildPlayerNameLookup(
+    Array.from(playerById.values()).map((p) => ({
+      id: p.id,
+      display_name: p.display_name,
+    })),
+  );
+  const histFieldCredits = parseHistoricalFielders(
+    hbBat.map((r) => ({
+      match_id: r.match_id,
+      innings_number: r.innings_number,
+      how_to_out: r.how_to_out ?? null,
+    })),
+    nameLookup,
+  );
+  // Track distinct matches per fielder for the "M" column on the
+  // catches / run-outs / stumpings tables.
+  for (const c of histFieldCredits) {
+    const p = playerById.get(c.player_id);
+    if (!p) continue;
+    let agg = fieldPerPlayer.get(c.player_id);
+    if (!agg) {
+      const teamId = playerToTeam.get(c.player_id);
+      agg = newFieldAgg(
+        c.player_id,
+        p.display_name,
+        teamId ? (teamShortById.get(teamId) ?? "?") : "?",
+        p.category,
+      );
+      fieldPerPlayer.set(c.player_id, agg);
+    }
+    if (c.kind === "catch") agg.catches += 1;
+    else if (c.kind === "run_out") agg.run_outs += 1;
+    else if (c.kind === "stumped") agg.stumpings += 1;
+    let s = fielderMatches.get(c.player_id);
+    if (!s) {
+      s = new Set();
+      fielderMatches.set(c.player_id, s);
+    }
+    s.add(c.match_id);
+  }
+  // Refresh the matches column after merging the historical credits
+  // (some live-only fielders just got historical matches added too).
   for (const [pid, s] of fielderMatches) {
     const agg = fieldPerPlayer.get(pid);
     if (agg) agg.matches = s.size;
