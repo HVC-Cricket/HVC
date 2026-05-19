@@ -682,6 +682,24 @@ Pick-preservation fix layered on: the balls-length sync used to unconditionally 
 
 Commit `4112d0c`; 1 file / +142 / −12 LOC.
 
+**2026-05-19 — All-time stats page at `/stats` — HVC Heroes records.** Pavan asked: "can we have total stats like most runs, most wickets, etc from total all seasons?" — yes. Surfaced behind a new nav drawer link **HVC Heroes** (page H1 reads the same) at `/stats`. Career leaderboards across every match in every tournament; data merges live-scored balls (S7+) with cricheroes-imported historical aggregates (S1–S6) by `player_id`. Same BAT / BOWL / FIELD UI (pill strip, style dropdown across 17 leaderboards, Cat 1/2/3 chip filter, pagination) as the per-tournament Stats tab — `tournament-stats-view.tsx` is reused unchanged.
+
+Implementation:
+
+- **Refactor (no behaviour change to per-tournament path).** Extracted the aggregation core out of `tournament-stats.tsx` into `src/lib/stats/aggregate.ts`: types (`BatAgg`, `BowlAgg`, `FieldAgg`, `PerInnBat`, `PerInnBowl`, `BuildLookups`), constructors (`newBatAgg`, `newBowlAgg`, `newFieldAgg`), accumulators (`accumulateBatInnings`, `accumulateBowlInnings`), the 365-LOC `buildLeaderboards` function, and the minimum-sample constants (`TOP_N`, `MIN_BAT_BALLS`, `MIN_BAT_INNINGS_FOR_AVG`, `MIN_BOWL_BALLS`, `MIN_BOWL_WICKETS_FOR_RATIO`). `tournament-stats.tsx` now imports from there; ~530 LOC removed locally. The view module (`tournament-stats-view.tsx`) still owns the `LeaderRow` / `LeaderboardTable` / `Leaderboards` types — the aggregate module imports them back via `@/app/tournaments/[slug]/tournament-stats-view`.
+
+- **`src/app/stats/career-stats.tsx`** (server component) is the new aggregator. Pulls every match in `live / innings_break / completed` status, all innings for those matches, then in parallel: every `balls` row (newest-first so the `playerToTeam` map's first-seen-wins logic resolves to the player's MOST RECENT team rather than their oldest historical one) + every `historical_match_batting` + every `historical_match_bowling` row. Both data sources collapse into the same `PerInnBat` / `PerInnBowl` shape before per-player aggregation runs — downstream code is source-agnostic.
+
+- **Pagination via `.range(from, to)` in 1000-row chunks** for the three large fetches. Supabase REST caps each request at the project's `db.max_rows` (1000); `.limit(N)` in the JS client doesn't lift that ceiling. The naive single-request approach was silently truncating `historical_match_batting` (1602 rows on prod) to 1000 — Teju's all-time runs came out at 694 vs the 922 his profile page showed. New `fetchAllRows` helper pages until a partial page lands. Confirmed via direct `curl -I` against `content-range`: `0-999/1602` even with `Range: 0-19999`, so pagination is mandatory.
+
+- **Team lookup widening** — `teamIds` was previously built from `playerToTeam.values()`, which only includes teams whose players were successfully linked. Historical S1–S6 rows sometimes carry `player_id = null` (CricHeroes name didn't match anyone in our `players` table); when an entire bowling XI is null-linked for an innings, the bowling team never reaches `playerToTeam` → never reaches `teamShortById` → the "vs" column on the Highest Scores leaderboard renders `?`. Fixed by widening `teamIds` to also include every innings' `batting_team_id` + `bowling_team_id` regardless of whether their players resolved.
+
+- **Field leaderboards** (catches / run-outs / stumpings) skip historical rows entirely since CricHeroes commentary doesn't expose per-ball fielder credits — fielding stats are S7+ only.
+
+- **Nav drawer link** added between Players and My profile, reading **HVC Heroes** (the brand-level header for the records, intentionally echoing the page H1).
+
+Commit `d02d7ba`; 5 files / +1110 / −538 LOC (the −538 is the extraction out of `tournament-stats.tsx`; net new code is ~570 LOC).
+
 **2026-05-18 (batch 5b) — Pick XI follow-ups: visual polish + correct "Save & done" + deterministic navigation.** Three small fixes after the initial combined picker shipped (batch 5a below). Pavan tested it and flagged each one live:
 
 1. **"Something messy"** — first cut's pill-style segmented tabs looked cramped and the Save button was tucked in the bottom-right corner like a tertiary action. Switched tabs to underline style matching `MatchTabs` (each tab stacks full team name on top, `{shortName} · {playing}/{target}` line below, primary-coloured underline on the active tab, emerald ✓ once saved or already-complete). Save area moved into a sticky bottom bar inside `PickXIForm` — full-width primary button + centred status line above. `-mx-4` / `px-4` trick bleeds it edge-to-edge of the surrounding `CardContent`. Sticky so the button stays in thumb reach when the roster scrolls past viewport. Per-team route inherits the same bar since it reuses `PickXIForm`.
