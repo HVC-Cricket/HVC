@@ -457,7 +457,17 @@ export async function CareerStats() {
   );
 
   return (
-    <TournamentStatsView all={all} cat1={cat1} cat2={cat2} cat3={cat3} />
+    <TournamentStatsView
+      all={all}
+      cat1={cat1}
+      cat2={cat2}
+      cat3={cat3}
+      // Players switch teams across seasons — pinning one team to
+      // each row would be misleading and showing all of them would
+      // clutter the layout. Hide the team line entirely on the
+      // all-time leaderboards.
+      showTeam={false}
+    />
   );
 }
 

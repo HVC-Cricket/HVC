@@ -109,11 +109,20 @@ export function TournamentStatsView({
   cat1,
   cat2,
   cat3,
+  showTeam = true,
 }: {
   all: Leaderboards;
   cat1: Leaderboards;
   cat2: Leaderboards;
   cat3: Leaderboards;
+  /**
+   * Whether to render the small team-short-name line under each
+   * player. Per-tournament Stats wants it (one team per player per
+   * tournament). The all-time `/stats` page hides it because players
+   * switch teams across seasons — showing one is misleading and
+   * showing all would clutter the row. Defaults to true.
+   */
+  showTeam?: boolean;
 }) {
   const [filter, setFilter] = useState<CategoryFilter>("all");
   const [section, setSection] = useState<Section>("bat");
@@ -237,6 +246,7 @@ export function TournamentStatsView({
           key={`${filter}:${activeStyle.id}`}
           title={activeStyle.label}
           table={table}
+          showTeam={showTeam}
         />
       ) : (
         <Card className="border-dashed">
@@ -252,9 +262,11 @@ export function TournamentStatsView({
 function LeaderTable({
   title,
   table,
+  showTeam,
 }: {
   title: string;
   table: LeaderboardTable;
+  showTeam: boolean;
 }) {
   const [page, setPage] = useState(0);
   const totalRows = table.rows.length;
@@ -331,9 +343,11 @@ function LeaderTable({
                                   </span>
                                 )}
                               </div>
-                              <div className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
-                                {r.team}
-                              </div>
+                              {showTeam && (
+                                <div className="font-mono text-[9px] uppercase tracking-wide text-muted-foreground">
+                                  {r.team}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </th>
