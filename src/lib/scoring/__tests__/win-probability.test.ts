@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { computeWinProbability } from "../win-probability";
+import {
+  computeProjectedScore,
+  computeWinProbability,
+} from "../win-probability";
 
 // Default scenario: HVC 4-over, 7-a-side, last-man-standing.
 const base = {
@@ -412,5 +415,104 @@ describe("computeWinProbability — wicket caps & side sizes", () => {
       wickets: 4,
     });
     expect(r9.battingPct).toBeGreaterThan(r6.battingPct);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────
+// Projected score (innings 1)
+// ─────────────────────────────────────────────────────────────────
+
+describe("computeProjectedScore", () => {
+  it("pre-match projects par total (4-over × par 14 = 56)", () => {
+    const p = computeProjectedScore(base);
+    expect(p).not.toBeNull();
+    // Allow ±2 for rounding around the par baseline.
+    expect(p!).toBeGreaterThanOrEqual(54);
+    expect(p!).toBeLessThanOrEqual(58);
+  });
+
+  it("six off the first ball projects modestly above par (60–70)", () => {
+    // Shrinkage damps the extrapolation; without it a six on ball 1
+    // would project 144.
+    const p = computeProjectedScore({
+      ...base,
+      runsScored: 6,
+      legalBalls: 1,
+    });
+    expect(p!).toBeGreaterThanOrEqual(60);
+    expect(p!).toBeLessThanOrEqual(70);
+  });
+
+  it("strong start (39/1 at ball 13) projects 65–75", () => {
+    const p = computeProjectedScore({
+      ...base,
+      runsScored: 39,
+      legalBalls: 13,
+      wickets: 1,
+    });
+    expect(p!).toBeGreaterThanOrEqual(65);
+    expect(p!).toBeLessThanOrEqual(75);
+  });
+
+  it("a dot ball lowers projection", () => {
+    const before = computeProjectedScore({
+      ...base,
+      runsScored: 39,
+      legalBalls: 13,
+      wickets: 1,
+    });
+    const after = computeProjectedScore({
+      ...base,
+      runsScored: 39,
+      legalBalls: 14,
+      wickets: 1,
+    });
+    expect(after!).toBeLessThan(before!);
+  });
+
+  it("losing a wicket lowers projection more than a dot ball", () => {
+    const dot = computeProjectedScore({
+      ...base,
+      runsScored: 39,
+      legalBalls: 14,
+      wickets: 1,
+    });
+    const wkt = computeProjectedScore({
+      ...base,
+      runsScored: 39,
+      legalBalls: 14,
+      wickets: 2,
+    });
+    expect(wkt!).toBeLessThan(dot!);
+  });
+
+  it("collapse (5 of 7 down halfway, par-rate) projects below par", () => {
+    const p = computeProjectedScore({
+      ...base,
+      runsScored: 28, // par-rate (14 rpo × 2 overs)
+      legalBalls: 12,
+      wickets: 5,
+    });
+    expect(p!).toBeLessThan(56);
+  });
+
+  it("returns null on terminal states", () => {
+    // All wickets gone — last man already out
+    const allOut = computeProjectedScore({
+      ...base,
+      runsScored: 30,
+      legalBalls: 12,
+      wickets: 7, // cap=7 lms
+    });
+    expect(allOut).toBeNull();
+
+    // Balls exhausted
+    const ballsOut = computeProjectedScore({
+      ...base,
+      runsScored: 50,
+      legalBalls: 24,
+      wickets: 3,
+    });
+    expect(ballsOut).toBeNull();
   });
 });

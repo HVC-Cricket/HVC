@@ -52,6 +52,44 @@ Underlying data issue (stale `in_match=true` rows on `match_players` after a sid
 
 1 file / +18 / −5 LOC.
 
+**Follow-up #12 (same day) — Projected final score for innings 1.**
+
+New live-only feature: while innings 1 is in flight, the partnership/CRR strip on the public match page now carries a `PROJ: <N>` cell showing the wicket-aware projected final score.
+
+**Helper:** `computeProjectedScore(input)` exported from `src/lib/scoring/win-probability.ts`. Built on the same `shrunkRunRate` the win-probability formula uses, then scaled by a wicket multiplier:
+
+```
+expectedLosses = cap × (ballsBowled / totalBalls)
+wktBonus       = max(0, expectedLosses − wickets) / cap   // ahead on wickets
+wktExcess      = max(0, wickets − expectedLosses) / cap   // behind on wickets
+multiplier     = max(0.3, 1 + 0.2 × wktBonus − 0.5 × wktExcess)
+projected      = round(runsScored + ballsRemaining × shrunkRate × multiplier / 6)
+```
+
+Asymmetric on purpose:
+- **Ahead on wickets** (lost fewer than linear-attrition baseline) → small upward nudge, capped at ~+20% rate
+- **Behind on wickets** (collapse) → sharper drag, capped at ~−50% rate
+- Floored at 0.3 so even an extreme collapse projects something positive rather than dropping to current score
+
+Returns `null` on terminal states (all out, balls exhausted) so the caller can omit the cell rather than show a stale projection.
+
+**Sample readings** (7-a-side last-man, 4-over, par=14):
+
+| Scenario | Projected |
+|---|---|
+| Pre-match | **56** (= par) |
+| 6 off 1 ball, 0 wkts | **65** |
+| 39/1 at ball 13 | **70** |
+| 39/1 at ball 14 (+1 dot) | **67** |
+| 39/2 at ball 14 (wicket vs dot) | **66** (wicket bites more) |
+| 28/5 at ball 12 (collapse, par-rate scoring) | **<56** (below par) |
+
+**UI:** inline cell in the existing partnership/CRR strip, only when `innings.innings_number === 1` and the match isn't completed. For innings 2 there's already a target on the card and the win-probability bar covers chase outlook, so a projection would be noise.
+
+7 new tests cover: pre-match equals par, six-on-first-ball shrinkage damping, dot-ball monotonicity, wicket-vs-dot differentiation, collapse below par, terminal-state nulls.
+
+3 files / +130 / 0 LOC + 1 new helper export.
+
 **Follow-up #11 (same day) — Win-probability: drop par rate to 14 rpo.**
 
 User dialed in `PAR_RUN_RATE = 15 → 14` based on actual HVC averages. Single-line constant change in `src/lib/scoring/win-probability.ts`. Updated the file-header doc comment to note the revision was from observed season data, and bumped one chase test (was "target=60 ≈ par", now uses target=56 which is the new par_total for a 4-over match).

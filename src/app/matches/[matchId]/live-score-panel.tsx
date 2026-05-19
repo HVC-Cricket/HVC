@@ -11,7 +11,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { computeBatterStats, computeBowlerStats } from "@/lib/scoring";
-import { computeWinProbability } from "@/lib/scoring/win-probability";
+import {
+  computeProjectedScore,
+  computeWinProbability,
+} from "@/lib/scoring/win-probability";
 import { cn } from "@/lib/utils";
 
 import type { ScoreboardState } from "./score/state";
@@ -210,6 +213,24 @@ function InningsCard({
   // (or from the start of the innings if there hasn't been one).
   const partnership = computeCurrentPartnership(balls);
 
+  // Projected final score for innings 1 only. For innings 2 the target
+  // is already on the card and projection during a chase is just "will
+  // they get there", which the win-probability bar already shows.
+  const projected =
+    !completed && innings.innings_number === 1
+      ? computeProjectedScore({
+          inningsNumber: innings.innings_number,
+          runsScored: innings.total_runs,
+          wickets: innings.total_wickets,
+          legalBalls: innings.total_legal_balls,
+          target: null,
+          oversCap: inningsOversCap,
+          playersPerSide: state.rules.players_per_side,
+          lastManStanding: state.rules.last_man_standing,
+          isSuperOver,
+        })
+      : null;
+
   return (
     <Card>
       <CardHeader className="px-3 sm:px-4">
@@ -304,7 +325,8 @@ function InningsCard({
           {(partnership.runs > 0 ||
             partnership.balls > 0 ||
             oversFloat > 0 ||
-            target != null) && (
+            target != null ||
+            projected != null) && (
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
               {(partnership.runs > 0 || partnership.balls > 0) && (
                 <span className="text-muted-foreground">
@@ -323,6 +345,12 @@ function InningsCard({
                 <span className="text-muted-foreground">
                   <span className="font-medium uppercase">CRR:</span>{" "}
                   <span className="font-mono text-foreground">{runRate}</span>
+                </span>
+              )}
+              {projected != null && (
+                <span className="text-muted-foreground">
+                  <span className="font-medium uppercase">Proj:</span>{" "}
+                  <span className="font-mono text-foreground">{projected}</span>
                 </span>
               )}
               {target != null && (

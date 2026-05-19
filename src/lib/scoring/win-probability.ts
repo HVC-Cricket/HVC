@@ -142,6 +142,56 @@ function wicketLossPenalty(wickets: number, cap: number): number {
   return Math.pow(ratio, 1.5);
 }
 
+/**
+ * Wicket-aware projected final score for an in-progress innings.
+ *
+ * Built on the same `shrunkRunRate` the win-probability formula uses
+ * (Bayesian shrinkage toward par with K=18 pseudo-balls of prior), then
+ * scaled by a wicket multiplier:
+ *
+ *   - **Ahead on wickets** (lost fewer than the linear-attrition baseline)
+ *     → small upward nudge. Up to +20% rate if you have all wickets at
+ *     mid-innings.
+ *   - **Behind on wickets** (collapsing innings) → sharper downward
+ *     drag. Up to −50% rate at extreme collapses.
+ *
+ * Asymmetry is deliberate: a team that's batted out only a couple of
+ * wickets isn't going to suddenly slug 2× par — it just has more
+ * options. A team that's lost 5 of 7 by ball 12 will likely score
+ * very little for the rest of the innings.
+ *
+ * Returns `null` at the terminal states (innings complete, all out,
+ * balls exhausted) — the caller should fall back to the actual final
+ * score in those cases.
+ */
+export function computeProjectedScore(input: Inputs): number | null {
+  const cap = wicketsCap(input);
+  const totalInningsBalls = input.oversCap * 6;
+  const ballsRemaining = Math.max(0, totalInningsBalls - input.legalBalls);
+  const wicketsInHand = Math.max(0, cap - input.wickets);
+
+  // Terminal: nothing left to project.
+  if (ballsRemaining === 0 || wicketsInHand === 0) return null;
+  if (totalInningsBalls === 0) return null;
+
+  const sRate = shrunkRunRate(input.runsScored, input.legalBalls);
+
+  // Wicket-loss expectations under a linear-attrition baseline.
+  const ballsBowled = input.legalBalls;
+  const expectedLosses = cap * (ballsBowled / totalInningsBalls);
+  const wktBonus = Math.max(0, expectedLosses - input.wickets) / Math.max(1, cap);
+  const wktExcess = Math.max(0, input.wickets - expectedLosses) / Math.max(1, cap);
+
+  // Gentle ceiling (+20%) on the upside, sharper penalty (−50%) on the
+  // downside. Combined multiplier still floored at 0.3 so even a worst
+  // case projects something rather than dropping to 0.
+  const multiplier = Math.max(0.3, 1 + 0.2 * wktBonus - 0.5 * wktExcess);
+
+  const adjustedRate = sRate * multiplier;
+  const futureRuns = (ballsRemaining * adjustedRate) / 6;
+  return Math.round(input.runsScored + futureRuns);
+}
+
 export function computeWinProbability(input: Inputs): WinProbability {
   const cap = wicketsCap(input);
   const wicketsInHand = Math.max(0, cap - input.wickets);
