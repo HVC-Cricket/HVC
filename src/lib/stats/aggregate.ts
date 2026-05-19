@@ -253,24 +253,28 @@ export function buildLeaderboards(
   const bowlingSR = (a: BowlAgg) =>
     a.wickets > 0 ? a.legal_balls / a.wickets : null;
   const mkBatRow = (r: BatAgg, values: string[]): LeaderRow => ({
+    player_id: r.player_id,
     name: r.name,
     team: r.team,
     cat: r.cat,
     values,
   });
   const mkBowlRow = (r: BowlAgg, values: string[]): LeaderRow => ({
+    player_id: r.player_id,
     name: r.name,
     team: r.team,
     cat: r.cat,
     values,
   });
   const mkFieldRow = (r: FieldAgg, values: string[]): LeaderRow => ({
+    player_id: r.player_id,
     name: r.name,
     team: r.team,
     cat: r.cat,
     values,
   });
   const mkMiscRow = (r: MiscAgg, values: string[]): LeaderRow => ({
+    player_id: r.player_id,
     name: r.name,
     team: r.team,
     cat: r.cat,

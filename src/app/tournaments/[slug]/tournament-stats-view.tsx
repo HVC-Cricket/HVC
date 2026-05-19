@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import {
@@ -12,6 +13,10 @@ import {
 const PAGE_SIZE = 10;
 
 export type LeaderRow = {
+  /** UUID — drives the per-row Link into /players/[id] so people
+   *  can dig into individual profiles (where their all-time rank
+   *  badges live) without hunting through the player list. */
+  player_id: string;
   name: string;
   team: string;
   cat: number | null;
@@ -351,9 +356,13 @@ function LeaderTable({
                             </span>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0">
-                                <span className="font-medium capitalize leading-tight break-words">
+                                <Link
+                                  href={`/players/${r.player_id}`}
+                                  prefetch
+                                  className="font-medium capitalize leading-tight break-words hover:underline"
+                                >
                                   {r.name}
-                                </span>
+                                </Link>
                                 {r.cat && (
                                   <span className="shrink-0 font-mono text-[9px] text-muted-foreground">
                                     C{r.cat}
