@@ -52,6 +52,29 @@ Underlying data issue (stale `in_match=true` rows on `match_players` after a sid
 
 1 file / +18 / −5 LOC.
 
+**2026-05-19 (batch 44) — Player dedupe tooling + first prod merges.**
+
+Two new scripts under `scripts/`, plus three prod merges already executed:
+
+- `scripts/find_duplicate_players.ts` — read-only diagnostic. Pulls every row from `players` against the project named by `NEXT_PUBLIC_SUPABASE_URL` (defaults to `.env.prod`), aggregates career stats per player from `match_players`, `balls`, and the historical aggregate tables, then groups by normalized name and surfaces both exact matches and substring/prefix matches (e.g., "Ajith" inside "Ajith P"). Paginates via `.range()` because some tables exceed Supabase JS's default 1000-row cap. Prints a human-readable table with category, link status, and stat lines so an admin can decide which rows to keep.
+- `scripts/merge_players.ts` — destructive companion. Takes `--merge=<from>:<to>` pairs (UUID prefix or full UUID), default dry-run, requires `--execute` to write. Pre-flight: aborts a pair if both candidates appear in the same `match_players` row (= they're actually distinct people). For `team_players` collisions (`unique (team_id, player_id)`), deletes the loser's duplicate row before re-pointing the rest. Re-points every FK to `players.id` — 16 columns across 9 tables (team_players, match_players, matches.player_of_match_id, innings.initial_*, balls.{batter,non_striker,bowler,player_out,fielder}, historical_match_batting, historical_match_bowling, historical_match_fall_of_wickets, historical_tournament_mvp). Verifies zero stragglers before issuing the DELETE.
+
+**Three merges executed on prod (cxysyglwooqmzcfvtmyl):**
+- "Ajith" → "Ajith P" (~20 rows updated across 7 tables, loser deleted)
+- "Amith" → "Amith P" (~40 rows updated, loser deleted)
+- "Sridhar Ramchandrachar" → "Sridhar Dixit" (~70 rows updated incl. 1 player_of_match credit, loser deleted)
+
+Player count 64 → 61. Verified post-merge that the keeper's career stats add up correctly (e.g., Sridhar Dixit's matches went 15 → 35, matching the union with Sridhar Ramchandrachar's 20).
+
+**Remaining duplicate candidates** (left untouched for the admin to judge):
+- "Anantha" vs "Anantha Madhava"
+- "Krishnamurthy" vs "Srikanth Krishnamurthy"
+- "Sridhar" (Cat 2) vs "Sridhar Dixit" (Cat 3) — category mismatch suggests these are different people
+
+Re-run `pnpm tsx scripts/find_duplicate_players.ts` after any future imports to flag new dupes; pass merge pairs to the companion script (defaults to dry-run; review the plan before adding `--execute`).
+
+3 files / +480 / 0 LOC.
+
 **Follow-up #12 (same day) — Projected final score for innings 1.**
 
 New live-only feature: while innings 1 is in flight, the partnership/CRR strip on the public match page now carries a `PROJ: <N>` cell showing the wicket-aware projected final score.
