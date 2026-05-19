@@ -52,6 +52,20 @@ Underlying data issue (stale `in_match=true` rows on `match_players` after a sid
 
 1 file / +18 / −5 LOC.
 
+**Follow-up #13 (same day) — Four more prod player merges + `--name=` filter on the diagnostic.**
+
+`scripts/find_duplicate_players.ts` gained a `--name=<substring>` mode that prints stats for every player whose normalized name contains the substring. Bypasses the dupe grouping — useful for inspecting candidate groups the auto-matcher missed (first-word-shared names like "Pavan DP" vs "Pavan Raghavendra" don't trigger the whole-word substring rule).
+
+**Four more prod merges executed:**
+- "Srisha Badarayan" → "Srisha Badarayana H S" (4 row updates)
+- "Pavan DP" → "Pavan Raghavendra" (33 row updates across 7 tables)
+- "Pradyumna" → "Pradhdhyumna Kashyap HP (wk)" (118 row updates — largest of the batch)
+- "Krishnamurthy" → "Krishnamoorthy" (22 row updates)
+
+Player count 61 → 57. All four pairs were verified collision-free in `match_players` (i.e., the two candidates never appeared in the same match, consistent with being duplicates).
+
+The diagnostic now reports only 2 remaining substring-match groups — Anantha vs Anantha Madhava and Sridhar (Cat 2) vs Sridhar Dixit (Cat 3). Both confirmed by the admin as distinct people; the tool will keep flagging them on future runs unless an allow-list is added.
+
 **2026-05-19 (batch 44) — Player dedupe tooling + first prod merges.**
 
 Two new scripts under `scripts/`, plus three prod merges already executed:

@@ -57,6 +57,12 @@ const envArg = process.argv.find((a) => a.startsWith("--env="));
 const envFile = envArg ? envArg.split("=")[1] : ".env.prod";
 loadEnv(envFile);
 
+// Optional --name=substring filter: when set, prints stats for every
+// player whose normalized name contains the substring (case-insensitive).
+// Useful for inspecting a candidate group the auto-dedupe missed.
+const nameFilter =
+  process.argv.find((a) => a.startsWith("--name="))?.split("=")[1] ?? null;
+
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!url || !key) {
@@ -301,6 +307,21 @@ async function main() {
       `W=${s.wickets.toString().padStart(2)}/${s.runsConceded.toString().padStart(3)}`,
       `created=${p.created_at.slice(0, 10)}`,
     ].join("  ");
+  }
+
+  // --name=<substr> mode: print stats for every player whose normalized
+  // name contains the substring. Skips the dupe grouping entirely.
+  if (nameFilter) {
+    const needle = normalize(nameFilter);
+    const hits = (players as PlayerRow[])
+      .filter((p) => normalize(p.display_name).includes(needle))
+      .sort((a, b) => a.display_name.localeCompare(b.display_name));
+    console.log(
+      `\n${hits.length} player(s) matching "${nameFilter}":\n`,
+    );
+    for (const p of hits) console.log(fmt(p));
+    console.log(`\nDone.`);
+    return;
   }
 
   // Exact dupes first
