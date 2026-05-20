@@ -5,7 +5,8 @@
       "Bash(npx supabase *)",
       "Bash(npx tsc *)",
       "Bash(npx vitest *)",
-      "Bash(pnpm exec *)"
+      "Bash(pnpm exec *)",
+      "Bash(curl -s -X PATCH 'https://cxysyglwooqmzcfvtmyl.supabase.co/rest/v1/tournaments?status=eq.completed&limit=1' -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN4eXN5Z2x3b29xbXpjZnZ0bXlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxMjkxMDcsImV4cCI6MjA5MzcwNTEwN30.w-5gn9pzQx7jaY0Em-oUXu31V68XkoiqEOHAcOjvn2E' -H 'Content-Type: application/json' -H 'Prefer: return=minimal' -d '{\"status\":\"xxxbogusxxx\"}')"
     ]
   }
 }

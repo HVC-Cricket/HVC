@@ -59,7 +59,7 @@ export default async function Home() {
         .select(matchSelect)
         .eq("status", "completed")
         .order("started_at", { ascending: false })
-        .limit(5),
+        .limit(3),
       // Tournaments the admin has flagged as 'upcoming' — surfaced as a
       // hero strip above Live now (gated on no live match in flight).
       // We pull the metadata only here; team / match counts and the
