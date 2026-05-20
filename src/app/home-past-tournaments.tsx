@@ -1,4 +1,4 @@
-import { Trophy } from "lucide-react";
+import { ArrowRight, Trophy } from "lucide-react";
 import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
@@ -23,7 +23,8 @@ type TournamentCard = {
  * logo, dates, and the champion's crest — clicking through opens the
  * tournament page (where the full champion hero card renders).
  *
- * Limit 6 so the grid stays one screen on mobile.
+ * Capped at 3 — long-form drill-down lives at `/tournaments`. The
+ * "See all tournaments" link below the grid sends users there.
  */
 export async function HomePastTournaments() {
   const supabase = await createClient();
@@ -33,7 +34,7 @@ export async function HomePastTournaments() {
     .select("id, slug, name, start_date, end_date, logo_url")
     .eq("status", "completed")
     .order("end_date", { ascending: false, nullsFirst: false })
-    .limit(6);
+    .limit(3);
 
   if (!tournaments || tournaments.length === 0) return null;
 
@@ -128,6 +129,14 @@ export async function HomePastTournaments() {
           </Link>
         ))}
       </div>
+      <Link
+        href="/tournaments"
+        prefetch
+        className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
+      >
+        See all tournaments
+        <ArrowRight className="size-3.5" />
+      </Link>
     </section>
   );
 }
