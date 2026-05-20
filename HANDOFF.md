@@ -39,6 +39,19 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-20 (batch 47) — Medium-purple light theme + tournament page polish.** Pavan asked for a purple feel on the light theme and flagged two density issues on the tournament page.
+
+The `:root` palette in `src/app/globals.css` shifted from cricket-blue hue 260 to ~hue 300 (oklch `mediumpurple`, ≈ `#9370DB`). Every token that carried a subtle blue tint moved together — background, foreground, card, popover, primary, secondary, muted, accent, border, input, ring — so the wash is consistent. Primary lightness bumped 0.43 → 0.55 and chroma 0.15 → 0.18 so the purple reads at button sizes instead of looking muddy. Faint-tint variables (border, input) bumped a touch in chroma so the purple is actually visible against white. Dark theme is intentionally untouched.
+
+The top bar (`src/components/site-nav.tsx`) carries the same wash via `bg-primary text-primary-foreground` with a `dark:bg-background dark:text-foreground` revert so dark mode stays flat. The hamburger drawer (`src/components/site-nav-drawer.tsx`) needed more surgery — its `<aside>`, three inner dividers, user avatar bubble, "View profile" link, every nav link, and the bottom Sign-out button were all routed through paired light/dark variants (e.g. inactive nav link → `text-primary-foreground/75 hover:bg-primary-foreground/10` in light, `text-muted-foreground hover:bg-muted` in dark). End result: light mode reads as a coherent purple skin (top bar + drawer + page accents); dark mode is byte-identical to before.
+
+Same session, two polish items on `src/app/tournaments/[slug]/page.tsx`:
+
+- **Stat tile heights.** The four Quick-stats tiles (Teams / Matches / Overs/Innings / Players/Side) were stacking `Card`'s default `py-4` (32 px) with `CardContent`'s `py-3` (24 px) for ~56 px of vertical padding before content. Switched the cards to `size="sm"` (drops Card → `py-3`), trimmed `CardContent` to `py-1.5`, and dropped the value font from `text-2xl` to `text-xl`. Net ~30% shorter per tile.
+- **Match row layout.** On narrow phones the COMPLETED / SCHEDULED status pill on the right was squeezing both team names into "HH Ho… vs GG Gl…". Refactored from a single `flex justify-between` row to a two-row stack: row 1 is the `#N` chip + full team names (no truncation, gets the entire horizontal width); row 2 holds the stage / scheduled-at meta with the pill `ml-auto`-ed to the right. Pill keeps every existing visual — same border, uppercase, animated live-dot.
+
+Commits `f2a0ce5` (purple theme + nav) + `5f97ff2` (tournament page); 4 files / +92 / −68 LOC.
+
 **2026-05-20 (batch 46) — IST everywhere + HVC Season 7 schedule.** Two threads.
 
 Pavan flagged that a scheduled match showed `2:00 PM` in the edit form but `8:30 AM` on the match detail / tournament list. Root cause: server components on Vercel run with a default UTC locale, and every `toLocale*` call site passed `undefined` as the locale option — inheriting that UTC default. Server-rendered `14:00 IST` (`14:00 +05:30`) became `08:30 UTC` while the edit form (client-side, browser locale = IST) showed the correct wall-clock time.
