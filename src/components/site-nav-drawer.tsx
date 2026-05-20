@@ -55,10 +55,14 @@ export function SiteNavDrawer({ user, signOutAction }: Props) {
       prefetch
       onClick={() => setOpen(false)}
       className={
-        "rounded-md px-3 py-2 text-sm transition hover:bg-muted " +
+        // Light theme: drawer sits on the medium-purple `bg-primary`,
+        // so inactive links are dimmed white and hover / active use
+        // a translucent overlay on the same purple. Dark theme reverts
+        // to the original muted-on-background palette.
+        "rounded-md px-3 py-2 text-sm transition hover:bg-primary-foreground/10 dark:hover:bg-muted " +
         (pathname?.startsWith(href)
-          ? "bg-muted font-medium text-foreground"
-          : "text-muted-foreground")
+          ? "bg-primary-foreground/15 font-medium text-primary-foreground dark:bg-muted dark:text-foreground"
+          : "text-primary-foreground/75 dark:text-muted-foreground")
       }
     >
       {label}
@@ -85,10 +89,13 @@ export function SiteNavDrawer({ user, signOutAction }: Props) {
           onClick={() => setOpen(false)}
         >
           <aside
-            className="fixed inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-background shadow-xl"
+            // Light theme: medium-purple drawer (matches the top bar
+            // styling on `SiteNav`). Dark theme keeps the original
+            // dark-on-background surface so nothing changes there.
+            className="fixed inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-primary text-primary-foreground shadow-xl dark:bg-background dark:text-foreground"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-foreground/10 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-primary-foreground/15 px-4 py-3 dark:border-foreground/10">
               <Link
                 href="/"
                 onClick={() => setOpen(false)}
@@ -108,8 +115,8 @@ export function SiteNavDrawer({ user, signOutAction }: Props) {
             </div>
 
             {user && (
-              <div className="flex items-center gap-3 border-b border-foreground/10 px-4 py-3">
-                <span className="flex size-9 items-center justify-center rounded-full bg-primary/15 text-sm font-medium text-primary">
+              <div className="flex items-center gap-3 border-b border-primary-foreground/15 px-4 py-3 dark:border-foreground/10">
+                <span className="flex size-9 items-center justify-center rounded-full bg-primary-foreground/20 text-sm font-medium text-primary-foreground dark:bg-primary/15 dark:text-primary">
                   {user.initial}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -120,7 +127,7 @@ export function SiteNavDrawer({ user, signOutAction }: Props) {
                     href="/me"
                     prefetch
                     onClick={() => setOpen(false)}
-                    className="text-xs text-muted-foreground hover:text-foreground"
+                    className="text-xs text-primary-foreground/75 hover:text-primary-foreground dark:text-muted-foreground dark:hover:text-foreground"
                   >
                     View profile
                   </Link>
@@ -136,14 +143,18 @@ export function SiteNavDrawer({ user, signOutAction }: Props) {
               {user?.isSuperAdmin && navLink("/admins", "Admin")}
             </nav>
 
-            <div className="space-y-2 border-t border-foreground/10 p-3">
+            <div className="space-y-2 border-t border-primary-foreground/15 p-3 dark:border-foreground/10">
               {user ? (
                 <form action={signOutAction}>
                   <Button
                     type="submit"
                     variant="outline"
                     size="sm"
-                    className="w-full"
+                    // Override the default outline styling so the
+                    // button reads against the purple drawer
+                    // background in light mode. Dark mode keeps the
+                    // original outline look via the `dark:` variants.
+                    className="w-full border-primary-foreground/30 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground dark:border-input dark:bg-background dark:text-foreground dark:hover:bg-accent dark:hover:text-foreground"
                   >
                     Sign out
                   </Button>

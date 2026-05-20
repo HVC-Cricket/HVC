@@ -49,25 +49,27 @@
 }
 
 :root {
-  /* Cricket blue (#1e4fa3) drives primary, ring, and accent washes. */
+  /* Medium purple (#9370DB-ish, oklch hue ≈ 300) drives primary,
+   * ring, and accent washes for the light theme. Dark theme keeps
+   * the original cricket-blue palette below. */
   --background: oklch(1 0 0);
-  --foreground: oklch(0.18 0.02 260);
+  --foreground: oklch(0.2 0.025 300);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.02 260);
+  --card-foreground: oklch(0.2 0.025 300);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.02 260);
-  --primary: oklch(0.43 0.15 260);
-  --primary-foreground: oklch(0.99 0.005 260);
-  --secondary: oklch(0.96 0.015 260);
-  --secondary-foreground: oklch(0.3 0.1 260);
-  --muted: oklch(0.97 0.008 260);
-  --muted-foreground: oklch(0.5 0.03 260);
-  --accent: oklch(0.95 0.025 260);
-  --accent-foreground: oklch(0.3 0.1 260);
+  --popover-foreground: oklch(0.2 0.025 300);
+  --primary: oklch(0.55 0.18 300);
+  --primary-foreground: oklch(0.99 0.005 300);
+  --secondary: oklch(0.96 0.025 300);
+  --secondary-foreground: oklch(0.35 0.12 300);
+  --muted: oklch(0.97 0.012 300);
+  --muted-foreground: oklch(0.5 0.04 300);
+  --accent: oklch(0.95 0.035 300);
+  --accent-foreground: oklch(0.35 0.12 300);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.91 0.012 260);
-  --input: oklch(0.91 0.012 260);
-  --ring: oklch(0.55 0.15 260);
+  --border: oklch(0.91 0.02 300);
+  --input: oklch(0.91 0.02 300);
+  --ring: oklch(0.6 0.16 300);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);

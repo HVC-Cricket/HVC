@@ -34,7 +34,12 @@ export async function SiteNav() {
   }
 
   return (
-    <header className="border-b border-foreground/10">
+    // Light theme picks up the medium-purple wash from `--primary`;
+    // dark theme falls back to the page background so the bar stays
+    // flat against the rest of the dark UI. The header's content
+    // inherits `text-primary-foreground` in light mode so the brand
+    // link + drawer button stay legible against the purple.
+    <header className="border-b border-foreground/10 bg-primary text-primary-foreground dark:bg-background dark:text-foreground">
       <div className="mx-auto flex max-w-5xl items-center gap-2 px-3 py-2.5 sm:px-4 sm:py-3">
         <SiteNavDrawer
           user={user ? { displayName, initial, isSuperAdmin } : null}
