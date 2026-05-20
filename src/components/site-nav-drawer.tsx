@@ -89,10 +89,12 @@ export function SiteNavDrawer({ user, signOutAction }: Props) {
           onClick={() => setOpen(false)}
         >
           <aside
-            // Light theme: medium-purple drawer (matches the top bar
-            // styling on `SiteNav`). Dark theme keeps the original
-            // dark-on-background surface so nothing changes there.
-            className="fixed inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-primary text-primary-foreground shadow-xl dark:bg-background dark:text-foreground"
+            // Light theme: medium-purple drawer (matches the top
+            // bar). Dark theme hardcodes the OLD cricket-blue dark
+            // background + foreground so the drawer is explicitly
+            // excluded from the dark purple palette per the design
+            // ask — visually identical to the pre-purple dark UI.
+            className="fixed inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-primary text-primary-foreground shadow-xl dark:bg-[oklch(0.16_0.012_260)] dark:text-[oklch(0.98_0.005_260)]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-primary-foreground/15 px-4 py-3 dark:border-foreground/10">

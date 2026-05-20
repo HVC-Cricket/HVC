@@ -35,11 +35,12 @@ export async function SiteNav() {
 
   return (
     // Light theme picks up the medium-purple wash from `--primary`;
-    // dark theme falls back to the page background so the bar stays
-    // flat against the rest of the dark UI. The header's content
-    // inherits `text-primary-foreground` in light mode so the brand
-    // link + drawer button stay legible against the purple.
-    <header className="border-b border-foreground/10 bg-primary text-primary-foreground dark:bg-background dark:text-foreground">
+    // dark theme hardcodes the OLD blue-tinted dark background so
+    // the bar is explicitly excluded from the dark purple palette
+    // (per the design ask) and stays visually identical to before.
+    // Underscores in the arbitrary value stand in for spaces inside
+    // the `oklch(...)` literal — Tailwind's parser requires that.
+    <header className="border-b border-foreground/10 bg-primary text-primary-foreground dark:bg-[oklch(0.16_0.012_260)] dark:text-[oklch(0.98_0.005_260)]">
       <div className="mx-auto flex max-w-5xl items-center gap-2 px-3 py-2.5 sm:px-4 sm:py-3">
         <SiteNavDrawer
           user={user ? { displayName, initial, isSuperAdmin } : null}
