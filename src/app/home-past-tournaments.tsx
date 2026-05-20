@@ -141,12 +141,21 @@ function formatDates(
     month: "short",
     day: "numeric",
     year: "numeric",
+    timeZone: "Asia/Kolkata",
   };
   if (start && end) {
     const s = new Date(start);
     const e = new Date(end);
-    if (s.getUTCFullYear() === e.getUTCFullYear()) {
-      return `${s.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${e.toLocaleDateString(undefined, opts)}`;
+    // Year check must be done in IST too — Dec-31 23:00 IST is still
+    // Dec-31, not Jan-1, even when the UTC component reads as the
+    // next year.
+    const yearOf = (d: Date) =>
+      d.toLocaleDateString("en-CA", {
+        year: "numeric",
+        timeZone: "Asia/Kolkata",
+      });
+    if (yearOf(s) === yearOf(e)) {
+      return `${s.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "Asia/Kolkata" })} – ${e.toLocaleDateString(undefined, opts)}`;
     }
     return `${s.toLocaleDateString(undefined, opts)} – ${e.toLocaleDateString(undefined, opts)}`;
   }

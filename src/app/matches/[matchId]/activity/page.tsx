@@ -368,10 +368,13 @@ function shortId(id: string): string {
 
 function formatTimestamp(iso: string): string {
   const d = new Date(iso);
-  return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], {
+  // Force IST so server-rendered activity rows match the scorer's
+  // wall clock instead of the Vercel runtime's UTC default.
+  return `${d.toLocaleDateString(undefined, { timeZone: "Asia/Kolkata" })} ${d.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
+    timeZone: "Asia/Kolkata",
   })}`;
 }
 

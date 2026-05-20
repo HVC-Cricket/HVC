@@ -27,6 +27,7 @@ export default async function TournamentOgImage(props: {
           day: "numeric",
           month: "short",
           year: "numeric",
+          timeZone: "Asia/Kolkata",
         })
       : null;
   const start = fmt(tournament.start_date);

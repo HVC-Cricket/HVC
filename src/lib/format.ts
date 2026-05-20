@@ -2,7 +2,16 @@
  * Shared date / time formatters used across home, tournament list,
  * tournament detail, and match detail pages. Behaviour mirrors the
  * previous inline copies — change here and every page updates.
+ *
+ * Timezone: HVC matches are scheduled in IST and stored as timestamptz
+ * (UTC). Server components run on Vercel where the default locale is
+ * UTC, so passing `undefined` to `toLocale*` rendered 14:00 IST as
+ * "8:30 AM" while the client-side edit form (using the user's browser
+ * locale) showed the correct "2:00 PM". Force IST everywhere so the
+ * server output matches the editor input.
  */
+
+const IST = "Asia/Kolkata";
 
 /**
  * "Wed, 17 May 2026 · 4:30 PM" — used on the match detail card and
@@ -16,10 +25,12 @@ export function formatScheduledAt(iso: string | null): string {
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: IST,
   });
   const time = d.toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",
+    timeZone: IST,
   });
   return `${date} · ${time}`;
 }
@@ -41,6 +52,7 @@ export function formatUpcomingTime(iso: string): string {
     weekday: "short",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: IST,
   });
 }
 
@@ -58,15 +70,42 @@ export function formatDateRange(
       day: "numeric",
       month: "short",
       year: "numeric",
+      timeZone: IST,
     });
   if (start && end) {
     const s = new Date(start);
     const e = new Date(end);
-    if (s.toDateString() === e.toDateString()) return fmt(start);
-    const sameMonth =
-      s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth();
-    if (sameMonth) {
-      return `${s.toLocaleDateString(undefined, { day: "numeric", month: "short" })} – ${e.getDate()}, ${e.getFullYear()}`;
+    // Compare day-of-IST, not UTC. `toDateString()` uses local time;
+    // explicit `toLocaleDateString` with the IST timezone keeps the
+    // same-day check accurate when the runtime locale is UTC.
+    const sIst = s.toLocaleDateString("en-CA", { timeZone: IST });
+    const eIst = e.toLocaleDateString("en-CA", { timeZone: IST });
+    if (sIst === eIst) return fmt(start);
+    const sMonth = s.toLocaleDateString("en-CA", {
+      month: "2-digit",
+      year: "numeric",
+      timeZone: IST,
+    });
+    const eMonth = e.toLocaleDateString("en-CA", {
+      month: "2-digit",
+      year: "numeric",
+      timeZone: IST,
+    });
+    if (sMonth === eMonth) {
+      const startShort = s.toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "short",
+        timeZone: IST,
+      });
+      const endDay = e.toLocaleDateString(undefined, {
+        day: "numeric",
+        timeZone: IST,
+      });
+      const year = e.toLocaleDateString(undefined, {
+        year: "numeric",
+        timeZone: IST,
+      });
+      return `${startShort} – ${endDay}, ${year}`;
     }
     return `${fmt(start)} – ${fmt(end)}`;
   }
@@ -79,7 +118,7 @@ export function formatDateRange(
  */
 export function formatMatchTime(iso: string): string {
   const d = new Date(iso);
-  return `${d.toLocaleDateString(undefined, { day: "numeric", month: "short" })} · ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+  return `${d.toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: IST })} · ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone: IST })}`;
 }
 
 /**

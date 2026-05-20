@@ -80,6 +80,7 @@ export default async function MatchOgImage(props: {
               month: "short",
               hour: "2-digit",
               minute: "2-digit",
+              timeZone: "Asia/Kolkata",
             })
           : "SCHEDULED";
     }
