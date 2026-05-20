@@ -214,16 +214,6 @@ export default async function Home() {
       <div className="mx-auto max-w-3xl space-y-8">
         {liveMatches.length > 0 && <LiveRefresh />}
 
-        {/* Hero */}
-        <header className="relative overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 sm:p-7">
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            HVC Heroes
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Box-cricket — live ball-by-ball scoring &amp; spectator view.
-          </p>
-        </header>
-
         {upcomingTournaments.length > 0 && (
           <section className="space-y-3">
             {upcomingTournaments.map((t) => (
