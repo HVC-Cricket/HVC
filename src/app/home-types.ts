@@ -51,3 +51,14 @@ export type RecentMatchView = {
   innings1: InningsScore | null;
   innings2: InningsScore | null;
 };
+
+export type UpcomingTournamentView = {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  venue: string | null;
+  teamCount: number;
+  matchCount: number;
+  firstScheduledAt: string | null;
+};

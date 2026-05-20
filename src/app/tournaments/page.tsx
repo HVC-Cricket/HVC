@@ -38,9 +38,10 @@ type TournamentRow = {
 
 const STATUS_ORDER: Record<TournamentStatus, number> = {
   active: 0,
-  draft: 1,
-  completed: 2,
-  archived: 3,
+  upcoming: 1,
+  draft: 2,
+  completed: 3,
+  archived: 4,
 };
 
 export default async function TournamentsPage() {

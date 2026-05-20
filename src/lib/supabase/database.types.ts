@@ -18,7 +18,12 @@ type TournamentFormat =
   | "knockout"
   | "group_then_knockout"
   | "round_robin_playoff_final";
-type TournamentStatus = "draft" | "active" | "completed" | "archived";
+type TournamentStatus =
+  | "draft"
+  | "upcoming"
+  | "active"
+  | "completed"
+  | "archived";
 type TournamentAdminRole = "organizer" | "scorer";
 type TeamPlayerRole = "captain" | "vice_captain" | "wicket_keeper" | "player";
 type MatchStage =

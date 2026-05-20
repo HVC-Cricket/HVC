@@ -752,6 +752,22 @@ Pick-preservation fix layered on: the balls-length sync used to unconditionally 
 
 Commit `4112d0c`; 1 file / +142 / −12 LOC.
 
+**2026-05-20 (later 2) — Tournament status `upcoming` + home-page hero strip.** S7 was just created on prod and the admin wanted to flag it as "Upcoming" instead of leaving it as `draft` (which reads as "still being configured") or flipping it to `active` (which renders a misleading "Live" badge before any ball has been bowled).
+
+1. **Migration `20260520000000_tournament_status_upcoming.sql`.** `tournaments.status` is gated by a CHECK constraint (`tournaments_status_check`) rather than a Postgres enum — confirmed by a deliberate bad-status PATCH against prod which returned PG `23514` referencing that constraint name. Migration drops + re-adds with `upcoming` added to the allowed-list. Idempotent.
+
+2. **Vocabulary update.** `TournamentStatus` union, `STATUS_LABEL`, and `STATUS_CLASSES` in `src/lib/constants/tournament.ts` gained `upcoming: "Upcoming"` with a violet pill (`border-violet-500/30 bg-violet-500/10 text-violet-700`). `tournamentStatusValues` zod enum in `src/app/tournaments/actions.ts`, the form schema + Props type in `edit-tournament-form.tsx`, and the `database.types.ts` stub all extended. New `STATUS_ORDER` slot in `tournaments/page.tsx` puts `upcoming` right below `active` so an upcoming tournament floats near the top of the listing alongside live ones.
+
+3. **`deriveTournamentStatus` needed no logic change.** The existing function already returns `stored` when no matches exist or only `scheduled` ones remain — so a tournament stored as `upcoming` correctly renders as "Upcoming" until any match goes live, at which point the existing `matches.some(live | innings_break) → 'active'` branch flips the badge to "Live" automatically. The admin doesn't have to remember to manually flip the stored status when scoring starts.
+
+4. **Home page hero strip.** New `UpcomingTournamentCard` rendered above the "Live now" section on `/`. Surfaces every tournament with stored status `upcoming` — name + logo, team count, match count, `Starts ${formatScheduledAt(firstScheduledAt)}` (earliest `scheduled_at` across the tournament's matches), and venue. Gated by `liveMatches.length === 0` so the moment any live/innings_break match exists, the Live section takes over and the upcoming hero hides. Two-wave fetch: tournaments-by-status alongside the existing live/upcoming/recent match queries (one round-trip), then teams + matches IN-clause for the upcoming tournament IDs (second round-trip, skipped entirely if no upcoming tournaments). New `UpcomingTournamentView` shape added to `home-types.ts`.
+
+5. **Edit form.** New `Upcoming` option added to the Status dropdown between `Draft` and `Active`, matching the natural lifecycle.
+
+The S7 hero will read "HVC - SEASON 7 · 7 teams · 21 matches · Starts Sat, 23 May 2026 · 2:00 PM" once the admin sets its stored status to `upcoming` and the migration is live on prod.
+
+Apply order per §9b: `pnpm exec supabase link --project-ref clqdimzthzcpurtwhtej && pnpm exec supabase db push --linked` (dev), then re-link to `cxysyglwooqmzcfvtmyl` and push to prod.
+
 **2026-05-20 (later) — Nav rename ("HVC Heroes" → "Leaderboard") + manifest icon `?v=2` cache-buster.** Two small UX fixes shipped together.
 
 1. **Drawer nav item + `/stats` page H1 + page metadata title** all renamed from "HVC Heroes" to "Leaderboard". The drawer brand header *already* shows "HVC Heroes" at the top, AND the same string was the page H1 — three identical labels on the same screen made the nav row feel like a duplicate of the brand row. Brand-level identity stays on the brand header; the functional label ("this is the leaderboard page") moves to where it belongs. Files: `src/components/site-nav-drawer.tsx`, `src/app/stats/page.tsx`.

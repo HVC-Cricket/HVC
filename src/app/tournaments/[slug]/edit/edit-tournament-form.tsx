@@ -43,7 +43,7 @@ const schema = z.object({
     "group_then_knockout",
     "round_robin_playoff_final",
   ]),
-  status: z.enum(["draft", "active", "completed", "archived"]),
+  status: z.enum(["draft", "upcoming", "active", "completed", "archived"]),
   default_overs_per_innings: z.coerce.number().int().positive().max(50),
   default_players_per_side: z.coerce.number().int().min(2).max(15),
   start_date: z.string().optional().or(z.literal("")),
@@ -67,7 +67,7 @@ type Props = {
       | "knockout"
       | "group_then_knockout"
       | "round_robin_playoff_final";
-    status: "draft" | "active" | "completed" | "archived";
+    status: "draft" | "upcoming" | "active" | "completed" | "archived";
     default_overs_per_innings: number;
     default_players_per_side: number;
     start_date: string | null;
@@ -179,6 +179,7 @@ export function EditTournamentForm({ tournament }: Props) {
                   </FormControl>
                   <SelectContent>
                     <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="upcoming">Upcoming</SelectItem>
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                     <SelectItem value="archived">Archived</SelectItem>

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { LiveRefresh } from "@/components/live-refresh";
-import { formatUpcomingTime } from "@/lib/format";
+import { formatScheduledAt, formatUpcomingTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { getTeamInitials } from "@/lib/utils";
 
@@ -15,6 +15,7 @@ import type {
   RecentMatchView,
   TeamView,
   UpcomingMatchView,
+  UpcomingTournamentView,
 } from "./home-types";
 import { LiveMatchCard } from "./live-match-card";
 
@@ -38,27 +39,38 @@ export default async function Home() {
     team_b:teams!matches_team_b_id_fkey(id, name, short_name, logo_url),
     innings!innings_match_id_fkey(innings_number, batting_team_id, total_runs, total_wickets, total_legal_balls, target)
   `;
-  const [liveRes, upcomingRes, recentRes] = await Promise.all([
-    supabase
-      .from("matches")
-      .select(matchSelect)
-      .in("status", ["live", "innings_break"])
-      .order("started_at", { ascending: false }),
-    supabase
-      .from("matches")
-      .select(matchSelect)
-      .eq("status", "scheduled")
-      .gte("scheduled_at", now.toISOString())
-      .lte("scheduled_at", next24h.toISOString())
-      .order("scheduled_at", { ascending: true })
-      .limit(5),
-    supabase
-      .from("matches")
-      .select(matchSelect)
-      .eq("status", "completed")
-      .order("started_at", { ascending: false })
-      .limit(5),
-  ]);
+  const [liveRes, upcomingRes, recentRes, upcomingTournamentsRes] =
+    await Promise.all([
+      supabase
+        .from("matches")
+        .select(matchSelect)
+        .in("status", ["live", "innings_break"])
+        .order("started_at", { ascending: false }),
+      supabase
+        .from("matches")
+        .select(matchSelect)
+        .eq("status", "scheduled")
+        .gte("scheduled_at", now.toISOString())
+        .lte("scheduled_at", next24h.toISOString())
+        .order("scheduled_at", { ascending: true })
+        .limit(5),
+      supabase
+        .from("matches")
+        .select(matchSelect)
+        .eq("status", "completed")
+        .order("started_at", { ascending: false })
+        .limit(5),
+      // Tournaments the admin has flagged as 'upcoming' — surfaced as a
+      // hero strip above Live now (gated on no live match in flight).
+      // We pull the metadata only here; team / match counts and the
+      // earliest scheduled-match timestamp come from a follow-up query
+      // since they require IN-clause joins on the IDs we just selected.
+      supabase
+        .from("tournaments")
+        .select("id, name, slug, logo_url, venue")
+        .eq("status", "upcoming")
+        .order("start_date", { ascending: true, nullsFirst: false }),
+    ]);
 
   // Shape of an embedded row — PostgREST returns nested objects as
   // single-object (one-to-one) or arrays (one-to-many).
@@ -145,6 +157,58 @@ export default async function Home() {
       };
     });
 
+  // Hero data for tournaments admins have flagged as 'upcoming'.
+  // Second wave so the team / match counts can use the IN-clause on
+  // tournament IDs we just learned about. Hero hides automatically
+  // the moment any live match exists — the Live section takes over.
+  const upcomingTournamentRows =
+    (upcomingTournamentsRes.data as
+      | Array<{
+          id: string;
+          name: string;
+          slug: string;
+          logo_url: string | null;
+          venue: string | null;
+        }>
+      | null) ?? [];
+  const upcomingTournaments: UpcomingTournamentView[] = [];
+  if (upcomingTournamentRows.length > 0 && liveMatches.length === 0) {
+    const ids = upcomingTournamentRows.map((t) => t.id);
+    const [teamRowsRes, matchRowsRes] = await Promise.all([
+      supabase.from("teams").select("tournament_id").in("tournament_id", ids),
+      supabase
+        .from("matches")
+        .select("tournament_id, scheduled_at")
+        .in("tournament_id", ids),
+    ]);
+    const teamCount = new Map<string, number>();
+    for (const r of teamRowsRes.data ?? []) {
+      teamCount.set(r.tournament_id, (teamCount.get(r.tournament_id) ?? 0) + 1);
+    }
+    const matchAgg = new Map<string, { count: number; firstAt: string | null }>();
+    for (const r of matchRowsRes.data ?? []) {
+      const cur = matchAgg.get(r.tournament_id) ?? { count: 0, firstAt: null };
+      cur.count += 1;
+      if (r.scheduled_at && (cur.firstAt === null || r.scheduled_at < cur.firstAt)) {
+        cur.firstAt = r.scheduled_at;
+      }
+      matchAgg.set(r.tournament_id, cur);
+    }
+    for (const t of upcomingTournamentRows) {
+      const agg = matchAgg.get(t.id);
+      upcomingTournaments.push({
+        id: t.id,
+        name: t.name,
+        slug: t.slug,
+        logoUrl: t.logo_url,
+        venue: t.venue,
+        teamCount: teamCount.get(t.id) ?? 0,
+        matchCount: agg?.count ?? 0,
+        firstScheduledAt: agg?.firstAt ?? null,
+      });
+    }
+  }
+
   return (
     <main className="flex-1 p-4 sm:p-6">
       <div className="mx-auto max-w-3xl space-y-8">
@@ -159,6 +223,14 @@ export default async function Home() {
             Box-cricket — live ball-by-ball scoring &amp; spectator view.
           </p>
         </header>
+
+        {upcomingTournaments.length > 0 && (
+          <section className="space-y-3">
+            {upcomingTournaments.map((t) => (
+              <UpcomingTournamentCard key={t.id} tournament={t} />
+            ))}
+          </section>
+        )}
 
         {liveMatches.length > 0 && (
           <section className="space-y-3">
@@ -237,6 +309,60 @@ export default async function Home() {
   );
 }
 
+
+function UpcomingTournamentCard({
+  tournament: t,
+}: {
+  tournament: UpcomingTournamentView;
+}) {
+  return (
+    <Link
+      href={`/tournaments/${t.slug}`}
+      className="group relative block overflow-hidden rounded-2xl border border-violet-500/30 bg-gradient-to-br from-violet-500/10 via-violet-500/5 to-transparent p-4 transition hover:border-violet-500/50 sm:p-5"
+    >
+      <div className="flex items-center gap-2">
+        <CalendarDays className="size-4 text-violet-600 dark:text-violet-400" />
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-700 dark:text-violet-300">
+          Upcoming
+        </span>
+      </div>
+      <div className="mt-2 flex items-start gap-3">
+        {t.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={t.logoUrl}
+            alt=""
+            className="size-12 shrink-0 rounded-lg border border-foreground/10 object-cover"
+          />
+        ) : (
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-violet-600 dark:text-violet-300">
+            <Trophy className="size-5" />
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-lg font-semibold capitalize">{t.name}</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            <span className="tabular-nums">{t.teamCount}</span>{" "}
+            {t.teamCount === 1 ? "team" : "teams"}
+            <span className="mx-1.5 text-foreground/20">·</span>
+            <span className="tabular-nums">{t.matchCount}</span>{" "}
+            {t.matchCount === 1 ? "match" : "matches"}
+          </p>
+          {t.firstScheduledAt && (
+            <p className="mt-1.5 text-sm font-medium">
+              Starts {formatScheduledAt(t.firstScheduledAt)}
+            </p>
+          )}
+          {t.venue && (
+            <p className="text-[11px] text-muted-foreground capitalize">
+              {t.venue}
+            </p>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 function UpcomingMatchRow({ match }: { match: UpcomingMatchView }) {
   return (

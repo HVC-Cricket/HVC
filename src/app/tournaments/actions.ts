@@ -17,7 +17,13 @@ const tournamentFormatValues = [
   "group_then_knockout",
   "round_robin_playoff_final",
 ] as const;
-const tournamentStatusValues = ["draft", "active", "completed", "archived"] as const;
+const tournamentStatusValues = [
+  "draft",
+  "upcoming",
+  "active",
+  "completed",
+  "archived",
+] as const;
 
 const baseTournamentFields = {
   name: z.string().min(2, "Name must be at least 2 characters"),
