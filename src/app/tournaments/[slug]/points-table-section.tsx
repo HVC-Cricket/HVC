@@ -64,11 +64,15 @@ export async function PointsTableSection({
     .select("*")
     .eq("tournament_id", tournamentId);
 
-  if (error || !data || (data as unknown[]).length === 0) {
+  // Only hide the section when there's an outright fetch error or no
+  // teams have been added yet. An upcoming tournament with teams but
+  // no matches played is still useful — the filler below renders every
+  // team at 0/0/0 so the spectator can see who's competing.
+  if (error || teams.length === 0) {
     return null;
   }
 
-  const rows = data as unknown as PointsRow[];
+  const rows = (data ?? []) as unknown as PointsRow[];
   const teamById = new Map(teams.map((t) => [t.id, t]));
 
   // ---- Compute NRR per team ----
