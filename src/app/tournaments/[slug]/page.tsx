@@ -255,49 +255,51 @@ export default async function TournamentDetailPage(props: {
                         key={m.id}
                         href={`/matches/${m.id}`}
                         prefetch
-                        className="group flex items-center justify-between gap-3 rounded-lg border border-foreground/10 bg-background p-3 transition hover:border-foreground/25 hover:bg-muted/30"
+                        // Two-line layout: row 1 is just the #N chip
+                        // + team names so neither team gets truncated
+                        // by the status pill on narrow phones. Row 2
+                        // holds the stage / time meta alongside the
+                        // pill (the meta is short enough that the
+                        // pill sits comfortably on the same row).
+                        className="group flex items-start gap-3 rounded-lg border border-foreground/10 bg-background p-3 transition hover:border-foreground/25 hover:bg-muted/30"
                       >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-muted font-mono text-xs text-muted-foreground">
-                            #{m.match_number}
-                          </span>
-                          <div className="min-w-0 space-y-0.5">
-                            <div className="flex items-center gap-2">
-                              <TeamMini team={a} />
-                              <span className="text-xs text-muted-foreground">
-                                vs
-                              </span>
-                              <TeamMini team={b} />
-                            </div>
-                            <div className="flex flex-wrap items-center gap-x-2 text-[11px] text-muted-foreground">
-                              <span className="capitalize">
-                                {formatEnumLabel(m.stage)}
-                              </span>
-                              {m.scheduled_at && (
-                                <>
-                                  <span className="text-foreground/20">·</span>
-                                  <span>
-                                    {formatMatchTime(m.scheduled_at)}
-                                  </span>
-                                </>
+                        <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-muted font-mono text-xs text-muted-foreground">
+                          #{m.match_number}
+                        </span>
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <TeamMini team={a} />
+                            <span className="text-xs text-muted-foreground">
+                              vs
+                            </span>
+                            <TeamMini team={b} />
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
+                            <span className="capitalize">
+                              {formatEnumLabel(m.stage)}
+                            </span>
+                            {m.scheduled_at && (
+                              <>
+                                <span className="text-foreground/20">·</span>
+                                <span>{formatMatchTime(m.scheduled_at)}</span>
+                              </>
+                            )}
+                            <span
+                              className={
+                                "ml-auto inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide " +
+                                MATCH_STATUS_CLASSES[ms]
+                              }
+                            >
+                              {ms === "live" && (
+                                <span className="relative flex size-1.5">
+                                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                                  <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+                                </span>
                               )}
-                            </div>
+                              {MATCH_STATUS_LABEL[ms]}
+                            </span>
                           </div>
                         </div>
-                        <span
-                          className={
-                            "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide " +
-                            MATCH_STATUS_CLASSES[ms]
-                          }
-                        >
-                          {ms === "live" && (
-                            <span className="relative flex size-1.5">
-                              <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-                              <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
-                            </span>
-                          )}
-                          {MATCH_STATUS_LABEL[ms]}
-                        </span>
                       </Link>
                     );
                   })}
@@ -424,10 +426,14 @@ export default async function TournamentDetailPage(props: {
 }
 
 function Stat({ label, value }: { label: string; value: number | string }) {
+  // `size="sm"` halves Card's default vertical padding (py-4 → py-3);
+  // the inner CardContent override (py-1.5) trims the rest. Net height
+  // drops by ~30% vs the original block so the four tiles read at a
+  // glance instead of dominating the tournament header.
   return (
-    <Card className="border-foreground/10">
-      <CardContent className="space-y-0.5 py-3 text-center">
-        <div className="font-mono text-2xl font-semibold leading-none tabular-nums">
+    <Card size="sm" className="border-foreground/10">
+      <CardContent className="space-y-0.5 py-1.5 text-center">
+        <div className="font-mono text-xl font-semibold leading-none tabular-nums">
           {value}
         </div>
         <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
