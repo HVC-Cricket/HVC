@@ -4,7 +4,6 @@ import {
   Check,
   ChevronsUpDown,
   Loader2,
-  RefreshCw,
   Search,
   Trash2,
   UserRound,
@@ -13,6 +12,8 @@ import {
 import { useRouter } from "next/navigation";
 import { useDeferredValue, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+
+import { RefreshButton } from "@/components/refresh-button";
 
 import {
   AlertDialog,
@@ -78,7 +79,6 @@ export function MembersTable({
    *  that row gets hidden — we never allow self-delete from here. */
   currentUserId: string;
 }) {
-  const router = useRouter();
   const [query, setQuery] = useState("");
   // Toggle chip — when on, hides every member that already has a
   // linked player record. Pairs the same workflow as the players
@@ -87,11 +87,6 @@ export function MembersTable({
   // useDeferredValue keeps the input responsive when the filtered set
   // is large enough that re-rendering noticeably blocks typing.
   const deferredQuery = useDeferredValue(query);
-  // Manual refresh — re-runs the page's server component so a freshly
-  // signed-up user shows up without a full reload. `useTransition`
-  // wraps router.refresh() so React reports the pending state until
-  // the new tree arrives, and we can spin the icon for that window.
-  const [refreshing, startRefresh] = useTransition();
 
   const unlinkedCount = useMemo(
     () => rows.reduce((n, r) => (r.linkedPlayer ? n : n + 1), 0),
@@ -121,19 +116,7 @@ export function MembersTable({
                 ? `${filtered.length} of ${rows.length}`
                 : `${rows.length} total`}
             </span>
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              aria-label="Refresh members"
-              disabled={refreshing}
-              onClick={() => startRefresh(() => router.refresh())}
-              className="size-7 text-muted-foreground hover:text-foreground"
-            >
-              <RefreshCw
-                className={cn("size-3.5", refreshing && "animate-spin")}
-              />
-            </Button>
+            <RefreshButton label="Refresh members" />
           </div>
         </div>
         {/* Match the players-list search shell — flex row instead of

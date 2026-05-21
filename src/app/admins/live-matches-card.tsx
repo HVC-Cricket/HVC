@@ -2,6 +2,7 @@ import { Radio } from "lucide-react";
 import Link from "next/link";
 
 import { LiveMatchCard } from "@/app/live-match-card";
+import { RefreshButton } from "@/components/refresh-button";
 import type {
   InningsScore,
   LiveMatchView,
@@ -119,6 +120,7 @@ export async function LiveMatchesCard() {
           <CardTitle className="flex items-center gap-2 text-base">
             <Radio className="size-4 text-muted-foreground" />
             Match feed
+            <RefreshButton label="Refresh match feed" className="ml-auto" />
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0 text-sm text-muted-foreground">
@@ -137,6 +139,7 @@ export async function LiveMatchesCard() {
           <span className="ml-auto text-[10px] font-normal uppercase tracking-wide text-muted-foreground">
             {liveMatches.length} live · {upcoming.length} upcoming
           </span>
+          <RefreshButton label="Refresh match feed" />
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

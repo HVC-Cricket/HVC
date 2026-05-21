@@ -25,6 +25,8 @@ import {
 } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
 
+import { RefreshButton } from "@/components/refresh-button";
+
 import { deleteOrphanStorageObjects } from "./actions";
 import type { BucketReport } from "./storage-loader";
 
@@ -53,6 +55,7 @@ export function StorageSection({ reports }: Props) {
             {totals.orphans} orphan
             {totals.orphans === 1 ? "" : "s"}
           </span>
+          <RefreshButton label="Refresh storage" />
         </CardTitle>
         <CardDescription>
           One section per Supabase Storage bucket the app uploads to.

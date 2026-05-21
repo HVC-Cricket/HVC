@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { RefreshButton } from "@/components/refresh-button";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -78,11 +79,14 @@ export default async function PlayersPage() {
                 : "Global registry across all tournaments."}
             </p>
           </div>
-          {canManagePlayers && (
-            <Link href="/players/new" prefetch>
-              <Button size="sm">New player</Button>
-            </Link>
-          )}
+          <div className="flex shrink-0 items-center gap-1.5">
+            <RefreshButton label="Refresh players" />
+            {canManagePlayers && (
+              <Link href="/players/new" prefetch>
+                <Button size="sm">New player</Button>
+              </Link>
+            )}
+          </div>
         </header>
 
         {error && (

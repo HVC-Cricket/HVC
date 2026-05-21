@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { RefreshButton } from "@/components/refresh-button";
 import {
   Card,
   CardContent,
@@ -209,10 +210,15 @@ export async function PlayerCareerSection({
     <>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Career</CardTitle>
-          <CardDescription>
-            Aggregated across every HVC Heroes tournament.
-          </CardDescription>
+          <div className="flex items-start justify-between gap-2">
+            <div className="space-y-1">
+              <CardTitle className="text-base">Career</CardTitle>
+              <CardDescription>
+                Aggregated across every HVC Heroes tournament.
+              </CardDescription>
+            </div>
+            <RefreshButton label="Refresh career stats" />
+          </div>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
           <Stat label="Matches" value={matchesPlayed} />

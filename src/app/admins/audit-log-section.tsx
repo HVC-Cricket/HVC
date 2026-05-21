@@ -4,6 +4,8 @@ import { Activity, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
 
+import { RefreshButton } from "@/components/refresh-button";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -76,11 +78,14 @@ export function AuditLogSection({ events }: { events: AuditEvent[] }) {
             <Activity className="size-4 text-muted-foreground" />
             Recent activity
           </CardTitle>
-          <span className="text-[11px] tabular-nums text-muted-foreground">
-            {hasFilter
-              ? `${filtered.length} of ${events.length}`
-              : `Last ${events.length}`}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] tabular-nums text-muted-foreground">
+              {hasFilter
+                ? `${filtered.length} of ${events.length}`
+                : `Last ${events.length}`}
+            </span>
+            <RefreshButton label="Refresh activity" />
+          </div>
         </div>
         <label className="flex h-10 items-center gap-2 rounded-lg border border-input bg-transparent px-3 text-sm transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 dark:bg-input/30">
           <Search
