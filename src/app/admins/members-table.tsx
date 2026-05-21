@@ -4,6 +4,7 @@ import {
   Check,
   ChevronsUpDown,
   Loader2,
+  RefreshCw,
   Search,
   Trash2,
   UserRound,
@@ -77,6 +78,7 @@ export function MembersTable({
    *  that row gets hidden — we never allow self-delete from here. */
   currentUserId: string;
 }) {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   // Toggle chip — when on, hides every member that already has a
   // linked player record. Pairs the same workflow as the players
@@ -85,6 +87,11 @@ export function MembersTable({
   // useDeferredValue keeps the input responsive when the filtered set
   // is large enough that re-rendering noticeably blocks typing.
   const deferredQuery = useDeferredValue(query);
+  // Manual refresh — re-runs the page's server component so a freshly
+  // signed-up user shows up without a full reload. `useTransition`
+  // wraps router.refresh() so React reports the pending state until
+  // the new tree arrives, and we can spin the icon for that window.
+  const [refreshing, startRefresh] = useTransition();
 
   const unlinkedCount = useMemo(
     () => rows.reduce((n, r) => (r.linkedPlayer ? n : n + 1), 0),
@@ -108,11 +115,26 @@ export function MembersTable({
       <CardHeader className="space-y-3">
         <div className="flex items-center justify-between gap-3">
           <CardTitle className="text-base">Members</CardTitle>
-          <span className="text-[11px] tabular-nums text-muted-foreground">
-            {query || unlinkedOnly
-              ? `${filtered.length} of ${rows.length}`
-              : `${rows.length} total`}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] tabular-nums text-muted-foreground">
+              {query || unlinkedOnly
+                ? `${filtered.length} of ${rows.length}`
+                : `${rows.length} total`}
+            </span>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              aria-label="Refresh members"
+              disabled={refreshing}
+              onClick={() => startRefresh(() => router.refresh())}
+              className="size-7 text-muted-foreground hover:text-foreground"
+            >
+              <RefreshCw
+                className={cn("size-3.5", refreshing && "animate-spin")}
+              />
+            </Button>
+          </div>
         </div>
         {/* Match the players-list search shell — flex row instead of
             an absolutely-positioned icon so Tailwind v4's px-2.5 on

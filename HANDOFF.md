@@ -56,6 +56,7 @@ Match query on `tournaments/[slug]/page.tsx` widened to also select `winner_id, 
 
 ---
 
+**2026-05-21 — `/admins` Members: manual refresh button.** Small icon button (`RefreshCw`) next to the "N of M" counter in the Members card header. Calls `router.refresh()` inside `useTransition` so the icon spins until the server roundtrip lands. Client filter state (search query + Unlinked chip) is preserved across the refresh because the component doesn't unmount — only the `rows` prop changes. Use case: super-admin sits on the page while a teammate signs up; this saves a full-page reload to pick the new row up.
 **2026-05-21 — Prod player merge: Prabhav Krishna → Prabhav PK.** Pavan flagged the pair after batch 49 surfaced both as unlinked Cat-1 players from the cricheroes import. Same person across seasons; merged via `scripts/merge_players.ts --merge=9e91b3f7:e15bb284 --execute`. No `match_players` collisions (different seasons). 47 FK rows re-pointed (2 team_players, 14 match_players, 14 historical batting, 14 historical bowling, 13 fall-of-wickets, 2 MVP); loser row deleted. Combined stats on "Prabhav PK": 41 matches (was 27+14), 182 runs (was 134+48), 5 wickets (was 4+1). Prod player count 59 → 58.
 
 **2026-05-21 (batch 49) — "Unlinked" filter on `/players` + `/admins` Members.** Pavan: easy way to scan players (or auth users) that still need a profile / account attached.
