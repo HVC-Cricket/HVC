@@ -130,10 +130,35 @@ export default async function TournamentDetailPage(props: {
                   <Trophy className="size-6" />
                 </div>
               )}
-              <div className="min-w-0 space-y-1.5">
-                <h1 className="truncate text-2xl font-semibold capitalize sm:text-3xl">
+              <div className="min-w-0 space-y-1">
+                <h1 className="truncate text-lg font-semibold capitalize leading-tight sm:text-xl">
                   {tournament.name}
                 </h1>
+                {/* Venue + date moved up here so the spectator gets
+                    the "where + when" without scrolling past the
+                    stat tiles. Faint gray, small icons — meta line,
+                    not a section header. */}
+                {(tournament.venue ||
+                  tournament.start_date ||
+                  tournament.end_date) && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {tournament.venue && (
+                      <span className="inline-flex items-center gap-1 capitalize">
+                        <MapPin className="size-3" />
+                        {tournament.venue}
+                      </span>
+                    )}
+                    {(tournament.start_date || tournament.end_date) && (
+                      <span className="inline-flex items-center gap-1">
+                        <CalendarDays className="size-3" />
+                        {formatDateRange(
+                          tournament.start_date,
+                          tournament.end_date,
+                        )}
+                      </span>
+                    )}
+                  </div>
+                )}
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span
                     className={
@@ -195,28 +220,6 @@ export default async function TournamentDetailPage(props: {
             />
           </div>
 
-          {/* Venue / dates */}
-          {(tournament.venue ||
-            tournament.start_date ||
-            tournament.end_date) && (
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-              {tournament.venue && (
-                <span className="inline-flex items-center gap-1.5 capitalize">
-                  <MapPin className="size-3.5" />
-                  {tournament.venue}
-                </span>
-              )}
-              {(tournament.start_date || tournament.end_date) && (
-                <span className="inline-flex items-center gap-1.5">
-                  <CalendarDays className="size-3.5" />
-                  {formatDateRange(
-                    tournament.start_date,
-                    tournament.end_date,
-                  )}
-                </span>
-              )}
-            </div>
-          )}
         </header>
 
         <Suspense fallback={null}>
