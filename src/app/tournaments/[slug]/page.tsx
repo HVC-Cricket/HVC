@@ -321,6 +321,10 @@ export default async function TournamentDetailPage(props: {
                       </Link>
                     );
                   })}
+                  <PlayoffPlaceholders
+                    format={fmt}
+                    matches={matches}
+                  />
                 </div>
               )}
             </section>
@@ -503,6 +507,87 @@ function TeamRow({
         title={team.name}
       >
         {label}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Hardcoded preview cards for the IPL-style playoff bracket
+ * (Qualifier 1 → Eliminator → Qualifier 2 → Final). Rendered after
+ * the real match list while the round-robin phase is still in
+ * progress, so spectators see the upcoming bracket shape even though
+ * the actual teams won't be known until the standings settle.
+ *
+ * Hides itself once every group match is completed — by then the
+ * organizer should be creating the real playoff matches with locked-in
+ * teams.
+ */
+function PlayoffPlaceholders({
+  format,
+  matches,
+}: {
+  format: TournamentFormat;
+  matches: { match_number: number; stage: string; status: string }[];
+}) {
+  if (format !== "round_robin_playoff_final") return null;
+  const groupMatches = matches.filter((m) => m.stage === "group");
+  if (groupMatches.length === 0) return null;
+  const allGroupDone = groupMatches.every((m) => m.status === "completed");
+  if (allGroupDone) return null;
+
+  const lastNumber = matches.reduce(
+    (max, m) => (m.match_number > max ? m.match_number : max),
+    0,
+  );
+  const stages: { stage: MatchStage; label: string }[] = [
+    { stage: "qualifier_1", label: "Qualifier 1" },
+    { stage: "eliminator", label: "Eliminator" },
+    { stage: "qualifier_2", label: "Qualifier 2" },
+    { stage: "final", label: "Final" },
+  ];
+
+  return (
+    <>
+      {stages.map((s, i) => {
+        const num = lastNumber + i + 1;
+        return (
+          <div
+            key={s.stage}
+            // Same card chrome as the real match rows, but rendered as
+            // a non-interactive `div` (no `Link`) and tinted to read as
+            // an unfinalized placeholder.
+            className="block rounded-lg border border-dashed border-foreground/15 bg-muted/30 p-3"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 truncate text-xs font-medium text-foreground/80">
+                Time TBD
+              </div>
+            </div>
+            <div className="mt-1 truncate text-[11px] text-muted-foreground">
+              #{num}
+              <span className="px-1 text-foreground/20">·</span>
+              {s.label}
+            </div>
+            <div className="mt-2 space-y-1.5">
+              <TbcRow />
+              <TbcRow />
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function TbcRow() {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[8px] font-semibold uppercase text-muted-foreground">
+        TBC
+      </span>
+      <span className="truncate text-sm font-medium text-muted-foreground">
+        TBC
       </span>
     </div>
   );
