@@ -216,13 +216,12 @@ export async function PointsTableSection({
               <thead className="text-[10px] uppercase text-muted-foreground">
                 <tr className="border-b border-foreground/10">
                   <th className="px-2 py-1.5 text-left font-medium">Team</th>
-                  <th className="px-1 py-1.5 text-right font-medium">P</th>
-                  <th className="px-1 py-1.5 text-right font-medium">W</th>
-                  <th className="px-1 py-1.5 text-right font-medium">L</th>
-                  <th className="px-1 py-1.5 text-right font-medium">T</th>
-                  <th className="px-1 py-1.5 text-right font-medium">NR</th>
-                  <th className="px-1 py-1.5 text-right font-medium">Pts</th>
-                  <th className="px-2 py-1.5 text-right font-medium">NRR</th>
+                  <th className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-medium">P</th>
+                  <th className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-medium">W</th>
+                  <th className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-medium">L</th>
+                  <th className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-medium">T</th>
+                  <th className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-medium">Pts</th>
+                  <th className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-medium">NRR</th>
                 </tr>
               </thead>
               <tbody>
@@ -238,25 +237,22 @@ export async function PointsTableSection({
                           {team?.name ?? "(unknown)"}
                         </span>
                       </td>
-                      <td className="px-1 py-1.5 text-right font-mono tabular-nums">
+                      <td className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-mono tabular-nums">
                         {r.played}
                       </td>
-                      <td className="px-1 py-1.5 text-right font-mono tabular-nums">
+                      <td className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-mono tabular-nums">
                         {r.won}
                       </td>
-                      <td className="px-1 py-1.5 text-right font-mono tabular-nums">
+                      <td className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-mono tabular-nums">
                         {r.lost}
                       </td>
-                      <td className="px-1 py-1.5 text-right font-mono tabular-nums">
+                      <td className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-mono tabular-nums">
                         {r.tied}
                       </td>
-                      <td className="px-1 py-1.5 text-right font-mono tabular-nums">
-                        {r.no_results}
-                      </td>
-                      <td className="px-1 py-1.5 text-right font-mono font-semibold tabular-nums">
+                      <td className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-mono font-semibold tabular-nums">
                         {r.points}
                       </td>
-                      <td className="px-2 py-1.5 text-right font-mono tabular-nums text-muted-foreground">
+                      <td className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-mono tabular-nums text-muted-foreground">
                         {fmtNrr(nrrByTeam.get(r.team_id))}
                       </td>
                     </tr>
