@@ -39,6 +39,19 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-21 — Standings table fits on a phone (no horizontal scroll).** Pavan flagged that the tournament Standings table needed sideways scroll to see every column on a 360-px viewport. Three rounds of tightening on `src/app/tournaments/[slug]/points-table-section.tsx`:
+
+- **# column dropped.** Position is already implied by row order; the old sticky-left index column was eating ~32 px for no payoff. Also lets the Team column hug the left edge cleanly.
+- **Short-name pill dropped.** The `WK` / `RR` / `HH` chip next to each team name (`shrink-0 rounded bg-foreground/10 px-1 font-mono text-[10px]`) was redundant — the (truncated) full name already identifies the team, and the pill was costing ~28 px per row plus a flex-gap.
+- **NR column dropped.** Pavan: no-result count rarely changes for HVC, and points already roll up wins/ties/no-results, so the column is noise on a phone-width table.
+- **Stat columns shrunk to content width** (`w-0 whitespace-nowrap`). Old `w-full` with implicit equal-width distribution meant the extra horizontal slack was getting spread across every column equally, leaving visible gaps between Pts and NRR. Now the six stat columns (P / W / L / T / Pts / NRR) each take only what their value needs, and the Team column absorbs the rest via `max-w-0` + `truncate`. Per-column padding equalised at `px-1.5` so the Pts→NRR gap matches Pts←T.
+- **Font sizes pulled down.** Table body `text-sm` → `text-xs`; header `text-xs` → `text-[10px]`; cell vertical padding `py-2` → `py-1.5`. Net per-row height ~25% shorter.
+- **`min-w-[34rem]` dropped** from the table so the container actually constrains it.
+
+End result: every column (Team / P / W / L / T / Pts / NRR) renders inside the card on a 360-px phone without horizontal scroll, and long team names get the most horizontal room available instead of being squeezed into a fixed 130-px column. 1 file / +26 / −41 LOC across the three commits (`5de3d66` → drop # + tighten, `f4895be`/follow-up → drop NR, `8d571f0` → shrink stat cols).
+
+---
+
 **2026-05-21 — TBC playoff placeholders on the round-robin-playoff format.** Pavan: spectators viewing a round-robin-playoff tournament couldn't see the upcoming Qualifier 1 / Eliminator / Qualifier 2 / Final shape until the organizer manually scheduled each — but those matches can't be scheduled with real teams yet (standings haven't settled), and making `team_a_id` / `team_b_id` nullable was rejected as too invasive for a UI-only ask.
 
 Shipped a purely-visual fallback: `tournaments/[slug]/page.tsx` now renders **4 hardcoded preview cards** under the real match list when `format === "round_robin_playoff_final"` AND at least one `group` match is still not `completed`. Each card carries the same stacked chrome as the real match rows (row 1 "Time TBD", row 2 `#N · Stage`, rows 3-4 two TBC rows with a grey `TBC` badge + label) but with a `border-dashed` border + faint `bg-muted/30` tint so it reads as unfinalized. Match numbers continue sequentially from the highest existing `match_number` (so the last group match #21 → placeholders #22 / #23 / #24 / #25). No `Link` wrapper — placeholders are not clickable.
