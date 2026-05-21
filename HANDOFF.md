@@ -39,6 +39,23 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-21 (batch 50) — Sidebar light skin + tournament match-row redesign.** Two small follow-ups on the batch-47/48 purple rollout.
+
+**Sidebar body is now white in light mode.** The hamburger drawer (`src/components/site-nav-drawer.tsx`) carried the full medium-purple `bg-primary` wash from batch 47 across the whole `<aside>` — header, user-info, nav links, sign-out — which was too much purple sitting next to the (white) page body. Reworked so only the **top header row** (HVC Heroes title + close button) keeps `bg-primary text-primary-foreground` in light mode; the rest of the aside switched to `bg-background text-foreground`. User-info divider, nav-link palette, and footer divider rerouted onto `border-border` / `text-foreground` / `text-muted-foreground` / `bg-muted` (hover + active) so each row reads on white. Sign-out button reverts to the default outline variant (no more `border-primary-foreground/30` override). Dark mode is byte-identical to before — the aside still hardcodes `dark:bg-[oklch(0.16_0.012_260)]` and the new top-header row carries `dark:bg-transparent` so it inherits the aside's dark background instead of staying purple.
+
+**Tournament matches list — stacked card layout.** `/tournaments/[slug]` Matches tab refactored from the batch-47 two-row layout (`#N` chip + team names on row 1, stage · time + status pill on row 2) to a four-row vertical stack that mirrors the cricinfo / cricbuzz card pattern Pavan referenced:
+
+- **Row 1:** date · time on the left, status pill (`SCHEDULED` / `LIVE` / `COMPLETED`) right-aligned. Pill moved up from row 2 so it's the first thing scanned per row.
+- **Row 2:** `#N · Stage` muted-foreground meta line. No status here anymore.
+- **Rows 3-4:** each team stacked on its own row with logo + full name left-aligned (new `TeamRow` helper replacing the inline `TeamMini`). Logo bumped from `size-5` to `size-6`. "vs" separator dropped — implied by the vertical stack.
+- **Row 5 (completed matches only):** result line in `text-primary`, e.g. `Hoysala Hunters won by 3 wickets` or `GANGAS won by 23 runs`. Computed inline from `winner_id` + `win_margin` (the string already includes the `"won by"` prefix from `src/app/matches/[matchId]/score/actions.ts`, so we just concatenate `{displayTeamName(winner)} {win_margin}`). Tie / no-result fall through to `"Match tied"` / `"No result"`. Hidden for non-completed matches.
+
+Match query on `tournaments/[slug]/page.tsx` widened to also select `winner_id, win_margin, result_type` (was: just `status` / `scheduled_at` / team ids / stage / match number).
+
+2 files / +60 / −41 LOC.
+
+---
+
 **2026-05-21 — Prod player merge: Prabhav Krishna → Prabhav PK.** Pavan flagged the pair after batch 49 surfaced both as unlinked Cat-1 players from the cricheroes import. Same person across seasons; merged via `scripts/merge_players.ts --merge=9e91b3f7:e15bb284 --execute`. No `match_players` collisions (different seasons). 47 FK rows re-pointed (2 team_players, 14 match_players, 14 historical batting, 14 historical bowling, 13 fall-of-wickets, 2 MVP); loser row deleted. Combined stats on "Prabhav PK": 41 matches (was 27+14), 182 runs (was 134+48), 5 wickets (was 4+1). Prod player count 59 → 58.
 
 **2026-05-21 (batch 49) — "Unlinked" filter on `/players` + `/admins` Members.** Pavan: easy way to scan players (or auth users) that still need a profile / account attached.
