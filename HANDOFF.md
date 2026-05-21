@@ -39,6 +39,26 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-21 (batch 48) — Dark-mode purple (top bar / drawer excluded) + Sign-in CTA + home / tournament polish.** Five small follow-ups that closed out the purple-theme rollout from batch 47.
+
+**Dark-mode purple.** `.dark` palette in `globals.css` shifted from cricket-blue hue 260 to medium-purple hue 300 across `background`, `foreground`, `card`, `popover`, `primary`, `secondary`, `muted`, `accent`, `ring`. `--primary` and `--ring` chroma bumped 0.13 → 0.15 so the purple reads on dark surfaces without looking grey. `--border` / `--input` (white-with-alpha, hue-neutral), `--destructive` red, chart greys, and sidebar greys untouched.
+
+Per the design ask, the **top bar and drawer are explicitly excluded** from the dark-mode purple wash. `dark:bg-background dark:text-foreground` on both `site-nav.tsx` and `site-nav-drawer.tsx` was replaced with literal `dark:bg-[oklch(0.16_0.012_260)] dark:text-[oklch(0.98_0.005_260)]` — the pre-shift cricket-blue values, hardcoded so both surfaces stay byte-identical to before in dark mode. Drawer's nav-link / divider / avatar `dark:` styles that reference `muted` / `foreground` etc. do pick up the new purple-tinted tokens, but at chroma ≤ 0.05 on dark surfaces (L ≤ 0.32) the shift is imperceptible.
+
+**Sign-in button on the top ribbon.** Auth entry was buried two clicks deep (hamburger → drawer → Sign in). New conditional `<Button>` in `site-nav.tsx` renders only when `auth.getUser()` returns null, sits inside the right-side cluster next to `<ThemeToggle />`. Variant="outline" with paired light/dark colour overrides (transparent fill, `border-primary-foreground/30` in light, `border-[oklch(1_0_0/15%)]` in dark) so it reads against both the purple bar and the cricket-blue dark bar. Signed-in users don't see the button — their identity lives in the drawer's avatar block.
+
+**Home hero box removed** (`src/app/page.tsx`). The gradient header at the top of `/` repeated the brand name from the nav bar and held a "Box-cricket — live ball-by-ball scoring & spectator view" tagline that no one reads twice. Dropped entirely; the page now opens straight into the upcoming-tournaments / live-matches sections under the existing `max-w-3xl space-y-8` wrapper.
+
+**Tournament page Quick-stats** — three iterations on the four-tile strip (Matches / Teams / Overs / Players):
+
+- **One-row layout.** `grid-cols-2 sm:grid-cols-4` → `grid-cols-4` at every breakpoint. `gap` drops from `gap-2` to `gap-1.5` below `sm:` so each tile has a couple extra pixels of width on a 360-px phone.
+- **Order.** Matches now leads (more interesting spectator stat than team count), then Teams, then Overs / innings, Players / side.
+- **Tighter vertical padding.** Card primitive's `data-[size=sm]:py-3` was 12 px each side; CardContent added another 6 px. `!py-1` on the Card overrides the data-variant selector down to 4 px; CardContent `py-0` drops its contribution to zero. Net tile height ~33% shorter than the batch-47 tightened version. `px-2` preserved so "Overs / innings" / "Players / side" don't ellipsis at 4-up.
+
+Commits `e89d9c7` (dark purple + nav exclusion) + `5d01f6d` (drop home hero) + `bb75ebb` (top-bar Sign-in) + the existing tournament tile commit `5f97ff2` from batch 47 layered with `0bfa377` (4-cols + reorder + `!py-1`). 5 files / +90 / −47 LOC across all five commits.
+
+**Also today**: dev server OOM'd twice (Turbopack on Next 16 chews through Node's default 8 GB heap during long sessions, including the `module-not-found` retry loop from the missing `cmdk` dep that the upstream squad-popover work introduced). `pnpm install` pulled `cmdk` + a few postinstall binaries; restarted with `NODE_OPTIONS=--max-old-space-size=12288` (12 GB) for this session. If it keeps biting, the cleanest persistent fix is `"dev": "cross-env NODE_OPTIONS=--max-old-space-size=12288 next dev"` in `package.json` — not committed yet pending Pavan's call.
+
 **2026-05-20 (batch 47) — Medium-purple light theme + tournament page polish.** Pavan asked for a purple feel on the light theme and flagged two density issues on the tournament page.
 
 The `:root` palette in `src/app/globals.css` shifted from cricket-blue hue 260 to ~hue 300 (oklch `mediumpurple`, ≈ `#9370DB`). Every token that carried a subtle blue tint moved together — background, foreground, card, popover, primary, secondary, muted, accent, border, input, ring — so the wash is consistent. Primary lightness bumped 0.43 → 0.55 and chroma 0.15 → 0.18 so the purple reads at button sizes instead of looking muddy. Faint-tint variables (border, input) bumped a touch in chroma so the purple is actually visible against white. Dark theme is intentionally untouched.
