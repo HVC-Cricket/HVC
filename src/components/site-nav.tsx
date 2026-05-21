@@ -3,13 +3,16 @@ import Link from "next/link";
 import { signOut } from "@/app/(auth)/actions";
 import { SiteNavDrawer } from "@/components/site-nav-drawer";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 
 /**
  * Top bar: hamburger (opens `SiteNavDrawer`) on the left, brand link
- * next to it, theme toggle on the far right. Every nav link —
- * Tournaments, Players, /me, Sign out — lives in the drawer. Same
- * layout on mobile and desktop.
+ * next to it, theme toggle on the far right. Guests also get a
+ * "Sign in" button next to the toggle so the auth entry point isn't
+ * hidden two clicks deep inside the drawer. Every other nav link —
+ * Tournaments, Players, /me, Sign out — still lives in the drawer.
+ * Same layout on mobile and desktop.
  */
 export async function SiteNav() {
   const supabase = await createClient();
@@ -54,7 +57,22 @@ export async function SiteNav() {
         >
           HVC Heroes
         </Link>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
+          {!user && (
+            <Link href="/login" prefetch>
+              {/* Outline button overridden so it reads against the
+                  purple bar in light mode and the cricket-blue dark
+                  bar in dark mode. Matches the drawer's Sign-out
+                  button styling for consistency. */}
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-primary-foreground/30 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground dark:border-[oklch(1_0_0/15%)] dark:bg-transparent dark:text-[oklch(0.98_0.005_260)] dark:hover:bg-[oklch(1_0_0/8%)] dark:hover:text-[oklch(0.98_0.005_260)]"
+              >
+                Sign in
+              </Button>
+            </Link>
+          )}
           <ThemeToggle />
         </div>
       </div>
