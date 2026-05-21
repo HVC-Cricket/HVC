@@ -44,6 +44,7 @@ export default async function PlayersPage() {
     id: p.id,
     display_name: p.display_name,
     category: p.category,
+    is_linked: p.linked_user_id != null,
     style_text: [p.batting_style, p.bowling_style]
       .filter(Boolean)
       .map((s) => formatEnumLabel(s!))

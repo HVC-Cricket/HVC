@@ -39,6 +39,13 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-21 (batch 49) — "Unlinked" filter on `/players` + `/admins` Members.** Pavan: easy way to scan players (or auth users) that still need a profile / account attached.
+
+- `/players` gained an **Unlinked** chip on the existing filter row (after Cat 1/2/3 / No cat). Orthogonal to the category filter — toggling "Unlinked" + "Cat 2" scopes to Cat 2 players without a linked auth account. Count rendered next to the chip label (computed off raw rows). New `is_linked` flag on `PlayerRow` (computed server-side from `linked_user_id != null` in `players/page.tsx`). Chip hidden when `counts.unlinked === 0` to avoid noise. `tone="warn"` so the chip reads with destructive-tinted background when active — same visual treatment as "No cat" because both flag rows that need admin attention.
+- `/admins` Members tab gained the same chip below the search shell. Single toggle (no category to combine with on the auth-user side). `unlinkedCount` computed off raw rows; chip hidden when zero. Empty-state copy widened to handle the filter-on / no-query case (was hardcoded `No members match "{query}"`).
+
+2 files touched. No new dependencies, no schema changes. Pure client-side filter on already-fetched rows.
+
 **2026-05-21 (batch 48) — Dark-mode purple (top bar / drawer excluded) + Sign-in CTA + home / tournament polish.** Five small follow-ups that closed out the purple-theme rollout from batch 47.
 
 **Dark-mode purple.** `.dark` palette in `globals.css` shifted from cricket-blue hue 260 to medium-purple hue 300 across `background`, `foreground`, `card`, `popover`, `primary`, `secondary`, `muted`, `accent`, `ring`. `--primary` and `--ring` chroma bumped 0.13 → 0.15 so the purple reads on dark surfaces without looking grey. `--border` / `--input` (white-with-alpha, hue-neutral), `--destructive` red, chart greys, and sidebar greys untouched.

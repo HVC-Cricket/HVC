@@ -78,19 +78,30 @@ export function MembersTable({
   currentUserId: string;
 }) {
   const [query, setQuery] = useState("");
+  // Toggle chip — when on, hides every member that already has a
+  // linked player record. Pairs the same workflow as the players
+  // page filter: surface accounts that still need wiring up.
+  const [unlinkedOnly, setUnlinkedOnly] = useState(false);
   // useDeferredValue keeps the input responsive when the filtered set
   // is large enough that re-rendering noticeably blocks typing.
   const deferredQuery = useDeferredValue(query);
 
+  const unlinkedCount = useMemo(
+    () => rows.reduce((n, r) => (r.linkedPlayer ? n : n + 1), 0),
+    [rows],
+  );
+
   const filtered = useMemo(() => {
     const q = deferredQuery.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (r) =>
+    return rows.filter((r) => {
+      if (unlinkedOnly && r.linkedPlayer) return false;
+      if (!q) return true;
+      return (
         r.displayName.toLowerCase().includes(q) ||
-        r.email.toLowerCase().includes(q),
-    );
-  }, [rows, deferredQuery]);
+        r.email.toLowerCase().includes(q)
+      );
+    });
+  }, [rows, deferredQuery, unlinkedOnly]);
 
   return (
     <Card>
@@ -98,7 +109,7 @@ export function MembersTable({
         <div className="flex items-center justify-between gap-3">
           <CardTitle className="text-base">Members</CardTitle>
           <span className="text-[11px] tabular-nums text-muted-foreground">
-            {query
+            {query || unlinkedOnly
               ? `${filtered.length} of ${rows.length}`
               : `${rows.length} total`}
           </span>
@@ -134,11 +145,42 @@ export function MembersTable({
             </button>
           )}
         </label>
+        {/* Single toggle chip — most members are linked, so this is
+            "show only the ones still needing a player attached".
+            Hidden when nothing is unlinked, since the chip would just
+            be noise. */}
+        {unlinkedCount > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            <Button
+              type="button"
+              size="sm"
+              variant={unlinkedOnly ? "default" : "outline"}
+              onClick={() => setUnlinkedOnly((v) => !v)}
+              className={cn(
+                "h-8 gap-1.5 px-2.5 text-xs",
+                unlinkedOnly &&
+                  "bg-destructive text-white hover:bg-destructive/90",
+              )}
+            >
+              <span>Unlinked</span>
+              <span
+                className={cn(
+                  "rounded font-mono text-[10px] tabular-nums",
+                  unlinkedOnly ? "text-white/80" : "text-muted-foreground",
+                )}
+              >
+                {unlinkedCount}
+              </span>
+            </Button>
+          </div>
+        )}
       </CardHeader>
       <CardContent className="p-0">
         {filtered.length === 0 ? (
           <p className="px-4 pb-6 pt-2 text-sm text-muted-foreground sm:px-6">
-            No members match &ldquo;{query}&rdquo;.
+            {query
+              ? <>No members match &ldquo;{query}&rdquo;.</>
+              : "No members match the current filter."}
           </p>
         ) : (
           <ul className="divide-y divide-foreground/10">

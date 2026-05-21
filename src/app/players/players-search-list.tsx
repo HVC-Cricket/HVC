@@ -12,6 +12,10 @@ export type PlayerRow = {
   id: string;
   display_name: string;
   category: number | null;
+  /** True when the player row has a `linked_user_id`. Drives the
+   *  "Unlinked" filter chip — toggling that chip hides every player
+   *  who has an auth account attached. */
+  is_linked: boolean;
   /** Joined batting + bowling style for the row's subline. */
   style_text: string;
   /** Pre-resolved photo URL (player.photo_url || linked auth avatar || null). */
@@ -28,6 +32,10 @@ type CategoryFilter = null | 1 | 2 | 3 | "none";
 export function PlayersSearchList({ rows }: { rows: PlayerRow[] }) {
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(null);
+  // Orthogonal to category — toggling this chip hides linked players
+  // regardless of which category chip is active, so you can scope to
+  // e.g. "Cat 2 + unlinked" for targeted dedup / linking work.
+  const [unlinkedOnly, setUnlinkedOnly] = useState(false);
   // useDeferredValue keeps the input responsive when the list re-renders
   // — for 64 rows it's overkill but cheap insurance if the registry grows.
   const deferredQuery = useDeferredValue(query);
@@ -35,12 +43,13 @@ export function PlayersSearchList({ rows }: { rows: PlayerRow[] }) {
   // Per-bucket counts for the filter chips — computed off the raw
   // `rows`, not the filtered set, so each chip always shows its total.
   const counts = useMemo(() => {
-    const c = { all: rows.length, 1: 0, 2: 0, 3: 0, none: 0 };
+    const c = { all: rows.length, 1: 0, 2: 0, 3: 0, none: 0, unlinked: 0 };
     for (const p of rows) {
       if (p.category === 1) c[1] += 1;
       else if (p.category === 2) c[2] += 1;
       else if (p.category === 3) c[3] += 1;
       else c.none += 1;
+      if (!p.is_linked) c.unlinked += 1;
     }
     return c;
   }, [rows]);
@@ -49,11 +58,12 @@ export function PlayersSearchList({ rows }: { rows: PlayerRow[] }) {
     const q = deferredQuery.trim().toLowerCase();
     return rows.filter((p) => {
       if (q && !p.display_name.toLowerCase().includes(q)) return false;
+      if (unlinkedOnly && p.is_linked) return false;
       if (categoryFilter === null) return true;
       if (categoryFilter === "none") return p.category == null;
       return p.category === categoryFilter;
     });
-  }, [rows, deferredQuery, categoryFilter]);
+  }, [rows, deferredQuery, categoryFilter, unlinkedOnly]);
 
   return (
     <div className="space-y-3">
@@ -131,9 +141,21 @@ export function PlayersSearchList({ rows }: { rows: PlayerRow[] }) {
             }
           />
         )}
+        {/* Orthogonal toggle — hides players who already have an auth
+            account linked. Useful when reconciling new sign-ups against
+            the registry or hunting unlinked historical imports. */}
+        {counts.unlinked > 0 && (
+          <FilterChip
+            label="Unlinked"
+            count={counts.unlinked}
+            active={unlinkedOnly}
+            tone="warn"
+            onClick={() => setUnlinkedOnly((v) => !v)}
+          />
+        )}
       </div>
 
-      {(query || categoryFilter !== null) && (
+      {(query || categoryFilter !== null || unlinkedOnly) && (
         <p className="text-xs text-muted-foreground">
           {filtered.length} match{filtered.length === 1 ? "" : "es"}
           {query && (
@@ -152,6 +174,14 @@ export function PlayersSearchList({ rows }: { rows: PlayerRow[] }) {
                 {categoryFilter === "none"
                   ? "uncategorised"
                   : `Cat ${categoryFilter}`}
+              </span>
+            </>
+          )}
+          {unlinkedOnly && (
+            <>
+              {" "}
+              <span className="font-medium text-foreground">
+                without a linked account
               </span>
             </>
           )}
