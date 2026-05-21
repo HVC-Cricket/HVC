@@ -179,10 +179,12 @@ export default async function TournamentDetailPage(props: {
             )}
           </div>
 
-          {/* Quick stats */}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <Stat label="Teams" value={teams.length} />
+          {/* Quick stats — single row at every breakpoint. Labels
+              wrap onto two lines on the narrowest phones (≤360 px)
+              but the four tiles never break across rows. */}
+          <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
             <Stat label="Matches" value={matches.length} />
+            <Stat label="Teams" value={teams.length} />
             <Stat
               label="Overs / innings"
               value={tournament.default_overs_per_innings}
@@ -426,17 +428,19 @@ export default async function TournamentDetailPage(props: {
 }
 
 function Stat({ label, value }: { label: string; value: number | string }) {
-  // `size="sm"` halves Card's default vertical padding (py-4 → py-3);
-  // the inner CardContent override (py-1.5) trims the rest. Net height
-  // drops by ~30% vs the original block so the four tiles read at a
-  // glance instead of dominating the tournament header.
+  // `size="sm"` (Card → py-3) + `!py-1` on the Card overrides the
+  // primitive's default vertical padding all the way down to 4 px
+  // top + bottom. CardContent then adds zero vertical padding so
+  // the value + label sit tight. `px-2` keeps the longer labels
+  // ("Overs / innings", "Players / side") readable at 4-up on a
+  // 360-px phone.
   return (
-    <Card size="sm" className="border-foreground/10">
-      <CardContent className="space-y-0.5 py-1.5 text-center">
+    <Card size="sm" className="border-foreground/10 !py-1">
+      <CardContent className="space-y-0.5 px-2 py-0 text-center">
         <div className="font-mono text-xl font-semibold leading-none tabular-nums">
           {value}
         </div>
-        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        <div className="text-[10px] uppercase leading-tight tracking-wide text-muted-foreground">
           {label}
         </div>
       </CardContent>
