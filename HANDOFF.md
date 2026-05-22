@@ -39,6 +39,17 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-22 — Optional Umpire 1 / Umpire 2 per match.** Pavan asked for two optional umpire-name fields per match, surfaced under Details on the match page. Schema-light approach (no `match_officials` relation per HANDOFF §"future extensions" — HVC umpires rotate casually, no stats needed):
+
+- New migration `20260522000000_match_umpires.sql` adds two nullable `text` columns to `matches`: `umpire_1`, `umpire_2`. Mirrored in `db.sql` (table def + back-fill `alter table` block) and in `src/lib/supabase/database.types.ts` (Row / Insert / Update).
+- `edit-match-form.tsx` gained two `(optional)` text inputs in a 2-col row below the structural-locked notice. Schema accepts string-or-empty; `updateMatch` action trims and stores `null` when blank. `baseMatchFields` (shared with `createMatch`) carries them as optional so the create form keeps working unchanged — umpires are an edit-only ask today. Field is *not* gated by `structuralLocked` — umpires can be added or changed mid-match.
+- Display: `/matches/[matchId]` Details card renders an `Umpire 1` / `Umpire 2` row only when the column is non-empty (avoids `—` noise on the bulk of historical matches that won't ever get umpires backfilled). `capitalize` styling matches the Venue row. Applied to both Details surfaces — the `info` tab card (live / innings_break / completed) and the inline card under `FixturePreview` (scheduled / abandoned).
+- Migration applied directly via the Supabase SQL editor on dev (no `db push`), with a manual `insert into supabase_migrations.schema_migrations` to keep the CLI in sync for the next push.
+
+4 files / +1 migration / ~+60 LOC.
+
+---
+
 **2026-05-21 — Standings table fits on a phone (no horizontal scroll).** Pavan flagged that the tournament Standings table needed sideways scroll to see every column on a 360-px viewport. Three rounds of tightening on `src/app/tournaments/[slug]/points-table-section.tsx`:
 
 - **# column dropped.** Position is already implied by row order; the old sticky-left index column was eating ~32 px for no payoff. Also lets the Team column hug the left edge cleanly.
