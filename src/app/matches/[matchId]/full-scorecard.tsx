@@ -18,6 +18,8 @@ type PlayerLite = {
   category: number | null;
 };
 
+type PhotoMap = Record<string, string | null>;
+
 /**
  * Full per-innings scorecard for completed matches. Renders four blocks
  * per innings — batting, fall of wickets, bowling, partnerships —
@@ -45,7 +47,12 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
     is_captain: boolean;
     is_keeper: boolean;
     is_substitute: boolean;
-    player: PlayerLite | null;
+    player:
+      | (PlayerLite & {
+          photo_url: string | null;
+          linked_user_id: string | null;
+        })
+      | null;
   };
   const [inningsRes, teamsRes, xiRes, ballsRes] = await Promise.all([
     supabase
@@ -62,7 +69,7 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
     supabase
       .from("match_players")
       .select(
-        "player_id, team_id, batting_order, is_captain, is_keeper, is_substitute, player:players(id, display_name, category)",
+        "player_id, team_id, batting_order, is_captain, is_keeper, is_substitute, player:players(id, display_name, category, photo_url, linked_user_id)",
       )
       .eq("match_id", match.id),
     supabase
@@ -91,7 +98,48 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
   const xi = xiRows.map(({ player: _player, ...rest }) => rest);
   const playerById = new Map<string, PlayerLite>();
   for (const r of xiRows) {
-    if (r.player) playerById.set(r.player.id, r.player);
+    if (r.player) {
+      // Project to PlayerLite — downstream consumers type against that
+      // shape; photo flows through the parallel photoById map below.
+      playerById.set(r.player.id, {
+        id: r.player.id,
+        display_name: r.player.display_name,
+        category: r.player.category,
+      });
+    }
+  }
+
+  // Resolve linked-user avatars in one batch lookup so a player whose
+  // own photo_url is null still gets their profile picture. Same
+  // helper logic used everywhere else avatars render (squad,
+  // leaderboard, XI cards). Loaded once with the scorecard render —
+  // nothing in this path touches recordBall, so per-ball save latency
+  // is unaffected.
+  const linkedUserIds = Array.from(
+    new Set(
+      xiRows
+        .map((r) => r.player?.linked_user_id ?? null)
+        .filter((u): u is string => u !== null),
+    ),
+  );
+  const linkedAvatarById = new Map<string, string | null>();
+  if (linkedUserIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, avatar_url")
+      .in("id", linkedUserIds);
+    for (const p of profiles ?? []) {
+      linkedAvatarById.set(p.id, p.avatar_url);
+    }
+  }
+  const photoById: PhotoMap = {};
+  for (const r of xiRows) {
+    if (!r.player) continue;
+    const own = r.player.photo_url;
+    const linked = r.player.linked_user_id
+      ? (linkedAvatarById.get(r.player.linked_user_id) ?? null)
+      : null;
+    photoById[r.player.id] = own ?? linked ?? null;
   }
 
   const tabs = innings.map((i) => {
@@ -134,6 +182,7 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
               balls={inningsBalls}
               xi={battingXi}
               playerById={playerById}
+              photoById={photoById}
             />
             <FallOfWickets balls={inningsBalls} playerById={playerById} />
             <ExtrasRow innings={i} />
@@ -141,6 +190,7 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
               balls={inningsBalls}
               xi={bowlingXi}
               playerById={playerById}
+              photoById={photoById}
               bowlingTeamName={bowlingTeam?.name}
             />
             <Partnerships balls={inningsBalls} playerById={playerById} />
@@ -154,6 +204,31 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
     <section className="space-y-3">
       <ScorecardInningsTabs tabs={tabs} />
     </section>
+  );
+}
+
+/**
+ * Tiny avatar slot for scorecard rows — photo when present, single-
+ * initial fallback otherwise. Plain `<img>` (no lightbox wrapper) so
+ * each row stays a flat tap-target; the dedicated player profile
+ * already provides the zoom view if a spectator wants to see the
+ * face larger.
+ */
+function RowAvatar({ photo, name }: { photo: string | null; name: string }) {
+  if (photo) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={photo}
+        alt=""
+        className="size-7 shrink-0 rounded-full border border-foreground/10 object-cover"
+      />
+    );
+  }
+  return (
+    <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-foreground/10 bg-primary/10 text-[10px] font-semibold text-primary">
+      {(name.charAt(0) || "?").toUpperCase()}
+    </span>
   );
 }
 
@@ -171,10 +246,12 @@ function BattingTable({
   balls,
   xi,
   playerById,
+  photoById,
 }: {
   balls: BallRow[];
   xi: { player_id: string; batting_order: number | null }[];
   playerById: Map<string, PlayerLite>;
+  photoById: PhotoMap;
 }) {
   // Determine batting order: prefer match_players.batting_order;
   // fall back to first-appearance order in balls.
@@ -240,34 +317,42 @@ function BattingTable({
                 }
               >
                 <td className="px-3 py-2">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="font-medium capitalize">
-                      {p?.display_name ?? "(unknown)"}
-                    </span>
-                    {isStriker && (
-                      <span
-                        className="text-xs font-bold text-emerald-700 dark:text-emerald-300"
-                        title="On strike"
-                      >
-                        *
-                      </span>
-                    )}
-                    {!isStriker && atCrease && (
-                      <span
-                        className="text-[10px] text-emerald-700/80 dark:text-emerald-300/80"
-                        title="At the crease"
-                      >
-                        •
-                      </span>
-                    )}
-                    {p?.category && (
-                      <span className="font-mono text-[10px] text-muted-foreground">
-                        C{p.category}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-[11px] text-muted-foreground">
-                    {dismissal ?? (atCrease ? "batting" : "not out")}
+                  <div className="flex items-center gap-2">
+                    <RowAvatar
+                      photo={photoById[row.player_id] ?? null}
+                      name={p?.display_name ?? ""}
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-medium capitalize">
+                          {p?.display_name ?? "(unknown)"}
+                        </span>
+                        {isStriker && (
+                          <span
+                            className="text-xs font-bold text-emerald-700 dark:text-emerald-300"
+                            title="On strike"
+                          >
+                            *
+                          </span>
+                        )}
+                        {!isStriker && atCrease && (
+                          <span
+                            className="text-[10px] text-emerald-700/80 dark:text-emerald-300/80"
+                            title="At the crease"
+                          >
+                            •
+                          </span>
+                        )}
+                        {p?.category && (
+                          <span className="font-mono text-[10px] text-muted-foreground">
+                            C{p.category}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {dismissal ?? (atCrease ? "batting" : "not out")}
+                      </div>
+                    </div>
                   </div>
                 </td>
                 <td className="px-1.5 py-2 text-right font-mono font-semibold tabular-nums">
@@ -437,11 +522,13 @@ function BowlingTable({
   balls,
   xi,
   playerById,
+  photoById,
   bowlingTeamName,
 }: {
   balls: BallRow[];
   xi: { player_id: string }[];
   playerById: Map<string, PlayerLite>;
+  photoById: PhotoMap;
   bowlingTeamName?: string;
 }) {
   const bowlerIds = new Set(balls.map((b) => b.bowler_id));
@@ -492,29 +579,37 @@ function BowlingTable({
                 }
               >
                 <td className="px-3 py-2">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="font-medium capitalize">
-                      {p?.display_name ?? "(unknown)"}
-                    </span>
-                    {isCurrent && (
-                      <span
-                        className="text-xs font-bold text-amber-700 dark:text-amber-300"
-                        title="Currently bowling"
-                      >
-                        *
-                      </span>
-                    )}
-                    {p?.category && (
-                      <span className="font-mono text-[10px] text-muted-foreground">
-                        C{p.category}
-                      </span>
-                    )}
-                  </div>
-                  {extras.length > 0 && (
-                    <div className="text-[11px] text-muted-foreground">
-                      {extras.join(" · ")}
+                  <div className="flex items-center gap-2">
+                    <RowAvatar
+                      photo={photoById[row.player_id] ?? null}
+                      name={p?.display_name ?? ""}
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="font-medium capitalize">
+                          {p?.display_name ?? "(unknown)"}
+                        </span>
+                        {isCurrent && (
+                          <span
+                            className="text-xs font-bold text-amber-700 dark:text-amber-300"
+                            title="Currently bowling"
+                          >
+                            *
+                          </span>
+                        )}
+                        {p?.category && (
+                          <span className="font-mono text-[10px] text-muted-foreground">
+                            C{p.category}
+                          </span>
+                        )}
+                      </div>
+                      {extras.length > 0 && (
+                        <div className="text-[11px] text-muted-foreground">
+                          {extras.join(" · ")}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </td>
                 <td className="px-1.5 py-2 text-right font-mono tabular-nums">
                   {overs}

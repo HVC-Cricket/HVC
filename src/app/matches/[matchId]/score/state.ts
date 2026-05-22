@@ -62,6 +62,11 @@ export type ScoreboardState = {
   teamB: { id: string; name: string; short_name: string };
   /** XI for both teams keyed by team_id */
   xi: Record<string, EnginePlayer[]>;
+  /** Per-player resolved photo URL (player_photo OR linked-user avatar)
+   *  keyed by player_id. Loaded with the match XI on initial page mount;
+   *  the per-ball recordBall path doesn't touch this, so adding it has
+   *  zero impact on save latency. */
+  playerPhotos: Record<string, string | null>;
   /** all innings rows for this match, in order */
   allInnings: InningsSummary[];
   /** the active innings (per matches.current_innings_id) */
@@ -130,11 +135,13 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
         .select("id, name, short_name")
         .in("id", [match.team_a_id, match.team_b_id]),
       // Embed `players` inline so we don't need a separate look-up
-      // query keyed by player_id afterwards.
+      // query keyed by player_id afterwards. photo_url + linked_user_id
+      // feed the picker thumbnail strip + slot tiles; recordBall doesn't
+      // touch this data so the extra columns add zero per-ball latency.
       supabase
         .from("match_players")
         .select(
-          "player_id, team_id, batting_order, is_substitute, player:players(id, display_name, category)",
+          "player_id, team_id, batting_order, is_substitute, player:players(id, display_name, category, photo_url, linked_user_id)",
         )
         .eq("match_id", match.id),
       supabase
@@ -185,9 +192,42 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
       id: string;
       display_name: string;
       category: 1 | 2 | 3 | null;
+      photo_url: string | null;
+      linked_user_id: string | null;
     } | null;
   };
   const xiRows = (xiRes.data as EmbeddedXIRow[] | null) ?? [];
+
+  // Resolve linked-user avatars in one batch lookup so a player whose
+  // player_photo is null still gets their profile picture (set when
+  // they signed up + linked the account). Same helper used by the
+  // squad / leaderboard / XI card surfaces — single source of truth.
+  const linkedUserIds = Array.from(
+    new Set(
+      xiRows
+        .map((r) => r.player?.linked_user_id ?? null)
+        .filter((u): u is string => u !== null),
+    ),
+  );
+  const linkedAvatarById = new Map<string, string | null>();
+  if (linkedUserIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, avatar_url")
+      .in("id", linkedUserIds);
+    for (const p of profiles ?? []) {
+      linkedAvatarById.set(p.id, p.avatar_url);
+    }
+  }
+  const playerPhotos: Record<string, string | null> = {};
+  for (const r of xiRows) {
+    if (!r.player) continue;
+    const own = r.player.photo_url;
+    const linked = r.player.linked_user_id
+      ? (linkedAvatarById.get(r.player.linked_user_id) ?? null)
+      : null;
+    playerPhotos[r.player.id] = own ?? linked ?? null;
+  }
   // Re-derive the per-id player map from the embedded rows so the rest
   // of the function (engine seed, dismissed look-ups) keeps working
   // without restructuring.
@@ -401,6 +441,7 @@ export async function loadScoreboardState(matchId: string): Promise<ScoreboardSt
     teamA,
     teamB,
     xi,
+    playerPhotos,
     allInnings,
     innings,
     balls,

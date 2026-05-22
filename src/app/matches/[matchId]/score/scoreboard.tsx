@@ -1227,6 +1227,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
               nameClassName="text-cyan-600 dark:text-cyan-400"
               value={strikerId}
               options={battingXi}
+              photoById={state.playerPhotos}
               onChange={setStrikerId}
               highlightCat={overCategory === 2 ? undefined : overCategory}
               statsLine={formatBatterStats(state.balls, strikerId, optimistic)}
@@ -1252,6 +1253,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
               solo={state.active.last_man_mode}
               value={nonStrikerId}
               options={battingXi}
+              photoById={state.playerPhotos}
               onChange={setNonStrikerId}
               statsLine={formatBatterStats(state.balls, nonStrikerId, optimistic)}
               disabledIds={
@@ -1277,6 +1279,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
                 inlineStats
                 value={bowlerId}
                 options={bowlingXiWithOvers}
+                photoById={state.playerPhotos}
                 onChange={setBowlerId}
                 highlightCat={overCategory === 2 ? undefined : overCategory}
                 disabledIds={disabledBowlerIds}
@@ -1858,6 +1861,7 @@ function SlotPicker({
   inlineStats,
   solo,
   disabled,
+  photoById,
 }: {
   label: string;
   value: string;
@@ -1870,6 +1874,12 @@ function SlotPicker({
      *  bowled so far (e.g. "1.3 ov"). */
     meta?: string;
   }[];
+  /** Optional photo lookup. When present, each dropdown row gets a
+   *  small thumbnail beside the name so the scorer can recognise the
+   *  player at a glance — especially useful in HVC squads where
+   *  multiple players share a first name. Falls back silently to
+   *  text-only rows when omitted. */
+  photoById?: Record<string, string | null>;
   onChange: (v: string) => void;
   highlightCat?: 1 | 2 | 3;
   statsLine?: string | null;
@@ -1992,20 +2002,39 @@ function SlotPicker({
         </button>
       </SelectPrimitiveTrigger>
       <SelectContent>
-        {options.map((p) => (
-          <SelectItem
-            key={p.id}
-            value={p.id}
-            disabled={disabledIds?.has(p.id)}
-            className="capitalize"
-          >
-            {p.display_name}
-            {p.category ? ` · C${p.category}` : ""}
-            {p.meta ? ` ${p.meta}` : ""}
-            {highlightCat && p.category === highlightCat ? " ⭑" : ""}
-            {dismissedIds?.has(p.id) ? " (out)" : ""}
-          </SelectItem>
-        ))}
+        {options.map((p) => {
+          const photo = photoById?.[p.id] ?? null;
+          return (
+            <SelectItem
+              key={p.id}
+              value={p.id}
+              disabled={disabledIds?.has(p.id)}
+              className="capitalize"
+            >
+              <span className="flex items-center gap-2">
+                {photo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={photo}
+                    alt=""
+                    className="size-5 shrink-0 rounded-full border border-foreground/10 object-cover"
+                  />
+                ) : (
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-foreground/10 bg-primary/10 text-[8px] font-semibold text-primary">
+                    {p.display_name.charAt(0).toUpperCase()}
+                  </span>
+                )}
+                <span>
+                  {p.display_name}
+                  {p.category ? ` · C${p.category}` : ""}
+                  {p.meta ? ` ${p.meta}` : ""}
+                  {highlightCat && p.category === highlightCat ? " ⭑" : ""}
+                  {dismissedIds?.has(p.id) ? " (out)" : ""}
+                </span>
+              </span>
+            </SelectItem>
+          );
+        })}
       </SelectContent>
     </Select>
   );
