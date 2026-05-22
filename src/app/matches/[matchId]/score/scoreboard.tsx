@@ -175,10 +175,6 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     ? state.rules.super_over.overs
     : state.rules.overs_per_innings;
 
-  const overs =
-    `${Math.floor(innings.total_legal_balls / 6)}.${innings.total_legal_balls % 6}` +
-    ` / ${inningsOversCap}`;
-
   // Active state. If no balls yet, fall back to whoever opened the innings.
   const [strikerId, setStrikerId] = useState<string>(
     state.active.striker_id ?? state.balls[0]?.batter_id ?? "",
@@ -319,10 +315,16 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   //     category rule, so there's no reason to wipe the scorer's picks.
   // `state.balls.length > 0` rules out the initial-mount case where
   // `bowler_id` is null because no ball has been bowled yet.
-  const ballsLengthSyncRef = useRef(state.balls.length);
-  useEffect(() => {
-    if (state.balls.length === ballsLengthSyncRef.current) return;
-    ballsLengthSyncRef.current = state.balls.length;
+  // Sync local slot tiles with server state whenever a new ball lands.
+  // Was a post-commit useEffect that mutated a ref + called setState,
+  // which React 19 flags as cascading-renders. Same logic now runs
+  // during render via a useState tracker — setState calls during render
+  // get batched into the same commit, no cascade.
+  const [lastBallsLengthSynced, setLastBallsLengthSynced] = useState(
+    state.balls.length,
+  );
+  if (state.balls.length !== lastBallsLengthSynced) {
+    setLastBallsLengthSynced(state.balls.length);
     const atOverBoundary =
       state.active.bowler_id === null && state.balls.length > 0;
     if (atOverBoundary) {
@@ -332,18 +334,13 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       // Bowler: clear only if the slot still holds the bowler who just
       // bowled the over that ended. If the scorer has already picked a
       // new bowler — via the over-complete prompt's instant dialog, or
-      // directly on the slot tile — preserve their choice. Without this
-      // guard the sync would overwrite an optimistic pick once the
-      // server roundtrip lands.
+      // directly on the slot tile — preserve their choice.
       const justBowled = state.balls[state.balls.length - 1]?.bowler_id;
       setBowlerId((current) => (current === justBowled ? "" : current));
       // Batter slots: when the server has a value, sync to it; when
       // it's null AND the local slot still holds a dismissed player,
-      // clear it (covers the Cat 1/3 stay-rule case where the dismissed
-      // special batter occupied the slot for the rest of the over and
-      // gets pushed out at the boundary); otherwise preserve the local
-      // pick (covers an optimistic wicket-prompt pick that hasn't been
-      // confirmed yet).
+      // clear it; otherwise preserve the local pick (covers an
+      // optimistic wicket-prompt pick that hasn't been confirmed yet).
       const dismissedSet = new Set(state.active.dismissed_ids);
       const reconcile = (
         serverValue: string | null,
@@ -361,11 +358,10 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
           reconcile(state.active.striker_id, current),
         );
       } else {
-        // Cat 1 / Cat 3 boundary: original behavior was to clear the
-        // striker so the auto-pick effect could fill a Cat-matching
-        // candidate. Preserve a non-empty pick (came from the wicket
-        // dialog, already category-filtered), but still clear if the
-        // local value is a dismissed player.
+        // Cat 1 / Cat 3 boundary: clear the striker so the auto-pick
+        // block below can fill a Cat-matching candidate. Preserve a
+        // non-empty pick (came from the wicket dialog, already
+        // category-filtered), but still clear if dismissed.
         setStrikerId((current) =>
           dismissedSet.has(current) ? "" : current || "",
         );
@@ -373,8 +369,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     } else {
       // Non-boundary sync — same null-preserves-local rule so a wicket
       // prompt pick on a mid-over dismissal isn't clobbered when the
-      // server reconciliation lands. Dismissed-slot fallback mirrors
-      // the boundary branch above.
+      // server reconciliation lands.
       const dismissedSet = new Set(state.active.dismissed_ids);
       const reconcile = (
         serverValue: string | null,
@@ -392,8 +387,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       );
       setBowlerId(state.active.bowler_id ?? "");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.balls.length]);
+  }
 
   // Per-over category restriction. Default: over 1 → Cat 1, over 2 →
   // Cat 2, over 3+ → Cat 3. Scorer can override within an over; we
@@ -428,10 +422,13 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   // Defensive: if a stale state value lands outside the allowed set
   // (e.g. the organizer just disabled Cat 1 in another tab and the
   // page re-rendered without an over boundary), downgrade to Cat 2
-  // so the toast / auto-pick / badge stay consistent.
-  useEffect(() => {
-    if (!allowedCategories.has(overCategory)) setOverCategory(2);
-  }, [allowedCategories, overCategory]);
+  // so the toast / auto-pick / badge stay consistent. Set-during-
+  // render (the React 19 sanctioned pattern for "derive state from
+  // props at commit boundaries") — converges in one render instead
+  // of cascading via a post-commit effect.
+  if (!allowedCategories.has(overCategory)) {
+    setOverCategory(2);
+  }
 
   // Wicket-replacement prompt. Optimistic only — fired inside `submit`
   // the instant a wicket is recorded. Suppressed when no replacement is
@@ -488,11 +485,10 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
 
   // If the innings completes while the prompt is open (e.g. the 6th ball
   // was the final wicket), close it — no new bowler is needed.
-  useEffect(() => {
-    if (isComplete && overCompletePrompt !== null) {
-      setOverCompletePrompt(null);
-    }
-  }, [isComplete, overCompletePrompt]);
+  // Set-during-render: converges in one render.
+  if (isComplete && overCompletePrompt !== null) {
+    setOverCompletePrompt(null);
+  }
 
   const battingXi = state.xi[innings.batting_team_id] ?? [];
   const bowlingXi = state.xi[innings.bowling_team_id] ?? [];
@@ -557,32 +553,38 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   // Skips when overCategory = 2 (Cat 2 = any player, no auto-pick).
   // If no candidate matches, the slot is left as-is and the existing
   // pre-submit validation toasts the scorer.
-  useEffect(() => {
-    if (overCategory === 2) return;
-    const strikerCat = playersById.get(strikerId)?.category ?? null;
-    if (strikerCat !== overCategory) {
-      const dismissed = new Set(state.active.dismissed_ids);
-      const candidate = battingXi.find(
-        (p) =>
-          p.category === overCategory &&
-          !dismissed.has(p.id) &&
-          p.id !== nonStrikerId,
-      );
-      if (candidate) setStrikerId(candidate.id);
+  // Set-during-render with a useState tracker — same trigger semantics
+  // as a useEffect keyed on [overCategory], but the setState calls are
+  // batched into the same commit (React 19 cascading-renders rule).
+  // Re-runs only when overCategory transitions to a new value.
+  const [lastOverCategorySynced, setLastOverCategorySynced] =
+    useState(overCategory);
+  if (overCategory !== lastOverCategorySynced) {
+    setLastOverCategorySynced(overCategory);
+    if (overCategory !== 2) {
+      const strikerCat = playersById.get(strikerId)?.category ?? null;
+      if (strikerCat !== overCategory) {
+        const dismissed = new Set(state.active.dismissed_ids);
+        const candidate = battingXi.find(
+          (p) =>
+            p.category === overCategory &&
+            !dismissed.has(p.id) &&
+            p.id !== nonStrikerId,
+        );
+        if (candidate) setStrikerId(candidate.id);
+      }
+      const bowlerCat = playersById.get(bowlerId)?.category ?? null;
+      if (bowlerCat !== overCategory) {
+        const candidate = bowlingXi.find(
+          (p) => p.category === overCategory && !disabledBowlerIds.has(p.id),
+        );
+        if (candidate) setBowlerId(candidate.id);
+      }
     }
-    const bowlerCat = playersById.get(bowlerId)?.category ?? null;
-    if (bowlerCat !== overCategory) {
-      const candidate = bowlingXi.find(
-        (p) => p.category === overCategory && !disabledBowlerIds.has(p.id),
-      );
-      if (candidate) setBowlerId(candidate.id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overCategory]);
+  }
 
   const striker = playersById.get(strikerId);
   const nonStriker = playersById.get(nonStrikerId);
-  const bowler = playersById.get(bowlerId);
 
   const overEnded =
     state.active.legal_balls_in_over === 0 && state.balls.length > 0;
