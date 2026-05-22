@@ -455,10 +455,24 @@ export function EditMatchForm({
 
 function toDatetimeLocal(iso: string | null): string {
   if (!iso) return "";
-  // ISO from Postgres is UTC; the <input type="datetime-local"> wants
-  // a local string in the form `YYYY-MM-DDTHH:mm`.
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  // HVC matches are scheduled in IST; surfacing browser-local time
+  // confuses organizers traveling outside India and round-trips
+  // wrong values on save. Always emit IST wall-clock here, matching
+  // `formatScheduledAt` on the read side and `istLocalToUtcIso` on
+  // the write side.
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  // Some Node/Chromium builds emit hour="24" at IST midnight.
+  const hh = get("hour") === "24" ? "00" : get("hour");
+  return `${get("year")}-${get("month")}-${get("day")}T${hh}:${get("minute")}`;
 }

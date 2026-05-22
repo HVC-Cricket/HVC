@@ -75,6 +75,18 @@ const updateMatchSchema = z
 export type CreateMatchInput = z.infer<typeof createMatchSchema>;
 export type UpdateMatchInput = z.infer<typeof updateMatchSchema>;
 
+// `<input type="datetime-local">` emits "YYYY-MM-DDTHH:mm" with no
+// timezone. Writing that string verbatim into `timestamptz` lets
+// Postgres fall back to its session TimeZone (UTC on Supabase), so
+// 14:00 IST round-trips as 14:00 UTC = 19:30 IST on read. Tag the
+// value as IST explicitly so a fully qualified UTC ISO lands in the
+// column.
+function istLocalToUtcIso(local: string | undefined | null): string | null {
+  if (!local) return null;
+  const d = new Date(`${local}:00+05:30`);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 export async function createMatch(
   input: CreateMatchInput,
 ): Promise<ActionResult<{ matchId: string }>> {
@@ -124,7 +136,7 @@ export async function createMatch(
       stage: parsed.data.stage,
       team_a_id: parsed.data.team_a_id,
       team_b_id: parsed.data.team_b_id,
-      scheduled_at: parsed.data.scheduled_at || null,
+      scheduled_at: istLocalToUtcIso(parsed.data.scheduled_at),
       venue: parsed.data.venue || null,
       overs_per_innings: parsed.data.overs_per_innings,
       players_per_side: parsed.data.players_per_side,
@@ -206,7 +218,7 @@ export async function updateMatch(
       stage: parsed.data.stage,
       team_a_id: parsed.data.team_a_id,
       team_b_id: parsed.data.team_b_id,
-      scheduled_at: parsed.data.scheduled_at || null,
+      scheduled_at: istLocalToUtcIso(parsed.data.scheduled_at),
       venue: parsed.data.venue || null,
       overs_per_innings: parsed.data.overs_per_innings,
       players_per_side: parsed.data.players_per_side,
