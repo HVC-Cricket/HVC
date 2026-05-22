@@ -68,8 +68,14 @@ export function ScoringLockGate({
 }) {
   const [status, setStatus] = useState<LockStatus>(initialStatus);
   const [busy, setBusy] = useState(false);
+  // Mirror `status` into a ref so the long-lived poll + heartbeat
+  // intervals see the latest value without having to be re-armed on
+  // every status change. Updated via useEffect (not raw assignment in
+  // render) so React 19's "refs during render" rule is satisfied.
   const statusRef = useRef(status);
-  statusRef.current = status;
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   /**
    * Compare prev → next and surface transitions the user would
@@ -168,9 +174,23 @@ export function ScoringLockGate({
     [],
   );
 
-  // On mount: try to claim the lock (succeeds if free / mine / expired).
+  // Auto-acquire whenever the lock becomes claimable. Deps include
+  // status.status + status.expired so this re-runs when the local
+  // status transitions mid-session — covers the case where the
+  // scorer's heartbeat lapses (bad network), the lock expires
+  // server-side, the poll picks up "free" / held-but-expired, and
+  // we'd otherwise be stuck on the "Connecting…" card with no path
+  // back to scoring. Acquire is idempotent server-side; the
+  // cancelled flag prevents a stale resolution from clobbering a
+  // newer status update.
+  // Narrow `expired` out via type guard — it only exists on the
+  // discriminated "held" variant, but the deps array needs a stable
+  // primitive to compare against.
+  const canClaimNow =
+    status.status === "free" ||
+    (status.status === "held" && status.expired);
   useEffect(() => {
-    if (status.status === "mine") return;
+    if (!canClaimNow) return;
     let cancelled = false;
     void acquireScoringLock({ matchId }).then((next) => {
       if (!cancelled) setStatus(next);
@@ -178,8 +198,7 @@ export function ScoringLockGate({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [matchId]);
+  }, [matchId, canClaimNow]);
 
   // Fast poll for status transitions (5 s). Cheap — one SELECT per tick.
   useEffect(() => {
@@ -218,6 +237,23 @@ export function ScoringLockGate({
 
   const refresh = useCallback(async () => {
     setStatus(await getScoringLockStatus(matchId));
+  }, [matchId]);
+
+  // Manual escape hatch when the auto-acquire effect can't recover —
+  // e.g., the network is choppy and the effect's acquire attempt
+  // silently failed. Same server action as the effect; just driven
+  // by a tap.
+  const onReclaim = useCallback(async () => {
+    setBusy(true);
+    try {
+      const next = await acquireScoringLock({ matchId });
+      setStatus(next);
+      if (next.status === "mine") {
+        toast.success("You're the active scorer now");
+      }
+    } finally {
+      setBusy(false);
+    }
   }, [matchId]);
 
   const onRequestTakeover = useCallback(async () => {
@@ -293,7 +329,7 @@ export function ScoringLockGate({
                 </strong>{" "}
                 wants to take over scoring (asked{" "}
                 {formatAgo(status.pendingRequest.secondsAgo)}). You can
-                finish what you're doing first.
+                finish what you&apos;re doing first.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-wrap gap-2">
@@ -330,12 +366,30 @@ export function ScoringLockGate({
   }
 
   if (status.status === "free") {
+    // Default auto-acquire runs from the effect above; this card shows
+    // for the brief moment between status flipping to "free" and the
+    // acquire returning "mine". If the auto-acquire fails (rare —
+    // network down, server error), the Reclaim button is the manual
+    // escape so the scorer isn't trapped staring at a spinner.
     return (
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Connecting…</CardTitle>
-          <CardDescription>Claiming the scoring lock.</CardDescription>
+          <CardDescription>
+            Claiming the scoring lock. If this stays stuck, tap Reclaim.
+          </CardDescription>
         </CardHeader>
+        <CardContent className="flex flex-wrap items-center gap-2">
+          <Button size="sm" disabled={busy} onClick={onReclaim}>
+            {busy ? "Reclaiming…" : "Reclaim lock"}
+          </Button>
+          <Link
+            href={`/matches/${matchId}`}
+            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+          >
+            View live scorecard instead
+          </Link>
+        </CardContent>
       </Card>
     );
   }
@@ -355,7 +409,7 @@ export function ScoringLockGate({
             </span>
           </CardTitle>
           <CardDescription>
-            <strong>{status.holderName ?? "Another scorer"}</strong> hasn't
+            <strong>{status.holderName ?? "Another scorer"}</strong> hasn&apos;t
             heartbeat in {heartbeatLabel}. Their session looks closed — you
             can claim the lock without asking.
           </CardDescription>
@@ -385,7 +439,7 @@ export function ScoringLockGate({
           </CardTitle>
           <CardDescription>
             <strong>{status.holderName ?? "The current scorer"}</strong> has
-            been asked to hand over. You'll switch to active scoring as soon
+            been asked to hand over. You&apos;ll switch to active scoring as soon
             as they tap <strong>Allow</strong>.
           </CardDescription>
         </CardHeader>
@@ -460,7 +514,7 @@ export function ScoringLockGate({
         <CardDescription>
           <strong>{status.holderName ?? "Another scorer"}</strong> is
           recording this match. Last activity {heartbeatLabel}. To take
-          over, ask their permission — they'll see a banner and decide.
+          over, ask their permission — they&apos;ll see a banner and decide.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-wrap items-center gap-2">
