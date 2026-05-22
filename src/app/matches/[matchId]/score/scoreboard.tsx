@@ -1021,6 +1021,45 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
               {inningsOversCap} OVERS
             </span>
           </div>
+          {/* Cricbuzz-style rate strip: CRR always, REQ only when the
+              innings is chasing a target. Hidden until at least one
+              legal ball has been bowled — CRR off zero balls is "Inf"
+              and adds no signal. RRR hidden too if balls remaining
+              hit zero (the chase has resolved one way or the other,
+              the Need / Target line below carries the news). Two
+              decimals matches every cricket scorecard convention. */}
+          {displayLegalBalls > 0 && (() => {
+            const crr = (displayRuns * 6) / displayLegalBalls;
+            const ballsLeft = Math.max(
+              0,
+              inningsOversCap * 6 - displayLegalBalls,
+            );
+            const runsNeeded =
+              innings.target != null
+                ? Math.max(0, innings.target - displayRuns)
+                : null;
+            const showRrr =
+              runsNeeded !== null && runsNeeded > 0 && ballsLeft > 0;
+            const rrr = showRrr ? (runsNeeded! * 6) / ballsLeft : null;
+            return (
+              <div className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+                <span>
+                  CRR{" "}
+                  <span className="font-mono font-semibold tabular-nums text-foreground">
+                    {crr.toFixed(2)}
+                  </span>
+                </span>
+                {rrr !== null && (
+                  <span>
+                    REQ{" "}
+                    <span className="font-mono font-semibold tabular-nums text-foreground">
+                      {rrr.toFixed(2)}
+                    </span>
+                  </span>
+                )}
+              </div>
+            );
+          })()}
           {innings.target != null && (() => {
             const runsNeeded = Math.max(0, innings.target - displayRuns);
             const ballsLeft = Math.max(
