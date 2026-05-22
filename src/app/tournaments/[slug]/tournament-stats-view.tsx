@@ -330,8 +330,8 @@ function LeaderTable({
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="space-y-3 border-b border-foreground/5 bg-muted/30">
-        <CardTitle className="text-base">{title}</CardTitle>
+      <CardHeader className="space-y-2 border-b border-foreground/5 bg-muted/30 py-3">
+        <CardTitle className="text-sm">{title}</CardTitle>
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -372,12 +372,12 @@ function LeaderTable({
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
+              <table className="w-full border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-foreground/10 text-[10px] uppercase tracking-wide text-muted-foreground">
                     <th
                       scope="col"
-                      className="sticky left-0 z-10 w-[170px] max-w-[170px] bg-card px-3 py-2 text-left font-medium sm:w-[220px] sm:max-w-[220px]"
+                      className="sticky left-0 z-10 w-[190px] max-w-[190px] bg-card px-2.5 py-1.5 text-left font-medium sm:w-[240px] sm:max-w-[240px]"
                     >
                       Player
                     </th>
@@ -385,7 +385,7 @@ function LeaderTable({
                       <th
                         key={c}
                         scope="col"
-                        className="px-2 py-2 text-right font-medium"
+                        className="px-1 py-1.5 text-right font-medium"
                       >
                         {c}
                       </th>
@@ -401,12 +401,12 @@ function LeaderTable({
                       >
                         <th
                           scope="row"
-                          className="sticky left-0 z-10 w-[170px] max-w-[170px] bg-card px-3 py-2 text-left font-normal sm:w-[220px] sm:max-w-[220px]"
+                          className="sticky left-0 z-10 w-[190px] max-w-[190px] bg-card px-2.5 py-1.5 text-left font-normal sm:w-[240px] sm:max-w-[240px]"
                         >
                           <div className="flex items-start gap-1.5">
                             <span
                               className={
-                                "mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-semibold tabular-nums " +
+                                "mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-full font-mono text-[9px] font-semibold tabular-nums " +
                                 (globalRank === 1
                                   ? "bg-primary/15 text-primary"
                                   : "bg-muted text-muted-foreground")
@@ -423,8 +423,8 @@ function LeaderTable({
                             <PlayerPhoto
                               photoUrl={r.photo ?? null}
                               name={r.name}
-                              className="size-7 shrink-0 border border-foreground/10"
-                              initialsClassName="text-[9px]"
+                              className="size-6 shrink-0 border border-foreground/10"
+                              initialsClassName="text-[8px]"
                             />
 
                             <div className="min-w-0 flex-1">
@@ -460,7 +460,7 @@ function LeaderTable({
                           <td
                             key={ci}
                             className={
-                              "px-2 py-2 text-right font-mono tabular-nums " +
+                              "px-1 py-1.5 text-right font-mono text-[10px] tabular-nums " +
                               (ci === 0
                                 ? "font-semibold"
                                 : "text-muted-foreground")
