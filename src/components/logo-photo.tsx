@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type SyntheticEvent } from "react";
 
 import { PhotoLightbox } from "@/components/photo-lightbox";
 
@@ -58,17 +58,36 @@ export function LogoPhoto({
     );
   }
 
+  // <span role="button"> instead of <button> — see the matching
+  // explanation in <PlayerPhoto>. Logos almost always sit inside a
+  // <Link>-wrapped card (Teams tab grid, tournament list cards,
+  // past-tournaments grid), and <button> inside <a> is invalid
+  // HTML5: in React 19 / Next 16 the anchor's default navigation
+  // fires alongside the inner click handler, so opening the
+  // lightbox also navigated to the link target in the background.
+  // The triple stop (preventDefault + stopPropagation +
+  // nativeEvent.stopImmediatePropagation) on a span suppresses
+  // navigation reliably across browsers.
+  const handleOpen = (e: SyntheticEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof e.nativeEvent.stopImmediatePropagation === "function") {
+      e.nativeEvent.stopImmediatePropagation();
+    }
+    setOpen(true);
+  };
+
   return (
     <>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setOpen(true);
+      <span
+        role="button"
+        tabIndex={0}
+        onClick={handleOpen}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") handleOpen(e);
         }}
         className={
-          "overflow-hidden rounded-lg transition hover:ring-2 hover:ring-primary " +
+          "inline-flex cursor-pointer overflow-hidden rounded-lg transition hover:ring-2 hover:ring-primary " +
           className
         }
         aria-label={`View ${name}'s logo`}
@@ -79,7 +98,7 @@ export function LogoPhoto({
           alt={name}
           className="size-full object-cover"
         />
-      </button>
+      </span>
       {open && (
         <PhotoLightbox
           src={imageUrl}

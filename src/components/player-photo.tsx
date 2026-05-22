@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type SyntheticEvent } from "react";
 
 import { PhotoLightbox } from "@/components/photo-lightbox";
 import { getInitials } from "@/lib/utils";
@@ -61,17 +61,36 @@ export function PlayerPhoto({
     );
   }
 
+  // Rendered as <span role="button"> rather than a real <button>
+  // because PlayerPhoto frequently sits inside a <Link> wrapper
+  // (leaderboard rows, players list, etc.). <button> inside <a> is
+  // invalid HTML5, and the resulting browser/React-19 behaviour
+  // sometimes lets the anchor's default navigation fire alongside
+  // the photo's own onClick — so opening the lightbox also pushed
+  // the user to the player profile in the background. A <span> is
+  // valid inside <a>, and the triple stop (preventDefault +
+  // stopPropagation + nativeEvent.stopImmediatePropagation) is
+  // enough to suppress the navigation reliably.
+  const handleOpen = (e: SyntheticEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof e.nativeEvent.stopImmediatePropagation === "function") {
+      e.nativeEvent.stopImmediatePropagation();
+    }
+    setOpen(true);
+  };
+
   return (
     <>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setOpen(true);
+      <span
+        role="button"
+        tabIndex={0}
+        onClick={handleOpen}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") handleOpen(e);
         }}
         className={
-          "overflow-hidden rounded-full transition hover:ring-2 hover:ring-primary " +
+          "inline-flex cursor-pointer overflow-hidden rounded-full transition hover:ring-2 hover:ring-primary " +
           className
         }
         aria-label={`View ${name}'s photo`}
@@ -82,7 +101,7 @@ export function PlayerPhoto({
           alt={name}
           className="size-full object-cover"
         />
-      </button>
+      </span>
       {open && (
         <PhotoLightbox
           src={photoUrl}
