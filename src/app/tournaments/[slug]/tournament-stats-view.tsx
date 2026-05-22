@@ -1,7 +1,8 @@
 "use client";
 
+import { Search, X } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 
 import { PlayerPhoto } from "@/components/player-photo";
 
@@ -298,22 +299,75 @@ function LeaderTable({
   showTeam: boolean;
 }) {
   const [page, setPage] = useState(0);
-  const totalRows = table.rows.length;
+  const [query, setQuery] = useState("");
+  // useDeferredValue keeps the input snappy on long lists — the
+  // filter pass runs against the deferred value on idle ticks
+  // while the input stays at 60fps.
+  const deferredQuery = useDeferredValue(query);
+  const normalized = deferredQuery.trim().toLowerCase();
+
+  // Compute global rank ONCE off the original (sorted) list so a
+  // matching row keeps its real leaderboard position when filtered
+  // — the whole point of the search is "where am I?", which is
+  // pointless if rank gets re-computed against the filtered subset.
+  const rankedRows = useMemo(
+    () => table.rows.map((r, i) => ({ row: r, globalRank: i + 1 })),
+    [table.rows],
+  );
+  const filteredRows = useMemo(() => {
+    if (!normalized) return rankedRows;
+    return rankedRows.filter((x) =>
+      x.row.name.toLowerCase().includes(normalized),
+    );
+  }, [rankedRows, normalized]);
+
+  const totalRows = filteredRows.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / PAGE_SIZE));
   const safePage = Math.min(page, totalPages - 1);
   const start = safePage * PAGE_SIZE;
   const end = Math.min(start + PAGE_SIZE, totalRows);
-  const visibleRows = table.rows.slice(start, end);
+  const visibleRows = filteredRows.slice(start, end);
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="border-b border-foreground/5 bg-muted/30">
+      <CardHeader className="space-y-3 border-b border-foreground/5 bg-muted/30">
         <CardTitle className="text-base">{title}</CardTitle>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(0);
+            }}
+            placeholder="Search player by name"
+            aria-label="Search players"
+            className="w-full rounded-md border border-foreground/10 bg-card py-1.5 pl-8 pr-8 text-xs placeholder:text-muted-foreground focus:border-foreground/30 focus:outline-none"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => {
+                setQuery("");
+                setPage(0);
+              }}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground transition hover:text-foreground"
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="p-0">
-        {totalRows === 0 ? (
+        {table.rows.length === 0 ? (
           <div className="px-4 py-6 text-sm text-muted-foreground">
             No data yet.
+          </div>
+        ) : totalRows === 0 ? (
+          <div className="px-4 py-6 text-sm text-muted-foreground">
+            No players match &ldquo;{deferredQuery}&rdquo;.
           </div>
         ) : (
           <>
@@ -339,8 +393,7 @@ function LeaderTable({
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleRows.map((r, idx) => {
-                    const globalRank = start + idx + 1;
+                  {visibleRows.map(({ row: r, globalRank }) => {
                     return (
                       <tr
                         key={r.name + globalRank}
