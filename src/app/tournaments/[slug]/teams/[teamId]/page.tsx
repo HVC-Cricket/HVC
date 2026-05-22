@@ -16,6 +16,7 @@ import {
   isTournamentOrganizer,
 } from "@/lib/auth";
 import { formatEnumLabel } from "@/lib/format";
+import { LogoPhoto } from "@/components/logo-photo";
 import { PlayerPhoto } from "@/components/player-photo";
 import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
 import { resolvePlayerPhoto } from "@/lib/players/photo";
@@ -152,11 +153,11 @@ export default async function TeamDetailPage(props: {
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-4">
             {team.logo_url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={team.logo_url}
-                alt=""
-                className="h-14 w-14 rounded-md border border-foreground/10 object-cover"
+              <LogoPhoto
+                imageUrl={team.logo_url}
+                name={team.name}
+                fallback={null}
+                className="h-14 w-14 border border-foreground/10 rounded-md"
               />
             )}
             <div className="space-y-1">

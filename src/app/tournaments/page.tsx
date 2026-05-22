@@ -1,6 +1,7 @@
 import { CalendarDays, MapPin, Trophy, Users } from "lucide-react";
 import Link from "next/link";
 
+import { LogoPhoto } from "@/components/logo-photo";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -189,18 +190,12 @@ function TournamentCard({
       className="group flex h-full flex-col overflow-hidden rounded-xl border border-foreground/10 bg-background shadow-sm transition hover:border-foreground/25 hover:shadow-md"
     >
       <div className="flex items-start gap-3 p-4">
-        {t.logo_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={t.logo_url}
-            alt=""
-            className="size-12 shrink-0 rounded-lg border border-foreground/10 object-cover"
-          />
-        ) : (
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-            <Trophy className="size-5" />
-          </div>
-        )}
+        <LogoPhoto
+          imageUrl={t.logo_url}
+          name={t.name}
+          fallback={<Trophy className="size-5" />}
+          className="size-12 shrink-0 border border-foreground/10 bg-muted text-muted-foreground"
+        />
         <div className="min-w-0 flex-1 space-y-1">
           <div className="flex items-center gap-2">
             <h3 className="truncate text-base font-semibold capitalize">

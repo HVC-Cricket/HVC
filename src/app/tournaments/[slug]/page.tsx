@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { LogoPhoto } from "@/components/logo-photo";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -118,18 +119,12 @@ export default async function TournamentDetailPage(props: {
           )}
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
-              {tournament.logo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={tournament.logo_url}
-                  alt=""
-                  className="size-14 shrink-0 rounded-lg border border-foreground/10 object-cover"
-                />
-              ) : (
-                <div className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                  <Trophy className="size-6" />
-                </div>
-              )}
+              <LogoPhoto
+                imageUrl={tournament.logo_url}
+                name={tournament.name}
+                fallback={<Trophy className="size-6" />}
+                className="size-14 shrink-0 border border-foreground/10 bg-muted text-muted-foreground"
+              />
               <div className="min-w-0 space-y-1">
                 <h1 className="truncate text-lg font-semibold capitalize leading-tight sm:text-xl">
                   {tournament.name}
@@ -406,18 +401,16 @@ export default async function TournamentDetailPage(props: {
                         prefetch
                         className="group flex items-center gap-3 rounded-xl border border-foreground/10 bg-background p-3 transition hover:border-foreground/25 hover:bg-muted/30"
                       >
-                        {team.logo_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={team.logo_url}
-                            alt=""
-                            className="size-11 shrink-0 rounded-lg border border-foreground/10 object-cover"
-                          />
-                        ) : (
-                          <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-muted text-[10px] font-semibold text-muted-foreground">
-                            {getTeamInitials(team.short_name)}
-                          </div>
-                        )}
+                        <LogoPhoto
+                          imageUrl={team.logo_url}
+                          name={team.name}
+                          fallback={
+                            <span className="text-[10px] font-semibold">
+                              {getTeamInitials(team.short_name)}
+                            </span>
+                          }
+                          className="size-11 shrink-0 border border-foreground/10 bg-muted text-muted-foreground"
+                        />
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm font-medium capitalize">
                             {team.name}

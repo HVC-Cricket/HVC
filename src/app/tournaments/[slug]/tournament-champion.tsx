@@ -1,6 +1,7 @@
 import { Trophy } from "lucide-react";
 import Link from "next/link";
 
+import { LogoPhoto } from "@/components/logo-photo";
 import { Card, CardContent } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 
@@ -113,18 +114,12 @@ export async function TournamentChampion({
     <Card className="border-amber-200/40 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent dark:border-amber-400/20 dark:from-amber-400/15 dark:via-amber-400/5">
       <CardContent className="space-y-4 py-4">
         <div className="flex items-center gap-4">
-          {champion.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={champion.logo_url}
-              alt=""
-              className="size-16 shrink-0 rounded-xl border border-amber-200/40 bg-background object-cover dark:border-amber-400/20"
-            />
-          ) : (
-            <div className="flex size-16 shrink-0 items-center justify-center rounded-xl border border-amber-200/40 bg-background text-amber-700 dark:border-amber-400/20 dark:text-amber-300">
-              <Trophy className="size-8" />
-            </div>
-          )}
+          <LogoPhoto
+            imageUrl={champion.logo_url}
+            name={champion.name}
+            fallback={<Trophy className="size-8" />}
+            className="size-16 shrink-0 border border-amber-200/40 bg-background text-amber-700 dark:border-amber-400/20 dark:text-amber-300"
+          />
           <div className="min-w-0 flex-1 space-y-1">
             <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
               Champions

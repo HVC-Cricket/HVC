@@ -1,6 +1,7 @@
 import { ArrowRight, Trophy } from "lucide-react";
 import Link from "next/link";
 
+import { LogoPhoto } from "@/components/logo-photo";
 import { createClient } from "@/lib/supabase/server";
 
 type TournamentCard = {
@@ -88,18 +89,12 @@ export async function HomePastTournaments() {
             prefetch
             className="group flex items-start gap-3 rounded-xl border border-foreground/10 bg-background p-3 transition hover:border-primary/30 hover:bg-primary/5"
           >
-            {t.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={t.logo_url}
-                alt=""
-                className="size-11 shrink-0 rounded-lg border border-foreground/10 object-cover"
-              />
-            ) : (
-              <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                <Trophy className="size-5" />
-              </div>
-            )}
+            <LogoPhoto
+              imageUrl={t.logo_url}
+              name={t.name}
+              fallback={<Trophy className="size-5" />}
+              className="size-11 shrink-0 border border-foreground/10 bg-muted text-muted-foreground"
+            />
             <div className="min-w-0 flex-1 space-y-1">
               <div className="truncate text-sm font-semibold capitalize">
                 {t.name}

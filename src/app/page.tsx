@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { LiveRefresh } from "@/components/live-refresh";
+import { LogoPhoto } from "@/components/logo-photo";
 import { formatScheduledAt, formatUpcomingTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { getTeamInitials } from "@/lib/utils";
@@ -317,18 +318,12 @@ function UpcomingTournamentCard({
         </span>
       </div>
       <div className="mt-2 flex items-start gap-3">
-        {t.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={t.logoUrl}
-            alt=""
-            className="size-12 shrink-0 rounded-lg border border-foreground/10 object-cover"
-          />
-        ) : (
-          <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-violet-500/15 text-violet-600 dark:text-violet-300">
-            <Trophy className="size-5" />
-          </div>
-        )}
+        <LogoPhoto
+          imageUrl={t.logoUrl}
+          name={t.name}
+          fallback={<Trophy className="size-5" />}
+          className="size-12 shrink-0 bg-violet-500/15 text-violet-600 dark:text-violet-300"
+        />
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-semibold capitalize">{t.name}</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
