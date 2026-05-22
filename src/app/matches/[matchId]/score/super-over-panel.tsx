@@ -138,18 +138,21 @@ export function SuperOverPanel({ state }: { state: ScoreboardState }) {
         <Pick
           label={`Striker (${battingTeam.short_name})`}
           options={battingXi}
+          photoById={state.playerPhotos}
           value={striker}
           onChange={setStriker}
         />
         <Pick
           label={`Non-striker (${battingTeam.short_name})`}
           options={battingXi.filter((p) => p.id !== striker)}
+          photoById={state.playerPhotos}
           value={nonStriker}
           onChange={setNonStriker}
         />
         <Pick
           label={`Bowler (${bowlingTeam.short_name})`}
           options={bowlingXi}
+          photoById={state.playerPhotos}
           value={bowler}
           onChange={setBowler}
         />
@@ -168,11 +171,13 @@ export function SuperOverPanel({ state }: { state: ScoreboardState }) {
 function Pick({
   label,
   options,
+  photoById,
   value,
   onChange,
 }: {
   label: string;
   options: { id: string; display_name: string; category: 1 | 2 | 3 | null }[];
+  photoById?: Record<string, string | null>;
   value: string;
   onChange: (v: string) => void;
 }) {
@@ -184,12 +189,31 @@ function Pick({
           <SelectValue placeholder="Select…" />
         </SelectTrigger>
         <SelectContent>
-          {options.map((p) => (
+          {options.map((p) => {
+            const photo = photoById?.[p.id] ?? null;
+            return (
             <SelectItem key={p.id} value={p.id} className="capitalize">
-              {p.display_name}
-              {p.category ? ` · C${p.category}` : ""}
+              <span className="flex items-center gap-2">
+                {photo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={photo}
+                    alt=""
+                    className="size-5 shrink-0 rounded-full border border-foreground/10 object-cover"
+                  />
+                ) : (
+                  <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-foreground/10 bg-primary/10 text-[8px] font-semibold text-primary">
+                    {(p.display_name.charAt(0) || "?").toUpperCase()}
+                  </span>
+                )}
+                <span>
+                  {p.display_name}
+                  {p.category ? ` · C${p.category}` : ""}
+                </span>
+              </span>
             </SelectItem>
-          ))}
+            );
+          })}
         </SelectContent>
       </Select>
     </label>

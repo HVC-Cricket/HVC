@@ -103,6 +103,7 @@ export function StartMatchPanel({ state }: { state: ScoreboardState }) {
         <Pick
           label={`Striker (${battingTeam.short_name})`}
           options={battingXi}
+          photoById={state.playerPhotos}
           value={striker}
           onChange={setStriker}
           highlightCat={ruleEnabled ? 1 : undefined}
@@ -110,20 +111,22 @@ export function StartMatchPanel({ state }: { state: ScoreboardState }) {
         <Pick
           label={`Non-striker (${battingTeam.short_name})`}
           options={battingXi.filter((p) => p.id !== striker)}
+          photoById={state.playerPhotos}
           value={nonStriker}
           onChange={setNonStriker}
         />
         <Pick
           label={`Opening bowler (${bowlingTeam.short_name})`}
           options={bowlingXi}
+          photoById={state.playerPhotos}
           value={bowler}
           onChange={setBowler}
           highlightCat={ruleEnabled ? 1 : undefined}
         />
         {ruleEnabled && cat1Bowlers.length === 0 && (
           <p className="text-sm text-destructive">
-            No Cat 1 bowlers in {bowlingTeam.short_name}'s XI. Pick any bowler
-            to start; you can correct categories later.
+            No Cat 1 bowlers in {bowlingTeam.short_name}&apos;s XI. Pick any
+            bowler to start; you can correct categories later.
           </p>
         )}
         <Button onClick={onStart} disabled={pending} className="w-full">
@@ -137,12 +140,14 @@ export function StartMatchPanel({ state }: { state: ScoreboardState }) {
 function Pick({
   label,
   options,
+  photoById,
   value,
   onChange,
   highlightCat,
 }: {
   label: string;
   options: { id: string; display_name: string; category: 1 | 2 | 3 | null }[];
+  photoById?: Record<string, string | null>;
   value: string;
   onChange: (v: string) => void;
   highlightCat?: 1 | 2 | 3;
@@ -155,13 +160,36 @@ function Pick({
           <SelectValue placeholder="Select…" />
         </SelectTrigger>
         <SelectContent>
-          {options.map((p) => (
-            <SelectItem key={p.id} value={p.id} className="capitalize">
-              {p.display_name}
-              {p.category ? ` · C${p.category}` : ""}
-              {highlightCat && p.category === highlightCat ? " ⭑" : ""}
-            </SelectItem>
-          ))}
+          {options.map((p) => {
+            const photo = photoById?.[p.id] ?? null;
+            return (
+              <SelectItem
+                key={p.id}
+                value={p.id}
+                className="capitalize"
+              >
+                <span className="flex items-center gap-2">
+                  {photo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={photo}
+                      alt=""
+                      className="size-5 shrink-0 rounded-full border border-foreground/10 object-cover"
+                    />
+                  ) : (
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-foreground/10 bg-primary/10 text-[8px] font-semibold text-primary">
+                      {(p.display_name.charAt(0) || "?").toUpperCase()}
+                    </span>
+                  )}
+                  <span>
+                    {p.display_name}
+                    {p.category ? ` · C${p.category}` : ""}
+                    {highlightCat && p.category === highlightCat ? " ⭑" : ""}
+                  </span>
+                </span>
+              </SelectItem>
+            );
+          })}
         </SelectContent>
       </Select>
     </label>
