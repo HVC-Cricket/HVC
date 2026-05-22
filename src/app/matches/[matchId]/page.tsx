@@ -355,6 +355,20 @@ export default async function MatchDetailPage(props: {
                       label="Players / side"
                       value={String(match.players_per_side)}
                     />
+                    {match.umpire_1 && (
+                      <Row
+                        label="Umpire 1"
+                        value={match.umpire_1}
+                        valueClassName="capitalize"
+                      />
+                    )}
+                    {match.umpire_2 && (
+                      <Row
+                        label="Umpire 2"
+                        value={match.umpire_2}
+                        valueClassName="capitalize"
+                      />
+                    )}
                   </CardContent>
                 </Card>
 
@@ -436,6 +450,20 @@ export default async function MatchDetailPage(props: {
                   label="Players / side"
                   value={String(match.players_per_side)}
                 />
+                {match.umpire_1 && (
+                  <Row
+                    label="Umpire 1"
+                    value={match.umpire_1}
+                    valueClassName="capitalize"
+                  />
+                )}
+                {match.umpire_2 && (
+                  <Row
+                    label="Umpire 2"
+                    value={match.umpire_2}
+                    valueClassName="capitalize"
+                  />
+                )}
               </CardContent>
             </Card>
 

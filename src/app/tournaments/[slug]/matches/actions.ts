@@ -40,6 +40,8 @@ const baseMatchFields = {
   venue: z.string().optional().or(z.literal("")),
   overs_per_innings: z.coerce.number().int().positive().max(50),
   players_per_side: z.coerce.number().int().min(2).max(15),
+  umpire_1: z.string().optional().or(z.literal("")),
+  umpire_2: z.string().optional().or(z.literal("")),
 };
 
 const createMatchSchema = z
@@ -210,6 +212,8 @@ export async function updateMatch(
       players_per_side: parsed.data.players_per_side,
       status: parsed.data.status,
       rules_override: rulesOverride,
+      umpire_1: parsed.data.umpire_1?.trim() || null,
+      umpire_2: parsed.data.umpire_2?.trim() || null,
     } as never)
     .eq("id", match.id);
 

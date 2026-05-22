@@ -100,6 +100,8 @@ export default async function EditMatchPage(props: {
                 venue: match.venue,
                 overs_per_innings: match.overs_per_innings,
                 players_per_side: match.players_per_side,
+                umpire_1: match.umpire_1,
+                umpire_2: match.umpire_2,
                 status: match.status,
                 override_categories: matchOverride != null,
                 cat1_overs: effectiveRules.categories.cat1_overs,

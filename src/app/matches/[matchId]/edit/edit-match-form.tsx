@@ -60,6 +60,8 @@ const schema = z
     venue: z.string().optional().or(z.literal("")),
     overs_per_innings: z.coerce.number().int().positive().max(50),
     players_per_side: z.coerce.number().int().min(2).max(15),
+    umpire_1: z.string().optional().or(z.literal("")),
+    umpire_2: z.string().optional().or(z.literal("")),
     // When `override_categories` is false (default), this match uses
     // the tournament-level Cat 1 / Cat 3 schedule. Flipping it on
     // makes the two arrays below take precedence for this match only.
@@ -85,6 +87,8 @@ type Props = {
     venue: string | null;
     overs_per_innings: number;
     players_per_side: number;
+    umpire_1: string | null;
+    umpire_2: string | null;
     /** True when `matches.rules_override` is non-null. */
     override_categories: boolean;
     /** The arrays the override (or the inherited tournament rules)
@@ -129,6 +133,8 @@ export function EditMatchForm({
       venue: match.venue ?? "",
       overs_per_innings: match.overs_per_innings,
       players_per_side: match.players_per_side,
+      umpire_1: match.umpire_1 ?? "",
+      umpire_2: match.umpire_2 ?? "",
       override_categories: match.override_categories,
       match_cat1_overs: match.cat1_overs,
       match_cat3_overs: match.cat3_overs,
@@ -350,6 +356,34 @@ export function EditMatchForm({
             to re-open these fields.
           </p>
         )}
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="umpire_1"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Umpire 1 (optional)</FormLabel>
+                <FormControl>
+                  <Input placeholder="Name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="umpire_2"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Umpire 2 (optional)</FormLabel>
+                <FormControl>
+                  <Input placeholder="Name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
         {/* Per-match override for Cat 1 / Cat 3 schedule. Off by
             default; flipping it on takes the toggles below as the
             effective rule for this match only. */}

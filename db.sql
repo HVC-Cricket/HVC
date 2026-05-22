@@ -174,6 +174,9 @@ create table if not exists matches (
   -- here; the current holder sees an Allow / Deny banner.
   pending_scorer_request_id      uuid references auth.users(id) on delete set null,
   pending_scorer_request_at      timestamptz,
+  -- Optional on-field umpire names. Free text; either may be null.
+  umpire_1              text,
+  umpire_2              text,
   created_at            timestamptz not null default now(),
   updated_at            timestamptz not null default now(),
   check (team_a_id <> team_b_id),
@@ -186,6 +189,8 @@ alter table matches add column if not exists primary_scorer_id           uuid re
 alter table matches add column if not exists primary_scorer_heartbeat_at timestamptz;
 alter table matches add column if not exists pending_scorer_request_id   uuid references auth.users(id) on delete set null;
 alter table matches add column if not exists pending_scorer_request_at   timestamptz;
+alter table matches add column if not exists umpire_1                    text;
+alter table matches add column if not exists umpire_2                    text;
 create index if not exists idx_matches_primary_scorer        on matches(primary_scorer_id)        where primary_scorer_id is not null;
 create index if not exists idx_matches_pending_scorer_request on matches(pending_scorer_request_id) where pending_scorer_request_id is not null;
 
