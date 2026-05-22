@@ -382,6 +382,7 @@ function InningsCard({
               cat={
                 strikerId ? playerById.get(strikerId)?.category ?? null : null
               }
+              photo={strikerId ? state.playerPhotos[strikerId] ?? null : null}
               stats={sIdStats}
             />
             <BatterTableRow
@@ -396,6 +397,11 @@ function InningsCard({
                   ? playerById.get(nonStrikerId)?.category ?? null
                   : null
               }
+              photo={
+                nonStrikerId
+                  ? state.playerPhotos[nonStrikerId] ?? null
+                  : null
+              }
               stats={nsIdStats}
             />
             <PlayerTableHeader
@@ -406,6 +412,7 @@ function InningsCard({
               playerId={bowlerId}
               name={bowlerId ? playerById.get(bowlerId)?.display_name : null}
               cat={bowlerId ? playerById.get(bowlerId)?.category ?? null : null}
+              photo={bowlerId ? state.playerPhotos[bowlerId] ?? null : null}
               stats={bIdStats}
             />
           </div>
@@ -428,6 +435,38 @@ function InningsCard({
 // still lets the name truncate when it really has to.
 const TABLE_GRID_COLS =
   "grid-cols-[minmax(0,1fr)_1.5rem_1.5rem_1.5rem_1.5rem_2.25rem]";
+
+/**
+ * Tiny 18px avatar slot used inside the batter / bowler rows of the
+ * Live tab. shrink-0 keeps the name column responsive — when a name
+ * is long enough to force a truncate, the avatar holds its slot and
+ * the name ellipsises around it. Plain <img> (no lightbox wrapper);
+ * the dedicated player profile is one tap away via the name link if
+ * a spectator wants a closer look.
+ */
+function PanelAvatar({
+  photo,
+  name,
+}: {
+  photo: string | null;
+  name: string;
+}) {
+  if (photo) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={photo}
+        alt=""
+        className="size-[18px] shrink-0 rounded-full border border-foreground/10 object-cover"
+      />
+    );
+  }
+  return (
+    <span className="flex size-[18px] shrink-0 items-center justify-center rounded-full border border-foreground/10 bg-primary/10 text-[8px] font-semibold text-primary">
+      {(name.charAt(0) || "?").toUpperCase()}
+    </span>
+  );
+}
 
 function PlayerTableHeader({
   label,
@@ -458,6 +497,7 @@ function BatterTableRow({
   playerId,
   name,
   cat,
+  photo,
   stats,
 }: {
   striker?: boolean;
@@ -468,6 +508,9 @@ function BatterTableRow({
   playerId?: string | null;
   name?: string | null;
   cat?: 1 | 2 | 3 | null;
+  /** Resolved photo URL — already in state.playerPhotos, no extra
+   *  fetch. Falls back to a single-initial chip when null. */
+  photo?: string | null;
   stats: ReturnType<typeof computeBatterStats> | null;
 }) {
   const sr =
@@ -486,6 +529,7 @@ function BatterTableRow({
       )}
     >
       <div className="flex min-w-0 items-center gap-1.5">
+        <PanelAvatar photo={photo ?? null} name={name ?? ""} />
         {playerId && name ? (
           <Link
             href={`/players/${playerId}`}
@@ -533,6 +577,7 @@ function BowlerTableRow({
   playerId,
   name,
   cat,
+  photo,
   stats,
 }: {
   /** Tap-through to /players/[id] when set — same pattern as the
@@ -540,6 +585,7 @@ function BowlerTableRow({
   playerId?: string | null;
   name?: string | null;
   cat?: 1 | 2 | 3 | null;
+  photo?: string | null;
   stats: ReturnType<typeof computeBowlerStats> | null;
 }) {
   const overs = stats
@@ -559,6 +605,7 @@ function BowlerTableRow({
       )}
     >
       <div className="flex min-w-0 items-center gap-1.5">
+        <PanelAvatar photo={photo ?? null} name={name ?? ""} />
         {playerId && name ? (
           <Link
             href={`/players/${playerId}`}
