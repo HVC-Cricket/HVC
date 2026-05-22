@@ -4,9 +4,10 @@ import { Search, X } from "lucide-react";
 import Link from "next/link";
 import { useDeferredValue, useMemo, useState } from "react";
 
+import { PlayerPhoto } from "@/components/player-photo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { cn, getInitials } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export type PlayerRow = {
   id: string;
@@ -205,18 +206,12 @@ export function PlayersSearchList({ rows }: { rows: PlayerRow[] }) {
                     prefetch
                     className="group flex items-center gap-3 px-4 py-3 transition hover:bg-muted/30"
                   >
-                    {p.photo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={p.photo}
-                        alt=""
-                        className="size-11 shrink-0 rounded-full border border-foreground/10 object-cover"
-                      />
-                    ) : (
-                      <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
-                        {getInitials(p.display_name)}
-                      </span>
-                    )}
+                    <PlayerPhoto
+                      photoUrl={p.photo ?? null}
+                      name={p.display_name}
+                      className="size-11 shrink-0 border border-foreground/10"
+                      initialsClassName="text-xs"
+                    />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="truncate text-sm font-medium capitalize">

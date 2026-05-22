@@ -7,9 +7,9 @@ import {
   CardContent,
   CardHeader,
 } from "@/components/ui/card";
+import { PlayerPhoto } from "@/components/player-photo";
 import { Button } from "@/components/ui/button";
 import { formatEnumLabel } from "@/lib/format";
-import { getInitials } from "@/lib/utils";
 
 import { EditProfileForm, type PlayerFieldsInitial } from "./edit-profile-form";
 
@@ -59,7 +59,6 @@ export function ProfileCard({
   canEditAdminPlayerFields = false,
 }: Props) {
   const [editing, setEditing] = useState(false);
-  const initials = getInitials(displayName);
 
   const styleParts = [playerBattingStyle, playerBowlingStyle]
     .filter((s): s is string => Boolean(s))
@@ -70,18 +69,12 @@ export function ProfileCard({
     <Card className="overflow-hidden">
       <CardHeader className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent">
         <div className="flex items-start gap-4">
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt=""
-              className="size-16 shrink-0 rounded-full border border-foreground/10 object-cover"
-            />
-          ) : (
-            <div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-primary/15 text-lg font-semibold text-primary">
-              {initials}
-            </div>
-          )}
+          <PlayerPhoto
+            photoUrl={avatarUrl ?? null}
+            name={displayName}
+            className="size-16 shrink-0 border border-foreground/10"
+            initialsClassName="text-lg"
+          />
           <div className="min-w-0 flex-1 space-y-1">
             <h1 className="break-words text-xl font-semibold capitalize leading-tight">
               {displayName}

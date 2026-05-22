@@ -9,12 +9,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PlayerPhoto } from "@/components/player-photo";
 import { requireTournamentAdmin } from "@/lib/auth";
 import { formatEnumLabel } from "@/lib/format";
 import { listMatchAuditEvents } from "@/lib/match-audit";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
-import { getInitials } from "@/lib/utils";
 
 import { ActivityLogHelp } from "./activity-log-help";
 
@@ -493,18 +493,12 @@ function describeBall(b: BallRow, players: Map<string, string>): string {
 function ActorChip({ name, avatar }: { name: string; avatar: string | null }) {
   return (
     <span className="flex items-center gap-1.5 whitespace-nowrap">
-      {avatar ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={avatar}
-          alt=""
-          className="size-5 shrink-0 rounded-full border border-foreground/10 object-cover"
-        />
-      ) : (
-        <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[8px] font-semibold text-primary">
-          {getInitials(name)}
-        </span>
-      )}
+      <PlayerPhoto
+        photoUrl={avatar}
+        name={name}
+        className="size-5 shrink-0 border border-foreground/10"
+        initialsClassName="text-[8px]"
+      />
       <span className="capitalize">{name}</span>
     </span>
   );

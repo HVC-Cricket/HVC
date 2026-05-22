@@ -42,7 +42,8 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { cn, getInitials } from "@/lib/utils";
+import { PlayerPhoto } from "@/components/player-photo";
+import { cn } from "@/lib/utils";
 
 import { deleteUser, setLinkedPlayer, setSuperAdmin } from "./actions";
 
@@ -359,20 +360,13 @@ function Avatar({
   photoUrl: string | null;
   fallback: string;
 }) {
-  if (photoUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={photoUrl}
-        alt=""
-        className="size-10 shrink-0 rounded-full border border-foreground/10 object-cover"
-      />
-    );
-  }
   return (
-    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-semibold text-primary">
-      {getInitials(fallback)}
-    </span>
+    <PlayerPhoto
+      photoUrl={photoUrl}
+      name={fallback}
+      className="size-10 shrink-0 border border-foreground/10"
+      initialsClassName="text-xs"
+    />
   );
 }
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { AddSquadMemberPopover } from "@/components/add-squad-member-popover";
+import { PlayerPhoto } from "@/components/player-photo";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,7 +13,6 @@ import {
 import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
 import { resolvePlayerPhoto } from "@/lib/players/photo";
 import { createClient } from "@/lib/supabase/server";
-import { getInitials } from "@/lib/utils";
 
 type Team = { id: string; name: string; short_name: string };
 
@@ -404,18 +404,12 @@ async function TeamXICard({
                         {r.batting_order ?? ""}
                       </span>
                     )}
-                    {p?.resolved_photo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={p.resolved_photo}
-                        alt={name}
-                        className="size-8 shrink-0 rounded-full border border-foreground/10 object-cover"
-                      />
-                    ) : (
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-foreground/10 bg-primary/10 text-[10px] font-semibold text-primary">
-                        {getInitials(name)}
-                      </span>
-                    )}
+                    <PlayerPhoto
+                      photoUrl={p?.resolved_photo ?? null}
+                      name={name}
+                      className="size-8 shrink-0 border border-foreground/10"
+                      initialsClassName="text-[10px]"
+                    />
                     <span className="font-medium capitalize">{name}</span>
                     {p?.category != null && (
                       <span

@@ -9,9 +9,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PlayerPhoto } from "@/components/player-photo";
 import { requireOrganizer } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { getInitials } from "@/lib/utils";
 
 import { AddAdminForm } from "./add-admin-form";
 import { RemoveAdminButton } from "./remove-admin-button";
@@ -154,25 +154,18 @@ function AdminList({
             {admins.map((a) => {
               const profile = profileById.get(a.user_id);
               const name = profile?.display_name ?? "(unknown user)";
-              const initials = getInitials(name);
               return (
                 <li
                   key={a.id}
                   className="flex items-center justify-between gap-3 px-6 py-3 text-sm"
                 >
                   <span className="flex items-center gap-3">
-                    {profile?.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={profile.avatar_url}
-                        alt=""
-                        className="size-8 rounded-full border border-foreground/10 object-cover"
-                      />
-                    ) : (
-                      <span className="flex size-8 items-center justify-center rounded-full bg-primary/15 text-[10px] font-semibold text-primary">
-                        {initials}
-                      </span>
-                    )}
+                    <PlayerPhoto
+                      photoUrl={profile?.avatar_url ?? null}
+                      name={name}
+                      className="size-8 border border-foreground/10"
+                      initialsClassName="text-[10px]"
+                    />
                     <span className="font-medium capitalize">{name}</span>
                   </span>
                   {canRemove && (

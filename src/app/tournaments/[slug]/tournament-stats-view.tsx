@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { getInitials } from "@/lib/utils";
+import { PlayerPhoto } from "@/components/player-photo";
 
 import {
   Card,
@@ -367,18 +367,13 @@ function LeaderTable({
                                 the app (player list, XI cards, profile
                                 header) so the leaderboard feels at home
                                 with the rest of the UI. */}
-                            {r.photo ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={r.photo}
-                                alt=""
-                                className="size-7 shrink-0 rounded-full border border-foreground/10 object-cover"
-                              />
-                            ) : (
-                              <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-foreground/10 bg-primary/10 text-[9px] font-semibold text-primary">
-                                {getInitials(r.name)}
-                              </span>
-                            )}
+                            <PlayerPhoto
+                              photoUrl={r.photo ?? null}
+                              name={r.name}
+                              className="size-7 shrink-0 border border-foreground/10"
+                              initialsClassName="text-[9px]"
+                            />
+
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0">
                                 <Link

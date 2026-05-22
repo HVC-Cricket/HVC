@@ -16,10 +16,10 @@ import {
   isTournamentOrganizer,
 } from "@/lib/auth";
 import { formatEnumLabel } from "@/lib/format";
+import { PlayerPhoto } from "@/components/player-photo";
 import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
 import { resolvePlayerPhoto } from "@/lib/players/photo";
 import { createClient } from "@/lib/supabase/server";
-import { getInitials } from "@/lib/utils";
 
 import { AddRosterForm } from "./add-roster-form";
 import { RemoveRosterButton } from "./remove-roster-button";
@@ -215,18 +215,12 @@ export default async function TeamDetailPage(props: {
                             user's profile avatar OR initials. Same
                             treatment used on the /players list, XI
                             cards, leaderboards, etc. */}
-                        {player?.photo ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={player.photo}
-                            alt=""
-                            className="size-9 shrink-0 rounded-full border border-foreground/10 object-cover"
-                          />
-                        ) : (
-                          <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-foreground/10 bg-primary/10 text-xs font-semibold text-primary">
-                            {getInitials(player?.display_name ?? "")}
-                          </span>
-                        )}
+                        <PlayerPhoto
+                          photoUrl={player?.photo ?? null}
+                          name={player?.display_name ?? ""}
+                          className="size-9 shrink-0 border border-foreground/10"
+                          initialsClassName="text-xs"
+                        />
                         <span className="font-medium">{player?.display_name ?? "(unknown)"}</span>
                         {player?.category && (
                           <span

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { PlayerCareerSection } from "@/components/player-career-section";
+import { PlayerPhoto } from "@/components/player-photo";
 import { Button } from "@/components/ui/button";
 import { getSessionContext, isOrganizerOrSuperAdmin } from "@/lib/auth";
 import { formatEnumLabel } from "@/lib/format";
@@ -62,18 +63,12 @@ export default async function PlayerDetailPage(props: {
       <div className="mx-auto max-w-3xl space-y-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-4">
-            {heroPhoto ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={heroPhoto}
-                alt=""
-                className="h-16 w-16 rounded-full border border-foreground/10 object-cover"
-              />
-            ) : (
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                —
-              </div>
-            )}
+            <PlayerPhoto
+              photoUrl={heroPhoto ?? null}
+              name={player.display_name}
+              className="h-16 w-16 border border-foreground/10"
+              initialsClassName="text-lg"
+            />
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">
                 <Link href="/players" className="hover:underline">

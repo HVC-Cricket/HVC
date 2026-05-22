@@ -7,11 +7,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PlayerPhoto } from "@/components/player-photo";
 import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
 import { computeMatchMvp } from "@/lib/scoring/mvp";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
-import { getInitials } from "@/lib/utils";
 
 import { PlayerOfMatchForm } from "./player-of-match-form";
 
@@ -174,18 +174,12 @@ export async function MatchAwards({
         {chosen && (
           <div className="flex items-center gap-3 rounded-lg border border-amber-500/20 bg-background/60 p-3 sm:gap-4 sm:p-4">
             <div className="relative shrink-0">
-              {chosen.resolved_photo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={chosen.resolved_photo}
-                  alt={chosen.display_name}
-                  className="size-16 rounded-full border-2 border-amber-500/40 object-cover sm:size-20"
-                />
-              ) : (
-                <div className="flex size-16 items-center justify-center rounded-full border-2 border-amber-500/40 bg-primary/15 text-base font-semibold text-primary sm:size-20">
-                  {getInitials(chosen.display_name)}
-                </div>
-              )}
+              <PlayerPhoto
+                photoUrl={chosen.resolved_photo ?? null}
+                name={chosen.display_name}
+                className="size-16 border-2 border-amber-500/40 sm:size-20"
+                initialsClassName="text-base"
+              />
               <span className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full bg-amber-500 text-white shadow-sm ring-2 ring-background sm:size-7">
                 <Award className="size-3.5 sm:size-4" />
               </span>

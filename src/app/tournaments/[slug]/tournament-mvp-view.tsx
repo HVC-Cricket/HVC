@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getInitials } from "@/lib/utils";
+import { PlayerPhoto } from "@/components/player-photo";
 
 export type MvpEntry = {
   player_id: string;
@@ -190,18 +190,12 @@ function MvpRow({
           >
             {idx + 1}
           </span>
-          {entry.photo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={entry.photo}
-              alt=""
-              className="size-9 shrink-0 rounded-full border border-foreground/10 object-cover"
-            />
-          ) : (
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[10px] font-semibold uppercase text-primary">
-              {getInitials(entry.name)}
-            </span>
-          )}
+          <PlayerPhoto
+            photoUrl={entry.photo ?? null}
+            name={entry.name}
+            className="size-9 shrink-0 border border-foreground/10"
+            initialsClassName="text-[10px] uppercase"
+          />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
               <span className="truncate font-medium capitalize">

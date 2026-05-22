@@ -1,6 +1,7 @@
-import { ArrowRight, User } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
+import { PlayerPhoto } from "@/components/player-photo";
 import { getSessionContext } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -57,18 +58,12 @@ export async function HomeMyProfile() {
       prefetch
       className="group flex items-center gap-3 rounded-xl border border-primary/15 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-3 transition hover:border-primary/30 hover:from-primary/15"
     >
-      {player.photo_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={player.photo_url}
-          alt=""
-          className="size-12 shrink-0 rounded-full border border-foreground/10 object-cover"
-        />
-      ) : (
-        <div className="flex size-12 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
-          <User className="size-5" />
-        </div>
-      )}
+      <PlayerPhoto
+        photoUrl={player.photo_url ?? null}
+        name={player.display_name}
+        className="size-12 shrink-0 border border-foreground/10"
+        initialsClassName="text-sm"
+      />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-semibold uppercase tracking-wide text-primary">
