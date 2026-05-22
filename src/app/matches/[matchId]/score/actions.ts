@@ -571,25 +571,23 @@ export async function recordBall(
     // pending. Innings 2 / super-over use `match.status` as their gate
     // (MatchCompletePanel), so we stamp `ended_at` there as before.
     const isInnings1 = inningsNumber === 1;
-    // Surface the error if the innings-complete UPDATE fails. Previously
-    // fire-and-forget — a silent failure meant the ball insert landed
-    // but is_complete stayed false on the row, and the client UI was
-    // stuck on the scoring keypad (no phase transition). Bubbling the
-    // error lets the offline queue retry and we get a clear signal of
-    // a server-side bug instead of guessing.
-    const { error: completeErr } = await supabase
+    // Kept fire-and-forget on purpose: the ball insert already
+    // succeeded above, so returning a hard error here would cause the
+    // offline queue to drop the task as a validation failure even
+    // though the ball IS recorded. The next tap would then try to
+    // record another ball on an innings the engine thinks is complete
+    // and error out, cascading into a stuck-state. Instead the client
+    // optimistic-finishing card has a router.refresh() escape hatch
+    // (3s auto + manual button) which is enough to recover from
+    // transient UPDATE blips; a persistent failure would be visible
+    // in logs and is a separate bug to chase.
+    await supabase
       .from("innings")
       .update({
         is_complete: true,
         ended_at: isInnings1 ? null : new Date().toISOString(),
       })
       .eq("id", innings.id);
-    if (completeErr) {
-      return {
-        ok: false,
-        error: `Innings finalize failed: ${completeErr.message}`,
-      };
-    }
 
     // innings_number was already loaded in Wave 1 — no need to round-
     // trip again just to know which innings just finished. Match

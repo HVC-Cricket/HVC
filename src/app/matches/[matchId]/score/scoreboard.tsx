@@ -1280,17 +1280,28 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
             </div>
             <p className="text-xs text-muted-foreground">
               Saving the last ball. If this stays stuck for more than a
-              few seconds, tap Refresh.
+              few seconds, tap Refresh — or Undo if you tapped by
+              mistake.
             </p>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => router.refresh()}
-            >
-              <RefreshCw className="mr-1.5 size-3.5" />
-              Refresh
-            </Button>
+            <div className="flex items-center justify-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => router.refresh()}
+              >
+                <RefreshCw className="mr-1.5 size-3.5" />
+                Refresh
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={undo}
+              >
+                Undo last ball
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
