@@ -39,6 +39,21 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-23 — Match scheduling: IST round-trip fix + umpires on the tournament match list.** Two small follow-ups to yesterday's umpire batch.
+
+**`scheduled_at` was drifting +5h30m on every save.** Pavan flagged it: a 2 PM match showed as 7:30 PM after editing, and editing it back via the DB stuck until the next save. Root cause: `<input type="datetime-local">` emits `YYYY-MM-DDTHH:mm` with no timezone, and `createMatch` / `updateMatch` were writing that string verbatim into `matches.scheduled_at` (`timestamptz`). Postgres on Supabase has `TimeZone = UTC`, so it interpreted `14:00` as `14:00 UTC`; then `formatScheduledAt` correctly rendered the stored UTC in IST → `19:30`. Exactly one IST offset, exactly once per save. Fix in `src/app/tournaments/[slug]/matches/actions.ts`:
+
+- New `istLocalToUtcIso()` tags the input as IST (`+05:30`) and emits a fully qualified UTC ISO. Both `createMatch` and `updateMatch` now route `scheduled_at` through it instead of writing the bare string.
+- Parallel read-side fix in `src/app/matches/[matchId]/edit/edit-match-form.tsx`: `toDatetimeLocal` previously used `d.getHours()` (browser-local), which happens to work for IST-based organizers but would have been wrong (and round-trip-corrupting) for an organizer abroad. Switched to `Intl.DateTimeFormat` with `timeZone: "Asia/Kolkata"` so the input always shows IST wall-clock regardless of where the user is sitting.
+
+One-time data cleanup needed for any match that was re-saved between the umpire batch landing (2026-05-22) and this fix: `update matches set scheduled_at = scheduled_at - interval '5 hours 30 minutes' where id = '<id>'`. Don't double-correct rows that weren't touched.
+
+**Umpires now render on the tournament Matches tab.** Pavan: "show the umpires name here as well in the schedule. Show it below the team names. Format shall be like this: Umpires: Umpire1, Umpire2". Added a row to each match card in `/tournaments/[slug]` between the two `TeamRow`s and the optional result line. Same `text-[11px] text-muted-foreground capitalize` styling as the `#N · Stage` meta row above. Single-umpire matches render `Umpires: John` (no trailing comma — `.filter(Boolean).join(", ")`). Card is unchanged when both columns are null, so historical matches don't gain an empty noise row. Match query on `tournaments/[slug]/page.tsx` widened to also select `umpire_1, umpire_2`.
+
+3 files (`actions.ts`, `edit-match-form.tsx`, `tournaments/[slug]/page.tsx`) / ~+45 LOC.
+
+---
+
 **2026-05-22 (later 7) — `recordBall` parallelization: 5–10s → ~1–2s per ball.** Pavan flagged that ball saves were taking 5–10s in the queue, with the "Saving N balls" indicator catching up slowly during live scoring. Investigation: `recordBall` was making ~10 sequential Supabase round-trips per ball — auth check, innings SELECT, matches SELECT, scoring-lock RPC, tournaments SELECT, balls history SELECT, match_players SELECT, players SELECT, innings_number SELECT (duplicate, just for super-over detection), insert, post-trigger total_runs re-read for chase, conditional update, innings_number SELECT again (also duplicate). Each round-trip on the mobile → Vercel → Supabase Mumbai path is 200–500ms; cold starts on hobby tier compound it.
 
 Two zero-functional-impact changes in `src/app/matches/[matchId]/score/actions.ts`:
