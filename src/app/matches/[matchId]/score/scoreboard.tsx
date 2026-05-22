@@ -8,8 +8,9 @@ import {
   useRef,
   useState,
 } from "react";
-import { ArrowLeftRight } from "lucide-react";
+import { ArrowLeftRight, RefreshCw } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import {
@@ -126,6 +127,34 @@ function makePendingUndo(b: {
 export function Scoreboard({ state }: { state: ScoreboardState }) {
   const innings = state.innings!;
   const isComplete = innings.is_complete;
+  const router = useRouter();
+
+  // Set the instant the optimistic prediction says THIS ball ends the
+  // innings (overs cap reached on the last allowed over, chase target
+  // hit, or all-out). Bridges the 1–2s gap between the tap and the
+  // server-confirmed phase transition: instead of staring at an active
+  // keypad while saving completes, the scorer gets a "Finishing innings…"
+  // card with a Refresh escape hatch. Cleared when isComplete flips
+  // server-side (the page-level phase machine then unmounts this whole
+  // component, but the local clear avoids a flash if the prediction was
+  // wrong and isComplete ends up false).
+  const [optimisticInningsEnded, setOptimisticInningsEnded] = useState(false);
+  useEffect(() => {
+    if (isComplete && optimisticInningsEnded) {
+      // Phase machine will unmount us imminently — nothing else to do.
+      // Belt-and-suspenders: trigger one router.refresh() so if realtime
+      // dropped the is_complete update, we re-fetch and transition.
+      router.refresh();
+    }
+  }, [isComplete, optimisticInningsEnded, router]);
+  // Safety net: if isComplete hasn't flipped within 3s of the prediction,
+  // assume realtime dropped or the server UPDATE silently failed. Pull
+  // the fresh state from the server. Cheap operation; idempotent.
+  useEffect(() => {
+    if (!optimisticInningsEnded || isComplete) return;
+    const t = setTimeout(() => router.refresh(), 3000);
+    return () => clearTimeout(t);
+  }, [optimisticInningsEnded, isComplete, router]);
 
   const playersById = useMemo(() => {
     const m = new Map<string, { id: string; display_name: string; category: 1 | 2 | 3 | null; team_id: string }>();
@@ -736,28 +765,41 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     // is still true at submit time because the server hasn't confirmed
     // is_complete=true yet — then closes ~200ms later when the realtime
     // update lands. The flash is jarring during scoring.
+    // Predict innings end on THIS ball — used both to suppress the
+    // over-complete bowler prompt (a flash) AND to switch the keypad
+    // into a "Finishing innings…" state while saving completes.
+    //
+    // Wickets cap: super overs use rules.super_over.max_wickets (e.g.
+    // 2), regular innings use players_per_side - 1 (or full N under
+    // last-man-standing). Overs cap is the inningsOversCap (1 for
+    // super over, overs_per_innings for regular). Chase target only
+    // applies to innings 2.
+    const wicketsCapForEnd = isSuperOver
+      ? state.rules.super_over.max_wickets
+      : state.rules.last_man_standing
+        ? state.rules.players_per_side
+        : state.rules.players_per_side - 1;
+    const ballRunsForEnd =
+      (input.runs_off_bat ?? 0) +
+      (input.extras ?? 0) +
+      (input.extra_type === "wide" || input.extra_type === "no_ball" ? 1 : 0);
+    const willInningsEnd =
+      // All-out / max wickets reached
+      (input.is_wicket &&
+        state.active.dismissed_ids.length + 1 >= wicketsCapForEnd) ||
+      // Overs cap — this just-completed over was the innings' last one
+      (next.endOfOver && state.active.over_number >= inningsOversCap) ||
+      // Chase target reached on this delivery
+      (innings.innings_number === 2 &&
+        innings.target != null &&
+        innings.total_runs + ballRunsForEnd >= innings.target);
+
+    if (willInningsEnd) {
+      setOptimisticInningsEnded(true);
+    }
+
     if (next.endOfOver && !isComplete) {
       const completedOver = state.active.over_number;
-      const wicketsCapForEnd =
-        state.rules.last_man_standing && !isSuperOver
-          ? state.rules.players_per_side
-          : state.rules.players_per_side - 1;
-      const ballRunsForEnd =
-        (input.runs_off_bat ?? 0) +
-        (input.extras ?? 0) +
-        (input.extra_type === "wide" || input.extra_type === "no_ball"
-          ? 1
-          : 0);
-      const willInningsEnd =
-        // All-out
-        (input.is_wicket &&
-          state.active.dismissed_ids.length + 1 >= wicketsCapForEnd) ||
-        // Overs cap — this just-completed over was the innings' last one
-        completedOver >= inningsOversCap ||
-        // Chase target reached on this delivery
-        (innings.innings_number === 2 &&
-          innings.target != null &&
-          innings.total_runs + ballRunsForEnd >= innings.target);
       if (completedOver >= 2 && !willInningsEnd) {
         setOverCompletePrompt({
           completedOver,
@@ -773,6 +815,9 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   };
 
   const undo = () => {
+    // Undoing a ball cancels any optimistic finishing-innings state —
+    // the scorer wants to step back, not finalize.
+    setOptimisticInningsEnded(false);
     // Capture the "pre-ball" striker / non-striker / bowler from the
     // ball we're undoing — who was on strike WHEN that ball was bowled.
     // Setting these instantly reverts the rotation so the slot tiles
@@ -818,6 +863,8 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
       toast.error("Nothing to undo");
       return;
     }
+    // Undo cancels any optimistic finishing-innings state.
+    setOptimisticInningsEnded(false);
     const fromOpt = Math.min(optimistic.length, count);
     const fromServer = count - fromOpt;
     // The "earliest undone ball" holds the pre-rotation state. If any
@@ -1215,7 +1262,40 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
           bottom of this card stack (see below). */}
 
       {/* Ball entry */}
-      {!isComplete && (
+      {/* Optimistic "Finishing innings…" card — replaces the keypad
+          the instant the engine predicts THIS ball ends the innings.
+          Bridges the ~1–2s gap between the tap and the server-confirmed
+          phase transition; without it the scorer stared at an active
+          keypad while saving completed, sometimes for longer if realtime
+          dropped the is_complete update entirely. Refresh button is the
+          escape hatch — fetches fresh state from the server in case
+          something got stuck. Auto-refresh after 3s also runs from the
+          effect above. */}
+      {optimisticInningsEnded && !isComplete && (
+        <Card>
+          <CardContent className="space-y-3 py-5 text-center">
+            <div className="flex items-center justify-center gap-2 text-sm font-medium">
+              <RefreshCw className="size-4 animate-spin text-primary" />
+              Finishing innings…
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Saving the last ball. If this stays stuck for more than a
+              few seconds, tap Refresh.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => router.refresh()}
+            >
+              <RefreshCw className="mr-1.5 size-3.5" />
+              Refresh
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {!isComplete && !optimisticInningsEnded && (
         <Card>
           <CardContent className="space-y-2">
             {/* Primary action grid. Two rows of four:
