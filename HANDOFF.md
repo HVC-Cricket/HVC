@@ -39,6 +39,70 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-23 (later 2) — Live score panel: tap-name-to-profile + photo thumbnails for batter / bowler rows.** Two layered additions to the Live tab on the public match page.
+
+1. **Tap batter / bowler name → /players/[id].** The name span (and only the name span — not the whole row) wraps in a `<Link>` so spectators can drill into the player's profile from the live mini-table. `prefetch={false}` because the profile page is heavy (career section, by-tournament breakdown, rank badges) and we don't want to incidentally prefetch it for every spectator hovering the score during a live match. Surrounding stat columns (R / B / 4s / 6s / SR · O / M / R / W / ER) stay non-interactive.
+
+2. **18px circular photo thumbnails** in front of each batter and bowler name. Same `state.playerPhotos` map that the picker + scorecard read — already loaded by the scoring-state loader, so this is render-only. Zero new queries, zero per-ball-save impact. `shrink-0` on the avatar means long names truncate around the avatar instead of pushing it off-screen on 360-px viewports. Plain `<img>` (no lightbox); the name link below it routes to the dedicated profile page if a spectator wants a closer look.
+
+Commits `e94a6c4` (link), `8802db9` (avatars).
+
+**2026-05-23 (later) — Photo thumbnails in the picker dropdowns + public scorecard.** Pavan: "can we add profile photo here and also in scorecard for viewers if there is a place? and only if it wont slow down the scoring save seconds". Confirmed zero impact on `recordBall` — photos load with the page on initial mount, the save path never touches photo data.
+
+Two surfaces:
+
+- **SlotPicker dropdowns on `/matches/[id]/score`.** The state loader's `match_players` join gained `photo_url, linked_user_id` columns; a follow-up batch lookup fetches `profile.avatar_url` for any player linked to a user account. The resolved photo flows through a new `state.playerPhotos` map keyed by `player_id`; the `Scoreboard` passes it to `SlotPicker` as `photoById`. Each `<SelectItem>` now renders a 20-px circular thumbnail beside the `Pavan Kashyap · C2` text — falls back to a first-initial chip when no photo. Especially helpful in HVC squads where multiple players share a first name.
+- **Public scorecard (`FullScorecard`).** Same data-resolution pattern. `BattingTable` and `BowlingTable` gained a `photoById` prop and a new `RowAvatar` helper that renders a 28-px thumbnail beside the player name + stats. The "on strike" / "currently bowling" markers and the C-badge stay in the column to the right of the avatar.
+
+`EnginePlayer` stays pure (no view fields leaked into the scoring engine); photos flow through a sibling map per `ScoreboardState`. All state-loader changes run inside existing `Promise.all` blocks so no extra round-trips on page mount.
+
+Commit `e9b7ea2`.
+
+**2026-05-22 (later 11) — Scoring: CRR + REQ rate strip on the top scoreboard.** Cricbuzz-style run-rate display. A compact line sits between the score / overs row and the chase "Need X runs from Y balls" line. Always shows CRR (current run rate) once at least one legal ball has been bowled; REQ (required run rate) joins it on innings 2 when there's a target and the chase is still in progress. Two decimals — matches every cricket scorecard convention.
+
+Gates:
+- `displayLegalBalls > 0`: skip the whole strip while no ball has been bowled (CRR off zero balls is meaningless).
+- REQ shown only when `runsNeeded > 0 AND ballsLeft > 0` — once the chase has resolved either way, the Need / Target line below carries the news without duplicate noise.
+
+Formula: `CRR = runs × 6 / legal_balls`; `REQ = runs_needed × 6 / balls_left`. Both bind to the optimistic `displayRuns` / `displayLegalBalls` so they update instantly on every tap.
+
+Commit `5a870c6`.
+
+**2026-05-22 (later 10) — Scoring lock: auto re-acquire mid-session + manual Reclaim escape hatch.** Pavan reported a scorer who got bumped to the "Connecting… Claiming the scoring lock" card mid-game and was stuck there. Root cause: the acquire effect had `[matchId]` deps only, so it ran ONCE on mount. If the lock transitioned from `"mine"` → `"free"` mid-session (heartbeat lapsed on a bad network, server-side expiry, or a transient parent re-render fired the release-on-unmount cleanup), the poll detected `"free"` and updated local state — but the acquire effect never re-fired to reclaim. The user was stuck on the spinner with no recovery short of a hard reload.
+
+Two fixes in `scoring-lock-gate.tsx`:
+
+1. Acquire effect now keys on a `canClaimNow` boolean (derived from `status.status` + `status.expired`). When the lock transitions to `"free"` or `"held-and-expired"` mid-session, the effect re-fires and tries to reclaim. `acquireScoringLock` is idempotent server-side; the cancelled flag prevents a stale resolution from clobbering newer status updates.
+2. Manual **Reclaim lock** button on the "Connecting…" card. New `onReclaim` handler calls `acquireScoringLock` directly (not `requestScoringTakeover`, which is for the held-by-other case). A "View live scorecard instead" link sits alongside for graceful exit.
+
+While in this file, also cleared 5 pre-existing lint errors: moved `statusRef.current = status` from raw render into a `useEffect` (React 19's "no refs during render" rule); 4 unescaped apostrophes in `CardDescription` copy → `&apos;`.
+
+Commit `98c3562`.
+
+**2026-05-22 (later 9) — Scoreboard lint cleanup: React-19 setState-in-effect + unused vars.** Six pre-existing scoreboard.tsx lint issues:
+
+Four were React 19's "setState in effect" cascading-render errors on long-standing post-commit `useEffect` sync patterns. Behaviour was correct (each effect had a tracking `ref` and ran at most once per relevant prop change), but each change caused TWO renders — the effect ran after the first commit, scheduled state updates, and React committed again. Converted in place to React 19's sanctioned "setState during render with a `useState` comparator" pattern: same trigger semantics, setState calls batched into a single commit.
+
+1. `ballsLengthSyncRef + useEffect` → `useState(lastBallsLengthSynced)` + during-render comparison. Syncs slot tiles when a new ball lands (boundary vs non-boundary branches preserved exactly).
+2. "Downgrade overCategory to 2 if no longer allowed" effect → inline during-render conditional setState. Single line.
+3. "Close over-complete prompt on innings completion" effect → inline during-render conditional setState. Single line.
+4. "Auto-pick Cat-matching striker / bowler on overCategory change" effect → `useState(lastOverCategorySynced)` + during-render comparison.
+
+Plus 2 warnings: removed an unused `overs` const (was computed for a display that no longer references it) and an unused `bowler` lookup.
+
+Verification: 71/71 tests pass, lint problem count 48 → 42 (the exact 6 targeted issues disappeared; all remaining 42 are in unrelated files and pre-existed).
+
+Commit `bc04334`.
+
+**2026-05-22 (later 8) — Scoring: optimistic "Finishing innings…" card + lessons-learned iteration.** Pavan reported the first super-over innings hitting the overs cap but the UI stayed stuck on the active scoring keypad — sometimes flickering, sometimes never transitioning. Two possible causes hadn't been disentangled: (A) the realtime update on `is_complete=true` dropped between server and client, or (B) the server-side `is_complete=true` UPDATE itself silently failed (its result was previously unchecked).
+
+Shipped a defensive double-fix that handles both:
+
+1. **Client-side optimistic transition.** The engine's prediction of "this ball ends the innings" (overs cap on the last allowed over, chase target hit, or wickets cap reached — super overs now correctly using `rules.super_over.max_wickets` instead of `players_per_side - 1`) sets a local `optimisticInningsEnded` flag. The scoring keypad is replaced by a "Finishing innings…" card with **Refresh** + **Undo last ball** buttons. A safety net `router.refresh()` fires after 3s if `is_complete` hasn't flipped yet — recovers from realtime drops. Undo path clears the optimistic state and pops the keypad back so a mis-tapped innings-ending ball can still be walked back.
+2. **Audit + revert of a too-aggressive server-side fix.** First attempt error-checked the `is_complete=true` UPDATE and bubbled failures out of `recordBall`. Caught in audit before shipping more broadly: this created a worse failure mode — the ball insert had already succeeded, so returning a hard error caused the offline queue to drop the task as a validation failure even though the ball IS recorded. The next tap would then try to record another ball on an innings the engine considers complete and error out, cascading. Reverted to the original fire-and-forget UPDATE; the client-side recovery path is the right place to handle this.
+
+Commits `6b986b7` (initial), `18a9642` (audit + Undo button + revert error-check).
+
 **2026-05-23 — Match scheduling: IST round-trip fix + umpires on the tournament match list.** Two small follow-ups to yesterday's umpire batch.
 
 **`scheduled_at` was drifting +5h30m on every save.** Pavan flagged it: a 2 PM match showed as 7:30 PM after editing, and editing it back via the DB stuck until the next save. Root cause: `<input type="datetime-local">` emits `YYYY-MM-DDTHH:mm` with no timezone, and `createMatch` / `updateMatch` were writing that string verbatim into `matches.scheduled_at` (`timestamptz`). Postgres on Supabase has `TimeZone = UTC`, so it interpreted `14:00` as `14:00 UTC`; then `formatScheduledAt` correctly rendered the stored UTC in IST → `19:30`. Exactly one IST offset, exactly once per save. Fix in `src/app/tournaments/[slug]/matches/actions.ts`:
