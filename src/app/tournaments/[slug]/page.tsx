@@ -62,7 +62,7 @@ export default async function TournamentDetailPage(props: {
     supabase
       .from("matches")
       .select(
-        "id, match_number, stage, status, scheduled_at, team_a_id, team_b_id, winner_id, win_margin, result_type",
+        "id, match_number, stage, status, scheduled_at, team_a_id, team_b_id, winner_id, win_margin, result_type, umpire_1, umpire_2",
       )
       .eq("tournament_id", tournament.id)
       .order("match_number", { ascending: true }),
@@ -308,6 +308,14 @@ export default async function TournamentDetailPage(props: {
                           <TeamRow team={a} />
                           <TeamRow team={b} />
                         </div>
+                        {(m.umpire_1 || m.umpire_2) && (
+                          <div className="mt-2 truncate text-[11px] capitalize text-muted-foreground">
+                            Umpires:{" "}
+                            {[m.umpire_1, m.umpire_2]
+                              .filter(Boolean)
+                              .join(", ")}
+                          </div>
+                        )}
                         {resultLine && (
                           <div className="mt-2 truncate text-xs font-medium capitalize text-primary">
                             {resultLine}
