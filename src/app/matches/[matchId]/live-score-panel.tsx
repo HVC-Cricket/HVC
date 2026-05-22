@@ -1,4 +1,5 @@
 import { Trophy } from "lucide-react";
+import Link from "next/link";
 
 import { LiveRefresh } from "@/components/live-refresh";
 
@@ -376,6 +377,7 @@ function InningsCard({
             />
             <BatterTableRow
               striker
+              playerId={strikerId}
               name={strikerId ? playerById.get(strikerId)?.display_name : null}
               cat={
                 strikerId ? playerById.get(strikerId)?.category ?? null : null
@@ -383,6 +385,7 @@ function InningsCard({
               stats={sIdStats}
             />
             <BatterTableRow
+              playerId={nonStrikerId}
               name={
                 nonStrikerId
                   ? playerById.get(nonStrikerId)?.display_name
@@ -400,6 +403,7 @@ function InningsCard({
               stats={["O", "M", "R", "W", "ER"]}
             />
             <BowlerTableRow
+              playerId={bowlerId}
               name={bowlerId ? playerById.get(bowlerId)?.display_name : null}
               cat={bowlerId ? playerById.get(bowlerId)?.category ?? null : null}
               stats={bIdStats}
@@ -451,11 +455,17 @@ function PlayerTableHeader({
 
 function BatterTableRow({
   striker,
+  playerId,
   name,
   cat,
   stats,
 }: {
   striker?: boolean;
+  /** When set, the name is wrapped in a Link to /players/[id] so a
+   *  spectator can tap through to the batter's profile. Name-only
+   *  click target (not the whole row) keeps surrounding stats
+   *  non-interactive. */
+  playerId?: string | null;
   name?: string | null;
   cat?: 1 | 2 | 3 | null;
   stats: ReturnType<typeof computeBatterStats> | null;
@@ -464,6 +474,10 @@ function BatterTableRow({
     stats && stats.balls_faced > 0
       ? ((stats.runs / stats.balls_faced) * 100).toFixed(1)
       : "—";
+  const nameClass = cn(
+    "truncate font-medium capitalize",
+    striker && "text-emerald-700 dark:text-emerald-400",
+  );
   return (
     <div
       className={cn(
@@ -472,14 +486,17 @@ function BatterTableRow({
       )}
     >
       <div className="flex min-w-0 items-center gap-1.5">
-        <span
-          className={cn(
-            "truncate font-medium capitalize",
-            striker && "text-emerald-700 dark:text-emerald-400",
-          )}
-        >
-          {name ?? "—"}
-        </span>
+        {playerId && name ? (
+          <Link
+            href={`/players/${playerId}`}
+            prefetch={false}
+            className={cn(nameClass, "hover:underline")}
+          >
+            {name}
+          </Link>
+        ) : (
+          <span className={nameClass}>{name ?? "—"}</span>
+        )}
         {striker && name && (
           <span
             className="font-mono leading-none text-emerald-700 dark:text-emerald-400"
@@ -513,10 +530,14 @@ function BatterTableRow({
 }
 
 function BowlerTableRow({
+  playerId,
   name,
   cat,
   stats,
 }: {
+  /** Tap-through to /players/[id] when set — same pattern as the
+   *  batter row. */
+  playerId?: string | null;
   name?: string | null;
   cat?: 1 | 2 | 3 | null;
   stats: ReturnType<typeof computeBowlerStats> | null;
@@ -528,6 +549,8 @@ function BowlerTableRow({
     stats && stats.legal_balls > 0
       ? ((stats.runs_conceded / stats.legal_balls) * 6).toFixed(2)
       : "—";
+  const nameClass =
+    "truncate font-medium capitalize text-amber-700 dark:text-amber-400";
   return (
     <div
       className={cn(
@@ -536,9 +559,17 @@ function BowlerTableRow({
       )}
     >
       <div className="flex min-w-0 items-center gap-1.5">
-        <span className="truncate font-medium capitalize text-amber-700 dark:text-amber-400">
-          {name ?? "—"}
-        </span>
+        {playerId && name ? (
+          <Link
+            href={`/players/${playerId}`}
+            prefetch={false}
+            className={cn(nameClass, "hover:underline")}
+          >
+            {name}
+          </Link>
+        ) : (
+          <span className={nameClass}>{name ?? "—"}</span>
+        )}
         {cat && (
           <span className="shrink-0 rounded bg-foreground/10 px-1 font-mono text-[10px]">
             C{cat}
