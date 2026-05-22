@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { getInitials } from "@/lib/utils";
 
@@ -103,10 +104,14 @@ function PhotoLightbox({
   name: string;
   onClose: () => void;
 }) {
+  const [mounted, setMounted] = useState(false);
+
   // Lock body scroll + handle ESC while the lightbox is open. Same
   // pattern as SiteNavDrawer so behaviour stays consistent across
-  // the app's modal surfaces.
+  // the app's modal surfaces. setMounted gates the portal render so
+  // SSR doesn't see a portal target (document.body is browser-only).
   useEffect(() => {
+    setMounted(true);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -119,7 +124,14 @@ function PhotoLightbox({
     };
   }, [onClose]);
 
-  return (
+  // Render into document.body via a portal so the lightbox isn't
+  // constrained by any local stacking context. Without this, the
+  // overlay gets trapped inside the parent of <PlayerPhoto> (e.g.
+  // a sticky <td> in the leaderboard table that itself creates a
+  // z-index context), and surrounding sticky cells render OVER it.
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -145,6 +157,7 @@ function PhotoLightbox({
       <div className="pointer-events-none absolute bottom-6 left-0 right-0 px-4 text-center text-sm font-medium text-white/90">
         {name}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
