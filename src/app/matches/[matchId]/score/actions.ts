@@ -285,42 +285,96 @@ export async function recordBall(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in" };
 
-  const { data: innings } = await supabase
-    .from("innings")
-    .select("id, match_id, batting_team_id, bowling_team_id, is_complete")
-    .eq("id", parsed.data.inningsId)
-    .single();
+  // Wave 1: every read that depends only on the input IDs starts at
+  // the same time. Previously these were 5 sequential awaits — one
+  // network round-trip apiece, each adding 200–500ms on the mobile →
+  // Vercel → Supabase path. Collapsing them to a Promise.all turns
+  // a ~2.5s wall-clock wait into a single ~500ms hop. The lock RPC
+  // is included here because its only dependency is matchId+userId
+  // and it doesn't touch any of the other rows being read.
+  //
+  // innings_number is folded into the innings SELECT so the
+  // separate fetch we used to do further down (just to know whether
+  // we're in a super over) is no longer needed.
+  const [
+    { data: innings },
+    matchRes,
+    { data: prevBalls },
+    { data: matchPlayers },
+    lock,
+  ] = await Promise.all([
+    supabase
+      .from("innings")
+      .select(
+        "id, match_id, batting_team_id, bowling_team_id, is_complete, innings_number",
+      )
+      .eq("id", parsed.data.inningsId)
+      .single(),
+    // `rules_override` was added in migration 20260518130000_*; the
+    // generated database.types.ts hasn't been regenerated, so cast
+    // the row shape here. Drop the cast once we re-run gen:types.
+    supabase
+      .from("matches")
+      .select(
+        "id, tournament_id, players_per_side, overs_per_innings, rules_override",
+      )
+      .eq("id", parsed.data.matchId)
+      .single() as unknown as Promise<{
+      data: {
+        id: string;
+        tournament_id: string;
+        players_per_side: number;
+        overs_per_innings: number;
+        rules_override: unknown;
+      } | null;
+    }>,
+    supabase
+      .from("balls")
+      .select(
+        "over_number, ball_in_over, legal_ball_seq, batter_id, non_striker_id, bowler_id, runs_off_bat, extras, extra_type, is_wicket, wicket_type, player_out_id, scored_at",
+      )
+      .eq("innings_id", parsed.data.inningsId)
+      .eq("is_voided", false)
+      .order("scored_at", { ascending: true }),
+    supabase
+      .from("match_players")
+      .select("player_id, team_id")
+      .eq("match_id", parsed.data.matchId),
+    // Block writes from a non-primary scorer + bump heartbeat for the
+    // primary scorer in the same atomic step.
+    enforceScoringLock({
+      matchId: parsed.data.matchId,
+      userId: user.id,
+    }),
+  ]);
+  const match = matchRes.data;
+
   if (!innings) return { ok: false, error: "Innings not found" };
   if (innings.is_complete) return { ok: false, error: "Innings already complete" };
-
-  // `rules_override` was added in migration 20260518130000_*; the
-  // generated database.types.ts hasn't been regenerated, so cast
-  // the row shape here. Drop the cast once we re-run gen:types.
-  const { data: match } = (await supabase
-    .from("matches")
-    .select(
-      "id, tournament_id, players_per_side, overs_per_innings, rules_override",
-    )
-    .eq("id", parsed.data.matchId)
-    .single()) as unknown as {
-    data: {
-      id: string;
-      tournament_id: string;
-      players_per_side: number;
-      overs_per_innings: number;
-      rules_override: unknown;
-    } | null;
-  };
   if (!match) return { ok: false, error: "Match not found" };
-  await requireTournamentAdmin(match.tournament_id);
-
-  // Block writes from a non-primary scorer + bump heartbeat for the
-  // primary scorer in the same atomic step.
-  const lock = await enforceScoringLock({
-    matchId: parsed.data.matchId,
-    userId: user.id,
-  });
   if (!lock.ok) return lock;
+  const inningsNumber = innings.innings_number ?? 1;
+  const isSuperOver = inningsNumber > 2;
+
+  // Wave 2: reads that depend on Wave 1 results. tournament rules
+  // need match.tournament_id; players need the player_ids from
+  // match_players. requireTournamentAdmin also runs here in parallel
+  // since it only needs the tournament_id to check the auth row.
+  const teamByPlayer = new Map(
+    (matchPlayers ?? []).map((r) => [r.player_id, r.team_id] as const),
+  );
+  const [{ data: tournament }, { data: playerRows }] = await Promise.all([
+    supabase
+      .from("tournaments")
+      .select("rules")
+      .eq("id", match.tournament_id)
+      .single(),
+    supabase
+      .from("players")
+      .select("id, display_name, category")
+      .in("id", Array.from(teamByPlayer.keys())),
+    requireTournamentAdmin(match.tournament_id),
+  ]);
 
   // Effective rules = tournament defaults < per-match categories override
   // < per-match scalar columns (players_per_side, overs_per_innings).
@@ -330,16 +384,7 @@ export async function recordBall(
   // Bind to `rules` — there is no second variant; every downstream
   // consumer (replay, applyBall, advanceBowler, validateBowlerRules,
   // per-ball cat enforcement, post-completion writes) must see the
-  // exact same effective set or behaviour drifts. We had a regression
-  // where `rules` was the base and `effectiveRules` was the merged
-  // version, but only the cat-enforcement check used the merged copy
-  // so the engine still ended innings using the tournament's wicket
-  // cap. Single source of truth from here on.
-  const { data: tournament } = await supabase
-    .from("tournaments")
-    .select("rules")
-    .eq("id", match.tournament_id)
-    .single();
+  // exact same effective set or behaviour drifts.
   const rules = applyMatchScalarRules(
     applyRulesOverride(
       getRuleSet(tournament?.rules),
@@ -351,45 +396,13 @@ export async function recordBall(
     },
   );
 
-  // Load existing balls to compute current state.
-  const { data: prevBalls } = await supabase
-    .from("balls")
-    .select(
-      "over_number, ball_in_over, legal_ball_seq, batter_id, non_striker_id, bowler_id, runs_off_bat, extras, extra_type, is_wicket, wicket_type, player_out_id, scored_at",
-    )
-    .eq("innings_id", parsed.data.inningsId)
-    .eq("is_voided", false)
-    .order("scored_at", { ascending: true });
-
-  // Load player metadata for the engine context.
-  const { data: matchPlayers } = await supabase
-    .from("match_players")
-    .select("player_id, team_id")
-    .eq("match_id", match.id);
-  const teamByPlayer = new Map(
-    (matchPlayers ?? []).map((r) => [r.player_id, r.team_id] as const),
-  );
-  const { data: playerRows } = await supabase
-    .from("players")
-    .select("id, display_name, category")
-    .in("id", Array.from(teamByPlayer.keys()));
   const playerById = new Map(
     (playerRows ?? []).map((p) => [p.id, p]),
   );
   const toEnginePlayer = createEnginePlayerFactory(playerById, teamByPlayer);
 
-  // Replay through the engine to derive current state, then apply the
-  // proposed ball to validate. innings_number > 2 means super over →
-  // engine applies the 2-wicket / 1-over caps.
-  const { data: inningsRow } = await supabase
-    .from("innings")
-    .select("innings_number")
-    .eq("id", parsed.data.inningsId)
-    .single();
-  const isSuperOver = (inningsRow?.innings_number ?? 1) > 2;
-
   const replay = replayInnings({
-    innings_number: inningsRow?.innings_number ?? 1,
+    innings_number: inningsNumber,
     batting_team_id: innings.batting_team_id,
     bowling_team_id: innings.bowling_team_id,
     is_super_over: isSuperOver,
@@ -421,7 +434,7 @@ export async function recordBall(
     prevBalls: prevBalls ?? [],
     newBowlerId: parsed.data.bowler_id,
     rules,
-    inningsNumber: inningsRow?.innings_number ?? 1,
+    inningsNumber,
   });
   if (!bowlerCheck.ok) return bowlerCheck;
 
@@ -557,7 +570,7 @@ export async function recordBall(
     // null and the phase machine treats `is_complete && !ended_at` as
     // pending. Innings 2 / super-over use `match.status` as their gate
     // (MatchCompletePanel), so we stamp `ended_at` there as before.
-    const isInnings1 = (inningsRow?.innings_number ?? 1) === 1;
+    const isInnings1 = inningsNumber === 1;
     await supabase
       .from("innings")
       .update({
@@ -566,17 +579,14 @@ export async function recordBall(
       })
       .eq("id", innings.id);
 
-    // If this was the second innings, finalize the match.
-    const { data: i } = await supabase
-      .from("innings")
-      .select("innings_number")
-      .eq("id", innings.id)
-      .single();
-    inningsNumberJustEnded = i?.innings_number ?? null;
-    // Match completion is no longer auto-applied here. When innings 2 (or
-    // super-over innings 4) ends the match enters a "pending finalize"
-    // state — the scorer confirms via the MatchCompletePanel, which gives
-    // them a chance to undo the last ball before the result is locked in.
+    // innings_number was already loaded in Wave 1 — no need to round-
+    // trip again just to know which innings just finished. Match
+    // completion is no longer auto-applied here either; when innings
+    // 2 (or super-over innings 4) ends, the match enters a "pending
+    // finalize" state and the scorer confirms via MatchCompletePanel,
+    // which gives them a chance to undo the last ball before the
+    // result is locked in.
+    inningsNumberJustEnded = inningsNumber;
   }
 
   // ---- Push notifications -------------------------------------------
