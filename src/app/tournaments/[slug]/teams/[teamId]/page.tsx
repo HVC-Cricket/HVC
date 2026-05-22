@@ -210,7 +210,16 @@ export default async function TeamDetailPage(props: {
                 {roster.map((r) => {
                   const player = playersById.get(r.player_id);
                   return (
-                    <li key={r.id} className="flex items-center justify-between gap-3 p-4 text-sm">
+                    <li
+                      key={r.id}
+                      // Mobile: stack — name row on top, role + remove
+                      // controls on a second right-aligned row below.
+                      // Long HVC names like "Pradhdhyumna Kashyap HP"
+                      // wrap to 2 lines and the C1/C2/C3 badge was
+                      // colliding with the role dropdown on a single
+                      // 375px row. sm+: inline as before.
+                      className="flex flex-col gap-2 p-4 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                    >
                       <span className="flex min-w-0 items-center gap-3">
                         {/* Avatar — uploaded player photo OR linked
                             user's profile avatar OR initials. Same
@@ -222,30 +231,34 @@ export default async function TeamDetailPage(props: {
                           className="size-9 shrink-0 border border-foreground/10"
                           initialsClassName="text-xs"
                         />
-                        <span className="font-medium">{player?.display_name ?? "(unknown)"}</span>
-                        {player?.category && (
-                          <span
-                            className={
-                              "rounded-full px-1.5 py-0.5 font-mono text-[9px] font-semibold tabular-nums " +
-                              (player.category === 1
-                                ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
-                                : player.category === 3
-                                  ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
-                                  : "bg-muted text-muted-foreground")
-                            }
-                            title={`Category ${player.category}`}
-                          >
-                            C{player.category}
+                        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                          <span className="font-medium">
+                            {player?.display_name ?? "(unknown)"}
                           </span>
-                        )}
-                        {!canManage && (
-                          <span className="text-xs text-muted-foreground capitalize">
-                            {formatEnumLabel(r.role)}
-                          </span>
-                        )}
+                          {player?.category && (
+                            <span
+                              className={
+                                "shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[9px] font-semibold tabular-nums " +
+                                (player.category === 1
+                                  ? "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                                  : player.category === 3
+                                    ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
+                                    : "bg-muted text-muted-foreground")
+                              }
+                              title={`Category ${player.category}`}
+                            >
+                              C{player.category}
+                            </span>
+                          )}
+                          {!canManage && (
+                            <span className="text-xs text-muted-foreground capitalize">
+                              {formatEnumLabel(r.role)}
+                            </span>
+                          )}
+                        </div>
                       </span>
                       {canManage && (
-                        <span className="flex items-center gap-2">
+                        <span className="flex items-center gap-2 self-end sm:self-auto">
                           <RosterRoleSelect
                             tournamentSlug={tournament.slug}
                             teamId={team.id}
