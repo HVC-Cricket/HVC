@@ -39,6 +39,74 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-22 (later 7) — `recordBall` parallelization: 5–10s → ~1–2s per ball.** Pavan flagged that ball saves were taking 5–10s in the queue, with the "Saving N balls" indicator catching up slowly during live scoring. Investigation: `recordBall` was making ~10 sequential Supabase round-trips per ball — auth check, innings SELECT, matches SELECT, scoring-lock RPC, tournaments SELECT, balls history SELECT, match_players SELECT, players SELECT, innings_number SELECT (duplicate, just for super-over detection), insert, post-trigger total_runs re-read for chase, conditional update, innings_number SELECT again (also duplicate). Each round-trip on the mobile → Vercel → Supabase Mumbai path is 200–500ms; cold starts on hobby tier compound it.
+
+Two zero-functional-impact changes in `src/app/matches/[matchId]/score/actions.ts`:
+
+1. **Two parallel read waves instead of a 7-deep sequential chain.** Wave 1 starts every read that depends only on the input IDs at the same time via `Promise.all`: `innings`, `matches`, `balls` history, `match_players`, and the `enforceScoringLock` RPC (independent of the row reads — only needs matchId + userId). Wave 2 (`tournament` rules, `players` by `match_players.player_id` IN-clause, `requireTournamentAdmin`) starts the moment Wave 1's `match` + `match_players` land, also via `Promise.all`. Goes from ~7 sequential awaits to 2 wall-clock hops — saves roughly 2–3s per ball.
+
+2. **`innings_number` folded into the first `innings` SELECT.** Previously fetched as a separate single-column query just to detect super-over; the post-update re-fetch (also for `innings_number`) was equally redundant since `innings.innings_number` can't change mid-write. Both fetches removed; `inningsNumber` is bound from Wave 1's `innings` row and reused for super-over detection, replay context, and the `inningsNumberJustEnded` signal.
+
+Same data written. Same validation order (replay → bowler check → cat check → applyBall → insert). Same trigger-driven recompute (the `balls`-table trigger lives on prod even though it's not in the migrations folder — confirmed via behaviour, chases continue to auto-complete). Same scoring-lock semantics. Same push notification dispatch via `after()`. 71/71 tests pass.
+
+Expected impact: ~5–10s per ball → ~1–2s. Across the 21-match HVC S7 schedule (~84 balls/match), trims ~2.5 hours of cumulative scoring lag.
+
+Commit `49b720f`; 1 file / +98 / −88 LOC (most of the diff is the read-block restructure, not new code).
+
+**2026-05-22 (later 6) — Scoring: over-complete prompt no longer flashes when the 6th ball ends the innings.** Pavan: "sometimes it opens modal and ask for choose next bowler and then it disappears. it should not ask right?" Yes — the optimistic "pick next bowler" dialog was firing on the 6th ball even when that same ball was *also* ending the innings (overs cap reached, chase target hit, or all-out wicket). At submit time the `!isComplete` gate was still true because the server hadn't confirmed `is_complete=true` yet, so the dialog opened instantly via the optimistic path; ~200ms later the realtime update landed and the dismissal effect closed it.
+
+Fix in `scoreboard.tsx:732`: predict `willInningsEnd` synchronously at submit time using the same data the engine uses — (a) wicket pushing dismissals past `wicketsCap` (mirrors the existing wicket-prompt's local check), (b) overs cap reached when `state.active.over_number >= inningsOversCap`, (c) chase target reached when innings 2 has `target != null` and `total_runs + ballRunsForEnd >= target`. `ballRunsForEnd` includes `runs_off_bat`, `extras` (byes), and the wide/no-ball penalty. When `willInningsEnd` is true, skip `setOverCompletePrompt` entirely. `completedOverRef` still advances so the server-fallback effect doesn't try to re-open the same dialog when `state.active.over_number` catches up. The server-fallback effect itself needs no change — it triggers on the server's confirmed over advance, by which point `isComplete` is also set, and its existing `!isComplete` gate covers it.
+
+Commit `d06b788`/`70a2bdb`.
+
+**2026-05-22 (later 5) — Team squad rows: stack name + role controls on mobile.** Pavan flagged C1/C2/C3 category badges colliding with the role dropdown (Captain / Vice captain / Player) + Remove button on the right at 375-px viewports. Long HVC names like "Pradhdhyumna Kashyap HP" wrap to two lines and the inline badge ran straight into the role control.
+
+Fix in `src/app/tournaments/[slug]/teams/[teamId]/page.tsx`: switched the `<li>` to `flex-col` on mobile and inlined back to `flex-row` on `sm+` (640 px+). Name + badge get the full row on mobile; role + remove drop to a second right-aligned row below. Wrapped name + badge in their own `flex-wrap` inner container with `items-baseline` so the badge stays tight to the last line of the name when it spans two lines, and `shrink-0` on the badge so the name shrinks first.
+
+Commit `8db345a`.
+
+**2026-05-22 (later 4) — `<LogoPhoto>` + tap-to-zoom for team / tournament logos.** Pavan: "in tournament, teams logo make it same like profile photo show bigger. and also tournament logo". Mirrored the `<PlayerPhoto>` lightbox behaviour for team + tournament logos.
+
+- **Refactor:** extracted the lightbox modal into its own `<PhotoLightbox>` component (`src/components/photo-lightbox.tsx`) so both `PlayerPhoto` and `LogoPhoto` share the identical zoom UX (portal to `document.body`, ESC / click-out / X close, 85% black backdrop, name caption).
+- **New component `LogoPhoto`:** takes `imageUrl` + `name` + a custom `fallback` ReactNode (team short_name text, Trophy icon, `—` dash) since logo fallbacks vary by context. `rounded-lg` square shape — distinct from the circular `PlayerPhoto` so the visual hierarchy (round = person, square = team/org) stays meaningful.
+- Migrated 7 high-traffic logo sites: Teams tab grid on `/tournaments/[slug]`, tournament header, team detail header, tournament list cards, past-tournaments grid on `/`, upcoming-tournament hero on `/`, and the champions card. Match-card team logos in match summaries (home recent results, live cards) left unzoomed — they're size-5/6, too small for accidental zoom-tap to feel intentional.
+
+**Trigger-element bug + fix (same day):** initial pass used `<button>` as the click trigger for both `PlayerPhoto` and `LogoPhoto`. Inside a `<Link>` wrapper (leaderboard rows, Teams grid, tournament list cards, etc.), this is invalid HTML5 — interactive content nested inside interactive content. React 19 + Next 16 handle it such that the anchor's default navigation still fires alongside the inner click handler, so opening the lightbox also navigated to the link target in the background; closing the lightbox revealed the unexpected destination page. Switched both triggers to `<span role="button" tabIndex={0}>` (valid inside `<a>`) with a triple stop on click — `preventDefault` + `stopPropagation` + `nativeEvent.stopImmediatePropagation`. Added `onKeyDown(Enter / Space)` for keyboard accessibility.
+
+Commits `72e4f87` (initial migration), `0659ac4` (span+role fix).
+
+**2026-05-22 (later 3) — Leaderboard: per-table search box that preserves global rank.** Pavan: "can we add search functionality here. so players can see where they are". Yes — search input under every leaderboard's title (BAT / BOWL / FIELD / AWARDS / OTHER, all 17 styles, on both `/stats` career leaderboards AND every per-tournament Stats tab — single `LeaderTable` component). Filters rows by case-insensitive substring on player name. Crucially, the global rank (the circled number on the left) is computed off the original sorted list ONCE then carried through the filter, so when you search "Pavan" and the result lists you at #34, that's your real rank against the full leaderboard. Filtering against the visible-only subset would defeat the point. Pagination still works — filter narrows the row set, pager counts and clamps off the filtered total; typing resets to page 1. `useDeferredValue` keeps the input snappy when the underlying list is long.
+
+Commit `d6f66b9`.
+
+**2026-05-22 (later 2) — Photo lightbox: tap-to-zoom on player photos everywhere + portal fix.** Pavan: "when you see profile photo of others anywhere like leaderboard or anywhere, on click of photo can we show big size for users. even spectators should be able to view?". Yes — extracted shared `<PlayerPhoto>` component that renders either the photo or an initials chip, and when there IS a photo, tapping it opens a full-screen lightbox with the high-res image, the player's name as caption, and an X button. ESC + tap-outside also close. Spectators view without signing in — Storage buckets are public.
+
+Migrated all 12 distinct player-photo render sites in one pass: leaderboard rows, MVP rankings, team squad rows, player profile hero, players list rows, my profile card, home "you" strip, XI cards on the scoring page, POTM award card, ball-by-ball activity actor chips, super-admin members table, per-tournament admin list. Skipped one site: the user-picker dropdown in the add-admin form — tapping the photo there should select the option, not zoom.
+
+**Portal fix (same day):** initial implementation rendered the lightbox as a sibling of the photo button inside whatever parent contained `<PlayerPhoto>`. On the leaderboard, that parent is a `<td>` marked `sticky left-0 z-10 bg-card`, which creates its own z-index stacking context — so the overlay's `z-[100]` only applied WITHIN that cell, and surrounding sticky cells rendered over it. Fixed by rendering the lightbox via `createPortal(jsx, document.body)`. Now the overlay is a direct child of `<body>` regardless of where `<PlayerPhoto>` is used, so its z-index applies against the document root and nothing in the page can clip or layer over it. `mounted` flag gates the portal render until after the first client-side effect so SSR doesn't try to read `document.body`.
+
+Commits `5ee55b8` (initial), `5a6fd37` (portal fix).
+
+**2026-05-22 (later) — Standings: render seeded rows for upcoming tournaments.** `PointsTableSection` bailed early when `v_points_table` returned zero rows — which is exactly the state of an upcoming tournament: teams added, matches scheduled, none played yet. The filler logic further down already pre-seeds every team at 0/0/0/0/0 points, but it never ran because of the early return. Tightened the bail to `(error || teams.length === 0)`. Empty view results fall through to the filler so the Table tab shows all participating teams in alphabetical order from day one, with NRR rendering as "—" until matches are played. Useful for spectators ahead of S7's first ball on May 23.
+
+Commit `a583043`.
+
+**2026-05-22 — Script: copy S7 tournament from prod to dev for pre-tournament testing.** Pavan: "in prod we have added a tournament season hvc. add same tournament and teams and matches in dev. we need to test before tournament. but you change the tournament name in dev". `scripts/copy-s7-prod-to-dev.ts` mirrors the prod HVC Season 7 tournament onto dev under a renamed slug (`hvc-season-7-test`) + name (`HVC - SEASON 7 (Dev Test)`) so the scoring flow can be rehearsed before the May 23 kickoff without touching real data.
+
+Reuses dev player rows whose normalized `display_name` matches a prod S7 squad member (13 of 49), inserts the remaining 36 with `linked_user_id` nulled — prod's auth users don't exist on dev. Mints fresh UUIDs for the tournament + 7 teams; rewrites `team_players` + 21 matches with the new IDs. `created_by` points at a dev super-admin. Aborts if the dev slug is already taken. Logo URLs deliberately left pointing at prod storage (public buckets — they render fine on dev pages).
+
+Already run today against dev: 36 new players, 7 teams, 49 team_players, 21 matches. Tournament id `131b494e-398e-4171-af64-131529c13c1a`, status `upcoming`.
+
+Commit `b3a00d4`.
+
+**2026-05-22 (earlier) — Home polish: cap Past tournaments at 3 + "See all" link, default dark theme, cap Recent results at 3.** Three small home-page tweaks shipped together.
+
+1. **Past tournaments cap at 3.** Section grew to 6 tiles which pushed everything below off-screen on mobile. Capping at 3 keeps the home page scannable; the full archive is one tap away at `/tournaments` via a new "See all tournaments →" link below the grid (`src/app/home-past-tournaments.tsx`).
+2. **Dark by default.** `ThemeProvider` switched from `defaultTheme="system" enableSystem` to `defaultTheme="dark" enableSystem={false}`. Most spectators use the app at night in low light; the flash of white-on-load was jarring. `enableSystem={false}` removes the implicit third option so the ThemeToggle button is strictly a 2-state light/dark flip; users who want light can still switch and next-themes persists the choice via localStorage. `src/app/layout.tsx`.
+3. **Recent results cap at 3.** Was `.limit(5)`; dropped to `.limit(3)` so the home page doesn't push the rest of the surfaces below the fold. `src/app/page.tsx`.
+
+Commits `1322c77`, `2e593e6`, `061d385`.
+
 **2026-05-22 — Optional Umpire 1 / Umpire 2 per match.** Pavan asked for two optional umpire-name fields per match, surfaced under Details on the match page. Schema-light approach (no `match_officials` relation per HANDOFF §"future extensions" — HVC umpires rotate casually, no stats needed):
 
 - New migration `20260522000000_match_umpires.sql` adds two nullable `text` columns to `matches`: `umpire_1`, `umpire_2`. Mirrored in `db.sql` (table def + back-fill `alter table` block) and in `src/lib/supabase/database.types.ts` (Row / Insert / Update).
