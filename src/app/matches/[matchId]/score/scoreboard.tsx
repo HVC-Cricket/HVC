@@ -729,9 +729,36 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     // scorer to confirm an auto-pick, which is friction with no signal.
     // From over 2 onwards (entering Cat 2 overs, or super overs) there's
     // no auto-pick to lean on, so the prompt earns its keep.
+    //
+    // ALSO skip when this ball ENDS the innings (overs cap reached on
+    // the last allowed over, chase target hit, or wickets cap reached).
+    // Without this gate the dialog opens optimistically — `!isComplete`
+    // is still true at submit time because the server hasn't confirmed
+    // is_complete=true yet — then closes ~200ms later when the realtime
+    // update lands. The flash is jarring during scoring.
     if (next.endOfOver && !isComplete) {
       const completedOver = state.active.over_number;
-      if (completedOver >= 2) {
+      const wicketsCapForEnd =
+        state.rules.last_man_standing && !isSuperOver
+          ? state.rules.players_per_side
+          : state.rules.players_per_side - 1;
+      const ballRunsForEnd =
+        (input.runs_off_bat ?? 0) +
+        (input.extras ?? 0) +
+        (input.extra_type === "wide" || input.extra_type === "no_ball"
+          ? 1
+          : 0);
+      const willInningsEnd =
+        // All-out
+        (input.is_wicket &&
+          state.active.dismissed_ids.length + 1 >= wicketsCapForEnd) ||
+        // Overs cap — this just-completed over was the innings' last one
+        completedOver >= inningsOversCap ||
+        // Chase target reached on this delivery
+        (innings.innings_number === 2 &&
+          innings.target != null &&
+          innings.total_runs + ballRunsForEnd >= innings.target);
+      if (completedOver >= 2 && !willInningsEnd) {
         setOverCompletePrompt({
           completedOver,
           nextOverCategory: isSuperOver
