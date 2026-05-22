@@ -39,6 +39,30 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-23 (later 3) — Stats leaderboards: compact rows so names get the room.** Pavan: "the stats page looks clumsy. can you reduce the font size so that everything looks good", then a follow-up: "reduce font size of R,M,AVG,SR,HS so that the name has more space to show". One coordinated tightening pass on the shared `LeaderTable` in `src/app/tournaments/[slug]/tournament-stats-view.tsx` — drives both `/stats` (career leaderboards) and the per-tournament Stats tab, so one edit covers all 17 leaderboard styles on both surfaces.
+
+Two rounds, applied in this order:
+
+**Round 1 — global compaction (matches the Standings playbook):**
+
+- Table body `text-sm` → `text-xs`.
+- Card title `text-base` → `text-sm`; header `space-y-3` → `space-y-2 py-3`.
+- Row padding `py-2` → `py-1.5` on header and body cells.
+- Rank badge `size-5 text-[10px]` → `size-4 text-[9px]`.
+- Player photo `size-7` → `size-6`; initials inside `text-[9px]` → `text-[8px]`.
+- Player column width `170 / 220 px` → `160 / 200 px`; player col horizontal padding `px-3` → `px-2.5`; stat col padding `px-2` → `px-1.5`.
+
+**Round 2 — give the name the room back:**
+
+- Stat values dropped a further notch (`text-xs` inherited → explicit `text-[10px]`) and tightened (`px-1.5` → `px-1`). Headers (R / M / AVG / SR / HS / 4s / 6s / 50s / Wkts / Econ / Dot / Mdn / Cat / POM…) get `px-1` too so columns shrink together.
+- Player column REwidened to `190 / 240 px` — net change vs. pre-round-1 is `+20 / +20 px` of name room because the stat cells are now narrower than they were before round 1.
+
+Result: each row ~30% shorter than the pre-round-1 baseline, stat columns each lose ~25% of their horizontal footprint, and the Player column has +20 px on mobile / +20 px on desktop more room for long HVC names like "Pradhdhyumna Kashyap HP (Wk)" — without forcing the two-line clamp.
+
+1 file / +5 / −5 LOC across the two rounds. HMR-friendly so the dev surface picked it up live.
+
+---
+
 **2026-05-23 (later 2) — Live score panel: tap-name-to-profile + photo thumbnails for batter / bowler rows.** Two layered additions to the Live tab on the public match page.
 
 1. **Tap batter / bowler name → /players/[id].** The name span (and only the name span — not the whole row) wraps in a `<Link>` so spectators can drill into the player's profile from the live mini-table. `prefetch={false}` because the profile page is heavy (career section, by-tournament breakdown, rank badges) and we don't want to incidentally prefetch it for every spectator hovering the score during a live match. Surrounding stat columns (R / B / 4s / 6s / SR · O / M / R / W / ER) stay non-interactive.
