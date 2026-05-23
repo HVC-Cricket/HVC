@@ -66,10 +66,19 @@ export async function TournamentMvp({
       .from("match_players")
       .select("match_id, team_id, player_id, is_substitute")
       .in("match_id", matchIds),
+    // Trimmed column list — `computeMatchMvp` only reads
+    // batter/non_striker/bowler/fielder/player_out IDs, runs_off_bat,
+    // extras, extra_type, is_wicket, wicket_type, and over_number
+    // (for maiden detection). Previously selected `*` which pulled
+    // all ~22 ball columns per row including raw event metadata
+    // (shot_type, shot_zone, pitch_x/y, custom_data jsonb, etc.) the
+    // MVP rollup never touches. Halves the wire bytes per fetch.
     fetchAllRows<BallRow>((from, to) =>
       supabase
         .from("balls")
-        .select("*, innings!inner(match_id)")
+        .select(
+          "innings_id, over_number, batter_id, non_striker_id, bowler_id, fielder_id, player_out_id, runs_off_bat, extras, extra_type, is_wicket, wicket_type, innings!inner(match_id)",
+        )
         .in("innings.match_id", matchIds)
         .eq("is_voided", false)
         .order("scored_at", { ascending: true })
