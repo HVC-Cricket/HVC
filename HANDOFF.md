@@ -39,6 +39,23 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-23 (later 5) — Tournament Matches tab: team dropdown + Live / Upcoming / Completed status chips.** Pavan: "in the tournaments page matches tab, add a filter of my team … add a filter of my team", then after my first cut (a single "My team only" chip) flipped to: "let everyone filter by team. have a dropdown to select a team and filter their matches, and also in matches can we have subcategory like completed, live and upcoming?"
+
+Two-layer filter row above the match list, both composable:
+
+- **Team dropdown** (shadcn `Select`): "All teams" + one row per team in this tournament, with "(my team)" appended to the row(s) the signed-in user is on. Defaults to the user's team when they're on exactly one roster in this tournament (saves them a tap on the most common landing — "when does my team play next?"); otherwise defaults to "All teams". Multi-team / fan / not-signed-in cases all land on "All teams".
+- **Status chips:** All · Live · Upcoming · Completed, each with a count. Counts are scoped to the *currently selected team* so the labels reflect what'll actually appear when you tap a chip. Bucketing: `live + innings_break` → **Live**; `scheduled` → **Upcoming**; `completed + abandoned` → **Completed** (terminal states grouped). Live chip tints emerald when active, Completed tints blue — matches the per-row status pill colours.
+
+`src/app/tournaments/[slug]/page.tsx`: extended the existing `team_players` query (already used for per-team player counts) with a `players!inner(linked_user_id)` join, so the same round-trip yields the signed-in user's team IDs within this tournament. Result `myTeamIds: string[]` is just used to pick the dropdown default + tag rows with "(my team)" — every team is selectable regardless.
+
+New client component `src/app/tournaments/[slug]/tournament-matches-list.tsx`: hosts the match list (lifted from the page's inline JSX), the `displayTeamName` / `TeamRow` / `PlayoffPlaceholders` / `TbcRow` helpers, and both filter states. Playoff TBC placeholders only render when no filter is active (no team identity + no real status → noise when filtered). Empty-state copy adapts: "No live matches for Hoysala 12" / "No upcoming matches in this tournament" / etc.
+
+Filter row is hidden when the tournament has zero matches or zero teams (nothing to filter). ~120 LOC of inline match-row JSX + helpers moved out of the page; page now renders `<TournamentMatchesList tournamentSlug=… tournamentFormat=… matches=… teams=… canManage=… myTeamIds=… />` inside the `matches` prop of `<TournamentTabs>`.
+
+2 files / +394 / −131 LOC.
+
+---
+
 **2026-05-23 (later 4) — Score page: hide organizer-only Match settings + Edit rules links from scorers.** Pavan: "Match settings link inside the scoring page is working correctly for an organizer. it is taking to settings of the match for organizer. for a scorer, it is taking to live matches page. resolve this conflict."
 
 Root cause: `src/app/matches/[matchId]/score/page.tsx` is gated by `requireTournamentAdmin` (lets organizers AND scorers in), but the two links it rendered to `/matches/[id]/edit` were unconditional. The edit page is gated by `requireOrganizer`, which redirects non-organizers to `/` — so tapping "Match settings" mid-scoring kicked the scorer off the score route and dumped them on the homepage hero strip (the "live matches page" Pavan described). The author had assumed "requireTournamentAdmin already gates this whole page, so anyone seeing it can use the link" — but the link's destination has a stricter gate than the host page does.

@@ -5,17 +5,9 @@ import { Suspense } from "react";
 
 import { LogoPhoto } from "@/components/logo-photo";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { getSessionContext, isTournamentOrganizer } from "@/lib/auth";
 import {
-  MATCH_STATUS_CLASSES,
-  MATCH_STATUS_LABEL,
   type MatchStage,
   type MatchStatus,
 } from "@/lib/constants/match";
@@ -26,12 +18,16 @@ import {
   STATUS_LABEL,
   type TournamentFormat,
 } from "@/lib/constants/tournament";
-import { formatDateRange, formatEnumLabel, formatMatchTime } from "@/lib/format";
+import { formatDateRange } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { getTeamInitials } from "@/lib/utils";
 
 import { PointsTableSection } from "./points-table-section";
 import { TournamentChampion } from "./tournament-champion";
+import {
+  TournamentMatchesList,
+  type MatchRow,
+} from "./tournament-matches-list";
 import { TournamentMvp } from "./tournament-mvp";
 import { TournamentStats } from "./tournament-stats";
 import { TournamentTabs } from "./tournament-tabs";
@@ -72,22 +68,39 @@ export default async function TournamentDetailPage(props: {
   ]);
 
   const teams = teamsRes.data ?? [];
-  const matches = matchesRes.data ?? [];
-  const teamLookup = new Map(teams.map((t) => [t.id, t]));
+  const matches: MatchRow[] = matchesRes.data ?? [];
 
   // Player counts per team — single query, group client side.
+  // Also pluck out which teams the signed-in user is on (via their
+  // linked player) so the matches tab can offer a "My team" filter.
   const teamIds = teams.map((t) => t.id);
   const playerCountByTeam = new Map<string, number>();
+  const myTeamIds: string[] = [];
   if (teamIds.length > 0) {
     const { data: memberships } = await supabase
       .from("team_players")
-      .select("team_id")
+      .select("team_id, players!inner(linked_user_id)")
       .in("team_id", teamIds);
+    const seenMyTeam = new Set<string>();
     for (const m of memberships ?? []) {
       playerCountByTeam.set(
         m.team_id,
         (playerCountByTeam.get(m.team_id) ?? 0) + 1,
       );
+      // Supabase types the `!inner` join as either a single row or an
+      // array depending on cardinality; we declared it inner so it's a
+      // single object at runtime, but accept either to keep TS happy.
+      const linked = (
+        Array.isArray(m.players) ? m.players[0] : m.players
+      ) as { linked_user_id: string | null } | null | undefined;
+      if (
+        ctx &&
+        linked?.linked_user_id === ctx.user.id &&
+        !seenMyTeam.has(m.team_id)
+      ) {
+        seenMyTeam.add(m.team_id);
+        myTeamIds.push(m.team_id);
+      }
     }
   }
 
@@ -223,119 +236,14 @@ export default async function TournamentDetailPage(props: {
 
         <TournamentTabs
           matches={
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold">Matches</h2>
-                {canManage && (
-                  <Link
-                    href={`/tournaments/${tournament.slug}/matches/new`}
-                    prefetch
-                  >
-                    <Button size="sm">New match</Button>
-                  </Link>
-                )}
-              </div>
-              {matches.length === 0 ? (
-                <Card className="border-dashed">
-                  <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                    No matches scheduled yet
-                    {canManage
-                      ? ". Add the first one with the button above."
-                      : "."}
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-2">
-                  {matches.map((m) => {
-                    const a = teamLookup.get(m.team_a_id);
-                    const b = teamLookup.get(m.team_b_id);
-                    const ms = m.status as MatchStatus;
-                    const winner = m.winner_id
-                      ? teamLookup.get(m.winner_id)
-                      : null;
-                    // `win_margin` is stored with the "won by" prefix
-                    // baked in (see score/actions.ts), so we just
-                    // concatenate winner + margin verbatim.
-                    const resultLine =
-                      ms === "completed"
-                        ? winner && m.win_margin
-                          ? `${displayTeamName(winner.name)} ${m.win_margin}`
-                          : m.result_type === "tie"
-                            ? "Match tied"
-                            : m.result_type === "no_result"
-                              ? "No result"
-                              : null
-                        : null;
-                    return (
-                      <Link
-                        key={m.id}
-                        href={`/matches/${m.id}`}
-                        prefetch
-                        // Stacked layout (matches the cricket-app
-                        // reference): row 1 = date + time on the left,
-                        // status pill on the right; row 2 = #N · stage;
-                        // rows 3-4 = each team logo + name; final row
-                        // (completed matches only) = result line.
-                        className="group block rounded-lg border border-foreground/10 bg-background p-3 transition hover:border-foreground/25 hover:bg-muted/30"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="min-w-0 truncate text-xs font-medium text-foreground/80">
-                            {m.scheduled_at
-                              ? formatMatchTime(m.scheduled_at)
-                              : "Time TBD"}
-                          </div>
-                          <span
-                            className={
-                              "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide " +
-                              MATCH_STATUS_CLASSES[ms]
-                            }
-                          >
-                            {ms === "live" && (
-                              <span className="relative flex size-1.5">
-                                <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-                                <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
-                              </span>
-                            )}
-                            {MATCH_STATUS_LABEL[ms]}
-                          </span>
-                        </div>
-                        <div className="mt-1 truncate text-[11px] capitalize text-muted-foreground">
-                          #{m.match_number}
-                          <span className="px-1 text-foreground/20">·</span>
-                          {formatEnumLabel(m.stage)}
-                        </div>
-                        <div className="mt-2 space-y-1.5">
-                          <TeamRow team={a} />
-                          <TeamRow team={b} />
-                        </div>
-                        {(m.umpire_1 || m.umpire_2) && (
-                          <div className="mt-2 truncate text-[11px] capitalize text-muted-foreground">
-                            Umpires:{" "}
-                            {[m.umpire_1, m.umpire_2]
-                              .filter(Boolean)
-                              .join(", ")}
-                          </div>
-                        )}
-                        {m.scorer && (
-                          <div className="mt-0.5 truncate text-[11px] capitalize text-muted-foreground">
-                            Scorer: {m.scorer}
-                          </div>
-                        )}
-                        {resultLine && (
-                          <div className="mt-2 truncate text-xs font-medium capitalize text-primary">
-                            {resultLine}
-                          </div>
-                        )}
-                      </Link>
-                    );
-                  })}
-                  <PlayoffPlaceholders
-                    format={fmt}
-                    matches={matches}
-                  />
-                </div>
-              )}
-            </section>
+            <TournamentMatchesList
+              tournamentSlug={tournament.slug}
+              tournamentFormat={fmt}
+              matches={matches}
+              teams={teams}
+              canManage={canManage}
+              myTeamIds={myTeamIds}
+            />
           }
           table={
             <PointsTableSection
@@ -474,128 +382,4 @@ function Stat({ label, value }: { label: string; value: number | string }) {
   );
 }
 
-function displayTeamName(name: string): string {
-  // Strip the "Team " prefix that some imported tournaments (Season 1
-  // Thirtharu names) carry. Leaves "Vadiraja Thirtharu" instead of
-  // "Team Vadiraja Thirtharu", which fits the match row better and reads
-  // like a team name rather than a placeholder.
-  return name.replace(/^team\s+/i, "");
-}
-
-function TeamRow({
-  team,
-}: {
-  team?: { name: string; short_name: string; logo_url: string | null };
-}) {
-  if (!team)
-    return (
-      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-        ?
-      </div>
-    );
-  const label = displayTeamName(team.name);
-  return (
-    <div className="flex min-w-0 items-center gap-2">
-      {team.logo_url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={team.logo_url}
-          alt=""
-          className="size-6 shrink-0 rounded-full border border-foreground/10 object-cover"
-        />
-      ) : (
-        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
-          {getTeamInitials(team.short_name)}
-        </span>
-      )}
-      <span
-        className="truncate text-sm font-medium capitalize"
-        title={team.name}
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
-
-/**
- * Hardcoded preview cards for the IPL-style playoff bracket
- * (Qualifier 1 → Eliminator → Qualifier 2 → Final). Rendered after
- * the real match list while the round-robin phase is still in
- * progress, so spectators see the upcoming bracket shape even though
- * the actual teams won't be known until the standings settle.
- *
- * Hides itself once every group match is completed — by then the
- * organizer should be creating the real playoff matches with locked-in
- * teams.
- */
-function PlayoffPlaceholders({
-  format,
-  matches,
-}: {
-  format: TournamentFormat;
-  matches: { match_number: number; stage: string; status: string }[];
-}) {
-  if (format !== "round_robin_playoff_final") return null;
-  const groupMatches = matches.filter((m) => m.stage === "group");
-  if (groupMatches.length === 0) return null;
-  const allGroupDone = groupMatches.every((m) => m.status === "completed");
-  if (allGroupDone) return null;
-
-  const lastNumber = matches.reduce(
-    (max, m) => (m.match_number > max ? m.match_number : max),
-    0,
-  );
-  const stages: { stage: MatchStage; label: string }[] = [
-    { stage: "qualifier_1", label: "Qualifier 1" },
-    { stage: "eliminator", label: "Eliminator" },
-    { stage: "qualifier_2", label: "Qualifier 2" },
-    { stage: "final", label: "Final" },
-  ];
-
-  return (
-    <>
-      {stages.map((s, i) => {
-        const num = lastNumber + i + 1;
-        return (
-          <div
-            key={s.stage}
-            // Same card chrome as the real match rows, but rendered as
-            // a non-interactive `div` (no `Link`) and tinted to read as
-            // an unfinalized placeholder.
-            className="block rounded-lg border border-dashed border-foreground/15 bg-muted/30 p-3"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0 truncate text-xs font-medium text-foreground/80">
-                Time TBD
-              </div>
-            </div>
-            <div className="mt-1 truncate text-[11px] text-muted-foreground">
-              #{num}
-              <span className="px-1 text-foreground/20">·</span>
-              {s.label}
-            </div>
-            <div className="mt-2 space-y-1.5">
-              <TbcRow />
-              <TbcRow />
-            </div>
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
-function TbcRow() {
-  return (
-    <div className="flex min-w-0 items-center gap-2">
-      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[8px] font-semibold uppercase text-muted-foreground">
-        TBC
-      </span>
-      <span className="truncate text-sm font-medium text-muted-foreground">
-        TBC
-      </span>
-    </div>
-  );
-}
 
