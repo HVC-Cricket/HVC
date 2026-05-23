@@ -144,15 +144,59 @@ async function main() {
   }
   console.log("");
 
-  // 3) Matches in order
+  // 3) Matches in order. umpire_1 / umpire_2 carried through so we
+  // can exclude scorers who are already umpiring — same person can't
+  // hold both posts in the same match.
   const { data: matches, error: mErr } = await sb
     .from("matches")
-    .select("id, match_number, team_a_id, team_b_id, scorer, status")
+    .select(
+      "id, match_number, team_a_id, team_b_id, scorer, status, umpire_1, umpire_2",
+    )
     .eq("tournament_id", tournament.id)
     .order("match_number", { ascending: true });
   if (mErr || !matches)
     throw new Error(`Failed to read matches: ${mErr?.message}`);
   console.log(`Matches: ${matches.length}\n`);
+
+  // Free-text umpire names use short forms / nicknames ("Panee" for
+  // Paneendra Gautham, "Kantu" for Srikanth T K, just "Pavan" for
+  // Pavan Gautham, etc.). Match by tokenized lowercased first / last
+  // name with a prefix-of-token rule for shortenings — and an
+  // explicit alias map for nicknames not derivable from the full
+  // name (Kantu).
+  const UMPIRE_ALIASES: Record<string, string> = {
+    kantu: "Srikanth T K",
+  };
+  const tokensOf = (name: string): string[] =>
+    name
+      .toLowerCase()
+      .split(/\s+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length >= 2);
+  const umpireMatchesScorer = (
+    umpire: string | null,
+    scorerName: string,
+  ): boolean => {
+    if (!umpire) return false;
+    const raw = umpire.trim().toLowerCase();
+    if (!raw) return false;
+    // Resolve known nickname → full display_name first, then run the
+    // same token check so we don't have to maintain aliases for
+    // every variant (the prefix rule handles most shortenings).
+    const resolved = UMPIRE_ALIASES[raw]?.toLowerCase() ?? raw;
+    const umpireTokens = resolved.split(/\s+/).filter((t) => t.length >= 2);
+    const scorerTokens = tokensOf(scorerName);
+    for (const ut of umpireTokens) {
+      for (const st of scorerTokens) {
+        if (ut === st) return true;
+        // "panee" matches "paneendra"; "ashri" matches "ashrith".
+        // Require ≥ 3 chars to avoid "K" matching every name.
+        if (ut.length >= 3 && st.startsWith(ut)) return true;
+        if (st.length >= 3 && ut.startsWith(st)) return true;
+      }
+    }
+    return false;
+  };
 
   // 4) Greedy assignment
   const count = new Map<string, number>(scorers.map((s) => [s.userId, 0]));
@@ -180,7 +224,11 @@ async function main() {
     }
 
     const eligible = scorers.filter(
-      (s) => s.teamId !== m.team_a_id && s.teamId !== m.team_b_id,
+      (s) =>
+        s.teamId !== m.team_a_id &&
+        s.teamId !== m.team_b_id &&
+        !umpireMatchesScorer(m.umpire_1, s.name) &&
+        !umpireMatchesScorer(m.umpire_2, s.name),
     );
     if (eligible.length === 0) {
       plan.push({
