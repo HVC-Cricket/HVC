@@ -92,14 +92,12 @@ export function TournamentMatchesList({
     [teams],
   );
 
-  // Default team filter = the user's team when they're on exactly one
-  // roster in this tournament, otherwise "all". Conscious choice over a
-  // pure "all" default: the most common landing is a player checking
-  // when their team plays next, and the dropdown still lets anyone flip
-  // to any team in one tap.
-  const [teamFilter, setTeamFilter] = useState<string>(
-    myTeamIds.length === 1 ? myTeamIds[0] : "all",
-  );
+  // Default team filter = "all". Earlier this defaulted to the user's
+  // own team when they had exactly one in this tournament; flipped to
+  // "all" so first-time visitors see the full slate (and the user's
+  // team is still tagged "(my team)" in the dropdown for a one-tap
+  // self-filter).
+  const [teamFilter, setTeamFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<StatusBucket>("all");
 
   // Counts per status bucket, scoped to the *currently selected team*,
