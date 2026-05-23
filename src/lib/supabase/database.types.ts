@@ -286,6 +286,7 @@ export type Database = {
           pending_scorer_request_at: string | null;
           umpire_1: string | null;
           umpire_2: string | null;
+          scorer: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -317,6 +318,7 @@ export type Database = {
           pending_scorer_request_at?: string | null;
           umpire_1?: string | null;
           umpire_2?: string | null;
+          scorer?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -348,6 +350,7 @@ export type Database = {
           pending_scorer_request_at?: string | null;
           umpire_1?: string | null;
           umpire_2?: string | null;
+          scorer?: string | null;
           created_at?: string;
           updated_at?: string;
         };

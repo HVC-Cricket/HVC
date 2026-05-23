@@ -62,6 +62,7 @@ const schema = z
     players_per_side: z.coerce.number().int().min(2).max(15),
     umpire_1: z.string().optional().or(z.literal("")),
     umpire_2: z.string().optional().or(z.literal("")),
+    scorer: z.string().optional().or(z.literal("")),
     // When `override_categories` is false (default), this match uses
     // the tournament-level Cat 1 / Cat 3 schedule. Flipping it on
     // makes the two arrays below take precedence for this match only.
@@ -89,6 +90,7 @@ type Props = {
     players_per_side: number;
     umpire_1: string | null;
     umpire_2: string | null;
+    scorer: string | null;
     /** True when `matches.rules_override` is non-null. */
     override_categories: boolean;
     /** The arrays the override (or the inherited tournament rules)
@@ -135,6 +137,7 @@ export function EditMatchForm({
       players_per_side: match.players_per_side,
       umpire_1: match.umpire_1 ?? "",
       umpire_2: match.umpire_2 ?? "",
+      scorer: match.scorer ?? "",
       override_categories: match.override_categories,
       match_cat1_overs: match.cat1_overs,
       match_cat3_overs: match.cat3_overs,
@@ -376,6 +379,19 @@ export function EditMatchForm({
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Umpire 2 (optional)</FormLabel>
+                <FormControl>
+                  <Input placeholder="Name" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="scorer"
+            render={({ field }) => (
+              <FormItem className="col-span-2">
+                <FormLabel>Scorer (optional)</FormLabel>
                 <FormControl>
                   <Input placeholder="Name" {...field} />
                 </FormControl>

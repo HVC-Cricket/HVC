@@ -369,6 +369,13 @@ export default async function MatchDetailPage(props: {
                         valueClassName="capitalize"
                       />
                     )}
+                    {match.scorer && (
+                      <Row
+                        label="Scorer"
+                        value={match.scorer}
+                        valueClassName="capitalize"
+                      />
+                    )}
                   </CardContent>
                 </Card>
 
@@ -461,6 +468,13 @@ export default async function MatchDetailPage(props: {
                   <Row
                     label="Umpire 2"
                     value={match.umpire_2}
+                    valueClassName="capitalize"
+                  />
+                )}
+                {match.scorer && (
+                  <Row
+                    label="Scorer"
+                    value={match.scorer}
                     valueClassName="capitalize"
                   />
                 )}
