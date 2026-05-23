@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { requireTournamentAdmin } from "@/lib/auth";
+import { isTournamentOrganizer, requireTournamentAdmin } from "@/lib/auth";
 
 import { findCategoryGaps, type TeamXISummary } from "@/lib/scoring";
 import { createClient } from "@/lib/supabase/server";
@@ -31,7 +31,13 @@ export default async function ScorePage(props: {
 }) {
   const { matchId } = await props.params;
   const state = await loadScoreboardState(matchId);
-  await requireTournamentAdmin(state.tournament.id);
+  const ctx = await requireTournamentAdmin(state.tournament.id);
+  // `requireTournamentAdmin` lets scorers in too. The match-settings
+  // route (`/matches/[id]/edit`) is organizer-only and redirects
+  // scorers to `/`, so any link pointing at it must be gated to
+  // organizers here — otherwise tapping it kicks the scorer off the
+  // scoring page mid-session.
+  const canManage = await isTournamentOrganizer(state.tournament.id, ctx);
 
   // Multi-scorer lock state at page-load time. The client gate
   // refines this on mount and keeps it fresh via heartbeat.
@@ -138,10 +144,8 @@ export default async function ScorePage(props: {
               {state.teamA.short_name} vs {state.teamB.short_name} — Score
             </h1>
             {/* Quick-access shortcuts so the scorer can fix the XI or
-                tweak the match rules (cat overs, players-per-side,
-                etc.) without bouncing to /matches/[id] and navigating
-                from there. requireTournamentAdmin already gates this
-                whole page, so anyone seeing it can use the link. */}
+                (organizer only) tweak the match rules without
+                bouncing to /matches/[id] and navigating from there. */}
             <div className="flex items-center gap-3 text-xs text-muted-foreground">
               {/* "Edit XI" is hidden once any ball is recorded —
                   changing the XI mid-match would invalidate
@@ -155,12 +159,14 @@ export default async function ScorePage(props: {
                   Edit XI
                 </Link>
               )}
-              <Link
-                href={`/matches/${state.match.id}/edit`}
-                className="hover:underline hover:text-foreground"
-              >
-                Match settings
-              </Link>
+              {canManage && (
+                <Link
+                  href={`/matches/${state.match.id}/edit`}
+                  className="hover:underline hover:text-foreground"
+                >
+                  Match settings
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -264,13 +270,17 @@ export default async function ScorePage(props: {
                 ))}
               </ul>
               <div className="mt-3 flex gap-2">
-                <Link
-                  href={`/matches/${state.match.id}/edit`}
-                  className="text-xs font-medium text-primary hover:underline"
-                >
-                  Edit match rules →
-                </Link>
-                <span className="text-xs text-muted-foreground">·</span>
+                {canManage && (
+                  <>
+                    <Link
+                      href={`/matches/${state.match.id}/edit`}
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      Edit match rules →
+                    </Link>
+                    <span className="text-xs text-muted-foreground">·</span>
+                  </>
+                )}
                 <Link
                   href={`/matches/${state.match.id}/xi`}
                   className="text-xs font-medium text-primary hover:underline"
