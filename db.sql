@@ -331,7 +331,11 @@ create index if not exists idx_innings_match           on innings (match_id, inn
 create index if not exists idx_matches_tournament      on matches (tournament_id, status);
 create index if not exists idx_matches_live            on matches (status) where status = 'live';
 create index if not exists idx_team_players_team       on team_players (team_id);
+create index if not exists idx_team_players_player     on team_players (player_id);
 create index if not exists idx_match_players_match     on match_players (match_id, team_id);
+create index if not exists idx_match_players_player   on match_players (player_id);
+create index if not exists idx_historical_batting_player on historical_match_batting (player_id);
+create index if not exists idx_historical_bowling_player on historical_match_bowling (player_id);
 create index if not exists idx_audit_match             on audit_log (match_id, created_at desc);
 create index if not exists idx_audit_tournament        on audit_log (tournament_id, created_at desc);
 create index if not exists idx_tournament_admins_user  on tournament_admins (user_id);
