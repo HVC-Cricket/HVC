@@ -24,6 +24,19 @@ export type MvpEntry = {
   fieldingPts: number;
   teamPts: number;
   total: number;
+  // Cricbuzz-style raw stats — surfaced in the expanded row so the
+  // Bat/Bowl/Field numbers next to them are clearly POINTS, not runs
+  // or wickets. Zero on the cricheroes path (no ball-by-ball data).
+  runs: number;
+  balls_faced: number;
+  fours: number;
+  sixes: number;
+  wickets: number;
+  runs_conceded: number;
+  legal_balls: number;
+  catches: number;
+  run_outs: number;
+  stumpings: number;
 };
 
 /**
@@ -231,23 +244,33 @@ function MvpRow({
         </div>
       </button>
       {isOpen && (
-        <div className="bg-muted/30 px-4 py-2.5 text-[11px] text-muted-foreground">
+        <div className="space-y-1 bg-muted/30 px-4 py-2.5 text-[11px] text-muted-foreground">
+          {/* Top line — raw stats. Skipped on cricheroes-imported
+              tournaments since their export only carries the points
+              breakdown, not per-player runs/wickets. */}
+          {source === "hvc" && (
+            <StatsLine entry={entry} />
+          )}
+          {/* Bottom line — MVP points contribution. Labels include
+              "pts" so spectators don't confuse "Bat: 144" with "144
+              runs"; the stats line above already shows the actual
+              runs/wickets/catches. */}
           <span className="font-mono">
-            Bat:{" "}
+            Bat pts:{" "}
             <span className="font-semibold text-foreground">
               {fmt(entry.battingPts)}
             </span>
-            {" + Bowl: "}
+            {" + Bowl pts: "}
             <span className="font-semibold text-foreground">
               {fmt(entry.bowlingPts)}
             </span>
-            {" + Field: "}
+            {" + Field pts: "}
             <span className="font-semibold text-foreground">
               {fmt(entry.fieldingPts)}
             </span>
             {source === "hvc" && (
               <>
-                {" + Team: "}
+                {" + Team pts: "}
                 <span className="font-semibold text-foreground">
                   {fmt(entry.teamPts)}
                 </span>
@@ -261,6 +284,45 @@ function MvpRow({
         </div>
       )}
     </li>
+  );
+}
+
+/**
+ * Cricbuzz-style stats summary for the expanded MVP row — actual
+ * runs/balls, wickets/runs/overs, fielding credits. Shown so the
+ * "Bat pts / Bowl pts / Field pts" line below doesn't get misread as
+ * raw runs and wickets. Each segment is omitted when the underlying
+ * stat is zero (no point showing "0 catches" for a player who never
+ * fielded a ball).
+ */
+function StatsLine({ entry }: { entry: MvpEntry }) {
+  const segments: string[] = [];
+  if (entry.balls_faced > 0 || entry.runs > 0) {
+    let bat = `${entry.runs}(${entry.balls_faced})`;
+    const boundary: string[] = [];
+    if (entry.fours > 0) boundary.push(`${entry.fours}×4`);
+    if (entry.sixes > 0) boundary.push(`${entry.sixes}×6`);
+    if (boundary.length > 0) bat += ` [${boundary.join(" ")}]`;
+    segments.push(bat);
+  }
+  if (entry.legal_balls > 0 || entry.wickets > 0) {
+    const overs = `${Math.floor(entry.legal_balls / 6)}.${entry.legal_balls % 6}`;
+    segments.push(`${entry.wickets}/${entry.runs_conceded} (${overs} ov)`);
+  }
+  const fieldBits: string[] = [];
+  if (entry.catches > 0) fieldBits.push(`${entry.catches}c`);
+  if (entry.run_outs > 0) fieldBits.push(`${entry.run_outs}ro`);
+  if (entry.stumpings > 0) fieldBits.push(`${entry.stumpings}st`);
+  if (fieldBits.length > 0) segments.push(fieldBits.join(" "));
+
+  if (segments.length === 0) return null;
+  return (
+    <div className="font-mono">
+      <span className="text-foreground/60">Stats: </span>
+      <span className="font-semibold text-foreground">
+        {segments.join(" · ")}
+      </span>
+    </div>
   );
 }
 

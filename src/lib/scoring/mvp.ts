@@ -62,6 +62,20 @@ export type MvpBreakdown = {
   total: number;
   /** Short summary like "42(10) · 2/14 (1.0) · 1c" for the row tooltip. */
   reasonLine: string;
+  // Raw stats from this match — surfaced through the aggregator so the
+  // tournament MVP row can show the actual cricbuzz-style breakdown
+  // (runs/balls, wkts/runs, catches) alongside the points contribution.
+  // Without these, spectators tend to misread "Bat: 144" as "144 runs".
+  runs: number;
+  balls_faced: number;
+  fours: number;
+  sixes: number;
+  wickets: number;
+  runs_conceded: number;
+  legal_balls: number;
+  catches: number;
+  run_outs: number;
+  stumpings: number;
 };
 
 /**
@@ -171,6 +185,16 @@ export function computeMatchMvp(
       teamPts,
       total,
       reasonLine: bits.join(" · "),
+      runs,
+      balls_faced,
+      fours,
+      sixes,
+      wickets,
+      runs_conceded,
+      legal_balls,
+      catches,
+      run_outs,
+      stumpings,
     };
   });
 }

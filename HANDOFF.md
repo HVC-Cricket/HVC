@@ -39,6 +39,25 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-24 (later 3) — MVP row expand: show raw stats + label points clearly.** Pavan, comparing Pranav Krishna across `?tab=mvp` and `?tab=stats` on S7: "the matches is correct in mvp and stats, but the runs are missmatched. if you check 2 previous screenshots of pranav krishna, in mvp it shows 144 runs but in stats it shows 69 runs".
+
+Root cause was a labeling/UX trap, not a computation bug. The MVP row's expanded breakdown read `Bat: 144 + Bowl: 97 + Field: 24 + Team: 20 = 285` — those are **MVP points** (per the formula in `lib/scoring/mvp.ts`: +1 per run, +2 per four, +5 per six, +6/+20/+40 at 25/50/75 thresholds, SR + NO bonuses, etc.) — but a 3-letter "Bat" label reads like "batting runs" to a spectator. Pranav had 69 runs and a 246 career SR; the formula compounded that into 144 points, which matched the displayed number but didn't reconcile with the Stats tab's 69.
+
+Two complementary fixes in the expanded row:
+
+- **Relabel** "Bat / Bowl / Field / Team" → **"Bat pts / Bowl pts / Field pts / Team pts"** so the numbers are unmistakably *points contributing to MVP*, not raw runs / wickets / catches.
+- **Add a cricbuzz-style Stats line above** the points breakdown: `Stats: 69(28) [3×4 5×6] · 5/45 (3.0 ov) · 2c` — actual runs(balls) with boundary count, wickets/runs(overs), and fielding bits. Segments self-omit when the underlying stat is zero (a pure batter doesn't get a `0/0 (0.0 ov)` placeholder). Now a spectator can read the actual performance and the MVP points side-by-side and see how the formula transforms one into the other.
+
+Plumbed through three layers without changing public shapes:
+
+- `lib/scoring/mvp.ts`: `MvpBreakdown` gained `runs / balls_faced / fours / sixes / wickets / runs_conceded / legal_balls / catches / run_outs / stumpings`. `computeMatchMvp` already had every one of these as a local during the points computation — just hadn't returned them. Existing consumer `match-awards.tsx` reads only `.total / .player_id / .team_id / .reasonLine`, so the additions are non-breaking.
+- `tournament-mvp.tsx`: `Agg` mirrors the new fields and sums them alongside the points. The cricheroes historical-MVP fallback zero-fills them (cricheroes only published the points breakdown — no per-player run/ball counts in their export).
+- `tournament-mvp-view.tsx`: `MvpEntry` gains the same fields; expanded row renders a new `<StatsLine>` above the points breakdown. `<StatsLine>` is hidden on `source="cricheroes"` since the data isn't there.
+
+3 files / +127 / −9 LOC.
+
+---
+
 **2026-05-24 (later 2) — RefreshButton on the tournament page header.** Pavan, on whether to wire `<LiveRefresh />` into `/tournaments/[slug]` to live-update Stats / MVP / Table tabs: "let's have user driven refresh".
 
 Context: tournament page is `force-dynamic` (every request re-runs the server component tree) but has no Realtime subscription, so Stats / MVP / Table sat stale until manual reload. The match page mounts `<LiveRefresh matchId={…} />` for ball-level updates; the tournament page deliberately doesn't — Vercel page render is ~10 Supabase queries (matches, innings, balls, match_players, players, teams, plus Stats/MVP/Table Suspense work) and fanning that out per ball-burst × 50+ spectators during S7 would saturate the Mumbai pool. Better to keep the page lazy and put a one-tap refresh in the user's hands.

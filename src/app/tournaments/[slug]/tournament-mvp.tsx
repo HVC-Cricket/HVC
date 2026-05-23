@@ -100,6 +100,10 @@ export async function TournamentMvp({
   }
 
   // Aggregate: walk every match, compute per-player MVP, sum by player.
+  // Raw stats are summed alongside the points contribution so the MVP
+  // row can show the cricbuzz-style breakdown (runs/balls, wkts/runs,
+  // catches) next to the points — clears up "Bat: 144" being misread
+  // as 144 runs when it's actually 144 points from batting.
   type Agg = {
     player_id: string;
     team_id: string;
@@ -109,6 +113,16 @@ export async function TournamentMvp({
     fieldingPts: number;
     teamPts: number;
     total: number;
+    runs: number;
+    balls_faced: number;
+    fours: number;
+    sixes: number;
+    wickets: number;
+    runs_conceded: number;
+    legal_balls: number;
+    catches: number;
+    run_outs: number;
+    stumpings: number;
   };
   const agg = new Map<string, Agg>();
 
@@ -141,6 +155,16 @@ export async function TournamentMvp({
           fieldingPts: 0,
           teamPts: 0,
           total: 0,
+          runs: 0,
+          balls_faced: 0,
+          fours: 0,
+          sixes: 0,
+          wickets: 0,
+          runs_conceded: 0,
+          legal_balls: 0,
+          catches: 0,
+          run_outs: 0,
+          stumpings: 0,
         };
         agg.set(p.player_id, a);
       }
@@ -150,6 +174,16 @@ export async function TournamentMvp({
       a.fieldingPts += p.fieldingPts;
       a.teamPts += p.teamPts;
       a.total += p.total;
+      a.runs += p.runs;
+      a.balls_faced += p.balls_faced;
+      a.fours += p.fours;
+      a.sixes += p.sixes;
+      a.wickets += p.wickets;
+      a.runs_conceded += p.runs_conceded;
+      a.legal_balls += p.legal_balls;
+      a.catches += p.catches;
+      a.run_outs += p.run_outs;
+      a.stumpings += p.stumpings;
     }
   }
 
@@ -203,6 +237,16 @@ export async function TournamentMvp({
         fieldingPts: a.fieldingPts,
         teamPts: a.teamPts,
         total: a.total,
+        runs: a.runs,
+        balls_faced: a.balls_faced,
+        fours: a.fours,
+        sixes: a.sixes,
+        wickets: a.wickets,
+        runs_conceded: a.runs_conceded,
+        legal_balls: a.legal_balls,
+        catches: a.catches,
+        run_outs: a.run_outs,
+        stumpings: a.stumpings,
       };
     })
     .sort((a, b) => b.total - a.total);
@@ -290,6 +334,19 @@ async function loadHistoricalMvp(
       fieldingPts: Number(r.fielding_points),
       teamPts: 0,
       total: Number(r.total_points),
+      // Cricheroes published only the points breakdown, not the raw
+      // per-player stats. Zero-fill so the row shape is consistent;
+      // the view hides the Stats line on `source="cricheroes"`.
+      runs: 0,
+      balls_faced: 0,
+      fours: 0,
+      sixes: 0,
+      wickets: 0,
+      runs_conceded: 0,
+      legal_balls: 0,
+      catches: 0,
+      run_outs: 0,
+      stumpings: 0,
     };
   });
 
