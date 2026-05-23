@@ -207,21 +207,23 @@ export async function PointsTableSection({
           </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          {/* Compact cricbuzz-style standings. # column + short-name
-              pill dropped, team font + column padding pulled in so the
-              whole row (Team / P / W / L / T / NR / Pts / NRR) fits
-              within ~360 px without horizontal scroll. */}
+          {/* Cricbuzz-style standings. # column + short-name pill
+              dropped to keep the whole row (Team / P / W / L / T /
+              Pts / NRR) within ~360 px. Body sits at text-sm (was
+              text-xs) per request to make the numbers more readable;
+              Pts bumped one step further to text-base so the most-
+              important column is unmistakable at a glance. */}
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="text-[10px] uppercase text-muted-foreground">
+            <table className="w-full text-sm">
+              <thead className="text-[11px] uppercase text-muted-foreground">
                 <tr className="border-b border-foreground/10">
-                  <th className="px-2 py-1.5 text-left font-medium">Team</th>
-                  <th className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-medium">P</th>
-                  <th className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-medium">W</th>
-                  <th className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-medium">L</th>
-                  <th className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-medium">T</th>
-                  <th className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-medium">Pts</th>
-                  <th className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-medium">NRR</th>
+                  <th className="px-2 py-2 text-left font-medium">Team</th>
+                  <th className="w-0 whitespace-nowrap px-1.5 py-2 text-right font-medium">P</th>
+                  <th className="w-0 whitespace-nowrap px-1.5 py-2 text-right font-medium">W</th>
+                  <th className="w-0 whitespace-nowrap px-1.5 py-2 text-right font-medium">L</th>
+                  <th className="w-0 whitespace-nowrap px-1.5 py-2 text-right font-medium">T</th>
+                  <th className="w-0 whitespace-nowrap px-1.5 py-2 text-right font-medium">Pts</th>
+                  <th className="w-0 whitespace-nowrap px-1.5 py-2 text-right font-medium">NRR</th>
                 </tr>
               </thead>
               <tbody>
@@ -232,27 +234,27 @@ export async function PointsTableSection({
                       key={r.team_id}
                       className="border-b border-foreground/5 last:border-b-0"
                     >
-                      <td className="max-w-0 px-2 py-1.5 font-medium">
+                      <td className="max-w-0 px-2 py-2.5 font-medium">
                         <span className="block truncate capitalize">
                           {team?.name ?? "(unknown)"}
                         </span>
                       </td>
-                      <td className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-mono tabular-nums">
+                      <td className="w-0 whitespace-nowrap px-1.5 py-2.5 text-right font-mono tabular-nums">
                         {r.played}
                       </td>
-                      <td className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-mono tabular-nums">
+                      <td className="w-0 whitespace-nowrap px-1.5 py-2.5 text-right font-mono tabular-nums">
                         {r.won}
                       </td>
-                      <td className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-mono tabular-nums">
+                      <td className="w-0 whitespace-nowrap px-1.5 py-2.5 text-right font-mono tabular-nums">
                         {r.lost}
                       </td>
-                      <td className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-mono tabular-nums">
+                      <td className="w-0 whitespace-nowrap px-1.5 py-2.5 text-right font-mono tabular-nums">
                         {r.tied}
                       </td>
-                      <td className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-mono font-semibold tabular-nums">
+                      <td className="w-0 whitespace-nowrap px-1.5 py-2.5 text-right font-mono text-base font-semibold tabular-nums">
                         {r.points}
                       </td>
-                      <td className="w-0 whitespace-nowrap px-1.5 py-1.5 text-right font-mono tabular-nums text-muted-foreground">
+                      <td className="w-0 whitespace-nowrap px-1.5 py-2.5 text-right font-mono tabular-nums text-muted-foreground">
                         {fmtNrr(nrrByTeam.get(r.team_id))}
                       </td>
                     </tr>
