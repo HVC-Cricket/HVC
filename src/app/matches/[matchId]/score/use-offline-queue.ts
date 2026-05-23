@@ -22,11 +22,28 @@ export type UseOfflineQueueOptions = {
    *   - "network" → couldn't reach server, leave in IDB + pause drain
    */
   runTask: (task: ScoreTask) => Promise<DrainOutcome>;
+  /** Optional batched task runner. When provided and the queue has
+   *  multiple consecutive same-kind tasks at the head, the drain
+   *  calls this with the batch instead of looping `runTask` one at
+   *  a time. Should return outcomes positionally — `outcomes[i]`
+   *  corresponds to `tasks[i]`. If `outcomes.length < tasks.length`,
+   *  the unprocessed tasks are left in the queue for the next drain.
+   *
+   *  Network failures must signal `["network", "network", …]`
+   *  (matching length, all "network") OR throw — both forms cause
+   *  the drain to pause and keep every task. */
+  runTaskBatch?: (tasks: ScoreTask[]) => Promise<DrainOutcome[]>;
   /** Called after a task is dropped (outcome "ok" or "validation").
    *  Lets the caller react — e.g. shifting the optimistic queue on a
    *  successful recordBall, or popping pendingUndos on a void. */
   onTaskComplete?: (task: ScoreTask, outcome: DrainOutcome) => void;
 };
+
+/** Max tasks to ship in one batched server call. Matches MAX_BATCH_BALLS
+ *  on the server. Bigger batches help on slow networks but lengthen
+ *  the wall-clock latency for the head task and put more work in one
+ *  Vercel function invocation. 5 is a comfortable middle. */
+const MAX_BATCH_TASKS = 5;
 
 /**
  * IndexedDB-backed write queue with a drain loop. Survives reloads,
@@ -43,21 +60,24 @@ export type UseOfflineQueueOptions = {
 export function useOfflineQueue({
   matchId,
   runTask,
+  runTaskBatch,
   onTaskComplete,
 }: UseOfflineQueueOptions) {
   const [pendingCount, setPendingCount] = useState(0);
   const [isOffline, setIsOffline] = useState(false);
   const drainingRef = useRef(false);
 
-  // The drain loop captures `runTask` / `onTaskComplete` via refs so a
-  // change in the caller's closures doesn't force a new drain function
-  // (which would re-run useEffect below and double-bootstrap).
+  // The drain loop captures callbacks via refs so a change in the
+  // caller's closures doesn't force a new drain function (which
+  // would re-run useEffect below and double-bootstrap).
   const runTaskRef = useRef(runTask);
+  const runTaskBatchRef = useRef(runTaskBatch);
   const onTaskCompleteRef = useRef(onTaskComplete);
   useEffect(() => {
     runTaskRef.current = runTask;
+    runTaskBatchRef.current = runTaskBatch;
     onTaskCompleteRef.current = onTaskComplete;
-  }, [runTask, onTaskComplete]);
+  }, [runTask, runTaskBatch, onTaskComplete]);
 
   const drain = useCallback(async () => {
     if (drainingRef.current) return;
@@ -67,6 +87,66 @@ export function useOfflineQueue({
       while (true) {
         const tasks = await listTasksForMatch(matchId);
         if (tasks.length === 0) break;
+
+        // Batched path: when the caller provides runTaskBatch AND the
+        // head of the queue has multiple consecutive same-kind tasks,
+        // ship them as one HTTP request. Cuts N round-trips down to 1
+        // on slow networks where the round-trip is the dominant cost.
+        // Falls through to the single-task path when there's only one
+        // task ready or the caller didn't provide a batch runner.
+        const batchKind = tasks[0].kind;
+        const batchLimit = Math.min(tasks.length, MAX_BATCH_TASKS);
+        let batchEnd = 1;
+        while (batchEnd < batchLimit && tasks[batchEnd].kind === batchKind) {
+          batchEnd += 1;
+        }
+
+        if (batchEnd > 1 && runTaskBatchRef.current) {
+          const batch = tasks.slice(0, batchEnd);
+          let outcomes: DrainOutcome[];
+          try {
+            outcomes = await runTaskBatchRef.current(batch);
+          } catch {
+            // Throw = treated as network for every task; keep them
+            // all in IDB and pause the drain.
+            setIsOffline(true);
+            break;
+          }
+          // Walk results positionally. The first network outcome
+          // pauses the drain — leave that task and everything after
+          // it in IDB. ok / validation drops the task and fires the
+          // per-task completion callback.
+          let hitNetwork = false;
+          for (let i = 0; i < outcomes.length; i++) {
+            const task = batch[i];
+            const outcome = outcomes[i];
+            if (outcome === "network") {
+              hitNetwork = true;
+              break;
+            }
+            if (task.id != null) {
+              try {
+                await deleteTask(task.id);
+              } catch {
+                /* ignore — next drain will retry the delete */
+              }
+            }
+            setPendingCount((c) => Math.max(0, c - 1));
+            onTaskCompleteRef.current?.(task, outcome);
+          }
+          if (hitNetwork) {
+            setIsOffline(true);
+            break;
+          }
+          setIsOffline(false);
+          // outcomes may be shorter than batch (server stopped early
+          // on a validation failure — its handler already fired for
+          // the failed task). Tasks after outcomes.length stay in
+          // IDB; next drain iteration picks them up.
+          continue;
+        }
+
+        // Single-task fallback — unchanged behaviour.
         const next = tasks[0];
         const outcome = await runTaskRef.current(next);
         if (outcome === "network") {

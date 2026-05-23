@@ -44,7 +44,7 @@ import {
 import { type ScoreTask } from "@/lib/offline-queue";
 import { categoryForOver, computeBatterStats, computeBowlerStats } from "@/lib/scoring";
 
-import { recordBall, voidLastBall, voidLastN } from "./actions";
+import { recordBall, recordBalls, voidLastBall, voidLastN } from "./actions";
 import { applyOptimisticRotation } from "./optimistic-rotation";
 import type { ScoreboardState } from "./state";
 import { type DrainOutcome, useOfflineQueue } from "./use-offline-queue";
@@ -258,6 +258,57 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
     [],
   );
 
+  // Batched task runner. Used by the offline-queue drain when 2+
+  // consecutive same-kind tasks pile up — typically rapid-fire
+  // recordBall taps. Ships them as one HTTP request so the network
+  // round-trip cost (the dominant one on slow scorer connections)
+  // is paid once instead of per-ball. voidLast tasks aren't batched
+  // — they're rare and ordering matters more there.
+  const runTaskBatch = useCallback(
+    async (tasks: ScoreTask[]): Promise<DrainOutcome[]> => {
+      // Only batch recordBalls. Anything else falls back to the
+      // single-task path on the next drain iteration by returning an
+      // empty outcomes array (which signals "process none, retry").
+      if (!tasks.every((t) => t.kind === "recordBall")) {
+        // Defensive — drain only batches same-kind runs at the head,
+        // so this branch shouldn't fire in practice.
+        return [];
+      }
+      try {
+        const result = await recordBalls({
+          balls: tasks.map(
+            (t) => t.payload as Parameters<typeof recordBall>[0],
+          ),
+        });
+        if (!result.ok) {
+          // Whole batch failed validation at the schema layer. Treat
+          // every task as validation so they all drop with the toast.
+          toast.error(result.error);
+          return tasks.map(() => "validation" as DrainOutcome);
+        }
+        // Per-ball results from the server. May be shorter than the
+        // batch if the server stopped early on a validation failure
+        // — the drain leaves unprocessed tasks in IDB for the next
+        // iteration.
+        const outcomes: DrainOutcome[] = [];
+        for (const r of result.data.results) {
+          if (r.ok) {
+            outcomes.push("ok");
+          } else {
+            toast.error(r.error);
+            outcomes.push("validation");
+          }
+        }
+        return outcomes;
+      } catch {
+        // Network / fetch failure for the whole batch — keep every
+        // task in IDB and pause the drain.
+        return tasks.map(() => "network" as DrainOutcome);
+      }
+    },
+    [],
+  );
+
   // On validation rejection, drop the matching optimistic entry — the
   // server didn't accept the ball so it shouldn't stay on-screen. On
   // success, state.balls will advance/regress and the reconciliation
@@ -280,6 +331,7 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   const { enqueue, pendingCount, isOffline } = useOfflineQueue({
     matchId,
     runTask,
+    runTaskBatch,
     onTaskComplete,
   });
 

@@ -680,6 +680,53 @@ export async function recordBall(
   return { ok: true, data: undefined };
 }
 
+// Batched ball recorder. Lets the offline queue ship multiple
+// consecutive recordBall tasks as ONE HTTP request, which is a big
+// win on slow scorer connections where the network round-trip is
+// the dominant per-ball cost (~1–2s on 3G; server processing is
+// only ~800ms). 5 balls go from ~5×3s = 15s to ~1×3s + 5×0.8s = 7s.
+//
+// Implementation is deliberately just a server-side loop over the
+// existing single-ball `recordBall` action. Each iteration sees the
+// committed state of the previous iteration's insert (the trigger
+// updates `innings.total_runs` synchronously inside the same
+// transaction). On the first failure the loop stops and returns
+// the partial results — the client side decides what to do with
+// any unprocessed tasks (typically: keep them in the queue, they
+// will succeed or fail individually on the next drain).
+//
+// Hard cap at 10 balls per batch — keeps the function within Vercel
+// timeout budget and limits the blast radius of any one batched
+// request.
+const MAX_BATCH_BALLS = 10;
+
+const recordBallsSchema = z.object({
+  balls: z.array(recordBallSchema).min(1).max(MAX_BATCH_BALLS),
+});
+
+export async function recordBalls(
+  input: z.infer<typeof recordBallsSchema>,
+): Promise<ActionResult<{ results: ActionResult[] }>> {
+  const parsed = recordBallsSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Invalid batch",
+    };
+  }
+  const results: ActionResult[] = [];
+  for (const ball of parsed.data.balls) {
+    const r = await recordBall(ball);
+    results.push(r);
+    // Stop on first failure — subsequent balls likely depend on this
+    // one having landed, so processing them here would just cascade
+    // confusing errors. The leftover tasks stay in the client queue
+    // and get retried (and re-validated) on the next drain.
+    if (!r.ok) break;
+  }
+  return { ok: true, data: { results } };
+}
+
 const startSecondInningsSchema = z.object({
   matchId: z.string().uuid(),
   striker_id: z.string().uuid(),
