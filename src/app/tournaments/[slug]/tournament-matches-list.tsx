@@ -150,8 +150,28 @@ export function TournamentMatchesList({
       {matches.length > 0 && teams.length > 0 && (
         <div className="space-y-2">
           <Select value={teamFilter} onValueChange={setTeamFilter}>
+            {/* Radix's <SelectValue/> derives its display text by
+                walking up to the matching <SelectItem/>, but the
+                <SelectContent/> is portaled and lazy-mounted — until
+                the user opens the dropdown for the first time, the
+                item children aren't in the DOM and the trigger
+                intermittently shows the placeholder instead of the
+                selected label ("Filter by team…" with nothing
+                selected-looking). Pass explicit children to
+                <SelectValue/> derived from state so the displayed
+                label is correct from first render. */}
             <SelectTrigger className="capitalize">
-              <SelectValue placeholder="Filter by team…" />
+              <SelectValue placeholder="Filter by team…">
+                {teamFilter === "all"
+                  ? "All teams"
+                  : (() => {
+                      const t = teamLookup.get(teamFilter);
+                      if (!t) return "Filter by team…";
+                      return `${displayTeamName(t.name)}${
+                        myTeamIds.includes(t.id) ? " (my team)" : ""
+                      }`;
+                    })()}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All teams</SelectItem>
