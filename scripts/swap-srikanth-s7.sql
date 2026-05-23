@@ -119,14 +119,40 @@ begin
   raise notice 'balls.player_out_id swapped: % rows', affected;
 
   -- ── 4. Swap in match_players (S7 matches only). ──
-  update match_players set player_id = case player_id
-    when player_a then player_b
-    when player_b then player_a
-  end
-  where player_id in (player_a, player_b)
-    and match_id = any(s7_match_ids);
-  get diagnostics affected = row_count;
-  raise notice 'match_players swapped: % rows', affected;
+  -- UNIQUE (match_id, player_id) on this table means a single CASE-
+  -- WHEN UPDATE collides: both Srikanths are in every CC-vs-KW match
+  -- XI, so the moment row 1 flips from (M, CC, A) → (M, CC, B), the
+  -- index sees (M, B) twice (still on row 2 as (M, KW, B)). Route via
+  -- a temporary placeholder player so each step has unique keys.
+  --
+  -- FK player_id → players(id) is `on delete restrict`, so the placeholder
+  -- row gets cleaned up after every reference is gone.
+  declare
+    temp_player uuid;
+  begin
+    insert into players (display_name) values ('__swap_temp_srikanth__')
+      returning id into temp_player;
+
+    -- A → temp
+    update match_players set player_id = temp_player
+      where player_id = player_a and match_id = any(s7_match_ids);
+    get diagnostics affected = row_count;
+    raise notice 'match_players A → temp: % rows', affected;
+
+    -- B → A
+    update match_players set player_id = player_a
+      where player_id = player_b and match_id = any(s7_match_ids);
+    get diagnostics affected = row_count;
+    raise notice 'match_players B → A:    % rows', affected;
+
+    -- temp → B
+    update match_players set player_id = player_b
+      where player_id = temp_player and match_id = any(s7_match_ids);
+    get diagnostics affected = row_count;
+    raise notice 'match_players temp → B: % rows', affected;
+
+    delete from players where id = temp_player;
+  end;
 
   -- ── 5. Swap in team_players (S7 teams only). ──
   -- Unique constraint is (team_id, player_id). Before swap:
