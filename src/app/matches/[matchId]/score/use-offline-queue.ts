@@ -88,12 +88,13 @@ export function useOfflineQueue({
         const tasks = await listTasksForMatch(matchId);
         if (tasks.length === 0) break;
 
-        // Batched path: when the caller provides runTaskBatch AND the
-        // head of the queue has multiple consecutive same-kind tasks,
-        // ship them as one HTTP request. Cuts N round-trips down to 1
-        // on slow networks where the round-trip is the dominant cost.
-        // Falls through to the single-task path when there's only one
-        // task ready or the caller didn't provide a batch runner.
+        // Batched path: only batch `recordBall` runs at the head — the
+        // batch runner is hard-coded for that kind today. Walking
+        // same-kind for voidLastBall / voidLastN would also enter the
+        // batch path, where the runner's defensive `return []` fires
+        // and outcomes.length === 0 → drain loops forever without
+        // making progress (this is the bug that left "10 balls saving"
+        // stuck after rapid undo + re-score sequences).
         const batchKind = tasks[0].kind;
         const batchLimit = Math.min(tasks.length, MAX_BATCH_TASKS);
         let batchEnd = 1;
@@ -101,7 +102,11 @@ export function useOfflineQueue({
           batchEnd += 1;
         }
 
-        if (batchEnd > 1 && runTaskBatchRef.current) {
+        if (
+          batchEnd > 1 &&
+          batchKind === "recordBall" &&
+          runTaskBatchRef.current
+        ) {
           const batch = tasks.slice(0, batchEnd);
           let outcomes: DrainOutcome[];
           try {
@@ -112,38 +117,49 @@ export function useOfflineQueue({
             setIsOffline(true);
             break;
           }
-          // Walk results positionally. The first network outcome
-          // pauses the drain — leave that task and everything after
-          // it in IDB. ok / validation drops the task and fires the
-          // per-task completion callback.
-          let hitNetwork = false;
-          for (let i = 0; i < outcomes.length; i++) {
-            const task = batch[i];
-            const outcome = outcomes[i];
-            if (outcome === "network") {
-              hitNetwork = true;
+          // Defensive: if the runner returned no outcomes at all, fall
+          // through to the single-task path for the head so the drain
+          // still makes progress. Without this guard, a future bug in
+          // runTaskBatch that returns [] could re-introduce the spin
+          // we just fixed.
+          if (outcomes.length === 0) {
+            console.warn(
+              "[hvc-scoring] runTaskBatch returned no outcomes — falling back to single-task drain",
+            );
+          } else {
+            // Walk results positionally. The first network outcome
+            // pauses the drain — leave that task and everything after
+            // it in IDB. ok / validation drops the task and fires the
+            // per-task completion callback.
+            let hitNetwork = false;
+            for (let i = 0; i < outcomes.length; i++) {
+              const task = batch[i];
+              const outcome = outcomes[i];
+              if (outcome === "network") {
+                hitNetwork = true;
+                break;
+              }
+              if (task.id != null) {
+                try {
+                  await deleteTask(task.id);
+                } catch {
+                  /* ignore — next drain will retry the delete */
+                }
+              }
+              setPendingCount((c) => Math.max(0, c - 1));
+              onTaskCompleteRef.current?.(task, outcome);
+            }
+            if (hitNetwork) {
+              setIsOffline(true);
               break;
             }
-            if (task.id != null) {
-              try {
-                await deleteTask(task.id);
-              } catch {
-                /* ignore — next drain will retry the delete */
-              }
-            }
-            setPendingCount((c) => Math.max(0, c - 1));
-            onTaskCompleteRef.current?.(task, outcome);
+            setIsOffline(false);
+            // outcomes may be shorter than batch (server stopped early
+            // on a validation failure — its handler already fired for
+            // the failed task). Tasks after outcomes.length stay in
+            // IDB; next drain iteration picks them up.
+            continue;
           }
-          if (hitNetwork) {
-            setIsOffline(true);
-            break;
-          }
-          setIsOffline(false);
-          // outcomes may be shorter than batch (server stopped early
-          // on a validation failure — its handler already fired for
-          // the failed task). Tasks after outcomes.length stay in
-          // IDB; next drain iteration picks them up.
-          continue;
         }
 
         // Single-task fallback — unchanged behaviour.
