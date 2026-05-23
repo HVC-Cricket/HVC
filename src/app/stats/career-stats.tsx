@@ -20,34 +20,11 @@ import {
 } from "@/lib/stats/historical-fielders";
 import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
 import { resolvePlayerPhoto } from "@/lib/players/photo";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
 
 import { TournamentStatsView } from "@/app/tournaments/[slug]/tournament-stats-view";
-
-/**
- * Supabase REST caps each request at the project's `db.max_rows`
- * (default 1000); `.limit(N)` in the JS client doesn't lift that
- * ceiling — the server truncates. For tables that can exceed 1000
- * rows in production (balls, historical_match_batting/bowling),
- * page through with `.range()` and stop when a partial page lands.
- */
-const PAGE_SIZE = 1000;
-
-async function fetchAllRows<T>(
-  query: (from: number, to: number) => PromiseLike<{ data: T[] | null }>,
-): Promise<T[]> {
-  const all: T[] = [];
-  let from = 0;
-  for (;;) {
-    const { data } = await query(from, from + PAGE_SIZE - 1);
-    if (!data || data.length === 0) break;
-    all.push(...data);
-    if (data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
-  }
-  return all;
-}
 
 /**
  * All-time HVC leaderboards — same Bat / Bowl / Field tables as the

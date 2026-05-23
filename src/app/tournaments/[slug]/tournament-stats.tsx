@@ -20,6 +20,7 @@ import {
 } from "@/lib/stats/historical-fielders";
 import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
 import { resolvePlayerPhoto } from "@/lib/players/photo";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
 
@@ -91,15 +92,26 @@ export async function TournamentStats({
   // which pulls all ~22 columns of balls. fielder_id is included so
   // the fielding leaderboards (catches / run-outs / stumpings) can
   // credit the right player.
-  const { data: ballsRows } = await supabase
-    .from("balls")
-    .select(
-      "innings_id, batter_id, non_striker_id, bowler_id, fielder_id, player_out_id, runs_off_bat, extras, extra_type, is_wicket, wicket_type",
-    )
-    .in("innings_id", inningsIds)
-    .eq("is_voided", false)
-    .order("scored_at", { ascending: true });
-  const allBalls = (ballsRows ?? []) as BallRow[];
+  //
+  // Paginated via `fetchAllRows` so PostgREST's `max-rows` cap (1000
+  // by default) doesn't silently truncate. S7 (12 completed matches)
+  // crossed 1000 balls at match 11; without pagination, match 12+
+  // silently disappeared from the aggregation — surfaced as a real
+  // bug in prod where Pranav's match-12 60-run knock didn't appear on
+  // the Top Run Scorers leaderboard. `.limit()` from the JS client
+  // doesn't help here, since it just sets PostgREST's Range header
+  // which is bounded by max-rows on the server side.
+  const allBalls = await fetchAllRows<BallRow>((from, to) =>
+    supabase
+      .from("balls")
+      .select(
+        "innings_id, batter_id, non_striker_id, bowler_id, fielder_id, player_out_id, runs_off_bat, extras, extra_type, is_wicket, wicket_type",
+      )
+      .in("innings_id", inningsIds)
+      .eq("is_voided", false)
+      .order("scored_at", { ascending: true })
+      .range(from, to) as PromiseLike<{ data: BallRow[] | null }>,
+  );
 
   if (allBalls.length === 0) {
     // Historical (cricheroes-imported) seasons have no ball-by-ball

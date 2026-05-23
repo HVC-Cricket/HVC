@@ -39,6 +39,30 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-24 (later 4) — Tournament Stats / MVP: paginate the `balls` query so PostgREST's max-rows cap doesn't silently drop data.** Pavan: "look for all matches for Pranav Krishna runs, and try to match it with stats we are generating … find out why is that."
+
+**THIS IS THE REAL BUG** — the prior fixes today (M-count, raw-stats labelling) were tangentially right but didn't explain the user's actual reported gap. Read-only diagnostic against prod (see `scripts/diagnose-tournament-stats.ts`) found Pranav had 4 innings totalling **129 runs**, but the Stats leaderboard showed **69**. The missing 60 were his entire match-12 knock — a 60(15) knock that didn't appear anywhere in the aggregation.
+
+Root cause: PostgREST's `db.max_rows` ceiling defaults to **1000 rows per request**, and `.limit()` from the JS client *cannot* lift it — it just sets PostgREST's `Range` header, which the server clips. The `balls` query in `tournament-stats.tsx` and the parallel query in `tournament-mvp.tsx` both went unpaginated. S7's 12-match running total hit exactly 1000 at the end of match 11, so:
+
+- Match 11 balls 80–96 (post-cutoff) silently dropped.
+- Match 12 (all 103 balls) silently dropped entirely.
+- Affected: every per-player batting + bowling + fielding stat, plus MVP points for any action in those balls. Match counts (via `match_players`) were unaffected because the XI rosters live on a different table.
+
+The author of `career-stats.tsx` (all-time `/stats` leaderboards) had already discovered this on a different surface — that file uses a `fetchAllRows` local helper that paginates via `.range()` until a partial page lands. The fix:
+
+- Extracted `fetchAllRows` + `SUPABASE_PAGE_SIZE` to a new `src/lib/supabase/fetch-all.ts` shared module so this isn't re-discovered a third time.
+- `tournament-stats.tsx` and `tournament-mvp.tsx` now use it for their balls fetch. MVP keeps the `innings!inner(match_id)` join so the filter stays server-side (`match_id IN tournament's matches`) and we don't drag every ball in the DB across the wire — pagination just walks this tournament's rows.
+- `career-stats.tsx` rewired to import from the shared helper (drop the local copy).
+
+Diagnostic script in `scripts/diagnose-tournament-stats.ts` — read-only, walks every match's balls vs ball counts via `innings_id` and prints a per-match audit + optional `--player=<substring>` drill-down (per-match runs, wickets, balls faced) cross-checked against `match_players`. Pivotal because the audit table query *also* hit the 1000-row cap and showed match 12 as "0 balls" while the player-filtered query (filtered by `batter_id` at the DB level → small result set) found the 60 runs — the contradiction was the bug surfacing. Diagnostic now paginates too.
+
+Other surfaces using `.from("balls")`: scoring-page state loader (single innings — bounded), full scorecard (single match — bounded), commentary feed (single match — bounded), POTM banner (single match — bounded), match awards picker (single match — bounded), activity feed (uses `.order().limit(N)` with N << 1000 — bounded), `/api/og/match` (single match — bounded), tournament-champion POTM aggregation (single tournament across all matches — **same risk, deferred** — only fires for completed tournaments, and our largest completed tournament is S6 with ~120 balls). Will revisit if a completed tournament ever crosses 1000 balls.
+
+4 files / +60 / −36 LOC (3 production files + 1 diagnostic).
+
+---
+
 **2026-05-24 (later 3) — MVP row expand: show raw stats + label points clearly.** Pavan, comparing Pranav Krishna across `?tab=mvp` and `?tab=stats` on S7: "the matches is correct in mvp and stats, but the runs are missmatched. if you check 2 previous screenshots of pranav krishna, in mvp it shows 144 runs but in stats it shows 69 runs".
 
 Root cause was a labeling/UX trap, not a computation bug. The MVP row's expanded breakdown read `Bat: 144 + Bowl: 97 + Field: 24 + Team: 20 = 285` — those are **MVP points** (per the formula in `lib/scoring/mvp.ts`: +1 per run, +2 per four, +5 per six, +6/+20/+40 at 25/50/75 thresholds, SR + NO bonuses, etc.) — but a 3-letter "Bat" label reads like "batting runs" to a spectator. Pranav had 69 runs and a 246 career SR; the formula compounded that into 144 points, which matched the displayed number but didn't reconcile with the Stats tab's 69.

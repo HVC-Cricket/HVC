@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { fetchLinkedAvatars } from "@/lib/players/fetch-linked-avatars";
 import { computeMatchMvp, type MvpBreakdown } from "@/lib/scoring/mvp";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { createClient } from "@/lib/supabase/server";
 import type { BallRow } from "@/lib/supabase/row-types";
 
@@ -49,31 +50,36 @@ export async function TournamentMvp({
   const matchIds = matches.map((m) => m.id);
 
   // xi + balls + innings(id,match_id) all depend only on matchIds.
-  // Previously the balls query awaited an innings lookup inline INSIDE
-  // the Promise.all array — which synchronously blocked the parallel
-  // fan-out, and a second innings fetch ran afterwards just to bucket
-  // balls by match. Now: one parallel wave with the innings filter
-  // expressed as an `innings!inner(match_id)` join, plus a single
-  // innings(id,match_id) fetch for the bucketing map.
-  const [{ data: xi }, { data: ballsRows }, { data: inningsRows }] =
-    await Promise.all([
-      supabase
-        .from("match_players")
-        .select("match_id, team_id, player_id, is_substitute")
-        .in("match_id", matchIds),
+  // The balls fetch paginates via fetchAllRows so PostgREST's max-rows
+  // cap (1000 by default) doesn't silently truncate — S7 crossed 1000
+  // balls at match 11 and without pagination match 12+ silently
+  // disappeared from the MVP aggregation (Pranav's match-12 60-run
+  // knock didn't contribute to his bat-points). `.limit()` from the
+  // JS client doesn't help — it sets PostgREST's Range header, which
+  // is bounded by max-rows server-side.
+  //
+  // The `innings!inner(match_id)` join keeps the filter server-side
+  // so we don't drag every ball in the DB across the wire; pagination
+  // walks just this tournament's rows.
+  const [{ data: xi }, allBalls, { data: inningsRows }] = await Promise.all([
+    supabase
+      .from("match_players")
+      .select("match_id, team_id, player_id, is_substitute")
+      .in("match_id", matchIds),
+    fetchAllRows<BallRow>((from, to) =>
       supabase
         .from("balls")
         .select("*, innings!inner(match_id)")
         .in("innings.match_id", matchIds)
         .eq("is_voided", false)
-        .order("scored_at", { ascending: true }),
-      supabase
-        .from("innings")
-        .select("id, match_id")
-        .in("match_id", matchIds),
-    ]);
-
-  const allBalls = (ballsRows ?? []) as BallRow[];
+        .order("scored_at", { ascending: true })
+        .range(from, to) as PromiseLike<{ data: BallRow[] | null }>,
+    ),
+    supabase
+      .from("innings")
+      .select("id, match_id")
+      .in("match_id", matchIds),
+  ]);
   const ballsByMatch = new Map<string, BallRow[]>();
   if (allBalls.length > 0) {
     const matchByInnings = new Map(
