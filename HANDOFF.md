@@ -39,6 +39,18 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-24 (later) — Tournament Stats "M" column: count matches in XI, not matches batted/bowled.** Pavan, comparing Pranav Krishna's row on `/tournaments/hvc-season-7?tab=mvp` (M=4, correct) vs `?tab=stats` (Top Run Scorers, M=3): "stats page is not updated".
+
+Root cause: `tournament-stats.tsx` was setting `BatAgg.matches` from `batterMatches` — a set keyed off `batByInn`, which only carries entries for innings where the player faced a ball. A player in the XI for 4 matches but who didn't get to bat in one (chase ended early, slot in order didn't come up) showed M=3. Same shape for `BowlAgg.matches` via `bowlerMatches`. The MVP tab walked `match_players` directly and got M=4.
+
+`matchesByPlayer` (built from `match_players` + ball appearances earlier in the same file for the MISC leaderboards) already had the right count — just wasn't fed into the BAT/BOWL aggregates. Swapped both loops to `agg.matches = matchesByPlayer.get(pid)?.size ?? agg.innings`, with `agg.innings` as the defensive fallback so the count is never lower than the number of innings rolled up. Propagates to every leaderboard column that renders `r.matches` (topRuns, topBattingAvg, topFours, topSixes, topFifties, topWickets — see `aggregate.ts`). `agg.innings` (batting/bowling opportunities) is untouched.
+
+Historical-stats path (S1–S6, balls-less compute from `historical_match_batting/bowling`) intentionally left as-is for this batch — cricheroes data has full bat + bowl rows for everyone who batted/bowled, so the old `batterMatches`/`bowlerMatches` derivation already captured the player's full match set. Revisit if S7+ ever falls back to that path.
+
+1 file / +14 / −24 LOC.
+
+---
+
 **2026-05-24 — Extras strip on the scoring page + live spectator panel.** Pavan: "in scoring page, when we select bye, and select runs lets say i select 1 bye, it should not go to batsman's account (the runs). the ball will be counted to batsman's account but the bye should go to extras right? also there is no extras displayed in both scoring page and spectator's match page. please display that."
 
 Investigation: the **engine + DB are already correct** for plain byes — bye picker submits `runs_off_bat: 0, extras: N, extra_type: "bye"`, the `recompute_innings` trigger sums extras into `extras_byes`, `computeBatterStats` only adds `runs_off_bat` to the batter's R (so byes never credit the striker) but still increments `balls_faced` for non-wide deliveries (so the ball IS counted on the batter's B column), and `computeBowlerStats` only folds `extras` into `runs_conceded` for wide / no-ball (so byes don't charge the bowler). Strike rotation already does `rotationRuns += extras` for byes — 1 bye swaps, 2 byes stay, matching the HVC rules paste.

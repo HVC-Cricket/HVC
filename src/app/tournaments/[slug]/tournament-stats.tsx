@@ -364,35 +364,22 @@ export async function TournamentStats({
     if (agg) agg.matches = s.size;
   }
 
-  // Distinct-matches counts.
-  const batterMatches = new Map<string, Set<string>>();
-  for (const [key, b] of batByInn) {
-    const [pid] = key.split("|");
-    let s = batterMatches.get(pid);
-    if (!s) {
-      s = new Set();
-      batterMatches.set(pid, s);
-    }
-    s.add(b.match_id);
+  // "Matches" column on the BAT / BOWL leaderboards = matches in the
+  // XI (per `match_players`), NOT matches with a recorded batting /
+  // bowling action. Cricbuzz convention — a player whose team chased
+  // without their slot coming up, or who didn't get to bowl, still
+  // counts the match toward their tally. Innings (per-discipline
+  // opportunities) is tracked separately via `agg.innings`.
+  //
+  // Was previously derived from `batByInn` / `bowlByInn`, which silently
+  // dropped matches where a player was in the XI but never faced or
+  // bowled a ball — surfaced as a mismatch with the MVP tab (which
+  // already counts off the XI roster). See HANDOFF 2026-05-24 batch.
+  for (const [pid, agg] of batPerPlayer) {
+    agg.matches = matchesByPlayer.get(pid)?.size ?? agg.innings;
   }
-  for (const [pid, set] of batterMatches) {
-    const agg = batPerPlayer.get(pid);
-    if (agg) agg.matches = set.size;
-  }
-
-  const bowlerMatches = new Map<string, Set<string>>();
-  for (const [key, b] of bowlByInn) {
-    const [pid] = key.split("|");
-    let s = bowlerMatches.get(pid);
-    if (!s) {
-      s = new Set();
-      bowlerMatches.set(pid, s);
-    }
-    s.add(b.match_id);
-  }
-  for (const [pid, set] of bowlerMatches) {
-    const agg = bowlPerPlayer.get(pid);
-    if (agg) agg.matches = set.size;
+  for (const [pid, agg] of bowlPerPlayer) {
+    agg.matches = matchesByPlayer.get(pid)?.size ?? agg.innings;
   }
 
   const batRows = [...batPerPlayer.values()];
