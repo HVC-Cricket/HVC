@@ -68,16 +68,25 @@ async function main() {
   if (tErr || !tournament)
     throw new Error(`Tournament "${tournamentSlug}" not found`);
 
+  // Include organizers in the eligible pool too — they can score
+  // any match where their own team isn't playing, which lightens
+  // the load on dedicated scorers. The team-conflict filter below
+  // still applies, so an organizer who's also a player won't end
+  // up assigned to their own team's match.
   const { data: scorerAdmins, error: aErr } = await sb
     .from("tournament_admins")
     .select("user_id, role")
     .eq("tournament_id", tournament.id)
-    .eq("role", "scorer");
+    .in("role", ["scorer", "organizer"]);
   if (aErr) throw new Error(`Failed to read scorers: ${aErr.message}`);
   if (!scorerAdmins || scorerAdmins.length === 0)
-    throw new Error("No scorers configured on this tournament");
+    throw new Error("No scorers / organizers configured on this tournament");
 
-  const scorerUserIds = scorerAdmins.map((s) => s.user_id);
+  // Dedupe — a user could appear under both organizer + scorer rows
+  // for the same tournament; we only want them in the pool once.
+  const scorerUserIds = Array.from(
+    new Set(scorerAdmins.map((s) => s.user_id)),
+  );
   const { data: profiles, error: pErr } = await sb
     .from("profiles")
     .select("id, display_name")
@@ -117,11 +126,11 @@ async function main() {
     name: string;
     teamId: string | null; // null = not a player in this tournament
   };
-  const scorers: Scorer[] = scorerAdmins.map((s) => {
-    const playerId = playerIdByUserId.get(s.user_id);
+  const scorers: Scorer[] = scorerUserIds.map((uid) => {
+    const playerId = playerIdByUserId.get(uid);
     return {
-      userId: s.user_id,
-      name: nameByUserId.get(s.user_id) ?? "(unknown)",
+      userId: uid,
+      name: nameByUserId.get(uid) ?? "(unknown)",
       teamId: playerId ? teamByPlayerId.get(playerId) ?? null : null,
     };
   });
