@@ -39,6 +39,26 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-24 — Extras strip on the scoring page + live spectator panel.** Pavan: "in scoring page, when we select bye, and select runs lets say i select 1 bye, it should not go to batsman's account (the runs). the ball will be counted to batsman's account but the bye should go to extras right? also there is no extras displayed in both scoring page and spectator's match page. please display that."
+
+Investigation: the **engine + DB are already correct** for plain byes — bye picker submits `runs_off_bat: 0, extras: N, extra_type: "bye"`, the `recompute_innings` trigger sums extras into `extras_byes`, `computeBatterStats` only adds `runs_off_bat` to the batter's R (so byes never credit the striker) but still increments `balls_faced` for non-wide deliveries (so the ball IS counted on the batter's B column), and `computeBowlerStats` only folds `extras` into `runs_conceded` for wide / no-ball (so byes don't charge the bowler). Strike rotation already does `rotationRuns += extras` for byes — 1 bye swaps, 2 byes stay, matching the HVC rules paste.
+
+The actual gap was **visibility**: total_runs ticked up by 1 with no breakdown anywhere on the live surfaces, so the scorer couldn't tell whether the +1 was a bye credited to extras or a run credited to the striker. `full-scorecard.tsx` already showed `ExtrasRow` (wd / nb / b), but `scoreboard.tsx` (scoring page) and `live-score-panel.tsx` (spectator Live tab) didn't.
+
+Two additions:
+
+- **Scoring page** (`scoreboard.tsx`): added a small "Extras N (wd X · nb Y · b Z)" line to the top-card CardHeader, sitting between the CRR/REQ strip and the chase line. Display-aware: blends the server `extras_wides / no_balls / byes` totals with the optimistic queue (newly submitted balls) minus the pendingUndo queue (Undo-tap balls), mirroring the existing displayRuns / displayWickets / displayLegalBalls computation. To make per-type undo work, `PendingUndo` gained an `extra_type` field (was previously a bare `is_legal` boolean derived from it). Hidden until at least one legal ball has been bowled or extras > 0 so the pre-match card stays clean. Breakdown parens only render when extras > 0.
+
+- **Spectator Live tab** (`live-score-panel.tsx`): same line, rendered directly under the score+overs CardTitle. No optimistic blending (spectators get server totals refreshed via the LiveRefresh subscription). Hidden when extras = 0.
+
+Both lines use the same "wd / nb / b" abbreviation set as `full-scorecard.tsx`'s `ExtrasRow` so the language is consistent across all three views.
+
+**Known gap (flagged, not fixed in this batch):** the "No-ball + Runs are byes" toggle (the checkbox under the no-ball picker) currently records the whole ball as `extra_type: "no_ball"` with `extras: 1 + N`. Per the pasted HVC ruleset (NO BALL → CASE 3), it should split: +1 to no-balls, +N to byes, bowler conceded only +1 (not +N+1 as we do today). Fixing it requires either a separate column on `balls` (clean) or splitting one delivery into two rows (messy — breaks ball numbering + undo). Surface this back if it matters. Plain byes, plain no-balls, wides, and wide-with-running-runs are all correct.
+
+3 files / +89 / −7 LOC.
+
+---
+
 **2026-05-23 (later 5) — Tournament Matches tab: team dropdown + Live / Upcoming / Completed status chips.** Pavan: "in the tournaments page matches tab, add a filter of my team … add a filter of my team", then after my first cut (a single "My team only" chip) flipped to: "let everyone filter by team. have a dropdown to select a team and filter their matches, and also in matches can we have subcategory like completed, live and upcoming?"
 
 Two-layer filter row above the match list, both composable:

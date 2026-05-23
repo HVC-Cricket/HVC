@@ -98,6 +98,10 @@ type PendingUndo = {
   ballId: string;
   runs_off_bat: number;
   extras: number;
+  /** Needed by the headline extras strip so the per-type counts (wd /
+   *  nb / b) tick down the instant the scorer taps Undo, mirroring the
+   *  way `runs_off_bat + extras` already feeds the displayRuns total. */
+  extra_type: "wide" | "no_ball" | "bye" | null;
   is_wicket: boolean;
   is_legal: boolean;
 };
@@ -113,6 +117,7 @@ function makePendingUndo(b: {
     ballId: b.id,
     runs_off_bat: b.runs_off_bat,
     extras: b.extras,
+    extra_type: (b.extra_type ?? null) as PendingUndo["extra_type"],
     is_wicket: b.is_wicket,
     is_legal: b.extra_type !== "wide" && b.extra_type !== "no_ball",
   };
@@ -1000,6 +1005,29 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
   const displayWickets = innings.total_wickets + optimisticWickets - undoWickets;
   const displayLegalBalls =
     innings.total_legal_balls + optimisticLegalBalls - undoLegalBalls;
+
+  // Per-type extras for the headline strip. Server totals + optimistic
+  // (queued but not yet confirmed) − pending undos, mirroring the same
+  // three-way blend used for runs/wickets/balls above. `wd` and `nb`
+  // already include their 1-run penalty in `extras`; `b` is the run count
+  // straight up. Penalty + leg-bye omitted: not entered through the UI.
+  const sumExtrasByType = (
+    arr: { extra_type: string | null; extras: number }[],
+    type: "wide" | "no_ball" | "bye",
+  ) => arr.reduce((s, b) => (b.extra_type === type ? s + b.extras : s), 0);
+  const displayWides =
+    innings.extras_wides +
+    sumExtrasByType(optimistic, "wide") -
+    sumExtrasByType(pendingUndos, "wide");
+  const displayNoBalls =
+    innings.extras_no_balls +
+    sumExtrasByType(optimistic, "no_ball") -
+    sumExtrasByType(pendingUndos, "no_ball");
+  const displayByes =
+    innings.extras_byes +
+    sumExtrasByType(optimistic, "bye") -
+    sumExtrasByType(pendingUndos, "bye");
+  const displayExtras = displayWides + displayNoBalls + displayByes;
   // Format "X.Y / Z ov" — standard cricket notation where X.Y is
   // completed-overs.balls-into-next-over (NOT a decimal). The trailing
   // "ov" disambiguates the slash, otherwise it looks like a fraction.
@@ -1112,6 +1140,27 @@ export function Scoreboard({ state }: { state: ScoreboardState }) {
               </div>
             );
           })()}
+          {/* Extras breakdown — wd includes the wide penalty + any
+              runs scored on the wide; nb same for no-balls; b is the
+              bye runs (legal delivery, not credited to batter or
+              bowler per the custom HVC ruleset). Hidden when there
+              are no extras and no balls bowled yet so the pre-match
+              card stays uncluttered. */}
+          {(displayExtras > 0 || displayLegalBalls > 0) && (
+            <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+              <span>
+                Extras{" "}
+                <span className="font-mono font-semibold tabular-nums text-foreground">
+                  {displayExtras}
+                </span>
+              </span>
+              {displayExtras > 0 && (
+                <span className="text-[11px] opacity-80">
+                  (wd {displayWides} · nb {displayNoBalls} · b {displayByes})
+                </span>
+              )}
+            </div>
+          )}
           {innings.target != null && (() => {
             const runsNeeded = Math.max(0, innings.target - displayRuns);
             const ballsLeft = Math.max(

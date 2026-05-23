@@ -249,6 +249,31 @@ function InningsCard({
             {overs} ov
           </span>
         </CardTitle>
+        {/* Extras strip — wd / nb / b breakdown sits right under the
+            score so spectators can verify byes are landing in the team
+            total but not the batter's column. Hidden when no extras
+            have been conceded yet. */}
+        {(() => {
+          const extras =
+            innings.extras_wides +
+            innings.extras_no_balls +
+            innings.extras_byes;
+          if (extras === 0) return null;
+          return (
+            <div className="flex flex-wrap items-center gap-x-1.5 text-xs text-muted-foreground">
+              <span>
+                Extras{" "}
+                <span className="font-mono font-semibold tabular-nums text-foreground">
+                  {extras}
+                </span>
+              </span>
+              <span className="text-[11px] opacity-80">
+                (wd {innings.extras_wides} · nb {innings.extras_no_balls}{" "}
+                · b {innings.extras_byes})
+              </span>
+            </div>
+          );
+        })()}
         {/* Team-batting caption + chase summary previously lived here
             ("WK batting", "WK innings · chased 95"). Removed at the
             scorer's request — full team name + (1st inn / 2nd inn) is
