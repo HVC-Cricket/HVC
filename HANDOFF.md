@@ -39,6 +39,18 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-24 (later 2) — RefreshButton on the tournament page header.** Pavan, on whether to wire `<LiveRefresh />` into `/tournaments/[slug]` to live-update Stats / MVP / Table tabs: "let's have user driven refresh".
+
+Context: tournament page is `force-dynamic` (every request re-runs the server component tree) but has no Realtime subscription, so Stats / MVP / Table sat stale until manual reload. The match page mounts `<LiveRefresh matchId={…} />` for ball-level updates; the tournament page deliberately doesn't — Vercel page render is ~10 Supabase queries (matches, innings, balls, match_players, players, teams, plus Stats/MVP/Table Suspense work) and fanning that out per ball-burst × 50+ spectators during S7 would saturate the Mumbai pool. Better to keep the page lazy and put a one-tap refresh in the user's hands.
+
+Single `<RefreshButton label="Refresh tournament" />` added next to the existing Admins / Edit buttons in the page header. Visible to *everyone* (the old button cluster was gated on `canManage`; the refresh button isn't). One tap = full route refresh → server component tree re-renders → active tab gets fresh data without a hard reload. Stays put across tab switches since it lives on the page header, not inside a tab.
+
+The Admins + Edit buttons are wrapped in a `<>` fragment under `{canManage && (…)}` instead of their own `<div>` so they share the flex container with the refresh button — same gap, same alignment.
+
+1 file / +18 / −12 LOC.
+
+---
+
 **2026-05-24 (later) — Tournament Stats "M" column: count matches in XI, not matches batted/bowled.** Pavan, comparing Pranav Krishna's row on `/tournaments/hvc-season-7?tab=mvp` (M=4, correct) vs `?tab=stats` (Top Run Scorers, M=3): "stats page is not updated".
 
 Root cause: `tournament-stats.tsx` was setting `BatAgg.matches` from `batterMatches` — a set keyed off `batByInn`, which only carries entries for innings where the player faced a ball. A player in the XI for 4 matches but who didn't get to bat in one (chase ended early, slot in order didn't come up) showed M=3. Same shape for `BowlAgg.matches` via `bowlerMatches`. The MVP tab walked `match_players` directly and got M=4.

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { LogoPhoto } from "@/components/logo-photo";
+import { RefreshButton } from "@/components/refresh-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { getSessionContext, isTournamentOrganizer } from "@/lib/auth";
@@ -193,23 +194,33 @@ export default async function TournamentDetailPage(props: {
                 )}
               </div>
             </div>
-            {canManage && (
-              <div className="flex shrink-0 items-center gap-2">
-                <Link
-                  href={`/tournaments/${tournament.slug}/admins`}
-                  prefetch
-                >
-                  <Button variant="ghost" size="sm">
-                    Admins
-                  </Button>
-                </Link>
-                <Link href={`/tournaments/${tournament.slug}/edit`} prefetch>
-                  <Button variant="ghost" size="sm">
-                    Edit
-                  </Button>
-                </Link>
-              </div>
-            )}
+            <div className="flex shrink-0 items-center gap-1.5">
+              {/* Tournament page is force-dynamic but has no live
+                  subscription (intentional — adds ~10 queries × N
+                  spectators per ball burst, too heavy for the Mumbai
+                  pool during a live tournament). RefreshButton lets
+                  anyone manually re-fetch the active tab's data when
+                  they want fresh numbers, without a full page reload.
+                  See HANDOFF 2026-05-24. */}
+              <RefreshButton label="Refresh tournament" />
+              {canManage && (
+                <>
+                  <Link
+                    href={`/tournaments/${tournament.slug}/admins`}
+                    prefetch
+                  >
+                    <Button variant="ghost" size="sm">
+                      Admins
+                    </Button>
+                  </Link>
+                  <Link href={`/tournaments/${tournament.slug}/edit`} prefetch>
+                    <Button variant="ghost" size="sm">
+                      Edit
+                    </Button>
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Quick stats — single row at every breakpoint. Labels
