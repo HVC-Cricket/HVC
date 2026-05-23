@@ -39,6 +39,23 @@ Top-level header shows aggregate totals across all buckets so the admin gets a o
 
 **Activity tab alignment fix:** event-type chip column was `auto`-sized so each row's "Tournament · Team vs Team" title slid horizontally depending on chip width (TOSS_SET vs INNINGS_2_STARTED was ~6 chars different). Switched the row grid to a fixed `8rem` first column with `text-center` on the chip — now every row's title starts at the same x position.
 
+**2026-05-23 (later 4) — Score page: hide organizer-only Match settings + Edit rules links from scorers.** Pavan: "Match settings link inside the scoring page is working correctly for an organizer. it is taking to settings of the match for organizer. for a scorer, it is taking to live matches page. resolve this conflict."
+
+Root cause: `src/app/matches/[matchId]/score/page.tsx` is gated by `requireTournamentAdmin` (lets organizers AND scorers in), but the two links it rendered to `/matches/[id]/edit` were unconditional. The edit page is gated by `requireOrganizer`, which redirects non-organizers to `/` — so tapping "Match settings" mid-scoring kicked the scorer off the score route and dumped them on the homepage hero strip (the "live matches page" Pavan described). The author had assumed "requireTournamentAdmin already gates this whole page, so anyone seeing it can use the link" — but the link's destination has a stricter gate than the host page does.
+
+Fix:
+
+- `requireTournamentAdmin` already returns `SessionContext` — captured it as `ctx` and ran `isTournamentOrganizer(state.tournament.id, ctx)` to derive a `canManage` boolean on the server.
+- Both `/matches/[id]/edit` links are now wrapped in `{canManage && …}`: the header "Match settings" shortcut, and the "Edit match rules →" link inside the category-coverage gap card (along with its trailing `·` separator). The neighbouring "Edit playing XI →" link stays visible because `/matches/[id]/xi` uses `requireTournamentAdmin` (scorer-OK).
+- "Edit XI" shortcut in the header is unchanged.
+- Header comment block updated to reflect the new reality.
+
+Why hide rather than route scorers somewhere read-only: the edit page is fully gated server-side and the entire form is organizer-only — there is no view-mode to fall back to. Hiding the entrypoint matches what the scorer can actually do.
+
+1 file / +29 / −19 LOC.
+
+---
+
 **2026-05-23 (later 3) — Stats leaderboards: compact rows so names get the room.** Pavan: "the stats page looks clumsy. can you reduce the font size so that everything looks good", then a follow-up: "reduce font size of R,M,AVG,SR,HS so that the name has more space to show". One coordinated tightening pass on the shared `LeaderTable` in `src/app/tournaments/[slug]/tournament-stats-view.tsx` — drives both `/stats` (career leaderboards) and the per-tournament Stats tab, so one edit covers all 17 leaderboard styles on both surfaces.
 
 Two rounds, applied in this order:
