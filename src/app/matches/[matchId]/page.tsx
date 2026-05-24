@@ -239,11 +239,11 @@ export default async function MatchDetailPage(props: {
           className="flex flex-nowrap items-baseline gap-x-2 whitespace-nowrap font-semibold capitalize leading-tight text-foreground transition hover:opacity-80 text-[clamp(0.8125rem,3.8vw,1.25rem)]"
         >
           <ChevronLeft className="size-4 shrink-0 self-center text-muted-foreground sm:size-5" />
-          <span>{teamA?.name ?? "?"}</span>
+          <span>{teamA?.name ?? "TBD"}</span>
           <span className="font-normal text-muted-foreground text-[0.7em]">
             vs
           </span>
-          <span>{teamB?.name ?? "?"}</span>
+          <span>{teamB?.name ?? "TBD"}</span>
         </Link>
 
         {/* Match meta on the left, action buttons on the right, single
