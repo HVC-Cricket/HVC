@@ -386,8 +386,18 @@ function PlayoffPlaceholders({
   if (format !== "round_robin_playoff_final") return null;
   const groupMatches = matches.filter((m) => m.stage === "group");
   if (groupMatches.length === 0) return null;
-  const allGroupDone = groupMatches.every((m) => m.status === "completed");
-  if (allGroupDone) return null;
+  // Hide only once REAL playoff matches exist (organizer has
+  // scheduled them with locked-in teams). Previously we hid as soon
+  // as every group match was completed — but if the organizer
+  // hasn't scheduled the bracket yet, spectators saw a dead zone
+  // between the last group match and the start of the playoffs.
+  // The placeholders keep the bracket shape visible until the real
+  // fixtures replace them.
+  const PLAYOFF_STAGES = ["qualifier_1", "eliminator", "qualifier_2", "final"];
+  const hasPlayoffMatches = matches.some((m) =>
+    PLAYOFF_STAGES.includes(m.stage),
+  );
+  if (hasPlayoffMatches) return null;
 
   const lastNumber = matches.reduce(
     (max, m) => (m.match_number > max ? m.match_number : max),
