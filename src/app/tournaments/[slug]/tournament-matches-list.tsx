@@ -77,6 +77,13 @@ type Props = {
    *  player a tap on the most common landing). Empty array or 2+ entries
    *  → dropdown defaults to "All teams". */
   myTeamIds: string[];
+  /** Top-4 team IDs sorted by standings (Pts desc, NRR desc) — only
+   *  set when the league phase has completed on a round-robin-playoff
+   *  format. PlayoffPlaceholders uses this to fill Q1 (top4[0] vs
+   *  top4[1]) and Eliminator (top4[2] vs top4[3]) with real teams
+   *  while Q2 + Final remain TBC. Empty = standings not locked yet,
+   *  all four cards stay TBC. */
+  playoffSeedingTeamIds?: string[];
 };
 
 export function TournamentMatchesList({
@@ -86,6 +93,7 @@ export function TournamentMatchesList({
   teams,
   canManage,
   myTeamIds,
+  playoffSeedingTeamIds = [],
 }: Props) {
   const teamLookup = useMemo(
     () => new Map(teams.map((t) => [t.id, t])),
@@ -332,6 +340,9 @@ export function TournamentMatchesList({
             <PlayoffPlaceholders
               format={tournamentFormat}
               matches={matches}
+              seedTeams={playoffSeedingTeamIds
+                .map((id) => teamLookup.get(id))
+                .filter((t): t is TeamLite => t != null)}
             />
           )}
         </div>
@@ -379,20 +390,25 @@ function TeamRow({ team }: { team?: TeamLite }) {
 function PlayoffPlaceholders({
   format,
   matches,
+  seedTeams,
 }: {
   format: TournamentFormat;
   matches: { match_number: number; stage: string; status: string }[];
+  /** Top-4 teams from the locked-in standings, when the league phase
+   *  is done. Q1 fills with [0] vs [1]; Eliminator with [2] vs [3].
+   *  Q2 + Final stay TBC because those depend on the playoff results
+   *  the organizer hasn't scored yet. Empty → all four cards are
+   *  fully TBC (mid-league). */
+  seedTeams: TeamLite[];
 }) {
   if (format !== "round_robin_playoff_final") return null;
   const groupMatches = matches.filter((m) => m.stage === "group");
   if (groupMatches.length === 0) return null;
   // Hide only once REAL playoff matches exist (organizer has
-  // scheduled them with locked-in teams). Previously we hid as soon
-  // as every group match was completed — but if the organizer
-  // hasn't scheduled the bracket yet, spectators saw a dead zone
-  // between the last group match and the start of the playoffs.
-  // The placeholders keep the bracket shape visible until the real
-  // fixtures replace them.
+  // scheduled them with locked-in teams). Otherwise spectators saw a
+  // dead zone between the last group match and the start of the
+  // playoffs. Placeholders keep the bracket shape visible until the
+  // real fixtures replace them.
   const PLAYOFF_STAGES = ["qualifier_1", "eliminator", "qualifier_2", "final"];
   const hasPlayoffMatches = matches.some((m) =>
     PLAYOFF_STAGES.includes(m.stage),
@@ -403,11 +419,28 @@ function PlayoffPlaceholders({
     (max, m) => (m.match_number > max ? m.match_number : max),
     0,
   );
-  const stages: { stage: MatchStage; label: string }[] = [
-    { stage: "qualifier_1", label: "Qualifier 1" },
-    { stage: "eliminator", label: "Eliminator" },
-    { stage: "qualifier_2", label: "Qualifier 2" },
-    { stage: "final", label: "Final" },
+
+  // Q1 = 1st vs 2nd seed; Eliminator = 3rd vs 4th. Only filled when
+  // we have 4 locked seeds. Q2 + Final always stay TBC at this point
+  // since they depend on actual Q1 / Eliminator outcomes.
+  const seeded = seedTeams.length >= 4;
+  const stages: {
+    stage: MatchStage;
+    label: string;
+    teams: [TeamLite | null, TeamLite | null];
+  }[] = [
+    {
+      stage: "qualifier_1",
+      label: "Qualifier 1",
+      teams: seeded ? [seedTeams[0], seedTeams[1]] : [null, null],
+    },
+    {
+      stage: "eliminator",
+      label: "Eliminator",
+      teams: seeded ? [seedTeams[2], seedTeams[3]] : [null, null],
+    },
+    { stage: "qualifier_2", label: "Qualifier 2", teams: [null, null] },
+    { stage: "final", label: "Final", teams: [null, null] },
   ];
 
   return (
@@ -430,13 +463,35 @@ function PlayoffPlaceholders({
               {s.label}
             </div>
             <div className="mt-2 space-y-1.5">
-              <TbcRow />
-              <TbcRow />
+              {s.teams[0] ? <SeededTeamRow team={s.teams[0]} /> : <TbcRow />}
+              {s.teams[1] ? <SeededTeamRow team={s.teams[1]} /> : <TbcRow />}
             </div>
           </div>
         );
       })}
     </>
+  );
+}
+
+function SeededTeamRow({ team }: { team: TeamLite }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      {team.logo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={team.logo_url}
+          alt=""
+          className="size-6 shrink-0 rounded-full border border-foreground/10 object-cover"
+        />
+      ) : (
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[9px] font-semibold text-muted-foreground">
+          {getTeamInitials(team.short_name)}
+        </span>
+      )}
+      <span className="truncate text-sm font-medium capitalize">
+        {displayTeamName(team.name)}
+      </span>
+    </div>
   );
 }
 

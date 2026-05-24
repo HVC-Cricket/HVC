@@ -20,6 +20,7 @@ import {
   type TournamentFormat,
 } from "@/lib/constants/tournament";
 import { formatDateRange } from "@/lib/format";
+import { computeStandings } from "@/lib/standings";
 import { createClient } from "@/lib/supabase/server";
 import { getTeamInitials } from "@/lib/utils";
 
@@ -117,6 +118,23 @@ export default async function TournamentDetailPage(props: {
     })),
     fmt,
   );
+
+  // Playoff seeding: once every group match is complete on a
+  // round-robin-playoff format, the standings are locked in and we
+  // can fill the TBC placeholders with actual top-4 team IDs (1 vs
+  // 2 for Q1, 3 vs 4 for Eliminator). Mid-league the seedings can
+  // still shift, so we leave the placeholders empty until then.
+  // Q2 / Final stay TBC even after this — they depend on actual
+  // playoff outcomes the organizer hasn't scored yet.
+  const groupMatches = matches.filter((m) => m.stage === "group");
+  const leagueComplete =
+    groupMatches.length > 0 &&
+    groupMatches.every((m) => m.status === "completed");
+  let playoffSeedingTeamIds: string[] = [];
+  if (fmt === "round_robin_playoff_final" && leagueComplete) {
+    const standings = await computeStandings(supabase, tournament.id);
+    playoffSeedingTeamIds = standings.slice(0, 4).map((s) => s.team_id);
+  }
 
   return (
     <main className="flex-1 p-4 sm:p-6">
@@ -254,6 +272,7 @@ export default async function TournamentDetailPage(props: {
               teams={teams}
               canManage={canManage}
               myTeamIds={myTeamIds}
+              playoffSeedingTeamIds={playoffSeedingTeamIds}
             />
           }
           table={
