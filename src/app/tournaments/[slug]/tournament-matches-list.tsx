@@ -35,8 +35,12 @@ export type MatchRow = {
   stage: string;
   status: string;
   scheduled_at: string | null;
-  team_a_id: string;
-  team_b_id: string;
+  /** Nullable for playoff matches scheduled before their teams are
+   *  known (Q2 / Final pre-bracket). UI renders "TBD" for nulls;
+   *  the playoff resolver populates them when an upstream match
+   *  completes. */
+  team_a_id: string | null;
+  team_b_id: string | null;
   winner_id: string | null;
   win_margin: string | null;
   result_type: string | null;
@@ -262,8 +266,11 @@ export function TournamentMatchesList({
       ) : (
         <div className="space-y-2">
           {visibleMatches.map((m) => {
-            const a = teamLookup.get(m.team_a_id);
-            const b = teamLookup.get(m.team_b_id);
+            // team_a_id / team_b_id can be null for unresolved playoff
+            // slots (e.g. Q2 / Final scheduled before their upstream
+            // matches complete). TeamRow renders "TBD" when undefined.
+            const a = m.team_a_id ? teamLookup.get(m.team_a_id) : undefined;
+            const b = m.team_b_id ? teamLookup.get(m.team_b_id) : undefined;
             const ms = m.status as MatchStatus;
             const winner = m.winner_id ? teamLookup.get(m.winner_id) : null;
             const resultLine =
@@ -358,8 +365,13 @@ function displayTeamName(name: string): string {
 function TeamRow({ team }: { team?: TeamLite }) {
   if (!team)
     return (
-      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-        ?
+      <div className="flex min-w-0 items-center gap-2">
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[8px] font-semibold uppercase text-muted-foreground">
+          TBD
+        </span>
+        <span className="truncate text-sm font-medium text-muted-foreground">
+          TBD
+        </span>
       </div>
     );
   const label = displayTeamName(team.name);

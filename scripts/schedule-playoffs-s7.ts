@@ -85,15 +85,19 @@ async function main() {
       `League phase not complete: ${group.filter((m) => m.status !== "completed").length} group matches still ${"pending"}`,
     );
   }
-  const existingPlayoffs = matches.filter((m) =>
-    ["qualifier_1", "eliminator", "qualifier_2", "final"].includes(m.stage),
+  const existingPlayoffStages = new Set(
+    matches
+      .filter((m) =>
+        ["qualifier_1", "eliminator", "qualifier_2", "final"].includes(m.stage),
+      )
+      .map((m) => m.stage),
   );
-  if (existingPlayoffs.length > 0) {
-    console.log("Already scheduled — nothing to do:");
-    for (const m of existingPlayoffs) {
+  if (existingPlayoffStages.size > 0) {
+    console.log("Already scheduled (will skip these stages):");
+    for (const m of matches.filter((x) => existingPlayoffStages.has(x.stage))) {
       console.log(`  #${m.match_number} ${m.stage} ${m.status}`);
     }
-    return;
+    console.log("");
   }
 
   // Pull standings via v_points_table + compute NRR for tiebreak —
@@ -199,7 +203,24 @@ async function main() {
     (max, m) => (m.match_number > max ? m.match_number : max),
     0,
   );
-  const rows = [
+
+  // All four playoff rows. Q1 / Eliminator get their seeded teams
+  // straight from the standings. Q2 / Final get nulls — their teams
+  // resolve from upstream match outcomes (Q2.team_a = Q1.loser,
+  // Q2.team_b = Eliminator.winner, Final.team_a = Q1.winner,
+  // Final.team_b = Q2.winner). The schema migration
+  // 20260524010000_matches_nullable_teams.sql allows nulls; the
+  // display layer renders "TBD" for unresolved slots.
+  const rows: Array<{
+    tournament_id: string;
+    match_number: number;
+    stage: string;
+    team_a_id: string | null;
+    team_b_id: string | null;
+    status: string;
+    overs_per_innings: number;
+    players_per_side: number;
+  }> = [
     {
       tournament_id: tournament.id,
       match_number: lastNumber + 1,
@@ -220,14 +241,51 @@ async function main() {
       overs_per_innings: tournament.default_overs_per_innings,
       players_per_side: tournament.default_players_per_side,
     },
+    {
+      tournament_id: tournament.id,
+      match_number: lastNumber + 3,
+      stage: "qualifier_2",
+      team_a_id: null,
+      team_b_id: null,
+      status: "scheduled",
+      overs_per_innings: tournament.default_overs_per_innings,
+      players_per_side: tournament.default_players_per_side,
+    },
+    {
+      tournament_id: tournament.id,
+      match_number: lastNumber + 4,
+      stage: "final",
+      team_a_id: null,
+      team_b_id: null,
+      status: "scheduled",
+      overs_per_innings: tournament.default_overs_per_innings,
+      players_per_side: tournament.default_players_per_side,
+    },
   ];
 
+  // Filter out stages that already exist on prod (Q1 + Eliminator
+  // were scheduled in an earlier run; Q2 + Final are new today).
+  // Re-number sequentially after filtering so we don't leave gaps in
+  // the match_number sequence (e.g. ...22, 23, 26, 27 becomes
+  // ...22, 23, 24, 25).
+  const rowsToInsert = rows
+    .filter((r) => !existingPlayoffStages.has(r.stage))
+    .map((r, i) => ({ ...r, match_number: lastNumber + 1 + i }));
+  if (rowsToInsert.length === 0) {
+    console.log("All four playoff matches already scheduled.");
+    return;
+  }
+
   console.log("Plan:");
-  for (const r of rows) {
-    const a = teamById.get(r.team_a_id);
-    const b = teamById.get(r.team_b_id);
+  for (const r of rowsToInsert) {
+    const aName = r.team_a_id
+      ? teamById.get(r.team_a_id)?.short_name ?? "?"
+      : "TBD";
+    const bName = r.team_b_id
+      ? teamById.get(r.team_b_id)?.short_name ?? "?"
+      : "TBD";
     console.log(
-      `  #${r.match_number} ${r.stage.padEnd(12)} ${(a?.short_name ?? "?").padEnd(4)} vs ${(b?.short_name ?? "?").padEnd(4)}`,
+      `  #${r.match_number} ${r.stage.padEnd(12)} ${aName.padEnd(4)} vs ${bName.padEnd(4)}`,
     );
   }
 
@@ -238,7 +296,7 @@ async function main() {
 
   const { data: inserted, error: insErr } = await sb
     .from("matches")
-    .insert(rows)
+    .insert(rowsToInsert)
     .select("id, match_number, stage");
   if (insErr) {
     throw new Error(`Insert failed: ${insErr.message}`);

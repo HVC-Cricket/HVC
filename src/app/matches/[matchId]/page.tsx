@@ -85,7 +85,16 @@ export default async function MatchDetailPage(props: {
     supabase
       .from("teams")
       .select("id, name, short_name, logo_url")
-      .in("id", [match.team_a_id, match.team_b_id]),
+      // Filter out nulls — Q2 / Final scheduled before their teams
+      // resolve carry null team_a_id / team_b_id, and `.in()` chokes
+      // on a literal null in the array. teamA / teamB just stay
+      // undefined and the existing "?" fallbacks render.
+      .in(
+        "id",
+        [match.team_a_id, match.team_b_id].filter(
+          (id): id is string => id != null,
+        ),
+      ),
   ]);
   const tournament = tournamentRes.data;
   const tournamentRulesRes = tournamentRes.data;

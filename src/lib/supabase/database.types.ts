@@ -263,6 +263,13 @@ export type Database = {
           tournament_id: string;
           match_number: number;
           stage: MatchStage;
+          // NOTE: the DB column is now nullable (Q2 / Final scheduled
+          // pre-bracket carry null on both sides until the playoff
+          // resolver populates them). The TS type stays `string` here
+          // to avoid an audit of every reader on the live-tournament
+          // critical path. The two surfaces that actually encounter
+          // null rows (tournament match list + match detail) have
+          // their own local null guards.
           team_a_id: string;
           team_b_id: string;
           scheduled_at: string | null;
