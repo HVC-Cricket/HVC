@@ -1247,6 +1247,72 @@ async function maybeAutoSchedulePlayoffs(
     if (ok) scheduled = true;
   }
 
+  // 5. Backfill null teams on pre-existing playoff rows.
+  //
+  // The schedule-* blocks above only insert MISSING rows; when an
+  // organizer (or a one-off script) pre-creates Q2 / Final with
+  // team_a_id=null / team_b_id=null so spectators see the upcoming
+  // bracket shape, the inserts are skipped (the rows already exist)
+  // but the team slots never get filled. This pass closes that gap:
+  // for any existing playoff row with a null team slot, populate it
+  // from the resolved upstream result.
+  //
+  // Resolution map (matches the seedTeams logic in PlayoffPlaceholders):
+  //   Q2.team_a  ← Q1 loser    (when Q1 done)
+  //   Q2.team_b  ← Eliminator winner    (when Eliminator done)
+  //   Final.team_a ← Q1 winner    (when Q1 done)
+  //   Final.team_b ← Q2 winner    (when Q2 done)
+  const updateTeam = async (
+    matchId: string,
+    field: "team_a_id" | "team_b_id",
+    value: string,
+  ) => {
+    const { error } = await supabase
+      .from("matches")
+      .update({ [field]: value } as never)
+      .eq("id", matchId)
+      .is(field, null); // safety: only fill, never overwrite
+    if (error) {
+      console.error(`[auto-fill ${field}] update failed`, error);
+      return false;
+    }
+    return true;
+  };
+
+  const q1Loser =
+    q1Done &&
+    (q1Done.team_a_id === q1Done.winner_id
+      ? q1Done.team_b_id
+      : q1Done.team_a_id);
+
+  // Q2 backfill
+  if (q2Any) {
+    if (q2Any.team_a_id == null && q1Done && q1Loser) {
+      if (await updateTeam(q2Any.id, "team_a_id", q1Loser)) scheduled = true;
+    }
+    if (q2Any.team_b_id == null && elimDone) {
+      if (
+        await updateTeam(q2Any.id, "team_b_id", elimDone.winner_id as string)
+      )
+        scheduled = true;
+    }
+  }
+  // Final backfill
+  if (finalAny) {
+    if (finalAny.team_a_id == null && q1Done) {
+      if (
+        await updateTeam(finalAny.id, "team_a_id", q1Done.winner_id as string)
+      )
+        scheduled = true;
+    }
+    if (finalAny.team_b_id == null && q2Done) {
+      if (
+        await updateTeam(finalAny.id, "team_b_id", q2Done.winner_id as string)
+      )
+        scheduled = true;
+    }
+  }
+
   if (scheduled && tournament.slug) {
     revalidatePath(`/tournaments/${tournament.slug}`);
   }
