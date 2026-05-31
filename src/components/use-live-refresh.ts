@@ -24,17 +24,18 @@ import { createClient } from "@/lib/supabase/client";
  *     via the `recompute_innings` trigger on every ball INSERT
  *   * `innings` INSERTs cover innings transitions (start of 2nd
  *     innings, super over)
- *   * Refreshes are debounced to ~2.5s so a burst of trigger events
+ *   * Refreshes are debounced to ~3.5s so a burst of trigger events
  *     within an over coalesces into one full-route refetch per
- *     spectator. Was 400ms originally, which let almost every ball
- *     fan out into its own refresh. With 50+ concurrent spectators
- *     each refresh = ~7 Supabase queries, that's 350+ queries per
- *     ball — enough to saturate the Mumbai connection pool and
- *     induce server-side queueing visible to ALL clients (including
- *     the scorer's saves). 2.5s trades "score appears instantly"
- *     for "score appears within a few seconds and the server stays
- *     responsive". A 30s fallback poll still backstops dropped
- *     WebSocket connections.
+ *     spectator. Math: each refresh runs ~7 Supabase queries via
+ *     loadScoreboardState; with 100+ spectators all firing within
+ *     the debounce window after a ball event, that's 100 × 7 = 700
+ *     queries arriving in the window. At 3.5s that's ~200 q/s
+ *     burst, comfortably under Mumbai's ~200-connection pool
+ *     ceiling. Earlier values: 400ms originally (let every ball
+ *     fan out, 50 spectators saturated the pool), 2.5s when we
+ *     hit 50 spectators on tournament day, 3.5s for the 100+
+ *     spectator Q2 / Final matches. A 30s fallback poll still
+ *     backstops dropped WebSocket connections.
  */
 export function useLiveRefresh(opts: { matchId?: string } = {}) {
   const router = useRouter();
@@ -49,7 +50,7 @@ export function useLiveRefresh(opts: { matchId?: string } = {}) {
       pending = setTimeout(() => {
         pending = null;
         router.refresh();
-      }, 2500);
+      }, 3500);
     };
 
     const channelName = matchId ? `live:match:${matchId}` : "live:global";
