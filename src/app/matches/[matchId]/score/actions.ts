@@ -21,8 +21,10 @@ import {
   setStriker,
   type RulesOverride,
 } from "@/lib/scoring";
+import { computeMatchMvp } from "@/lib/scoring/mvp";
 import { computeStandings } from "@/lib/standings";
 import { createClient } from "@/lib/supabase/server";
+import type { BallRow } from "@/lib/supabase/row-types";
 
 import type { ActionResult } from "@/app/tournaments/actions";
 
@@ -994,7 +996,9 @@ async function finalizeMatchInternal(
   const { data: innings } = await supabase
     .from("innings")
     .select(
-      "innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, target",
+      // `id` is needed for the auto-POM write further down (we
+      // fetch balls scoped to these innings ids).
+      "id, innings_number, batting_team_id, bowling_team_id, total_runs, total_wickets, target",
     )
     .eq("match_id", matchId)
     .order("innings_number", { ascending: true });
@@ -1076,6 +1080,53 @@ async function finalizeMatchInternal(
     })
     .eq("id", matchId);
   if (error) return { ok: false, error: error.message };
+
+  // Auto-pick Player-of-the-Match if the organizer hasn't already
+  // confirmed one. Same algorithm the match detail page already uses
+  // for its "Auto-pick" display badge — top performer by
+  // computeMatchMvp (batting + bowling + fielding contribution,
+  // winner-team bonus). Persisting it here means the Awards
+  // leaderboard counts the match immediately; the admin can still
+  // override later via the player-of-match picker, and the .is(...)
+  // null guard on the UPDATE ensures we never clobber an existing
+  // pick.
+  //
+  // Best-effort: a failure here is logged but never blocks the
+  // finalize itself. The audit log + push notification below still
+  // fire.
+  try {
+    const inningsIds = (innings ?? []).map((i) => i.id);
+    if (inningsIds.length > 0) {
+      const [ballsRes, xiRes] = await Promise.all([
+        supabase
+          .from("balls")
+          .select("*")
+          .in("innings_id", inningsIds)
+          .eq("is_voided", false),
+        supabase
+          .from("match_players")
+          .select("player_id, team_id")
+          .eq("match_id", matchId),
+      ]);
+      const performances = computeMatchMvp(
+        (ballsRes.data ?? []) as BallRow[],
+        xiRes.data ?? [],
+        winnerId,
+      );
+      const top = performances
+        .filter((p) => p.total > 0)
+        .sort((a, b) => b.total - a.total)[0];
+      if (top) {
+        await supabase
+          .from("matches")
+          .update({ player_of_match_id: top.player_id })
+          .eq("id", matchId)
+          .is("player_of_match_id", null);
+      }
+    }
+  } catch (err) {
+    console.error("[auto-pom] failed", err);
+  }
 
   const {
     data: { user: actor },
