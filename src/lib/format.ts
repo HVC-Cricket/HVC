@@ -27,9 +27,14 @@ export function formatScheduledAt(iso: string | null): string {
     year: "numeric",
     timeZone: IST,
   });
+  // hour12: true forces "7:00 PM" on every locale instead of the
+  // server-default "19:00" (Vercel functions default to en-US's
+  // 24-hour H:mm in a UTC locale environment). Matches the IST
+  // wall-clock convention spectators expect.
   const time = d.toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",
+    hour12: true,
     timeZone: IST,
   });
   return `${date} · ${time}`;
@@ -52,6 +57,7 @@ export function formatUpcomingTime(iso: string): string {
     weekday: "short",
     hour: "numeric",
     minute: "2-digit",
+    hour12: true,
     timeZone: IST,
   });
 }
@@ -118,7 +124,7 @@ export function formatDateRange(
  */
 export function formatMatchTime(iso: string): string {
   const d = new Date(iso);
-  return `${d.toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: IST })} · ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", timeZone: IST })}`;
+  return `${d.toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: IST })} · ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true, timeZone: IST })}`;
 }
 
 /**
