@@ -71,10 +71,21 @@ export function LogoPhoto({
   const handleOpen = (e: SyntheticEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (typeof e.nativeEvent.stopImmediatePropagation === "function") {
+    if (e.nativeEvent) {
       e.nativeEvent.stopImmediatePropagation();
+      e.nativeEvent.preventDefault();
+      e.nativeEvent.stopPropagation();
     }
     setOpen(true);
+  };
+
+  // Aggressive capture-phase suppression for pointer events — some Link
+  // implementations trigger on mousedown/pointerdown to feel faster.
+  const stopAll = (e: SyntheticEvent) => {
+    e.stopPropagation();
+    if (e.nativeEvent) {
+      e.nativeEvent.stopImmediatePropagation();
+    }
   };
 
   return (
@@ -83,6 +94,9 @@ export function LogoPhoto({
         role="button"
         tabIndex={0}
         onClick={handleOpen}
+        onClickCapture={handleOpen}
+        onMouseDownCapture={stopAll}
+        onPointerDownCapture={stopAll}
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") handleOpen(e);
         }}
