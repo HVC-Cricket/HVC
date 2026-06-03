@@ -121,7 +121,7 @@ export function ActivityLogHelp() {
 
             <div>
               <div className="mb-1 font-semibold uppercase tracking-wide text-foreground">
-                Why it's useful
+                Why it&apos;s useful
               </div>
               <ul className="ml-4 list-disc space-y-1">
                 <li>

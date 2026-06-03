@@ -95,7 +95,8 @@ export async function FullScorecard({ matchId }: { matchId: string }) {
   const teamById = new Map((teamsRes.data ?? []).map((t) => [t.id, t]));
 
   const xiRows = (xiRes.data as EmbeddedXIRow[] | null) ?? [];
-  const xi = xiRows.map(({ player: _player, ...rest }) => rest);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const xi = xiRows.map(({ player: _ignored, ...rest }) => rest);
   const playerById = new Map<string, PlayerLite>();
   for (const r of xiRows) {
     if (r.player) {

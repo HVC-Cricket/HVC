@@ -143,6 +143,7 @@ export function EditMatchForm({
       match_cat3_overs: match.cat3_overs,
     },
   });
+  // eslint-disable-next-line react-hooks/incompatible-library
   const overrideCategories = form.watch("override_categories");
   const matchOvers = form.watch("overs_per_innings");
   const matchCat1 = form.watch("match_cat1_overs");

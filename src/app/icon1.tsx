@@ -16,10 +16,12 @@ export default function Icon192() {
   if (!dev && PROD_ARTWORK_DATA_URL) {
     return new ImageResponse(
       (
+        /* eslint-disable-next-line @next/next/no-img-element */
         <img
           src={PROD_ARTWORK_DATA_URL}
           width="100%"
           height="100%"
+          alt=""
           style={{
             objectFit: "cover",
             borderRadius: "50%",

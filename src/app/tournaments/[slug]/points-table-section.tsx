@@ -3,7 +3,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/server";
 

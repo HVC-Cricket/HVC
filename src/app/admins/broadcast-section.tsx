@@ -115,7 +115,7 @@ export function BroadcastSection({
           {selected && selected.subscribers === 0 && (
             <p className="text-[11px] text-muted-foreground">
               This tournament has no push subscribers yet. Send will
-              return "Sent to 0 devices".
+              return &quot;Sent to 0 devices&quot;.
             </p>
           )}
         </div>

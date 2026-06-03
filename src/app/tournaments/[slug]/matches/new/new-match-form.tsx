@@ -95,6 +95,7 @@ export function NewMatchForm({
     }
   };
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const teamAId = form.watch("team_a_id");
   const teamBId = form.watch("team_b_id");
 

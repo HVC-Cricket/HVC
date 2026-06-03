@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -83,7 +85,6 @@ export function useOfflineQueue({
     if (drainingRef.current) return;
     drainingRef.current = true;
     try {
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const tasks = await listTasksForMatch(matchId);
         if (tasks.length === 0) break;

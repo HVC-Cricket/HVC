@@ -1,5 +1,4 @@
 /* HVC Scoring — service worker */
-/* eslint-disable no-restricted-globals */
 
 // Bumped to v4 on 2026-05-19 to flush old PWA icons cached by users who
 // installed before the round HVC artwork landed. Bump again any time we

@@ -6,7 +6,55 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/client";
 
-const MAX_BYTES = 2 * 1024 * 1024; // 2MB
+const MAX_BYTES = 5 * 1024 * 1024; // 5MB
+
+/**
+ * Client-side compression using Canvas. Resizes to max 1200px and 80%
+ * quality JPEG to keep storage lean while preserving visibility.
+ */
+async function compressImage(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let width = img.width;
+        let height = img.height;
+
+        const MAX_DIM = 1200;
+        if (width > height) {
+          if (width > MAX_DIM) {
+            height *= MAX_DIM / width;
+            width = MAX_DIM;
+          }
+        } else {
+          if (height > MAX_DIM) {
+            width *= MAX_DIM / height;
+            height = MAX_DIM;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx?.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) resolve(blob);
+            else reject(new Error("Canvas compression failed"));
+          },
+          "image/jpeg",
+          0.8,
+        );
+      };
+      img.onerror = (e) => reject(e);
+    };
+    reader.onerror = (e) => reject(e);
+  });
+}
 
 type Props = {
   bucket:
@@ -55,15 +103,24 @@ export function LogoUploader({
       toast.error("Pick an image file");
       return;
     }
-    if (file.size > MAX_BYTES) {
-      toast.error(
-        `Image too large (max ${(MAX_BYTES / 1024 / 1024).toFixed(0)} MB)`,
-      );
-      return;
-    }
 
     setUploading(true);
     try {
+      let fileToUpload: File | Blob = file;
+      let ext = (file.name.split(".").pop() || "bin").toLowerCase();
+
+      if (file.size > MAX_BYTES) {
+        toast.info("Compressing large image...");
+        try {
+          fileToUpload = await compressImage(file);
+          ext = "jpg"; // compressImage outputs image/jpeg
+        } catch (err) {
+          console.error("Compression failed:", err);
+          toast.error("Failed to compress large image");
+          return;
+        }
+      }
+
       const supabase = createClient();
       const {
         data: { user },
@@ -72,14 +129,14 @@ export function LogoUploader({
         toast.error("Sign in to upload images");
         return;
       }
-      const ext = (file.name.split(".").pop() || "bin").toLowerCase();
+
       const folder = pathPrefix ?? user.id;
       const path = `${folder}/${Date.now()}-${Math.random()
         .toString(36)
         .slice(2, 8)}.${ext}`;
       const { error: uploadErr } = await supabase.storage
         .from(bucket)
-        .upload(path, file, { cacheControl: "3600", upsert: false });
+        .upload(path, fileToUpload, { cacheControl: "3600", upsert: false });
       if (uploadErr) {
         toast.error(uploadErr.message);
         return;

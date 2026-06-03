@@ -20,6 +20,7 @@ export default function AppleIcon() {
           src={PROD_ARTWORK_DATA_URL}
           width="100%"
           height="100%"
+          alt=""
           style={{
             objectFit: "cover",
             borderRadius: "50%",

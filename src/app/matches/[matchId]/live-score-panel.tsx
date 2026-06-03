@@ -38,8 +38,6 @@ export async function LiveScorePanel({ matchId }: { matchId: string }) {
     for (const p of state.xi[teamId] ?? []) playerById.set(p.id, p);
   }
 
-  const teamShort = (id: string) =>
-    id === state.teamA.id ? state.teamA.short_name : state.teamB.short_name;
   const teamName = (id: string) =>
     id === state.teamA.id ? state.teamA.name : state.teamB.name;
 

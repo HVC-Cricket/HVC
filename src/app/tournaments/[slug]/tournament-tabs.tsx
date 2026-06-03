@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import { useEffect, useState, type ReactNode } from "react";
 
 type TabId = "matches" | "table" | "stats" | "mvp" | "teams";

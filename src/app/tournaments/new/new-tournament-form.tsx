@@ -75,6 +75,7 @@ export function NewTournamentForm() {
       cat3_overs: [2],
     },
   });
+  // eslint-disable-next-line react-hooks/incompatible-library
   const overs = form.watch("default_overs_per_innings");
   const cat1Overs = form.watch("cat1_overs");
   const cat3Overs = form.watch("cat3_overs");

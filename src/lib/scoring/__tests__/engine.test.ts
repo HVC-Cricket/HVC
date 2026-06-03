@@ -74,6 +74,7 @@ describe("applyBall — basic", () => {
       non_striker: cat2_batter_2,
       bowler: cat2_bowler,
     });
+    expect(s0.striker_id).toBe(cat2_batter.id);
     // jump out of over 1 / cat1 special so this is plain
     const s1 = startInnings({
       innings_number: 1,
@@ -442,9 +443,9 @@ describe("applyBall — innings completion", () => {
       innings_number: 1,
       batting_team_id: team_a,
       bowling_team_id: team_b,
-      striker: cat2_batter,
+      striker: cat3_batter,
       non_striker: cat2_batter_2,
-      bowler: cat2_bowler,
+      bowler: cat3_bowler,
       rules,
     });
     // 7 overs × 6 legal balls
